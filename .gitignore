@@ -1,0 +1,21 @@
+# Runtime outputs
+evidence/**
+dlq/*.json
+.cache/**
+sim_report.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version
+.pytest_cache/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Keep placeholders
+!dlq/.gitkeep

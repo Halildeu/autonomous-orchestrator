@@ -1,0 +1,5 @@
+{
+  "version": "v1",
+  "approval_risk_threshold": 0.7,
+  "note": "WWV: Only approval threshold is enforced. Extend later to full decision policy."
+}

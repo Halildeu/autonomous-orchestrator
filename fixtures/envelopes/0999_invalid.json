@@ -1,0 +1,12 @@
+{
+  "request_id": "REQ-0999",
+  "tenant_id": "TENANT-LOCAL",
+  "intent": "not-a-urn",
+  "risk_score": 1.5,
+  "dry_run": "true",
+  "side_effect_policy": "none",
+  "idempotency_key": "TENANT-LOCAL:REQ-0999",
+  "budget": { "max_tokens": 0, "max_attempts": 0 },
+  "extra_field": "should_fail_schema"
+}
+

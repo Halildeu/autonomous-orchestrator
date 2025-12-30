@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "modules": [
+    { "id": "MOD_A", "context_strategy": "inherit" },
+    { "id": "MOD_B", "context_strategy": "inherit" }
+  ],
+  "workflows": [{ "workflow_id": "WF_CORE", "path": "workflows/wf_core.v1.json" }]
+}
+
