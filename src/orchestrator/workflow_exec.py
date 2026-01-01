@@ -514,6 +514,116 @@ def _exec_mod_policy_review(
     return NodeResult(node_id=node_id, status="COMPLETED", output=output)
 
 
+def _exec_mod_dlq_triage(
+    *,
+    envelope: dict,
+    workspace: Path,
+    evidence: EvidenceWriter,
+    node_id: str,
+    budget: BudgetTracker | None,
+) -> NodeResult:
+    from src.modules.dlq_triage import run_dlq_triage
+
+    context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
+
+    output_path_raw = context.get("output_path")
+    output_path = (
+        output_path_raw.strip()
+        if isinstance(output_path_raw, str) and output_path_raw.strip()
+        else "reports/DLQ_TRIAGE.md"
+    )
+    dry_run = bool(envelope.get("dry_run", False))
+
+    node_input = {
+        "node_id": node_id,
+        "module_id": "MOD_DLQ_TRIAGE",
+        "dlq_dir": "dlq",
+        "limit": context.get("limit"),
+        "planned_output_path": output_path,
+        "dry_run": dry_run,
+    }
+    evidence.write_node_input(node_id, node_input)
+
+    tool_calls: list[dict[str, Any]] = []
+    try:
+        triage = run_dlq_triage(envelope=envelope, workspace=str(workspace))
+    except Exception as e:
+        err = str(e)[:300]
+        tool_calls.append({"tool": "dlq_triage", "status": "FAIL", "error": err})
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_DLQ_TRIAGE",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "MODULE_FAILED",
+            "error": err or "dlq triage failed",
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, "MOD_DLQ_TRIAGE failed.")
+        raise RuntimeError(err or "dlq triage failed")
+
+    if triage.get("status") != "OK":
+        msg = triage.get("error")
+        err = msg if isinstance(msg, str) and msg else "dlq triage failed"
+        tool_calls.append({"tool": "dlq_triage", "status": "FAIL", "error": err})
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_DLQ_TRIAGE",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "MODULE_FAILED",
+            "error": err,
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, "MOD_DLQ_TRIAGE failed.")
+        raise RuntimeError(err)
+
+    report_markdown = triage.get("report_markdown")
+    report_md = report_markdown if isinstance(report_markdown, str) else ""
+    report_bytes = len(report_md.encode("utf-8")) if report_md else int(triage.get("report_bytes", 0) or 0)
+
+    tool_calls.append(
+        {
+            "tool": "dlq_triage",
+            "status": "OK",
+            "args_summary": {"limit": triage.get("limit_used", 0), "dlq_dir": "dlq"},
+            "items_scanned": triage.get("items_scanned", 0),
+        }
+    )
+
+    side_effects: dict[str, Any] = {}
+    if dry_run:
+        try:
+            resolved_target = resolve_path_in_workspace(workspace=str(workspace), path=output_path)
+            side_effects["would_write"] = {
+                "target_path": str(resolved_target),
+                "bytes_estimate": int(report_bytes),
+            }
+        except PolicyViolation:
+            pass
+
+    output = {
+        "node_id": node_id,
+        "status": "COMPLETED",
+        "module_id": "MOD_DLQ_TRIAGE",
+        "side_effects": side_effects,
+        "tool_calls": tool_calls,
+        "items_scanned": int(triage.get("items_scanned", 0) or 0),
+        "limit_used": int(triage.get("limit_used", 0) or 0),
+        "counts_by_stage": triage.get("counts_by_stage", {}),
+        "counts_by_error_code": triage.get("counts_by_error_code", {}),
+        "report_bytes": int(report_bytes),
+        "report_markdown": report_md,
+    }
+    evidence.write_node_output(node_id, output)
+    evidence.write_node_log(node_id, "MOD_DLQ_TRIAGE completed.")
+    if budget is not None and report_md:
+        budget.consume_tokens(estimate_tokens(report_md))
+    return NodeResult(node_id=node_id, status="COMPLETED", output=output)
+
+
 def _render_summary_markdown(mod_a_output: dict[str, Any]) -> str:
     summary = mod_a_output.get("summary", {})
     title = summary.get("summary") if isinstance(summary, dict) else None
@@ -607,6 +717,8 @@ def _exec_mod_b(
     default_output_path = "fixtures/out.md"
     if intent_str == "urn:core:docs:policy_review":
         default_output_path = "reports/POLICY_REVIEW.md"
+    if intent_str == "urn:core:ops:dlq_triage":
+        default_output_path = "reports/DLQ_TRIAGE.md"
     output_path = (
         output_path_raw.strip()
         if isinstance(output_path_raw, str) and output_path_raw.strip()
@@ -646,6 +758,10 @@ def _exec_mod_b(
 
     content = _render_summary_markdown(mod_a_output)
     if intent_str == "urn:core:docs:policy_review":
+        report_md = mod_a_output.get("report_markdown")
+        if isinstance(report_md, str) and report_md.strip():
+            content = report_md
+    if intent_str == "urn:core:ops:dlq_triage":
         report_md = mod_a_output.get("report_markdown")
         if isinstance(report_md, str) and report_md.strip():
             content = report_md
@@ -831,6 +947,14 @@ def execute_workflow(
                         node_id=node_id,
                         gateway=gateway,
                         capability=module_caps.get("MOD_POLICY_REVIEW", {}),
+                        budget=budget,
+                    )
+                elif isinstance(intent, str) and intent == "urn:core:ops:dlq_triage":
+                    res = _exec_mod_dlq_triage(
+                        envelope=envelope,
+                        workspace=workspace,
+                        evidence=evidence,
+                        node_id=node_id,
                         budget=budget,
                     )
                 else:

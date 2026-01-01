@@ -1,0 +1,11 @@
+{
+  "request_id": "REQ-0910",
+  "tenant_id": "TENANT-LOCAL",
+  "intent": "urn:core:ops:dlq_triage",
+  "risk_score": 0.1,
+  "dry_run": true,
+  "side_effect_policy": "none",
+  "idempotency_key": "TENANT-LOCAL:REQ-0910",
+  "budget": { "max_tokens": 2000, "max_attempts": 2, "max_time_ms": 20000 },
+  "context": { "limit": 5, "output_path": "dlq_triage.md" }
+}

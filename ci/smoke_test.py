@@ -515,6 +515,142 @@ def main() -> None:
 
     print(f"CRITICAL_POLICY_REVIEW: ok=true report_bytes={report_bytes_pr}")
 
+    # MOD_DLQ_TRIAGE: DLQ triage report generation (safe, deterministic, no network).
+    dlq_triage_env_path = repo_root / "fixtures" / "envelopes" / "0910_dlq_triage.json"
+    if not dlq_triage_env_path.exists():
+        raise SystemExit("Smoke test failed: fixtures/envelopes/0910_dlq_triage.json missing.")
+
+    dlq_dir = repo_root / "dlq"
+    dlq_dir.mkdir(parents=True, exist_ok=True)
+
+    synth_a = dlq_dir / "99999999_000001_REQ-DLQ-SYNTH-A.json"
+    synth_b = dlq_dir / "99999999_000002_REQ-DLQ-SYNTH-B.json"
+    for p in (synth_a, synth_b):
+        if p.exists():
+            p.unlink()
+
+    synth_records = [
+        (
+            synth_a,
+            {
+                "stage": "EXECUTION",
+                "error_code": "SYNTH_ERROR_A",
+                "message": "SYNTH_MSG_ALPHA",
+                "envelope": {
+                    "request_id": "REQ-DLQ-SYNTH-A",
+                    "tenant_id": "TENANT-LOCAL",
+                    "intent": "urn:core:summary:summary_to_file",
+                    "risk_score": 0.1,
+                    "dry_run": True,
+                    "side_effect_policy": "none",
+                    "idempotency_key_hash": "synth",
+                },
+                "ts": "2000-01-01T00:00:00Z",
+            },
+        ),
+        (
+            synth_b,
+            {
+                "stage": "BUDGET",
+                "error_code": "SYNTH_ERROR_B",
+                "message": "SYNTH_MSG_BETA",
+                "envelope": {
+                    "request_id": "REQ-DLQ-SYNTH-B",
+                    "tenant_id": "TENANT-LOCAL",
+                    "intent": "urn:core:summary:summary_to_file",
+                    "risk_score": 0.9,
+                    "dry_run": True,
+                    "side_effect_policy": "none",
+                    "idempotency_key_hash": "synth",
+                },
+                "ts": "2000-01-01T00:00:01Z",
+            },
+        ),
+    ]
+    for p, obj in synth_records:
+        p.write_text(json.dumps(obj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    dlq_triage_out_file = repo_root / "dlq_triage.md"
+    if dlq_triage_out_file.exists():
+        dlq_triage_out_file.unlink()
+
+    out_dir_dlq_triage = smoke_root / "dlq_triage"
+    if out_dir_dlq_triage.exists():
+        rmtree(out_dir_dlq_triage)
+
+    try:
+        proc_dlq_triage = run(
+            [
+                sys.executable,
+                "-m",
+                "src.orchestrator.local_runner",
+                "--envelope",
+                str(dlq_triage_env_path),
+                "--workspace",
+                str(repo_root),
+                "--out",
+                str(out_dir_dlq_triage),
+            ]
+        )
+        try:
+            summary_dt = json.loads(proc_dlq_triage.stdout)
+        except Exception as e:
+            raise SystemExit(
+                "Smoke test failed: 0910 dlq triage stdout must be JSON.\n" + proc_dlq_triage.stdout
+            ) from e
+
+        if summary_dt.get("result_state") != "COMPLETED":
+            raise SystemExit("Smoke test failed: 0910 dlq triage must complete (dry_run, no approval needed).")
+
+        run_id_dt = summary_dt.get("run_id")
+        if not isinstance(run_id_dt, str) or not run_id_dt:
+            raise SystemExit("Smoke test failed: 0910 dlq triage missing run_id.")
+
+        ev_dt = out_dir_dlq_triage / run_id_dt
+        mod_a_out_dt = json.loads((ev_dt / "nodes" / "MOD_A" / "output.json").read_text(encoding="utf-8"))
+        if not isinstance(mod_a_out_dt, dict):
+            raise SystemExit("Smoke test failed: 0910 MOD_A output must be a JSON object.")
+        if mod_a_out_dt.get("module_id") != "MOD_DLQ_TRIAGE":
+            raise SystemExit("Smoke test failed: 0910 MOD_A module_id must be MOD_DLQ_TRIAGE.")
+        if mod_a_out_dt.get("status") != "COMPLETED":
+            raise SystemExit("Smoke test failed: 0910 MOD_DLQ_TRIAGE must complete.")
+
+        items_scanned = int(mod_a_out_dt.get("items_scanned", 0))
+        if items_scanned < 2:
+            raise SystemExit("Smoke test failed: 0910 MOD_DLQ_TRIAGE items_scanned must be >= 2.")
+
+        report_bytes_dt = int(mod_a_out_dt.get("report_bytes", 0))
+        if report_bytes_dt <= 0:
+            raise SystemExit("Smoke test failed: 0910 MOD_DLQ_TRIAGE report_bytes must be > 0.")
+
+        side_effects_dt = mod_a_out_dt.get("side_effects")
+        if not (isinstance(side_effects_dt, dict) and isinstance(side_effects_dt.get("would_write"), dict)):
+            raise SystemExit("Smoke test failed: 0910 MOD_DLQ_TRIAGE must record side_effects.would_write (dry_run).")
+
+        counts_by_error = mod_a_out_dt.get("counts_by_error_code")
+        if not (
+            isinstance(counts_by_error, dict)
+            and int(counts_by_error.get("SYNTH_ERROR_A", 0)) >= 1
+            and int(counts_by_error.get("SYNTH_ERROR_B", 0)) >= 1
+        ):
+            raise SystemExit("Smoke test failed: 0910 counts_by_error_code must include synthetic error codes.")
+
+        tc_dt = mod_a_out_dt.get("tool_calls")
+        if not (
+            isinstance(tc_dt, list)
+            and any(isinstance(tc, dict) and tc.get("tool") == "dlq_triage" and tc.get("status") == "OK" for tc in tc_dt)
+        ):
+            raise SystemExit("Smoke test failed: 0910 MOD_DLQ_TRIAGE must record a successful dlq_triage tool_call.")
+
+        if dlq_triage_out_file.exists():
+            raise SystemExit("Smoke test failed: dlq triage dry_run must not create dlq_triage.md")
+
+        print(f"CRITICAL_DLQ_TRIAGE: ok=true items_scanned={items_scanned} report_bytes={report_bytes_dt}")
+    finally:
+        for p in (synth_a, synth_b):
+            if p.exists():
+                p.unlink()
+
     # CLI shortcut: orchestrator run --intent ... (no envelope file needed).
     cli_policy_review_out_file = repo_root / "policy_review.md"
     if cli_policy_review_out_file.exists():

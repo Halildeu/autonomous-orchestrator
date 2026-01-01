@@ -25,7 +25,8 @@ python examples/policy_check_demo.py
 ## CLI shortcut (no envelope file)
 
 ```bash
-python -m src.cli run --intent urn:core:docs:policy_review --tenant TENANT-LOCAL --dry-run true
+python -m src.cli run --intent urn:core:docs:policy_review --tenant TENANT-LOCAL --dry-run true --output-path policy_review.md
+python -m src.cli run --intent urn:core:ops:dlq_triage --tenant TENANT-LOCAL --dry-run true --output-path dlq_triage.md
 ```
 
 Gerçek OpenAI çağrısı için (integration-only) `openai-ping` kullan:
