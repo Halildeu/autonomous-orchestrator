@@ -1,0 +1,29 @@
+{
+  "version": "v1",
+  "side_effect_policies": ["none", "draft", "pr", "merge", "deploy"],
+  "supported_now": ["none", "draft", "pr"],
+  "blocked_now": ["merge", "deploy"],
+  "notes": [
+    "This manifest is a human+machine-readable snapshot of current side-effect capabilities.",
+    "merge/deploy are reserved names and are currently blocked by request-envelope schema (fail-closed)."
+  ],
+  "tools": {
+    "fs_read": { "risk": "low" },
+    "fs_write": { "risk": "medium" },
+    "secrets_get": { "risk": "medium" },
+    "github_pr_create": { "risk": "high", "integration_only": true }
+  },
+  "capabilities_matrix_source": "registry/registry.v1.json",
+  "capabilities_matrix": [
+    { "module_id": "MOD_A", "allowed_tools": ["fs_read", "secrets_get"] },
+    { "module_id": "MOD_B", "allowed_tools": ["fs_write", "github_pr_create"] },
+    { "module_id": "MOD_POLICY_REVIEW", "allowed_tools": ["fs_read", "fs_write"] },
+    { "module_id": "MOD_DLQ_TRIAGE", "allowed_tools": ["fs_read"] }
+  ],
+  "gating_rules": [
+    "dry_run=true => no writes, no PRs (plans only)",
+    "side_effect_policy=pr (dry_run=false) requires APPROVAL to pass or a resume approve step before MOD_B runs",
+    "github_pr_create requires ORCH_INTEGRATION_MODE=1 + policy_security.network_access=true + api.github.com allowlist + policy_secrets allows GITHUB_TOKEN + secret present"
+  ]
+}
+

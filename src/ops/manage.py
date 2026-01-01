@@ -743,6 +743,63 @@ def cmd_reaper(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_evidence_export(args: argparse.Namespace) -> int:
+    root = repo_root()
+
+    run_arg = str(args.run).strip() if args.run else ""
+    if not run_arg:
+        print(json.dumps({"status": "FAIL", "reason": "INVALID_ARGS"}, ensure_ascii=False, sort_keys=True))
+        return 2
+
+    run_path = Path(run_arg)
+    run_dir = (root / run_path).resolve() if not run_path.is_absolute() else run_path.resolve()
+
+    if not run_dir.exists():
+        # Treat as run_id and locate under evidence/.
+        evidence_dir = root / "evidence"
+        direct = evidence_dir / run_arg
+        if direct.exists() and direct.is_dir():
+            run_dir = direct
+        else:
+            matches = sorted(
+                [
+                    p
+                    for p in evidence_dir.rglob(run_arg)
+                    if p.is_dir() and p.name == run_arg and (p / "summary.json").exists()
+                ],
+                key=lambda p: p.as_posix(),
+            )
+            if not matches:
+                print(
+                    json.dumps(
+                        {"status": "FAIL", "reason": "RUN_NOT_FOUND", "run_id": run_arg},
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                )
+                return 2
+            run_dir = matches[0]
+
+    out_path = Path(str(args.out))
+    out_path = (root / out_path).resolve() if not out_path.is_absolute() else out_path.resolve()
+
+    try:
+        force = parse_reaper_bool(str(args.force))
+    except ValueError:
+        print(json.dumps({"status": "FAIL", "reason": "INVALID_ARGS"}, ensure_ascii=False, sort_keys=True))
+        return 2
+
+    from src.ops.evidence_export import export_evidence_zip
+
+    code, payload = export_evidence_zip(run_dir=run_dir, out_zip=out_path, force=force)
+    try:
+        payload["out"] = out_path.resolve().relative_to(root.resolve()).as_posix()
+    except Exception:
+        pass
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if int(code) == 0 else 2
+
+
 def cmd_policy_check(args: argparse.Namespace) -> int:
     root = repo_root()
     source = str(args.source)
@@ -1058,6 +1115,77 @@ def cmd_openai_ping(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_github_pr_test(args: argparse.Namespace) -> int:
+    root = repo_root()
+
+    repo = str(args.repo).strip() if args.repo else ""
+    head = str(args.head).strip() if args.head else ""
+    base = str(args.base).strip() if args.base else "main"
+    title = str(args.title).strip() if args.title else ""
+    body = str(args.body) if args.body is not None else ""
+    if not title:
+        title = "autonomous-orchestrator: github-pr-test"
+
+    try:
+        draft = parse_reaper_bool(str(args.draft))
+    except ValueError:
+        payload = {"status": "FAIL", "repo": repo, "error_code": "INVALID_ARGS", "redacted": True}
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return 2
+
+    from src.tools.errors import PolicyViolation
+    from src.tools.gateway import ToolGateway
+
+    gateway = ToolGateway()
+    try:
+        res = gateway.call(
+            "github_pr_create",
+            {
+                "repo": repo,
+                "base": base,
+                "head": head,
+                "title": title,
+                "body": body,
+                "draft": bool(draft),
+            },
+            capability={"allowed_tools": ["github_pr_create"]},
+            workspace=str(root),
+        )
+    except PolicyViolation as e:
+        payload = {
+            "status": "FAIL",
+            "repo": repo,
+            "number": None,
+            "pr_url": None,
+            "error_code": e.error_code,
+            "redacted": True,
+        }
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return 2
+    except Exception:
+        payload = {
+            "status": "FAIL",
+            "repo": repo,
+            "number": None,
+            "pr_url": None,
+            "error_code": "GITHUB_API_ERROR",
+            "redacted": True,
+        }
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return 2
+
+    payload = {
+        "status": "OK",
+        "repo": res.get("repo") or repo,
+        "number": res.get("number"),
+        "pr_url": res.get("pr_url"),
+        "error_code": None,
+        "redacted": True,
+    }
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m src.ops.manage")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -1083,6 +1211,12 @@ def main(argv: list[str] | None = None) -> int:
     ap_reaper.add_argument("--out", help="Optional report JSON output path.")
     ap_reaper.set_defaults(func=cmd_reaper)
 
+    ap_export = sub.add_parser("evidence-export", help="Export one evidence run as a zip (integrity-checked).")
+    ap_export.add_argument("--run", required=True, help="Run id or path to evidence/<run_id> directory.")
+    ap_export.add_argument("--out", required=True, help="Output zip path.")
+    ap_export.add_argument("--force", default="false", help="true|false (default: false).")
+    ap_export.set_defaults(func=cmd_evidence_export)
+
     ap_pc = sub.add_parser("policy-check", help="Validate + simulate policy impact (safe local workflow).")
     ap_pc.add_argument("--source", choices=["fixtures", "evidence", "both"], default="fixtures")
     ap_pc.add_argument("--baseline", default="HEAD~1", help="Git ref for baseline (default: HEAD~1).")
@@ -1095,6 +1229,15 @@ def main(argv: list[str] | None = None) -> int:
     ap_ping.add_argument("--model", default=None, help="OpenAI model id (default: gpt-5.2-codex).")
     ap_ping.add_argument("--timeout-ms", default="5000", help="HTTP timeout in milliseconds (default: 5000).")
     ap_ping.set_defaults(func=cmd_openai_ping)
+
+    ap_gh = sub.add_parser("github-pr-test", help="Integration-only GitHub PR create test (policy + secrets enforced).")
+    ap_gh.add_argument("--repo", required=True, help="GitHub repo in owner/name form.")
+    ap_gh.add_argument("--head", required=True, help="PR head branch (e.g. branch-name or owner:branch).")
+    ap_gh.add_argument("--base", default="main", help="PR base branch (default: main).")
+    ap_gh.add_argument("--title", default=None, help="PR title (default: a safe placeholder).")
+    ap_gh.add_argument("--body", default="", help="PR body (default: empty).")
+    ap_gh.add_argument("--draft", default="true", help="true|false (default: true).")
+    ap_gh.set_defaults(func=cmd_github_pr_test)
 
     ap_policy = sub.add_parser("policy", help="Safe policy editing helpers (export/validate/diff/apply).")
     policy_sub = ap_policy.add_subparsers(dest="policy_command", required=True)

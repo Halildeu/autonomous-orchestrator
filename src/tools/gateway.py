@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from src.tools import fs_read, fs_write, secrets_get
+from src.tools import fs_read, fs_write, github_pr_create, secrets_get
 from src.tools.errors import PolicyViolation
 
 
@@ -37,6 +37,7 @@ class ToolGateway:
                     "fs_read": fs_read.run,
                     "fs_write": fs_write.run,
                     "secrets_get": secrets_get.run,
+                    "github_pr_create": github_pr_create.run,
                 },
             )
 
@@ -85,6 +86,51 @@ class ToolGateway:
             if handle_str is not None:
                 result["handle"] = handle_str
             return result
+
+        if tool_name == "github_pr_create":
+            repo = args.get("repo")
+            base = args.get("base", "main")
+            head = args.get("head")
+            title = args.get("title")
+            body = args.get("body", "")
+            draft = args.get("draft", True)
+
+            if not isinstance(repo, str) or not repo.strip():
+                raise PolicyViolation("INVALID_ARGS", "github_pr_create requires non-empty 'repo'.")
+            if not isinstance(base, str) or not base.strip():
+                raise PolicyViolation("INVALID_ARGS", "github_pr_create requires non-empty 'base'.")
+            if not isinstance(head, str) or not head.strip():
+                raise PolicyViolation("INVALID_ARGS", "github_pr_create requires non-empty 'head'.")
+            if not isinstance(title, str) or not title.strip():
+                raise PolicyViolation("INVALID_ARGS", "github_pr_create requires non-empty 'title'.")
+            if not isinstance(body, str):
+                body = ""
+            if not isinstance(draft, bool):
+                raise PolicyViolation("INVALID_ARGS", "github_pr_create requires boolean 'draft'.")
+
+            out = tool_fn(
+                repo=repo.strip(),
+                base=base.strip(),
+                head=head.strip(),
+                title=title.strip(),
+                body=body,
+                draft=draft,
+                workspace=workspace,
+            )
+            bytes_in = out.get("bytes_in")
+            bytes_out = out.get("bytes_out")
+            bytes_in_int = int(bytes_in) if isinstance(bytes_in, int) else 0
+            bytes_out_int = int(bytes_out) if isinstance(bytes_out, int) else 0
+            return {
+                "tool": "github_pr_create",
+                "status": out.get("status", "OK"),
+                "bytes_in": bytes_in_int,
+                "bytes_out": bytes_out_int,
+                "repo": out.get("repo", repo.strip()),
+                "number": out.get("number"),
+                "pr_url": out.get("pr_url"),
+                "redacted": True,
+            }
 
         path_arg = args.get("path")
         if not isinstance(path_arg, str) or not path_arg.strip():

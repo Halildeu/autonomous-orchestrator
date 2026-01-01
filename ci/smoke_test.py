@@ -2,9 +2,10 @@ import json
 import os
 import subprocess
 import sys
+import zipfile
 from hashlib import sha256
 from pathlib import Path
-from shutil import rmtree
+from shutil import copytree, rmtree
 import tomllib
 
 
@@ -90,6 +91,90 @@ def main() -> None:
             + (proc_examples_import.stderr or proc_examples_import.stdout or "")
         )
 
+    # CLI help/usage must be stable and informative.
+    proc_cli_help = subprocess.run(
+        [sys.executable, "-m", "src.cli", "--help"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc_cli_help.returncode != 0:
+        raise SystemExit(
+            "Smoke test failed: src.cli --help must exit 0.\n"
+            + (proc_cli_help.stderr or proc_cli_help.stdout or "")
+        )
+    cli_help_text = (proc_cli_help.stdout or "") + (proc_cli_help.stderr or "")
+    required_help_terms = [
+        "run",
+        "ops",
+        "sdk-demo",
+        "urn:core:docs:policy_review",
+        "urn:core:ops:dlq_triage",
+    ]
+    missing_help_terms = [t for t in required_help_terms if t not in cli_help_text]
+    if missing_help_terms:
+        raise SystemExit(
+            "Smoke test failed: src.cli --help missing terms: "
+            + ", ".join(missing_help_terms)
+        )
+
+    proc_cli_run_help = subprocess.run(
+        [sys.executable, "-m", "src.cli", "run", "--help"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc_cli_run_help.returncode != 0:
+        raise SystemExit(
+            "Smoke test failed: src.cli run --help must exit 0.\n"
+            + (proc_cli_run_help.stderr or proc_cli_run_help.stdout or "")
+        )
+    cli_run_help_text = (proc_cli_run_help.stdout or "") + (proc_cli_run_help.stderr or "")
+    required_run_help_terms = [
+        "--side-effect-policy",
+        "merge/deploy",
+        "blocked",
+    ]
+    missing_run_terms = [t for t in required_run_help_terms if t not in cli_run_help_text]
+    if missing_run_terms:
+        raise SystemExit(
+            "Smoke test failed: src.cli run --help missing terms: "
+            + ", ".join(missing_run_terms)
+        )
+
+    pyproject_path_cli = repo_root / "pyproject.toml"
+    if not pyproject_path_cli.exists():
+        raise SystemExit("Smoke test failed: missing pyproject.toml for CLI version check.")
+    with pyproject_path_cli.open("rb") as f:
+        py_obj_cli = tomllib.load(f)
+    project_cli = py_obj_cli.get("project") if isinstance(py_obj_cli, dict) else None
+    if not isinstance(project_cli, dict) or not isinstance(project_cli.get("version"), str):
+        raise SystemExit("Smoke test failed: pyproject.toml missing [project].version for CLI version check.")
+    expected_cli_version = project_cli["version"].strip()
+
+    proc_cli_version = subprocess.run(
+        [sys.executable, "-m", "src.cli", "--version"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc_cli_version.returncode != 0:
+        raise SystemExit(
+            "Smoke test failed: src.cli --version must exit 0.\n"
+            + (proc_cli_version.stderr or proc_cli_version.stdout or "")
+        )
+    cli_version = (proc_cli_version.stdout or "").strip()
+    if cli_version != expected_cli_version:
+        raise SystemExit(
+            "Smoke test failed: src.cli --version mismatch; expected "
+            + expected_cli_version
+            + " got "
+            + cli_version
+        )
+
+    print("CRITICAL_CLI_HELP: ok=true")
+    print(f"CRITICAL_CLI_VERSION: version={cli_version}")
+
     # Repo hygiene guard: ensure critical JSON config files are NOT ignored.
     # (In CI, checkout is a git work tree; locally we skip if not in git.)
     in_git = is_git_work_tree(repo_root)
@@ -107,6 +192,32 @@ def main() -> None:
         print("NOTE: not in a git work tree; skipping gitignore guard.")
 
     run([sys.executable, str(repo_root / "ci" / "validate_schemas.py")])
+
+    # Side-effects SSOT manifest must exist and be valid JSON.
+    se_manifest_path = repo_root / "docs" / "OPERATIONS" / "side-effects-manifest.v1.json"
+    if not se_manifest_path.exists():
+        raise SystemExit("Smoke test failed: missing side-effects manifest: docs/OPERATIONS/side-effects-manifest.v1.json")
+    try:
+        se_manifest = json.loads(se_manifest_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise SystemExit("Smoke test failed: side-effects manifest must be valid JSON.") from e
+    if not isinstance(se_manifest, dict):
+        raise SystemExit("Smoke test failed: side-effects manifest must be a JSON object.")
+
+    supported_now_raw = se_manifest.get("supported_now")
+    blocked_now_raw = se_manifest.get("blocked_now")
+    supported_now = (
+        [x for x in supported_now_raw if isinstance(x, str) and x.strip()]
+        if isinstance(supported_now_raw, list)
+        else []
+    )
+    blocked_now = (
+        [x for x in blocked_now_raw if isinstance(x, str) and x.strip()]
+        if isinstance(blocked_now_raw, list)
+        else []
+    )
+    print(f"CRITICAL_SIDE_EFFECT_MANIFEST: supported_now={supported_now} blocked_now={blocked_now}")
+
     run(
         [
             sys.executable,
@@ -473,6 +584,9 @@ def main() -> None:
     except Exception as e:
         raise SystemExit("Smoke test failed: 0900 policy review stdout must be JSON.\n" + proc_policy_review.stdout) from e
 
+    if summary_pr.get("workflow_id") != "WF_POLICY_REVIEW":
+        raise SystemExit("Smoke test failed: 0900 policy review must route to WF_POLICY_REVIEW.")
+
     if summary_pr.get("result_state") != "COMPLETED":
         raise SystemExit("Smoke test failed: 0900 policy review must complete (dry_run, no approval needed).")
 
@@ -602,6 +716,9 @@ def main() -> None:
         if summary_dt.get("result_state") != "COMPLETED":
             raise SystemExit("Smoke test failed: 0910 dlq triage must complete (dry_run, no approval needed).")
 
+        if summary_dt.get("workflow_id") != "WF_DLQ_TRIAGE":
+            raise SystemExit("Smoke test failed: 0910 dlq triage must route to WF_DLQ_TRIAGE.")
+
         run_id_dt = summary_dt.get("run_id")
         if not isinstance(run_id_dt, str) or not run_id_dt:
             raise SystemExit("Smoke test failed: 0910 dlq triage missing run_id.")
@@ -650,6 +767,147 @@ def main() -> None:
         for p in (synth_a, synth_b):
             if p.exists():
                 p.unlink()
+
+    print("CRITICAL_WORKFLOW_ROUTING: policy_review=WF_POLICY_REVIEW dlq_triage=WF_DLQ_TRIAGE")
+
+    # GitHub PR side-effect (v0.1): deterministic dry-run plan + fail-closed live mode.
+    pr_dry_env_path = repo_root / "fixtures" / "envelopes" / "0920_pr_side_effect_dry.json"
+    if not pr_dry_env_path.exists():
+        raise SystemExit("Smoke test failed: fixtures/envelopes/0920_pr_side_effect_dry.json missing.")
+
+    out_dir_pr_dry = smoke_root / "pr_side_effect_dry"
+    if out_dir_pr_dry.exists():
+        rmtree(out_dir_pr_dry)
+
+    proc_pr_dry = run(
+        [
+            sys.executable,
+            "-m",
+            "src.orchestrator.local_runner",
+            "--envelope",
+            str(pr_dry_env_path),
+            "--workspace",
+            str(repo_root),
+            "--out",
+            str(out_dir_pr_dry),
+        ]
+    )
+    try:
+        summary_pr_dry = json.loads(proc_pr_dry.stdout)
+    except Exception as e:
+        raise SystemExit("Smoke test failed: 0920 pr dry stdout must be JSON.\n" + proc_pr_dry.stdout) from e
+
+    if summary_pr_dry.get("result_state") != "COMPLETED":
+        raise SystemExit("Smoke test failed: 0920 pr dry must complete (dry_run=true).")
+
+    run_id_pr_dry = summary_pr_dry.get("run_id")
+    if not isinstance(run_id_pr_dry, str) or not run_id_pr_dry:
+        raise SystemExit("Smoke test failed: 0920 pr dry missing run_id.")
+
+    ev_pr_dry = out_dir_pr_dry / run_id_pr_dry
+    mod_b_out_pr_dry = json.loads((ev_pr_dry / "nodes" / "MOD_B" / "output.json").read_text(encoding="utf-8"))
+    side_effects_pr_dry = mod_b_out_pr_dry.get("side_effects") if isinstance(mod_b_out_pr_dry, dict) else None
+    if not (isinstance(side_effects_pr_dry, dict) and isinstance(side_effects_pr_dry.get("would_pr_create"), dict)):
+        raise SystemExit("Smoke test failed: 0920 MOD_B must record side_effects.would_pr_create (dry_run).")
+
+    pr_live_env_path = repo_root / "fixtures" / "envelopes" / "0921_pr_side_effect_live_blocked.json"
+    if not pr_live_env_path.exists():
+        raise SystemExit("Smoke test failed: fixtures/envelopes/0921_pr_side_effect_live_blocked.json missing.")
+
+    out_dir_pr_live = smoke_root / "pr_side_effect_live"
+    if out_dir_pr_live.exists():
+        rmtree(out_dir_pr_live)
+
+    dlq_before_pr = set(dlq_dir.glob("*.json"))
+    pr_env = dict(os.environ)
+    pr_env.pop("ORCH_INTEGRATION_MODE", None)
+    pr_env.pop("GITHUB_TOKEN", None)
+    proc_pr_live = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.orchestrator.local_runner",
+            "--envelope",
+            str(pr_live_env_path),
+            "--workspace",
+            str(repo_root),
+            "--out",
+            str(out_dir_pr_live),
+        ],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        env=pr_env,
+    )
+    try:
+        summary_pr_live = json.loads(proc_pr_live.stdout)
+    except Exception as e:
+        raise SystemExit("Smoke test failed: 0921 pr live stdout must be JSON.\n" + proc_pr_live.stdout) from e
+
+    run_id_pr_live = summary_pr_live.get("run_id")
+    if not isinstance(run_id_pr_live, str) or not run_id_pr_live:
+        raise SystemExit("Smoke test failed: 0921 pr live missing run_id.")
+
+    # Depending on autonomy gating, the initial run may SUSPEND. Resume with approval to trigger MOD_B.
+    ev_pr_live = out_dir_pr_live / run_id_pr_live
+    if (ev_pr_live / "summary.json").exists():
+        summary_pr_live_file = json.loads((ev_pr_live / "summary.json").read_text(encoding="utf-8"))
+    else:
+        summary_pr_live_file = summary_pr_live
+
+    if summary_pr_live_file.get("result_state") == "SUSPENDED":
+        proc_pr_resume = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.orchestrator.local_runner",
+                "--resume",
+                str(ev_pr_live),
+                "--workspace",
+                str(repo_root),
+                "--out",
+                str(out_dir_pr_live),
+                "--approve",
+                "true",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=pr_env,
+        )
+        if proc_pr_resume.returncode == 0:
+            raise SystemExit("Smoke test failed: 0921 resume must fail closed without integration mode.")
+
+    summary_pr_live_after = json.loads((ev_pr_live / "summary.json").read_text(encoding="utf-8"))
+    if summary_pr_live_after.get("result_state") != "FAILED":
+        raise SystemExit("Smoke test failed: 0921 pr live must end as FAILED (integration blocked).")
+    if summary_pr_live_after.get("policy_violation_code") != "INTEGRATION_MODE_REQUIRED":
+        raise SystemExit(
+            "Smoke test failed: 0921 pr live must fail with INTEGRATION_MODE_REQUIRED, got: "
+            + str(summary_pr_live_after.get("policy_violation_code"))
+        )
+
+    dlq_after_pr = set(dlq_dir.glob("*.json"))
+    new_pr_dlq = sorted(dlq_after_pr - dlq_before_pr, key=lambda p: p.name)
+    if not new_pr_dlq:
+        raise SystemExit("Smoke test failed: 0921 pr live must create a DLQ record under dlq/.")
+
+    latest_pr_dlq = max(new_pr_dlq, key=lambda p: p.stat().st_mtime)
+    dlq_pr = json.loads(latest_pr_dlq.read_text(encoding="utf-8"))
+    if dlq_pr.get("stage") != "EXECUTION" or dlq_pr.get("error_code") != "POLICY_VIOLATION":
+        raise SystemExit("Smoke test failed: 0921 pr live DLQ must be EXECUTION/POLICY_VIOLATION.")
+    if "INTEGRATION_MODE_REQUIRED" not in str(dlq_pr.get("message", "")):
+        raise SystemExit("Smoke test failed: 0921 pr live DLQ message must include INTEGRATION_MODE_REQUIRED.")
+
+    mod_b_out_pr_live = json.loads((ev_pr_live / "nodes" / "MOD_B" / "output.json").read_text(encoding="utf-8"))
+    tc_pr_live = mod_b_out_pr_live.get("tool_calls") if isinstance(mod_b_out_pr_live, dict) else None
+    if not (
+        isinstance(tc_pr_live, list)
+        and any(isinstance(tc, dict) and tc.get("tool") == "github_pr_create" and tc.get("error_code") == "INTEGRATION_MODE_REQUIRED" for tc in tc_pr_live)
+    ):
+        raise SystemExit("Smoke test failed: 0921 MOD_B tool_calls must include github_pr_create error_code INTEGRATION_MODE_REQUIRED.")
+
+    print("CRITICAL_PR_SIDE_EFFECT: dry_plan=true live_blocked=true")
 
     # CLI shortcut: orchestrator run --intent ... (no envelope file needed).
     cli_policy_review_out_file = repo_root / "policy_review.md"
@@ -2487,6 +2745,148 @@ def main() -> None:
     finally:
         summary_ok_path.write_bytes(original_summary_bytes)
 
+    # Evidence export v0.1: zip export with integrity precheck (and force override).
+    export_dir = repo_root / ".cache" / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+
+    export_zip_ok = export_dir / f"{run_id_ok}.zip"
+    if export_zip_ok.exists():
+        export_zip_ok.unlink()
+
+    proc_export_ok = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "evidence-export",
+            "--run",
+            str(evidence_dir_ok.relative_to(repo_root)),
+            "--out",
+            str(export_zip_ok.relative_to(repo_root)),
+        ],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        env=sc_env,
+    )
+    if proc_export_ok.returncode != 0:
+        raise SystemExit(
+            "Smoke test failed: evidence-export must succeed for untampered run.\n"
+            + (proc_export_ok.stdout or "").strip()
+            + ("\n" + (proc_export_ok.stderr or "").strip() if (proc_export_ok.stderr or "").strip() else "")
+        )
+
+    if not export_zip_ok.exists():
+        raise SystemExit("Smoke test failed: evidence-export did not create zip: " + str(export_zip_ok))
+
+    with zipfile.ZipFile(export_zip_ok, "r") as zf:
+        names = set(zf.namelist())
+        required = {
+            "summary.json",
+            "request.json",
+            "provenance.v1.json",
+            "integrity.manifest.v1.json",
+            "EXPORT_README.txt",
+        }
+        missing = sorted(required - names)
+        if missing:
+            raise SystemExit("Smoke test failed: evidence-export zip missing: " + ", ".join(missing))
+
+    zip_bytes_ok = int(export_zip_ok.stat().st_size)
+    if zip_bytes_ok < 1:
+        raise SystemExit("Smoke test failed: evidence-export zip_bytes must be > 0.")
+    print(f"CRITICAL_EVIDENCE_EXPORT_OK: run_id={run_id_ok} zip_bytes={zip_bytes_ok}")
+
+    tampered_root = repo_root / ".cache" / "evidence_tampered" / run_id_ok
+    if tampered_root.exists():
+        rmtree(tampered_root)
+    tampered_root.parent.mkdir(parents=True, exist_ok=True)
+    copytree(evidence_dir_ok, tampered_root)
+
+    tampered_summary = tampered_root / "summary.json"
+    tb = tampered_summary.read_bytes()
+    if tb.endswith(b"\n"):
+        tampered_summary.write_bytes(tb[:-1] + b" \n")
+    else:
+        tampered_summary.write_bytes(tb + b" ")
+
+    export_zip_tampered = export_dir / f"{run_id_ok}.tampered.zip"
+    if export_zip_tampered.exists():
+        export_zip_tampered.unlink()
+
+    proc_export_tampered = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "evidence-export",
+            "--run",
+            str(tampered_root.relative_to(repo_root)),
+            "--out",
+            str(export_zip_tampered.relative_to(repo_root)),
+        ],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        env=sc_env,
+    )
+    if proc_export_tampered.returncode == 0:
+        raise SystemExit("Smoke test failed: tampered evidence-export must fail without --force.")
+
+    try:
+        export_fail_obj = json.loads((proc_export_tampered.stdout or "").strip() or "{}")
+    except Exception as e:
+        raise SystemExit("Smoke test failed: evidence-export failure must output JSON.") from e
+
+    if export_fail_obj.get("reason") != "INTEGRITY_MISMATCH":
+        raise SystemExit(
+            "Smoke test failed: tampered evidence-export must fail with reason=INTEGRITY_MISMATCH.\n"
+            + json.dumps(export_fail_obj, indent=2, ensure_ascii=False)
+        )
+
+    export_zip_forced = export_dir / f"{run_id_ok}.tampered.forced.zip"
+    if export_zip_forced.exists():
+        export_zip_forced.unlink()
+
+    proc_export_forced = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "evidence-export",
+            "--run",
+            str(tampered_root.relative_to(repo_root)),
+            "--out",
+            str(export_zip_forced.relative_to(repo_root)),
+            "--force",
+            "true",
+        ],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        env=sc_env,
+    )
+    if proc_export_forced.returncode != 0:
+        raise SystemExit(
+            "Smoke test failed: tampered evidence-export must succeed with --force true.\n"
+            + (proc_export_forced.stdout or "").strip()
+            + ("\n" + (proc_export_forced.stderr or "").strip() if (proc_export_forced.stderr or "").strip() else "")
+        )
+
+    if not export_zip_forced.exists():
+        raise SystemExit("Smoke test failed: forced evidence-export did not create zip: " + str(export_zip_forced))
+
+    with zipfile.ZipFile(export_zip_forced, "r") as zf:
+        readme_raw = zf.read("EXPORT_README.txt")
+        readme_text = readme_raw.decode("utf-8", errors="replace")
+        if "integrity_status: OK" in readme_text:
+            raise SystemExit("Smoke test failed: forced export README must indicate integrity is not OK.")
+        if "integrity_status: MISMATCH" not in readme_text:
+            raise SystemExit("Smoke test failed: forced export README must include integrity_status: MISMATCH.")
+
+    print("CRITICAL_EVIDENCE_EXPORT_TAMPER: forced=true")
+    rmtree(tampered_root.parent)
+
     # GC/Reaper v0.1: retention policy + dry-run + delete (deterministic via --now).
     old_run_dir = repo_root / "evidence" / "__old_test_run"
     if old_run_dir.exists():
@@ -2756,7 +3156,7 @@ def main() -> None:
     print(f"CRITICAL_POLICY_CHECK_DIFF nonzero={diff_nonzero_pc} status={diff_status_pc}")
 
     md_text = report_md_pc.read_text(encoding="utf-8")
-    for heading in ("Dry-run summary", "Diff summary", "Supply chain summary"):
+    for heading in ("Dry-run summary", "Diff summary", "Side-effects status", "Supply chain summary"):
         if heading not in md_text:
             raise SystemExit("Smoke test failed: POLICY_REPORT.md missing heading: " + heading)
     print("CRITICAL_POLICY_REPORT: generated=true")

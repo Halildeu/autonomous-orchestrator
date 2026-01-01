@@ -10,25 +10,8 @@ from typing import Any
 from uuid import uuid4
 
 
-def _print_help() -> None:
-    print(
-        "\n".join(
-            [
-                "orchestrator - minimal CLI wrapper",
-                "",
-                "Usage:",
-                "  orchestrator run <local_runner args...>",
-                "  orchestrator ops <manage args...>",
-                "  orchestrator sdk-demo",
-                "",
-                "Examples (in repo):",
-                "  orchestrator run --envelope fixtures/envelopes/0001.json --workspace . --out evidence",
-                "  orchestrator run --intent urn:core:docs:policy_review --tenant TENANT-LOCAL --dry-run true",
-                "  orchestrator ops runs --limit 5",
-                "  orchestrator ops policy-check --source fixtures",
-            ]
-        )
-    )
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
 
 
 def _delegate_local_runner(args: list[str]) -> int:
@@ -240,23 +223,6 @@ def _cmd_run_shortcut(argv: list[str]) -> int:
 
 
 def _cmd_run(args: list[str]) -> int:
-    if not args or any(a in {"-h", "--help"} for a in args):
-        print(
-            "\n".join(
-                [
-                    "orchestrator run - run a workflow locally",
-                    "",
-                    "Shortcut mode:",
-                    "  orchestrator run --intent <URN> --tenant <TENANT_ID> [options]",
-                    "",
-                    "Passthrough mode (advanced):",
-                    "  orchestrator run <local_runner args...>",
-                    "  e.g. orchestrator run --envelope fixtures/envelopes/0001.json --workspace . --out evidence",
-                ]
-            )
-        )
-        return 0
-
     if "--intent" in args:
         return _cmd_run_shortcut(args)
 
@@ -264,23 +230,143 @@ def _cmd_run(args: list[str]) -> int:
     return _delegate_local_runner(args)
 
 
+def _read_version_from_pyproject() -> str | None:
+    root = _repo_root()
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    try:
+        import tomllib
+    except Exception:
+        return None
+
+    try:
+        with pyproject.open("rb") as f:
+            obj = tomllib.load(f)
+    except Exception:
+        return None
+
+    project = obj.get("project") if isinstance(obj, dict) else None
+    if not isinstance(project, dict):
+        return None
+    v = project.get("version")
+    return v if isinstance(v, str) and v else None
+
+
+def _resolve_version() -> str:
+    installed_version: str | None = None
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        installed_version = version("autonomous-orchestrator")
+    except PackageNotFoundError:
+        pass
+    except Exception:
+        pass
+
+    pyproject_version = _read_version_from_pyproject()
+
+    # Prefer the source tree version when running from the repo checkout.
+    # (Local egg-info metadata can lag behind pyproject.toml during development.)
+    if pyproject_version and installed_version and installed_version != pyproject_version:
+        return pyproject_version
+
+    return installed_version or pyproject_version or "unknown"
+
+
+def _build_parser() -> tuple[argparse.ArgumentParser, argparse.ArgumentParser]:
+    examples = """Examples:
+  # Policy review report (dry-run; no file write)
+  python -m src.cli run --intent urn:core:docs:policy_review --tenant TENANT-LOCAL --dry-run true --output-path policy_review.md
+
+  # DLQ triage report (dry-run; no file write)
+  python -m src.cli run --intent urn:core:ops:dlq_triage --tenant TENANT-LOCAL --dry-run true --output-path dlq_triage.md
+
+  # Ops: list recent runs + DLQ
+  python -m src.cli ops runs --limit 5
+  python -m src.cli ops dlq --limit 5
+
+  # Integration check (OpenAI ping; policy+secret gated)
+  python -m src.cli ops openai-ping --timeout-ms 5000
+"""
+
+    ap = argparse.ArgumentParser(
+        prog="python -m src.cli",
+        description="autonomous-orchestrator: minimal CLI wrapper (local runner + ops).",
+        epilog=examples,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument(
+        "--version",
+        action="store_true",
+        help="Print version and exit.",
+    )
+
+    sub = ap.add_subparsers(dest="command")
+
+    run_epilog = """Modes:
+  1) Shortcut mode (recommended):
+     python -m src.cli run --intent <URN> --tenant <TENANT_ID> [options]
+
+  2) Passthrough mode (advanced):
+     python -m src.cli run <local_runner args...>
+     (forwards args to: python -m src.orchestrator.local_runner)
+
+Notes:
+  - --side-effect-policy values: none | draft | pr | merge | deploy
+  - merge/deploy are intentionally blocked for real side effects (reserved); use none/draft/pr for now.
+  - dry_run=true always records plans only (no writes, no PRs).
+  - See: docs/OPERATIONS/side-effects.md
+"""
+
+    ap_run = sub.add_parser(
+        "run",
+        help="Run workflows locally (shortcut or passthrough).",
+        description="Run workflows locally using the deterministic local runner.",
+        epilog=run_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    ap_ops = sub.add_parser(
+        "ops",
+        help="Operational commands (delegates to src.ops.manage).",
+        description="Ops-friendly management CLI (runs/dlq/suspends/policy-check/etc.).",
+    )
+
+    sub.add_parser("sdk-demo", help="Run a minimal SDK demo (deterministic).")
+
+    return (ap, ap_run)
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
-    if not args or args[0] in {"-h", "--help", "help"}:
-        _print_help()
+    ap, ap_run = _build_parser()
+    raw_argv = sys.argv[1:] if argv is None else argv
+    ns, passthrough = ap.parse_known_args(raw_argv)
+
+    if bool(ns.version):
+        print(_resolve_version())
         return 0
 
-    cmd = args[0]
-    rest = args[1:]
+    cmd = getattr(ns, "command", None)
+    if cmd is None:
+        ap.print_help()
+        return 0
 
     if cmd == "run":
-        return _cmd_run(rest)
+        if not passthrough:
+            ap_run.print_help()
+            return 0
+        return _cmd_run([str(x) for x in passthrough])
+
     if cmd == "ops":
-        return _delegate_ops_manage(rest)
+        if not passthrough:
+            return _delegate_ops_manage(["--help"])
+        return _delegate_ops_manage([str(x) for x in passthrough])
+
     if cmd == "sdk-demo":
         return _sdk_demo()
 
-    _print_help()
+    ap.print_help()
     return 2
 
 

@@ -5,6 +5,7 @@ Bu runbook, repoda **şu an gerçekten çalışan** komutlara göre yazıldı. T
 Not:
 - Eğer sisteminde `python` yoksa `python3` veya `.venv/bin/python` kullan.
 - Komutların çoğu network gerektirmez ve deterministik çalışacak şekilde tasarlanmıştır.
+- Çoğu değişiklik `main`’e GitHub Release yayınlamadan iner; milestone release süreci için `docs/OPERATIONS/release-strategy.md`’ye bak.
 
 ## 1) Quick health check (copy‑paste)
 
@@ -225,3 +226,37 @@ Dosyaya yazdırmak için (low-risk örnek):
 - Envelope’da `dry_run=false` ve `side_effect_policy="draft"` kullan.
 - `context.output_path` vermezsen default hedef: `reports/POLICY_REVIEW.md`
 - Risk threshold üstüyse run `SUSPENDED` olur; `--resume ... --approve true` ile MOD_B yazmayı tamamlar.
+
+## 11) GitHub PR side effect (integration-only)
+
+Bu özellik **gerçek bir yan etki** üretir (GitHub PR açar). Default olarak fail-closed’tur:
+- `ORCH_INTEGRATION_MODE=1` set edilmezse **asla** gerçek HTTP yapılmaz (`INTEGRATION_MODE_REQUIRED`).
+
+Ops seviyesinde en güvenli test (evidence üretmez):
+
+1) `policies/policy_security.v1.json` içinde geçici olarak:
+- `network_access: true`
+- `network_allowlist: ["api.github.com"]`
+
+2) `policies/policy_secrets.v1.json` içinde `GITHUB_TOKEN` allowlist’te olmalı (default: yes).
+
+3) Env set et (değerleri yazdırma/commit etme):
+
+```bash
+export ORCH_INTEGRATION_MODE=1
+export GITHUB_TOKEN="..."   # GitHub classic token veya fine-grained token (repo perms gerekir)
+
+python -m src.ops.manage github-pr-test \
+  --repo owner/name \
+  --head branch-name \
+  --base main \
+  --title "autonomous-orchestrator: test PR" \
+  --draft true
+```
+
+Test sonrası güvenlik için:
+- `policies/policy_security.v1.json` içinde `network_access` tekrar `false` yap.
+
+Not (orchestrated PR, advanced):
+- Envelope `side_effect_policy="pr"` ve `dry_run=false` ise, PR oluşturma **yalnızca APPROVAL geçtikten sonra** (gerekirse `--resume ... --approve true`) MOD_B aşamasında denenir.
+- Gerekli context alanları: `context.pr_repo`, `context.pr_head` (opsiyonel: `pr_base/pr_title/pr_body/pr_draft`).

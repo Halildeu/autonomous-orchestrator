@@ -2,6 +2,8 @@
 
 Amaç: release öncesi “neyi, hangi komutla, hangi çıktıyı bekleyerek” kontrol edeceğimizi sabitlemek.
 
+Not: GitHub Releases yalnızca milestone sürümlerde yayınlanır; bkz. `docs/OPERATIONS/release-strategy.md`.
+
 ## 1) Pre-release checks (copy-paste)
 
 Repo root’ta çalıştır:
@@ -76,4 +78,3 @@ python supply_chain/cve_gate.py
 ### Reaper beklenmedik delete
 - Yanlış `--dry-run false` koşmuş olabilirsin.
 - `policies/policy_retention.v1.json` değerlerini kontrol et.
-

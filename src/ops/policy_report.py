@@ -97,6 +97,9 @@ def generate_policy_report_markdown(*, in_dir: Path, root: Path) -> str:
     sbom = _load_json(sbom_path) if sbom_path.exists() else None
     sig = _load_json(sig_path) if sig_path.exists() else None
 
+    se_manifest_path = root / "docs" / "OPERATIONS" / "side-effects-manifest.v1.json"
+    se_manifest = _load_json(se_manifest_path) if se_manifest_path.exists() else None
+
     source = sim.get("source") if isinstance(sim, dict) and isinstance(sim.get("source"), str) else "unknown"
 
     lines: list[str] = []
@@ -173,6 +176,25 @@ def generate_policy_report_markdown(*, in_dir: Path, root: Path) -> str:
                     break
             if shown == 0:
                 lines.append("- (no example diffs)")
+    lines.append("")
+
+    lines.append("## Side-effects status")
+    if not isinstance(se_manifest, dict):
+        lines.append(
+            f"- side-effects-manifest.v1.json: MISSING_OR_INVALID (`{_rel_path(root, se_manifest_path)}`)"
+        )
+    else:
+        supported_now = se_manifest.get("supported_now")
+        blocked_now = se_manifest.get("blocked_now")
+        supported_list = (
+            [x for x in supported_now if isinstance(x, str) and x.strip()] if isinstance(supported_now, list) else []
+        )
+        blocked_list = (
+            [x for x in blocked_now if isinstance(x, str) and x.strip()] if isinstance(blocked_now, list) else []
+        )
+        lines.append(f"- supported_now: `{', '.join(supported_list) if supported_list else 'unknown'}`")
+        lines.append(f"- blocked_now: `{', '.join(blocked_list) if blocked_list else 'unknown'}`")
+        lines.append(f"- manifest: `{_rel_path(root, se_manifest_path)}`")
     lines.append("")
 
     lines.append("## Supply chain summary")

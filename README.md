@@ -29,6 +29,14 @@ python -m src.cli run --intent urn:core:docs:policy_review --tenant TENANT-LOCAL
 python -m src.cli run --intent urn:core:ops:dlq_triage --tenant TENANT-LOCAL --dry-run true --output-path dlq_triage.md
 ```
 
+## CLI help / version
+
+```bash
+python -m src.cli --help
+python -m src.cli run --help
+python -m src.cli --version
+```
+
 Gerçek OpenAI çağrısı için (integration-only) `openai-ping` kullan:
 
 ```bash

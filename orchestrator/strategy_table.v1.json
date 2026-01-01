@@ -4,7 +4,7 @@
     { "intent": "urn:core:summary:summary_to_file", "workflow_id": "WF_CORE" },
     { "intent": "urn:core:qa:test_plan", "workflow_id": "WF_CORE" },
     { "intent": "urn:core:lint:lint_and_report", "workflow_id": "WF_CORE" },
-    { "intent": "urn:core:docs:policy_review", "workflow_id": "WF_CORE" },
-    { "intent": "urn:core:ops:dlq_triage", "workflow_id": "WF_CORE" }
+    { "intent": "urn:core:docs:policy_review", "workflow_id": "WF_POLICY_REVIEW" },
+    { "intent": "urn:core:ops:dlq_triage", "workflow_id": "WF_DLQ_TRIAGE" }
   ]
 }

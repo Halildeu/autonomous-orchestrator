@@ -107,7 +107,7 @@ def validate_workflow(workflow: Any, *, workflow_path: Path) -> None:
                     module_id = step.get("module_id")
                     if not isinstance(module_id, str) or not module_id:
                         errors.append({"path": f"{pfx}.module_id", "message": "Module step requires non-empty module_id."})
-                    elif module_id not in {"MOD_A", "MOD_B"}:
+                    elif module_id not in {"MOD_A", "MOD_B", "MOD_POLICY_REVIEW", "MOD_DLQ_TRIAGE"}:
                         errors.append({"path": f"{pfx}.module_id", "message": f"Unsupported module_id: {module_id}"})
                 elif node_type == "approval":
                     pass
@@ -157,4 +157,3 @@ def workflow_fingerprint(workflow: dict[str, Any], workflow_path: Path) -> str:
     except Exception:
         raw = to_canonical_json(workflow).encode("utf-8")
     return sha256(raw).hexdigest()
-

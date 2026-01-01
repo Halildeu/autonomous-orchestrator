@@ -712,12 +712,11 @@ def _exec_mod_b(
 ) -> NodeResult:
     context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
     output_path_raw = context.get("output_path")
-    intent = envelope.get("intent")
-    intent_str = intent if isinstance(intent, str) and intent else ""
+    module_id_used = mod_a_output.get("module_id") if isinstance(mod_a_output.get("module_id"), str) else ""
     default_output_path = "fixtures/out.md"
-    if intent_str == "urn:core:docs:policy_review":
+    if module_id_used == "MOD_POLICY_REVIEW":
         default_output_path = "reports/POLICY_REVIEW.md"
-    if intent_str == "urn:core:ops:dlq_triage":
+    if module_id_used == "MOD_DLQ_TRIAGE":
         default_output_path = "reports/DLQ_TRIAGE.md"
     output_path = (
         output_path_raw.strip()
@@ -756,15 +755,11 @@ def _exec_mod_b(
     side_effect_policy = envelope.get("side_effect_policy", "none")
     allowed_side_effects = side_effect_policy in ("draft", "allow")
 
-    content = _render_summary_markdown(mod_a_output)
-    if intent_str == "urn:core:docs:policy_review":
-        report_md = mod_a_output.get("report_markdown")
-        if isinstance(report_md, str) and report_md.strip():
-            content = report_md
-    if intent_str == "urn:core:ops:dlq_triage":
-        report_md = mod_a_output.get("report_markdown")
-        if isinstance(report_md, str) and report_md.strip():
-            content = report_md
+    report_md = mod_a_output.get("report_markdown")
+    if isinstance(report_md, str) and report_md.strip():
+        content = report_md
+    else:
+        content = _render_summary_markdown(mod_a_output)
     if budget is not None:
         budget.consume_tokens(estimate_tokens(content))
     tool_calls: list[dict[str, Any]] = []
@@ -780,6 +775,177 @@ def _exec_mod_b(
         "content_bytes": len(content.encode("utf-8")),
     }
     evidence.write_node_input(node_id, node_input)
+
+    if side_effect_policy == "pr":
+        pr_repo = context.get("pr_repo")
+        pr_head = context.get("pr_head")
+        pr_base = context.get("pr_base", "main")
+        pr_draft = context.get("pr_draft", True)
+        pr_title_default = f"Automated report: {envelope.get('intent')} {envelope.get('request_id')}"
+        pr_title = context.get("pr_title", pr_title_default)
+        pr_body = context.get("pr_body")
+        if not isinstance(pr_body, str) or not pr_body.strip():
+            pr_body = content
+
+        if not isinstance(pr_repo, str) or not pr_repo.strip() or not isinstance(pr_head, str) or not pr_head.strip():
+            e = PolicyViolation("PR_CONTEXT_MISSING", "Missing context.pr_repo or context.pr_head for PR creation.")
+            tool_calls.append(
+                {
+                    "tool": "github_pr_create",
+                    "status": "FAILED",
+                    "bytes_in": 0,
+                    "bytes_out": 0,
+                    "error_code": e.error_code,
+                    "args_summary": {
+                        "repo": pr_repo if isinstance(pr_repo, str) else None,
+                        "head": pr_head if isinstance(pr_head, str) else None,
+                    },
+                }
+            )
+            output = {
+                "node_id": node_id,
+                "status": "FAILED",
+                "module_id": "MOD_B",
+                "side_effects": {},
+                "tool_calls": tool_calls,
+                "error_code": "POLICY_VIOLATION",
+                "error": str(e),
+            }
+            evidence.write_node_output(node_id, output)
+            evidence.write_node_log(node_id, f"MOD_B policy violation: {e.error_code}")
+            raise e
+
+        repo_s = pr_repo.strip()
+        head_s = pr_head.strip()
+        base_s = pr_base.strip() if isinstance(pr_base, str) and pr_base.strip() else "main"
+        title_s = pr_title.strip() if isinstance(pr_title, str) and pr_title.strip() else pr_title_default
+        body_s = pr_body if isinstance(pr_body, str) else ""
+        draft_b = bool(pr_draft) if isinstance(pr_draft, bool) else True
+
+        title_bytes = len(title_s.encode("utf-8"))
+        body_bytes = len(body_s.encode("utf-8"))
+
+        if dry_run or not writes_allowed:
+            reason = "dry_run" if dry_run else "governor_report_only"
+            tool_calls.append(
+                {
+                    "tool": "github_pr_create",
+                    "args_summary": {
+                        "repo": repo_s,
+                        "base": base_s,
+                        "head": head_s,
+                        "draft": draft_b,
+                        "title_bytes": title_bytes,
+                        "body_bytes": body_bytes,
+                    },
+                    "status": "SKIPPED",
+                    "bytes_in": 0,
+                    "bytes_out": 0,
+                    "reason": reason,
+                }
+            )
+            output = {
+                "node_id": node_id,
+                "status": "COMPLETED",
+                "module_id": "MOD_B",
+                "side_effects": {
+                    "would_pr_create": {
+                        "repo": repo_s,
+                        "base": base_s,
+                        "head": head_s,
+                        "draft": draft_b,
+                        "title_bytes": title_bytes,
+                        "body_bytes": body_bytes,
+                    }
+                },
+                "tool_calls": tool_calls,
+            }
+            evidence.write_node_output(node_id, output)
+            if dry_run:
+                evidence.write_node_log(node_id, "MOD_B dry-run: PR creation skipped.")
+            else:
+                evidence.write_node_log(node_id, "MOD_B report-only: PR creation suppressed by governor.")
+            return NodeResult(node_id=node_id, status="COMPLETED", output=output)
+
+        try:
+            pr_res = gateway.call(
+                "github_pr_create",
+                {
+                    "repo": repo_s,
+                    "base": base_s,
+                    "head": head_s,
+                    "title": title_s,
+                    "body": body_s,
+                    "draft": draft_b,
+                },
+                capability=capability,
+                workspace=str(workspace),
+            )
+            tool_calls.append(
+                {
+                    "tool": pr_res.get("tool", "github_pr_create"),
+                    "status": pr_res.get("status", "OK"),
+                    "bytes_in": pr_res.get("bytes_in", 0),
+                    "bytes_out": pr_res.get("bytes_out", 0),
+                    "args_summary": {
+                        "repo": repo_s,
+                        "base": base_s,
+                        "head": head_s,
+                        "draft": draft_b,
+                        "title_bytes": title_bytes,
+                        "body_bytes": body_bytes,
+                    },
+                    "result": {
+                        "repo": pr_res.get("repo"),
+                        "number": pr_res.get("number"),
+                        "pr_url": pr_res.get("pr_url"),
+                        "redacted": True,
+                    },
+                }
+            )
+        except PolicyViolation as e:
+            tool_calls.append(
+                {
+                    "tool": "github_pr_create",
+                    "status": "FAILED",
+                    "bytes_in": 0,
+                    "bytes_out": 0,
+                    "error_code": e.error_code,
+                    "args_summary": {
+                        "repo": repo_s,
+                        "base": base_s,
+                        "head": head_s,
+                        "draft": draft_b,
+                        "title_bytes": title_bytes,
+                        "body_bytes": body_bytes,
+                    },
+                }
+            )
+            output = {
+                "node_id": node_id,
+                "status": "FAILED",
+                "module_id": "MOD_B",
+                "side_effects": {},
+                "tool_calls": tool_calls,
+                "error_code": "POLICY_VIOLATION",
+                "error": str(e),
+            }
+            evidence.write_node_output(node_id, output)
+            evidence.write_node_log(node_id, f"MOD_B policy violation: {e.error_code}")
+            raise
+
+        output = {
+            "node_id": node_id,
+            "status": "COMPLETED",
+            "module_id": "MOD_B",
+            "side_effects": {
+                "pr_created": {"repo": repo_s, "number": pr_res.get("number"), "pr_url": pr_res.get("pr_url")}
+            },
+            "tool_calls": tool_calls,
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, "MOD_B created PR.")
+        return NodeResult(node_id=node_id, status="COMPLETED", output=output)
 
     if dry_run or not writes_allowed:
         reason = "dry_run" if dry_run else "governor_report_only"
@@ -935,11 +1101,21 @@ def execute_workflow(
 
         if node_type == "module":
             module_id = step.get("module_id")
-            if module_id == "MOD_A":
+            if module_id in {"MOD_A", "MOD_POLICY_REVIEW", "MOD_DLQ_TRIAGE"}:
                 if budget is not None:
                     budget.consume_attempt(count=1)
-                intent = envelope.get("intent")
-                if isinstance(intent, str) and intent == "urn:core:docs:policy_review":
+                if module_id == "MOD_A":
+                    res = _exec_mod_a(
+                        envelope=envelope,
+                        provider=provider,
+                        workspace=workspace,
+                        evidence=evidence,
+                        node_id=node_id,
+                        gateway=gateway,
+                        capability=module_caps.get("MOD_A", {}),
+                        budget=budget,
+                    )
+                elif module_id == "MOD_POLICY_REVIEW":
                     res = _exec_mod_policy_review(
                         envelope=envelope,
                         workspace=workspace,
@@ -949,23 +1125,12 @@ def execute_workflow(
                         capability=module_caps.get("MOD_POLICY_REVIEW", {}),
                         budget=budget,
                     )
-                elif isinstance(intent, str) and intent == "urn:core:ops:dlq_triage":
+                else:
                     res = _exec_mod_dlq_triage(
                         envelope=envelope,
                         workspace=workspace,
                         evidence=evidence,
                         node_id=node_id,
-                        budget=budget,
-                    )
-                else:
-                    res = _exec_mod_a(
-                        envelope=envelope,
-                        provider=provider,
-                        workspace=workspace,
-                        evidence=evidence,
-                        node_id=node_id,
-                        gateway=gateway,
-                        capability=module_caps.get("MOD_A", {}),
                         budget=budget,
                     )
                 last_mod_a_output = res.output
@@ -982,7 +1147,7 @@ def execute_workflow(
                         secret_id = tc.get("secret_id")
                         if isinstance(secret_id, str) and secret_id and secret_id not in secrets_used:
                             secrets_used.append(secret_id)
-                if isinstance(summary_obj, dict):
+                if module_id == "MOD_A" and isinstance(summary_obj, dict):
                     p = summary_obj.get("provider")
                     m = summary_obj.get("model")
                     u = summary_obj.get("usage")
@@ -994,7 +1159,7 @@ def execute_workflow(
                         token_usage = u
             elif module_id == "MOD_B":
                 if last_mod_a_output is None:
-                    raise RuntimeError("MOD_B requires MOD_A output.")
+                    raise RuntimeError("MOD_B requires prior module output.")
                 res = _exec_mod_b(
                     envelope=envelope,
                     mod_a_output=last_mod_a_output,

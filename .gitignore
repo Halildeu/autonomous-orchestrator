@@ -2,6 +2,7 @@
 .cache/**
 evidence/**
 dlq/*.json
+exports/**
 dist/
 openai_ping_last.json
 sim_report*.json

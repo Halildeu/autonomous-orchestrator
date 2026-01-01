@@ -37,7 +37,7 @@
     },
     "side_effect_policy": {
       "type": "string",
-      "enum": ["none", "draft", "allow"]
+      "enum": ["none", "draft", "pr", "allow"]
     },
     "idempotency_key": {
       "type": "string",
@@ -83,6 +83,28 @@
         "output_path": {
           "type": "string",
           "minLength": 1
+        },
+        "pr_repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_head": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_base": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_body": {
+          "type": "string"
+        },
+        "pr_draft": {
+          "type": "boolean"
         }
       }
     }
