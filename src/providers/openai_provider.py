@@ -5,11 +5,14 @@ import os
 import re
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 from dataclasses import dataclass
 from hashlib import sha256
+from pathlib import Path
 from typing import Any
 
 from src.providers.provider import Provider
+from src.tools.gateway import PolicyViolation
 
 
 def _extract_first_json_object(text: str) -> dict | None:
@@ -78,13 +81,17 @@ class OpenAIProvider(Provider):
         model: str,
         base_url: str = "https://api.openai.com/v1",
         timeout_s: float = 30.0,
+        policy_path: Path = Path("policies/policy_security.v1.json"),
     ) -> None:
         self._api_key = api_key
         self._model = model
         self._base_url = base_url.rstrip("/")
         self._timeout_s = timeout_s
+        self._policy_path = policy_path
 
     def summarize_markdown_to_json(self, markdown: str) -> dict:
+        _ = network_check(policy_path=self._policy_path, base_url=self._base_url)
+
         url = f"{self._base_url}/responses"
         body: dict[str, Any] = {
             "model": self._model,
@@ -152,6 +159,67 @@ def get_provider() -> Provider:
     model = os.environ.get("OPENAI_MODEL", "gpt-5.2-codex").strip() or "gpt-5.2-codex"
     base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
     try:
-        return OpenAIProvider(api_key=api_key, model=model, base_url=base_url)
+        return OpenAIProvider(
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            policy_path=Path("policies/policy_security.v1.json"),
+        )
     except Exception:
         return DeterministicStubProvider()
+
+
+def _policy_allows_network(policy_path: Path) -> bool:
+    try:
+        _ = network_check(policy_path=policy_path, base_url="https://api.openai.com/v1")
+        return True
+    except PolicyViolation:
+        return False
+
+
+def _extract_host(base_url: str) -> str | None:
+    if not isinstance(base_url, str) or not base_url.strip():
+        return None
+    raw = base_url.strip()
+    try:
+        parsed = urlparse(raw)
+        host = parsed.hostname
+        if host:
+            return host
+        if "://" not in raw:
+            parsed = urlparse("https://" + raw)
+            return parsed.hostname
+        return None
+    except Exception:
+        return None
+
+
+def network_check(*, policy_path: Path, base_url: str) -> str:
+    host = _extract_host(base_url)
+    if not host:
+        raise PolicyViolation("NETWORK_HOST_NOT_ALLOWED", "Unable to determine network host from base_url.")
+
+    try:
+        raw = json.loads(policy_path.read_text(encoding="utf-8"))
+    except Exception:
+        raise PolicyViolation("NETWORK_DISABLED", f"Network policy missing/invalid: {policy_path}")
+
+    if not isinstance(raw, dict):
+        raise PolicyViolation("NETWORK_DISABLED", f"Network policy invalid (not an object): {policy_path}")
+
+    if raw.get("network_access") is not True:
+        raise PolicyViolation("NETWORK_DISABLED", f"Network access disabled by policy: {policy_path}")
+
+    allowlist = raw.get("network_allowlist", [])
+    if not isinstance(allowlist, list):
+        allowlist = []
+
+    allowed_hosts: set[str] = set()
+    for item in allowlist:
+        if isinstance(item, str) and item.strip():
+            allowed_hosts.add(item.strip())
+
+    if host not in allowed_hosts:
+        raise PolicyViolation("NETWORK_HOST_NOT_ALLOWED", f"Network host not in allowlist: {host}")
+
+    return host

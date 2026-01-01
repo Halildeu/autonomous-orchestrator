@@ -2,7 +2,8 @@
   "version": "v1",
   "kill_switch": false,
   "allowed_side_effect_policies": ["none", "draft"],
+  "network_access": false,
+  "network_allowlist": [],
   "max_risk_score": 0.95,
   "note": "Minimal placeholder policy. Replace with an allowlist/denylist model."
 }
-

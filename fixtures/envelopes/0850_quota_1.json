@@ -1,0 +1,11 @@
+{
+  "request_id": "REQ-0850",
+  "tenant_id": "TENANT-LOCAL",
+  "intent": "urn:core:summary:summary_to_file",
+  "risk_score": 0.1,
+  "dry_run": true,
+  "side_effect_policy": "none",
+  "idempotency_key": "TENANT-LOCAL:REQ-0850",
+  "budget": { "max_tokens": 4000, "max_attempts": 2, "max_time_ms": 20000 },
+  "context": { "input_path": "fixtures/sample.md" }
+}

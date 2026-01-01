@@ -1,0 +1,11 @@
+{
+  "request_id": "REQ-{{MODULE_ID}}-0001",
+  "tenant_id": "TENANT-LOCAL",
+  "intent": "{{INTENT}}",
+  "risk_score": 0.1,
+  "dry_run": true,
+  "side_effect_policy": "none",
+  "idempotency_key": "TENANT-LOCAL:REQ-{{MODULE_ID}}-0001",
+  "budget": { "max_tokens": 2000, "max_attempts": 2, "max_time_ms": 20000 },
+  "context": {}
+}

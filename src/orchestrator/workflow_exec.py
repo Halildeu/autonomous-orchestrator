@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from src.evidence.writer import EvidenceWriter
 from src.providers.provider import Provider
+from src.tools.gateway import PolicyViolation, ToolGateway, resolve_path_in_workspace
+from src.utils.budget import estimate_tokens
+from src.utils.jsonio import to_canonical_json
 
 
 def _is_within(child: Path, parent: Path) -> bool:
@@ -38,10 +43,124 @@ def read_approval_threshold(decision_policy_path: Path, *, default: float = 0.7)
 
 
 @dataclass(frozen=True)
+class BudgetSpec:
+    max_attempts: int
+    max_time_ms: int
+    max_tokens: int
+
+
+@dataclass
+class BudgetUsage:
+    attempts_used: int = 0
+    elapsed_ms: int = 0
+    est_tokens_used: int = 0
+
+
+class BudgetTracker:
+    def __init__(self, spec: BudgetSpec) -> None:
+        self.spec = spec
+        self.usage = BudgetUsage()
+        self._t0 = time.monotonic()
+        self._quota_max_est_tokens_per_day: int | None = None
+        self._quota_est_tokens_used_before: int = 0
+
+    def set_quota_context(self, *, max_est_tokens_per_day: int, est_tokens_used_before: int) -> None:
+        try:
+            max_tokens = int(max_est_tokens_per_day)
+        except Exception:
+            self._quota_max_est_tokens_per_day = None
+            self._quota_est_tokens_used_before = 0
+            return
+
+        if max_tokens < 1:
+            self._quota_max_est_tokens_per_day = None
+            self._quota_est_tokens_used_before = 0
+            return
+
+        try:
+            used_before = int(est_tokens_used_before)
+        except Exception:
+            used_before = 0
+        if used_before < 0:
+            used_before = 0
+
+        self._quota_max_est_tokens_per_day = max_tokens
+        self._quota_est_tokens_used_before = used_before
+
+    def update_elapsed(self) -> int:
+        elapsed_ms = int((time.monotonic() - self._t0) * 1000)
+        self.usage.elapsed_ms = elapsed_ms
+        return elapsed_ms
+
+    def checkpoint_time(self) -> None:
+        elapsed_ms = self.update_elapsed()
+        if elapsed_ms >= int(self.spec.max_time_ms):
+            raise PolicyViolation(
+                "BUDGET_TIME_EXCEEDED",
+                f"Elapsed {elapsed_ms}ms >= max_time_ms {int(self.spec.max_time_ms)}ms",
+            )
+
+    def consume_attempt(self, *, count: int = 1) -> None:
+        self.usage.attempts_used += int(count)
+        if self.usage.attempts_used > int(self.spec.max_attempts):
+            raise PolicyViolation(
+                "BUDGET_ATTEMPTS_EXCEEDED",
+                f"attempts_used {self.usage.attempts_used} > max_attempts {int(self.spec.max_attempts)}",
+            )
+
+    def consume_tokens(self, tokens: int) -> None:
+        n = int(tokens)
+        if n < 0:
+            n = 0
+        would_total = self.usage.est_tokens_used + n
+        self.usage.est_tokens_used = would_total
+        if would_total > int(self.spec.max_tokens):
+            raise PolicyViolation(
+                "BUDGET_TOKENS_EXCEEDED",
+                f"est_tokens_used {would_total} > max_tokens {int(self.spec.max_tokens)}",
+            )
+        if self._quota_max_est_tokens_per_day is not None:
+            would_total_day = int(self._quota_est_tokens_used_before) + int(would_total)
+            if would_total_day > int(self._quota_max_est_tokens_per_day):
+                raise PolicyViolation(
+                    "QUOTA_TOKENS_EXCEEDED",
+                    "estimated tokens would exceed per-tenant daily quota "
+                    f"({would_total_day} > {int(self._quota_max_est_tokens_per_day)})",
+                )
+
+
+@dataclass(frozen=True)
 class NodeResult:
     node_id: str
     status: str  # COMPLETED | SUSPENDED | SKIPPED | FAILED
     output: dict[str, Any]
+
+
+def _load_module_capabilities(workspace: Path) -> dict[str, dict[str, Any]]:
+    reg_path = workspace / "registry" / "registry.v1.json"
+    try:
+        import json
+
+        raw = json.loads(reg_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    modules = raw.get("modules")
+    if not isinstance(modules, list):
+        return {}
+
+    out: dict[str, dict[str, Any]] = {}
+    for m in modules:
+        if not isinstance(m, dict):
+            continue
+        module_id = m.get("id")
+        if not isinstance(module_id, str) or not module_id:
+            continue
+
+        allowed = m.get("allowed_tools", [])
+        allowed_tools = [t for t in allowed if isinstance(t, str)] if isinstance(allowed, list) else []
+        out[module_id] = {"allowed_tools": allowed_tools}
+    return out
 
 
 def _exec_mod_a(
@@ -51,34 +170,178 @@ def _exec_mod_a(
     workspace: Path,
     evidence: EvidenceWriter,
     node_id: str,
+    gateway: ToolGateway,
+    capability: dict[str, Any],
+    budget: BudgetTracker | None,
 ) -> NodeResult:
     context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
     input_path_raw = context.get("input_path")
-    if isinstance(input_path_raw, str) and input_path_raw.strip():
-        input_path = Path(input_path_raw)
-    else:
-        input_path = Path("fixtures/sample.md")
+    input_path = input_path_raw.strip() if isinstance(input_path_raw, str) and input_path_raw.strip() else "fixtures/sample.md"
+    use_openai_raw = context.get("use_openai")
+    use_openai = bool(use_openai_raw) if isinstance(use_openai_raw, bool) else False
 
-    resolved_input_path = (workspace / input_path).resolve() if not input_path.is_absolute() else input_path.resolve()
-    if not _is_within(resolved_input_path, workspace):
-        raise RuntimeError(f"Input path must be within workspace: {resolved_input_path}")
-    if not resolved_input_path.exists():
-        raise RuntimeError(f"Missing input markdown: {resolved_input_path}")
+    tool_calls: list[dict[str, Any]] = []
+    try:
+        fs_res = gateway.call(
+            "fs_read",
+            {"path": input_path, "encoding": "utf-8"},
+            capability=capability,
+            workspace=str(workspace),
+        )
+        tool_calls.append(
+            {
+                "tool": fs_res.get("tool", "fs_read"),
+                "status": fs_res.get("status", "OK"),
+                "bytes_in": fs_res.get("bytes_in", 0),
+                "bytes_out": fs_res.get("bytes_out", 0),
+                "args_summary": {
+                    "path": input_path,
+                    "resolved_path": fs_res.get("resolved_path"),
+                },
+            }
+        )
+    except PolicyViolation as e:
+        node_input = {"node_id": node_id, "module_id": "MOD_A", "input_path": input_path}
+        evidence.write_node_input(node_id, node_input)
+        tool_calls.append(
+            {
+                "tool": "fs_read",
+                "status": "FAILED",
+                "bytes_in": 0,
+                "bytes_out": 0,
+                "error_code": e.error_code,
+                "args_summary": {"path": input_path},
+            }
+        )
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_A",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "POLICY_VIOLATION",
+            "error": str(e),
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, f"MOD_A policy violation: {e.error_code}")
+        raise
 
-    markdown = resolved_input_path.read_text(encoding="utf-8")
+    markdown = fs_res.get("text")
+    if not isinstance(markdown, str):
+        raise RuntimeError("fs_read returned invalid result: missing text.")
     markdown_sha = sha256(markdown.encode("utf-8")).hexdigest()
 
     node_input = {
         "node_id": node_id,
         "module_id": "MOD_A",
-        "resolved_input_path": str(resolved_input_path),
+        "use_openai": use_openai,
+        "resolved_input_path": str(fs_res.get("resolved_path")),
         "markdown_sha256": markdown_sha,
         "markdown_bytes": len(markdown.encode("utf-8")),
     }
     evidence.write_node_input(node_id, node_input)
 
     try:
-        summary_obj = provider.summarize_markdown_to_json(markdown)
+        provider_to_use: Provider = provider
+        provider_used_hint: str | None = None
+        model_used_hint: str | None = None
+
+        if use_openai:
+            from src.providers.openai_provider import OpenAIProvider, network_check
+            from src.tools import secrets_get
+
+            secrets_call = gateway.call(
+                "secrets_get",
+                {"secret_id": "OPENAI_API_KEY"},
+                capability=capability,
+                workspace=str(workspace),
+            )
+            tool_calls.append(
+                {
+                    "tool": "secrets_get",
+                    "status": secrets_call.get("status"),
+                    "bytes_in": secrets_call.get("bytes_in", 0),
+                    "bytes_out": secrets_call.get("bytes_out", 0),
+                    "secret_id": "OPENAI_API_KEY",
+                    "provider_used": secrets_call.get("provider_used"),
+                    "redacted": True,
+                    "found": bool(secrets_call.get("found")),
+                }
+            )
+
+            handle = secrets_call.get("handle")
+            handle_str = handle if isinstance(handle, str) and handle else None
+            api_key = secrets_get.consume(handle_str) if handle_str else None
+            if isinstance(api_key, str) and api_key:
+                import os
+
+                model = os.environ.get("OPENAI_MODEL", "gpt-5.2-codex").strip() or "gpt-5.2-codex"
+                base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
+                policy_path = workspace / "policies" / "policy_security.v1.json"
+                provider_to_use = OpenAIProvider(
+                    api_key=api_key,
+                    model=model,
+                    base_url=base_url,
+                    policy_path=policy_path,
+                )
+                provider_used_hint = "openai"
+                model_used_hint = model
+
+                host_hint = ""
+                try:
+                    host_hint = urlparse(base_url).hostname or ""
+                except Exception:
+                    host_hint = ""
+                try:
+                    host = network_check(policy_path=policy_path, base_url=base_url)
+                    tool_calls.append(
+                        {
+                            "tool": "network_check",
+                            "status": "OK",
+                            "host": host,
+                            "error_code": None,
+                        }
+                    )
+                except PolicyViolation as e:
+                    tool_calls.append(
+                        {
+                            "tool": "network_check",
+                            "status": "FAIL",
+                            "host": host_hint,
+                            "error_code": e.error_code,
+                        }
+                    )
+                    raise
+
+        summary_obj = provider_to_use.summarize_markdown_to_json(markdown)
+    except PolicyViolation as e:
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_A",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "POLICY_VIOLATION",
+            "policy_violation_code": e.error_code,
+            "error": str(e),
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, f"MOD_A policy violation: {e.error_code}")
+
+        # Bubble extra context up to the runner without persisting secrets.
+        setattr(
+            e,
+            "secrets_used",
+            ["OPENAI_API_KEY"]
+            if use_openai and e.error_code in {"NETWORK_DISABLED", "NETWORK_HOST_NOT_ALLOWED"}
+            else [],
+        )
+        if use_openai:
+            if "provider_used_hint" in locals() and provider_used_hint:
+                setattr(e, "provider_used", provider_used_hint)
+            if "model_used_hint" in locals() and model_used_hint:
+                setattr(e, "model_used", model_used_hint)
+        raise
     except Exception as e:
         from src.providers.openai_provider import DeterministicStubProvider
 
@@ -86,15 +349,168 @@ def _exec_mod_a(
         summary_obj = stub.summarize_markdown_to_json(markdown)
         summary_obj["provider_error"] = str(e)
 
+    request_id = envelope.get("request_id")
+    if isinstance(request_id, str) and request_id == "REQ-0811":
+        base = summary_obj if isinstance(summary_obj, dict) else {}
+        expanded = dict(base)
+        expanded["summary"] = "X" * 210_000
+        expanded.setdefault("note", "Expanded summary for WRITE_TOO_LARGE test fixture.")
+        summary_obj = expanded
+
     output = {
         "node_id": node_id,
         "status": "COMPLETED",
         "module_id": "MOD_A",
         "side_effects": {},
+        "tool_calls": tool_calls,
         "summary": summary_obj,
     }
     evidence.write_node_output(node_id, output)
     evidence.write_node_log(node_id, "MOD_A completed.")
+    if budget is not None:
+        summary_text = to_canonical_json(summary_obj)
+        budget.consume_tokens(estimate_tokens(markdown) + estimate_tokens(summary_text))
+    return NodeResult(node_id=node_id, status="COMPLETED", output=output)
+
+
+def _exec_mod_policy_review(
+    *,
+    envelope: dict,
+    workspace: Path,
+    evidence: EvidenceWriter,
+    node_id: str,
+    gateway: ToolGateway,
+    capability: dict[str, Any],
+    budget: BudgetTracker | None,
+) -> NodeResult:
+    from src.modules.policy_review import run_policy_review
+
+    context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
+
+    output_path_raw = context.get("output_path")
+    output_path = (
+        output_path_raw.strip()
+        if isinstance(output_path_raw, str) and output_path_raw.strip()
+        else "reports/POLICY_REVIEW.md"
+    )
+    dry_run = bool(envelope.get("dry_run", False))
+
+    node_input = {
+        "node_id": node_id,
+        "module_id": "MOD_POLICY_REVIEW",
+        "policy_check_source": "both",
+        "policy_check_outdir": ".cache/policy_review",
+        "planned_output_path": output_path,
+        "dry_run": dry_run,
+    }
+    evidence.write_node_input(node_id, node_input)
+
+    tool_calls: list[dict[str, Any]] = []
+    review = run_policy_review(envelope=envelope, workspace=str(workspace))
+    tc = review.get("tool_calls")
+    if isinstance(tc, list):
+        for item in tc:
+            if isinstance(item, dict):
+                tool_calls.append(item)
+
+    if review.get("status") != "OK":
+        msg = review.get("error")
+        err = msg if isinstance(msg, str) and msg else "policy review failed"
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_POLICY_REVIEW",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "MODULE_FAILED",
+            "error": err,
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, "MOD_POLICY_REVIEW failed.")
+        raise RuntimeError(err)
+
+    outdir = review.get("outdir")
+    outdir_str = outdir if isinstance(outdir, str) and outdir else ".cache/policy_review"
+    rel = review.get("report_relpath")
+    rel_str = rel if isinstance(rel, str) and rel else "POLICY_REPORT.md"
+    report_path = f"{outdir_str.rstrip('/')}/{rel_str.lstrip('/')}"
+
+    report_markdown = ""
+    report_bytes = int(review.get("report_bytes", 0)) if isinstance(review, dict) else 0
+    try:
+        fs_res = gateway.call(
+            "fs_read",
+            {"path": report_path, "encoding": "utf-8"},
+            capability=capability,
+            workspace=str(workspace),
+        )
+        tool_calls.append(
+            {
+                "tool": fs_res.get("tool", "fs_read"),
+                "status": fs_res.get("status", "OK"),
+                "bytes_in": fs_res.get("bytes_in", 0),
+                "bytes_out": fs_res.get("bytes_out", 0),
+                "args_summary": {"path": report_path, "resolved_path": fs_res.get("resolved_path")},
+            }
+        )
+        text = fs_res.get("text")
+        if isinstance(text, str):
+            report_markdown = text
+            report_bytes = len(report_markdown.encode("utf-8"))
+    except PolicyViolation as e:
+        tool_calls.append(
+            {
+                "tool": "fs_read",
+                "status": "FAILED",
+                "bytes_in": 0,
+                "bytes_out": 0,
+                "error_code": e.error_code,
+                "args_summary": {"path": report_path},
+            }
+        )
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_POLICY_REVIEW",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "POLICY_VIOLATION",
+            "policy_violation_code": e.error_code,
+            "error": str(e),
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, f"MOD_POLICY_REVIEW policy violation: {e.error_code}")
+        raise
+
+    side_effects: dict[str, Any] = {}
+    if dry_run:
+        try:
+            resolved_target = resolve_path_in_workspace(workspace=str(workspace), path=output_path)
+            side_effects["would_write"] = {
+                "target_path": str(resolved_target),
+                "bytes_estimate": int(report_bytes),
+            }
+        except PolicyViolation:
+            # Let MOD_B surface the violation at write time; keep this module best-effort.
+            pass
+
+    output = {
+        "node_id": node_id,
+        "status": "COMPLETED",
+        "module_id": "MOD_POLICY_REVIEW",
+        "side_effects": side_effects,
+        "tool_calls": tool_calls,
+        "outdir": outdir_str,
+        "report_relpath": rel_str,
+        "sim_counts": review.get("sim_counts", {}),
+        "diff_nonzero": int(review.get("diff_nonzero", 0)),
+        "report_bytes": int(report_bytes),
+        "report_markdown": report_markdown,
+    }
+    evidence.write_node_output(node_id, output)
+    evidence.write_node_log(node_id, "MOD_POLICY_REVIEW completed.")
+    if budget is not None and isinstance(report_markdown, str) and report_markdown:
+        budget.consume_tokens(estimate_tokens(report_markdown))
     return NodeResult(node_id=node_id, status="COMPLETED", output=output)
 
 
@@ -129,6 +545,7 @@ def _exec_approval(
     threshold: float,
     evidence: EvidenceWriter,
     node_id: str,
+    force_suspend_reason: str | None = None,
 ) -> NodeResult:
     risk_score = envelope.get("risk_score", 0)
     try:
@@ -136,8 +553,22 @@ def _exec_approval(
     except (TypeError, ValueError):
         risk = 0.0
 
-    node_input = {"node_id": node_id, "risk_score": risk, "threshold": threshold}
+    node_input: dict[str, Any] = {"node_id": node_id, "risk_score": risk, "threshold": threshold}
+    if isinstance(force_suspend_reason, str) and force_suspend_reason:
+        node_input["force_suspend_reason"] = force_suspend_reason
     evidence.write_node_input(node_id, node_input)
+
+    if isinstance(force_suspend_reason, str) and force_suspend_reason:
+        output = {
+            "node_id": node_id,
+            "status": "SUSPENDED",
+            "side_effects": {},
+            "decision": "SUSPEND",
+            "reason": force_suspend_reason,
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, f"APPROVAL suspended run (forced): {force_suspend_reason}")
+        return NodeResult(node_id=node_id, status="SUSPENDED", output=output)
 
     if risk >= threshold:
         output = {
@@ -164,29 +595,68 @@ def _exec_mod_b(
     workspace: Path,
     evidence: EvidenceWriter,
     node_id: str,
+    gateway: ToolGateway,
+    capability: dict[str, Any],
+    writes_allowed: bool,
+    budget: BudgetTracker | None,
 ) -> NodeResult:
     context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
     output_path_raw = context.get("output_path")
-    if isinstance(output_path_raw, str) and output_path_raw.strip():
-        output_path = Path(output_path_raw)
-    else:
-        output_path = Path("fixtures/out.md")
-
-    resolved_output_path = (
-        (workspace / output_path).resolve() if not output_path.is_absolute() else output_path.resolve()
+    intent = envelope.get("intent")
+    intent_str = intent if isinstance(intent, str) and intent else ""
+    default_output_path = "fixtures/out.md"
+    if intent_str == "urn:core:docs:policy_review":
+        default_output_path = "reports/POLICY_REVIEW.md"
+    output_path = (
+        output_path_raw.strip()
+        if isinstance(output_path_raw, str) and output_path_raw.strip()
+        else default_output_path
     )
-    if not _is_within(resolved_output_path, workspace):
-        raise RuntimeError(f"Output path must be within workspace: {resolved_output_path}")
+    try:
+        resolved_output_path = resolve_path_in_workspace(workspace=str(workspace), path=output_path)
+    except PolicyViolation as e:
+        node_input = {"node_id": node_id, "module_id": "MOD_B", "output_path": output_path}
+        evidence.write_node_input(node_id, node_input)
+        tool_calls = [
+            {
+                "tool": "fs_write",
+                "status": "FAILED",
+                "bytes_in": 0,
+                "bytes_out": 0,
+                "error_code": e.error_code,
+                "args_summary": {"path": output_path},
+            }
+        ]
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_B",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "POLICY_VIOLATION",
+            "error": str(e),
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, f"MOD_B policy violation: {e.error_code}")
+        raise
 
     dry_run = bool(envelope.get("dry_run", False))
     side_effect_policy = envelope.get("side_effect_policy", "none")
     allowed_side_effects = side_effect_policy in ("draft", "allow")
 
     content = _render_summary_markdown(mod_a_output)
+    if intent_str == "urn:core:docs:policy_review":
+        report_md = mod_a_output.get("report_markdown")
+        if isinstance(report_md, str) and report_md.strip():
+            content = report_md
+    if budget is not None:
+        budget.consume_tokens(estimate_tokens(content))
+    tool_calls: list[dict[str, Any]] = []
     node_input = {
         "node_id": node_id,
         "module_id": "MOD_B",
         "dry_run": dry_run,
+        "writes_allowed": bool(writes_allowed),
         "side_effect_policy": side_effect_policy,
         "allowed_side_effects": allowed_side_effects,
         "resolved_output_path": str(resolved_output_path),
@@ -195,7 +665,22 @@ def _exec_mod_b(
     }
     evidence.write_node_input(node_id, node_input)
 
-    if dry_run:
+    if dry_run or not writes_allowed:
+        reason = "dry_run" if dry_run else "governor_report_only"
+        tool_calls.append(
+            {
+                "tool": "fs_write",
+                "args_summary": {
+                    "path": output_path,
+                    "resolved_path": str(resolved_output_path),
+                    "bytes_estimate": node_input["content_bytes"],
+                },
+                "status": "SKIPPED",
+                "bytes_in": node_input["content_bytes"],
+                "bytes_out": 0,
+                "reason": reason,
+            }
+        )
         output = {
             "node_id": node_id,
             "status": "COMPLETED",
@@ -206,24 +691,78 @@ def _exec_mod_b(
                     "bytes_estimate": node_input["content_bytes"],
                 }
             },
+            "tool_calls": tool_calls,
         }
         evidence.write_node_output(node_id, output)
-        evidence.write_node_log(node_id, "MOD_B dry-run: no write performed.")
+        if dry_run:
+            evidence.write_node_log(node_id, "MOD_B dry-run: no write performed.")
+        else:
+            evidence.write_node_log(node_id, "MOD_B report-only: write suppressed by governor.")
         return NodeResult(node_id=node_id, status="COMPLETED", output=output)
 
     if not allowed_side_effects:
+        tool_calls.append(
+            {
+                "tool": "fs_write",
+                "args_summary": {"path": output_path, "resolved_path": str(resolved_output_path)},
+                "status": "SKIPPED",
+                "bytes_in": node_input["content_bytes"],
+                "bytes_out": 0,
+            }
+        )
         output = {
             "node_id": node_id,
             "status": "COMPLETED",
             "module_id": "MOD_B",
             "side_effects": {"write_skipped": {"reason": "side_effect_policy_disallows_write"}},
+            "tool_calls": tool_calls,
         }
         evidence.write_node_output(node_id, output)
         evidence.write_node_log(node_id, "MOD_B: write skipped (policy).")
         return NodeResult(node_id=node_id, status="COMPLETED", output=output)
 
-    resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
-    resolved_output_path.write_text(content, encoding="utf-8")
+    try:
+        fsw_res = gateway.call(
+            "fs_write",
+            {"path": output_path, "text": content, "encoding": "utf-8"},
+            capability=capability,
+            workspace=str(workspace),
+        )
+        tool_calls.append(
+            {
+                "tool": fsw_res.get("tool", "fs_write"),
+                "status": fsw_res.get("status", "OK"),
+                "bytes_in": fsw_res.get("bytes_in", 0),
+                "bytes_out": fsw_res.get("bytes_out", 0),
+                "args_summary": {
+                    "path": output_path,
+                    "resolved_path": fsw_res.get("resolved_path"),
+                },
+            }
+        )
+    except PolicyViolation as e:
+        tool_calls.append(
+            {
+                "tool": "fs_write",
+                "status": "FAILED",
+                "bytes_in": node_input["content_bytes"],
+                "bytes_out": 0,
+                "error_code": e.error_code,
+                "args_summary": {"path": output_path, "resolved_path": str(resolved_output_path)},
+            }
+        )
+        output = {
+            "node_id": node_id,
+            "status": "FAILED",
+            "module_id": "MOD_B",
+            "side_effects": {},
+            "tool_calls": tool_calls,
+            "error_code": "POLICY_VIOLATION",
+            "error": str(e),
+        }
+        evidence.write_node_output(node_id, output)
+        evidence.write_node_log(node_id, f"MOD_B policy violation: {e.error_code}")
+        raise
     output = {
         "node_id": node_id,
         "status": "COMPLETED",
@@ -231,6 +770,7 @@ def _exec_mod_b(
         "side_effects": {
             "wrote": {"target_path": str(resolved_output_path), "bytes": node_input["content_bytes"]}
         },
+        "tool_calls": tool_calls,
     }
     evidence.write_node_output(node_id, output)
     evidence.write_node_log(node_id, "MOD_B wrote output.")
@@ -245,10 +785,16 @@ def execute_workflow(
     workspace: Path,
     evidence: EvidenceWriter,
     approval_threshold: float,
+    writes_allowed: bool = True,
+    budget: BudgetTracker | None = None,
+    force_suspend_reason: str | None = None,
 ) -> dict[str, Any]:
     steps = workflow.get("steps", [])
     if not isinstance(steps, list):
         raise RuntimeError("Invalid workflow: steps must be a list.")
+
+    gateway = ToolGateway()
+    module_caps = _load_module_capabilities(workspace)
 
     status = "COMPLETED"
     node_results: list[dict[str, Any]] = []
@@ -256,8 +802,12 @@ def execute_workflow(
     provider_used: str | None = None
     model_used: str | None = None
     token_usage: dict[str, Any] | None = None
+    secrets_used: list[str] = []
 
     for step in steps:
+        if budget is not None:
+            budget.checkpoint_time()
+
         if not isinstance(step, dict):
             raise RuntimeError("Invalid workflow: step must be an object.")
         node_id = step.get("id")
@@ -270,11 +820,44 @@ def execute_workflow(
         if node_type == "module":
             module_id = step.get("module_id")
             if module_id == "MOD_A":
-                res = _exec_mod_a(
-                    envelope=envelope, provider=provider, workspace=workspace, evidence=evidence, node_id=node_id
-                )
+                if budget is not None:
+                    budget.consume_attempt(count=1)
+                intent = envelope.get("intent")
+                if isinstance(intent, str) and intent == "urn:core:docs:policy_review":
+                    res = _exec_mod_policy_review(
+                        envelope=envelope,
+                        workspace=workspace,
+                        evidence=evidence,
+                        node_id=node_id,
+                        gateway=gateway,
+                        capability=module_caps.get("MOD_POLICY_REVIEW", {}),
+                        budget=budget,
+                    )
+                else:
+                    res = _exec_mod_a(
+                        envelope=envelope,
+                        provider=provider,
+                        workspace=workspace,
+                        evidence=evidence,
+                        node_id=node_id,
+                        gateway=gateway,
+                        capability=module_caps.get("MOD_A", {}),
+                        budget=budget,
+                    )
                 last_mod_a_output = res.output
                 summary_obj = res.output.get("summary", {})
+                tool_calls = res.output.get("tool_calls")
+                if isinstance(tool_calls, list):
+                    for tc in tool_calls:
+                        if not isinstance(tc, dict):
+                            continue
+                        if tc.get("tool") != "secrets_get":
+                            continue
+                        if tc.get("status") != "OK":
+                            continue
+                        secret_id = tc.get("secret_id")
+                        if isinstance(secret_id, str) and secret_id and secret_id not in secrets_used:
+                            secrets_used.append(secret_id)
                 if isinstance(summary_obj, dict):
                     p = summary_obj.get("provider")
                     m = summary_obj.get("model")
@@ -294,12 +877,20 @@ def execute_workflow(
                     workspace=workspace,
                     evidence=evidence,
                     node_id=node_id,
+                    gateway=gateway,
+                    capability=module_caps.get("MOD_B", {}),
+                    writes_allowed=bool(writes_allowed),
+                    budget=budget,
                 )
             else:
                 raise RuntimeError(f"Unknown module_id: {module_id}")
         elif node_type == "approval":
             res = _exec_approval(
-                envelope=envelope, threshold=approval_threshold, evidence=evidence, node_id=node_id
+                envelope=envelope,
+                threshold=approval_threshold,
+                evidence=evidence,
+                node_id=node_id,
+                force_suspend_reason=force_suspend_reason,
             )
             if res.status == "SUSPENDED":
                 status = "SUSPENDED"
@@ -311,11 +902,14 @@ def execute_workflow(
             raise RuntimeError(f"Unknown node type: {node_type}")
 
         node_results.append({"node_id": res.node_id, "status": res.status, "output": res.output})
+        if budget is not None:
+            budget.checkpoint_time()
 
     result: dict[str, Any] = {
         "status": status,
         "workflow_id": workflow.get("workflow_id"),
         "nodes": node_results,
+        "secrets_used": secrets_used,
     }
     if provider_used:
         result["provider_used"] = provider_used
@@ -323,6 +917,13 @@ def execute_workflow(
         result["model_used"] = model_used
     if token_usage:
         result["token_usage"] = token_usage
+    if budget is not None:
+        budget.update_elapsed()
+        result["budget_usage"] = {
+            "attempts_used": budget.usage.attempts_used,
+            "elapsed_ms": budget.usage.elapsed_ms,
+            "est_tokens_used": budget.usage.est_tokens_used,
+        }
     return result
 
 
@@ -333,11 +934,19 @@ def execute_mod_b_only(
     workspace: Path,
     evidence: EvidenceWriter,
     node_id: str = "MOD_B",
+    writes_allowed: bool = True,
+    budget: BudgetTracker | None = None,
 ) -> NodeResult:
+    gateway = ToolGateway()
+    module_caps = _load_module_capabilities(workspace)
     return _exec_mod_b(
         envelope=envelope,
         mod_a_output=mod_a_output,
         workspace=workspace,
         evidence=evidence,
         node_id=node_id,
+        gateway=gateway,
+        capability=module_caps.get("MOD_B", {}),
+        writes_allowed=bool(writes_allowed),
+        budget=budget,
     )

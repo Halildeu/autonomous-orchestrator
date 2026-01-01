@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:schemas:node-input:{{MODULE_ID}}:v0.1",
+  "title": "{{MODULE_ID}} Node Input",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "node_id": { "type": "string", "minLength": 1 },
+    "intent": { "type": "string", "minLength": 1, "pattern": "^urn:" },
+    "inputs": { "type": "object", "additionalProperties": true }
+  },
+  "required": ["node_id"]
+}

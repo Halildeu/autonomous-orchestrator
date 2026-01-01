@@ -1,0 +1,11 @@
+{
+  "jsonschema": {
+    "cves": [],
+    "version": "4.23.0"
+  },
+  "python": {
+    "cves": [],
+    "version": "3.x"
+  }
+}
+

@@ -1,0 +1,5 @@
+{
+  "id": "MOD_EXAMPLE",
+  "context_strategy": "inherit",
+  "allowed_tools": []
+}

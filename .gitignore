@@ -1,8 +1,14 @@
 # Runtime outputs
-evidence/**
+evidence/
 dlq/*.json
-.cache/**
-sim_report.json
+.cache/
+dist/
+openai_ping_last.json
+sim_report*.json
+
+# Supply-chain generated artifacts (do not commit)
+supply_chain/sbom.v1.json
+supply_chain/signature.v1.json
 
 # Python
 __pycache__/
@@ -16,6 +22,9 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# Local secrets
+.env
 
 # Keep placeholders
 !dlq/.gitkeep

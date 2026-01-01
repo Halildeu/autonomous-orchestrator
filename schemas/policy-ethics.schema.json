@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-ethics.schema.json",
+  "title": "Policy Ethics",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "note"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "note": { "type": "string", "minLength": 1 }
+  }
+}

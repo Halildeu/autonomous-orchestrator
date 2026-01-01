@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-license.schema.json",
+  "title": "Policy License",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "allowlist", "denylist", "unknown_behavior"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "allowlist": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+    "denylist": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "unknown_behavior": { "type": "string", "enum": ["warn", "fail"] }
+  }
+}

@@ -11,8 +11,7 @@
     "risk_score",
     "dry_run",
     "side_effect_policy",
-    "idempotency_key",
-    "budget"
+    "idempotency_key"
   ],
   "properties": {
     "request_id": {
@@ -47,15 +46,21 @@
     "budget": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_tokens", "max_attempts"],
       "properties": {
         "max_tokens": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 1000000
         },
         "max_attempts": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_time_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
         }
       }
     },
@@ -63,6 +68,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "use_openai": {
+          "type": "boolean"
+        },
         "input_path": {
           "type": "string",
           "minLength": 1

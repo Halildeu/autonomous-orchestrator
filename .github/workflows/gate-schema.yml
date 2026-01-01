@@ -7,6 +7,8 @@ on:
 jobs:
   validate-schemas:
     runs-on: ubuntu-latest
+    env:
+      SUPPLY_CHAIN_SIGNING_KEY: ${{ secrets.SUPPLY_CHAIN_SIGNING_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,3 +29,54 @@ jobs:
       - name: Run smoke test (local runner + policy dry-run)
         run: |
           python ci/smoke_test.py
+
+      - name: Evidence integrity verify (newest run)
+        run: |
+          RUN_DIR=$(python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          evidence = Path("evidence")
+          summaries = list(evidence.rglob("summary.json"))
+          if not summaries:
+              print("No evidence summaries found for integrity verify.")
+              sys.exit(1)
+
+          summaries.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+          print(summaries[0].parent.as_posix())
+          PY
+          )
+          echo "Integrity verify: ${RUN_DIR}"
+          python -m src.evidence.integrity_verify --run "${RUN_DIR}"
+
+      - name: Reaper (dry-run retention report)
+        run: |
+          python -m src.ops.reaper --dry-run true --out reaper_report_ci.json
+
+      - name: Upload reaper report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reaper-report-ci
+          path: reaper_report_ci.json
+
+      - name: Upload policy-check outputs (if present)
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-check-outputs
+          path: .cache/policy_check/
+          if-no-files-found: ignore
+
+      - name: Supply chain secret preflight
+        run: |
+          if [ -z "${SUPPLY_CHAIN_SIGNING_KEY:-}" ]; then
+            echo "Missing SUPPLY_CHAIN_SIGNING_KEY GitHub Actions secret"
+            exit 1
+          fi
+
+      - name: Supply chain (SBOM + sign + verify)
+        run: |
+          python supply_chain/sbom.py
+          python supply_chain/sign.py
+          python supply_chain/verify.py
+          python supply_chain/license_gate.py
+          python supply_chain/cve_gate.py
