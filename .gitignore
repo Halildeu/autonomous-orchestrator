@@ -1,10 +1,11 @@
 # Runtime outputs
-evidence/
+.cache/**
+evidence/**
 dlq/*.json
-.cache/
 dist/
 openai_ping_last.json
 sim_report*.json
+reaper_report*.json
 
 # Supply-chain generated artifacts (do not commit)
 supply_chain/sbom.v1.json
