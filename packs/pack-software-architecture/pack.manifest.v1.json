@@ -1,0 +1,39 @@
+{
+  "pack_id": "pack-software-architecture",
+  "version": "1.0.0",
+  "lifecycle_state": "active",
+  "iso_kernel_refs": {
+    "context_ref": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders_ref": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope_ref": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria_ref": "tenant/TENANT-DEFAULT/criteria.v1.md",
+    "gate_level": "warn"
+  },
+  "provides": {
+    "intents": ["urn:pack:arch:adr_draft"],
+    "workflows": ["WF_CORE"],
+    "formats": ["FORMAT-AUTOPILOT-CHAT"],
+    "capability_refs": ["capabilities/CAP_ARCH_ADR_DRAFT.v1.json"],
+    "format_refs": ["formats/format-autopilot-chat.v1.json"]
+  },
+  "namespace_prefix": "CAP_ARCH",
+  "conflict_policy": {
+    "hard_conflict": "fail",
+    "soft_conflict": "warn",
+    "deterministic_tie_break": "pack_id_lexicographic"
+  },
+  "improvement_mappings": [
+    {
+      "trigger_kind": "SCRIPT_BUDGET",
+      "min_severity": "WARN",
+      "suggestion_kind": "MAINTAINABILITY_PLAN",
+      "target": "M0"
+    },
+    {
+      "trigger_kind": "QUALITY_GATE_WARN",
+      "min_severity": "WARN",
+      "suggestion_kind": "QUALITY_CHECK",
+      "target": "M6"
+    }
+  ]
+}

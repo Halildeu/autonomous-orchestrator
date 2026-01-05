@@ -7,7 +7,7 @@ Amaç: Her küçük değişiklik için GitHub Release yayınlayıp zaman kaybetm
 - **Main hızlı akar:** PR merge etmek için şartımız CI gate’lerinin yeşil olmasıdır.
 - **GitHub Release yalnızca milestone sürümlerde:** örn. `v0.2.0`, `v0.3.0`, `v1.0.0`.
 - **Checkpoint tag’leri serbest (opsiyonel):** iç koordinasyon için lightweight tag atılabilir; GitHub Release çıkmak zorunlu değildir.
-- **SSOT dokümanlar:** `CHANGELOG.md` + `docs/OPERATIONS/release-notes-*.md` + bu doküman.
+- **SSOT dokümanlar:** `CHANGELOG.md` + `docs/OPERATIONS/release-notes-v1.0.0.md` + bu doküman.
 
 ## What qualifies as a milestone release
 
@@ -67,7 +67,7 @@ git push origin vX.Y.Z
 ```
 
 2) GitHub Release (UI):
-- `CHANGELOG.md` içindeki ilgili sürüm bölümünü (veya `docs/OPERATIONS/release-notes-vX.Y.Z.md`) description olarak yapıştır.
+- `CHANGELOG.md` içindeki ilgili sürüm bölümünü (veya `docs/OPERATIONS/release-notes-v1.0.0.md`) description olarak yapıştır.
 
 ## Optional: internal checkpoint tags (no GitHub Release)
 
@@ -79,4 +79,3 @@ git push origin checkpoint-YYYYMMDD
 ```
 
 Not: Bu tag’ler opsiyoneldir; PR review + CI yeşil olduğu sürece sistemin “main flows fast” hedefini bozmaz.
-

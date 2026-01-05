@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "id": "CAP-PR-PACKAGER",
+    "version": "v1",
+    "kind": "CAPABILITY",
+    "purpose": "Deterministic PR description packaging (title/body) from evidence and diffs, without making unverified claims.",
+    "inputs": ["diff_ref", "evidence_paths"],
+    "steps": [
+      "Collect evidence pointers for the run (run_id, summary, key node outputs).",
+      "Summarize changes and risks using only verifiable inputs.",
+      "Produce a PR title/body that links to evidence paths (no external links required)."
+    ],
+    "outputs": ["pr_title", "pr_body_markdown"],
+    "guardrails": ["no_unsubstantiated_claims", "must_link_evidence", "no_secrets_in_output"],
+    "iso_refs": {
+      "context_ref": "tenant/TENANT-DEFAULT/context.v1.md",
+      "stakeholders_ref": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+      "scope_ref": "tenant/TENANT-DEFAULT/scope.v1.md",
+      "criteria_ref": "tenant/TENANT-DEFAULT/criteria.v1.md",
+      "gate_level": "warn"
+    },
+    "evidence": {
+      "expected": ["evidence/<run_id>/summary.json", "evidence/<run_id>/provenance.v1.json"],
+      "verify_on_read": true
+    },
+    "risk": {
+      "category": "low",
+      "default_mode": "normal",
+      "triggers": ["missing_evidence", "integrity_mismatch"]
+    },
+    "sustainability": {
+      "intent": ["urn:core:docs:policy_review", "urn:core:ops:dlq_triage"],
+      "metrics": [
+        { "id": "pr_body_bytes", "target": "keep_under_5000" },
+        { "id": "evidence_links_count", "target": ">=1" }
+      ]
+    },
+    "continuity": {
+      "resume_supported": true,
+      "idempotent": true,
+      "checkpointing": false
+    }
+  },
+  "body": {
+    "type": "capability",
+    "steps": [
+      "Extract stable facts from evidence/provenance (no guessing).",
+      "Format a PR body with evidence paths and a short risk note.",
+      "Return title/body strings; do not create side effects."
+    ],
+    "implementation_ref": "${WORKSPACE_ROOT}/modules/pr_packager.py"
+  }
+}

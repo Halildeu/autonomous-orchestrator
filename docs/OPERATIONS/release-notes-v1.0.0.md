@@ -6,7 +6,7 @@ Release date: **2026-01-01**
 
 From `CHANGELOG.md`:
 
-- Deterministic orchestrator core (schemas/policies/gates, fail-closed)
+- Deterministic orchestrator core (`schemas/`, `policies/`, `ci/`, fail-closed)
 - Evidence pack: provenance + integrity verify + export zip
 - Ops tooling: manage CLI (runs/dlq/suspends), reaper retention, runbook
 - Policy workflow: policy-check + policy diff sim + Markdown report + policy editor
@@ -52,4 +52,3 @@ GitHub PR creation is supported as a controlled side effect, but is **integratio
 How to enable safely (manual steps) is documented in:
 - `docs/OPERATIONS/side-effects.md`
 - `docs/OPERATIONS/runbook-day1.md` (“GitHub PR side effect” section)
-

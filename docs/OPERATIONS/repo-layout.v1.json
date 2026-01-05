@@ -1,0 +1,59 @@
+{
+  "version": "v1",
+  "allowed_top_level_dirs": [
+    ".codex",
+    ".github",
+    ".git",
+    "capabilities",
+    "ci",
+    "docs",
+    "dlq",
+    "evidence",
+    "examples",
+    "fixtures",
+    "formats",
+    "governor",
+    "modules",
+    "orchestrator",
+    "packs",
+    "policies",
+    "registry",
+    "roadmaps",
+    "schemas",
+    "scripts",
+    "src",
+    "supply_chain",
+    "templates",
+    "workflows"
+  ],
+  "allowed_top_level_files": [
+    ".gitignore",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "README.md",
+    "pyproject.toml",
+    "requirements-dev.txt",
+    "smoke_test.py"
+  ],
+  "generated_dirs": [
+    ".cache",
+    ".venv",
+    "*.egg-info",
+    "__pycache__",
+    "dist"
+  ],
+  "generated_files_patterns": [
+    ".DS_Store",
+    ".env",
+    "openai_ping_last.json",
+    "reaper_report*.json",
+    "sbom.v1.json",
+    "signature.v1.json",
+    "sim_report*.json"
+  ],
+  "notes": [
+    "modules/ vs src/modules/: dual location is allowed but must be documented in docs/OPERATIONS/repo-layout.md",
+    "Workspace layout SSOT: WS/project/<project_id>/ for project artifacts; WS/.cache/ is derived-only.",
+    "Roadmap split: core SSOT lives under roadmaps/SSOT; project roadmaps live under roadmaps/PROJECTS."
+  ]
+}

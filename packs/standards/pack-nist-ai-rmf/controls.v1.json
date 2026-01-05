@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "controls": [
+    {
+      "id": "NIST-AI-RMF-1",
+      "title": "Governance",
+      "domain": "governance",
+      "severity": "medium",
+      "description": "Define governance structure for AI risk management."
+    }
+  ]
+}

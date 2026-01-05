@@ -1,387 +1,549 @@
-# Otonom Üretim Hattı Yol Haritası
-Deterministik Control Plane + Kısıtlı AI Execution Plane + Sürekli Öğrenme (Final v2.7)
+# SSOT Yol Haritası (Kilitli) — v1.0.0 sonrası
+## “ISO Sırası Çekirdek + Genel Platform + Katalog‑Temelli Üretim + Learning (Suggest‑Only) + Autopilot (İnsansız)”
 
-Bu doküman, projeyi uçtan uca birlikte yürütürken “bağlamı kaybetmemek” için tek kaynak (SSOT) yol haritasıdır.
+> **CANONICAL:** Bu dosya tek SSOT yol haritasıdır. Legacy arşiv: `ROADMAP_v2.7_legacy.md` (archive only).
 
-## İçindekiler
+> Bu doküman artık **tek doğru** (SSOT) yol haritamızdır.  
+> Amaç: Mevcut v1.0.0 çekirdeğimizden sapmadan, ürünün “genel platform” kimliğini tamamlamak ve insansız otomasyonu sürdürülebilir şekilde büyütmek.
 
-- [Otonom Üretim Hattı Yol Haritası](#otonom-üretim-hattı-yol-haritası)
-  - [İçindekiler](#i̇çindekiler)
-  - [0) Sistem Anayasası (Başlamadan kilitlenecek kurallar)](#0-sistem-anayasası-başlamadan-kilitlenecek-kurallar)
-    - [0.1 Temel ilke](#01-temel-ilke)
-    - [0.2 Normatif dil](#02-normatif-dil)
-    - [0.3 Control plane değişiklik yönetimi (MUST)](#03-control-plane-değişiklik-yönetimi-must)
-    - [0.4 Güvenlik \& Etik çerçeve (MUST)](#04-güvenlik--etik-çerçeve-must)
-    - [0.5 Veri sınıflandırma \& gizlilik (MUST)](#05-veri-sınıflandırma--gizlilik-must)
-    - [0.6 Threat model \& trust boundaries (MUST)](#06-threat-model--trust-boundaries-must)
-    - [0.7 Kriptografik bütünlük \& değiştirilemezlik (MUST)](#07-kriptografik-bütünlük--değiştirilemezlik-must)
-    - [0.8 Orchestrator Decisioning (MUST) — “Tek Komut” Deneyimi](#08-orchestrator-decisioning-must--tek-komut-deneyimi)
-    - [0.9 Intent Contract (MUST)](#09-intent-contract-must)
-    - [0.10 Context Strategy \& Token Pruning (MUST)](#010-context-strategy--token-pruning-must)
-    - [0.11 Naming Convention Standard (MUST)](#011-naming-convention-standard-must)
-    - [0.12 Policy Simulation \& Dry-Run Gate (MUST for medium/high risk)](#012-policy-simulation--dry-run-gate-must-for-mediumhigh-risk)
-  - [Faz-0: Guardrail-First Starter Kit (Schema + Security + Ethics + Bias + Data + Intent)](#faz-0-guardrail-first-starter-kit-schema--security--ethics--bias--data--intent)
-    - [Amaç](#amaç)
-    - [Çıktılar](#çıktılar)
-  - [Faz-0.25: Uygulama Disiplini (WWV + Workshop + Day-1 Ops) (SHOULD)](#faz-025-uygulama-disiplini-wwv--workshop--day-1-ops-should)
-    - [Amaç](#amaç-1)
-    - [Çıktılar](#çıktılar-1)
-  - [Faz-0.5: Risk Scoring + HITL (Approval)](#faz-05-risk-scoring--hitl-approval)
-  - [Faz-1: SSOT + Idempotency + Side-Effect Ledger + Progressive Autonomy](#faz-1-ssot--idempotency--side-effect-ledger--progressive-autonomy)
-  - [Faz-1.5: Governor + Cost Control + Graceful Degradation + Hot-fix Override](#faz-15-governor--cost-control--graceful-degradation--hot-fix-override)
-  - [Faz-2: Evidence + Provenance + Compliance + Artifact Store + Observability + GC](#faz-2-evidence--provenance--compliance--artifact-store--observability--gc)
-    - [+ Integrity Verify (MUST)](#-integrity-verify-must)
-  - [Faz-3: Discovery + Cost-aware Routing + Autoscaling](#faz-3-discovery--cost-aware-routing--autoscaling)
-    - [+ Model Version Pinning (MUST)](#-model-version-pinning-must)
-  - [Faz-3.5: Dual-Run \& Geçiş Yönetimi](#faz-35-dual-run--geçiş-yönetimi)
-  - [Faz-4: Workflow Orchestrator (DAG) + Suspend/Resume + Konsol + DLQ (MUST)](#faz-4-workflow-orchestrator-dag--suspendresume--konsol--dlq-must)
-    - [+ Decision Policy + State Machine (MUST)](#-decision-policy--state-machine-must)
-  - [Faz-5: Executor (Sandbox) + Capability Enforcement + GPU/Virtualization + Env Caching](#faz-5-executor-sandbox--capability-enforcement--gpuvirtualization--env-caching)
-    - [+ Context Engine + Local Runner + JIT Secrets](#-context-engine--local-runner--jit-secrets)
-  - [Faz-6: Security \& Supply Chain + Multi-tenant Fairness/Quota + FinOps + Data Poisoning](#faz-6-security--supply-chain--multi-tenant-fairnessquota--finops--data-poisoning)
-  - [Faz-7: AI Testing + Evals + Shadow Mode + Feedback + Governor Öğrenmesi](#faz-7-ai-testing--evals--shadow-mode--feedback--governor-öğrenmesi)
-  - [Faz-8: Ürünleştirme (UI + SDK + Marketplace)](#faz-8-ürünleştirme-ui--sdk--marketplace)
-  - [Faz-9: Kurumsal Ölçek (SLA, DR, HA, Billing, Sürdürülebilirlik)](#faz-9-kurumsal-ölçek-sla-dr-ha-billing-sürdürülebilirlik)
-  - [Kırmızı Bayraklar](#kırmızı-bayraklar)
-  - [Başlama Stratejisi (Son karar)](#başlama-stratejisi-son-karar)
+### Değişiklik yönetimi (kilit)
+- Bu dosyadaki yol haritası “kilitli” kabul edilir; değişiklikler PR ile ve gerekçelendirilerek yapılır.
+- Yol haritasını etkileyen her SSOT değişikliği için **policy-check** çalıştırılır: `python -m src.ops.manage policy-check --source both`
+- İlke: SSOT = Git; indeks/cache = rebuildable (`.cache/`).
+- Customer-friendly mode: kullanıcı komut yazmaz, agent ops’u çalıştırır (bkz. `docs/OPERATIONS/CODEX-UX.md`).
+- Tek mantık + katman modeli SSOT: `docs/LAYER-MODEL-LOCK.v1.md`.
+
+### Plan‑only placeholders (repo dışında, bilerek yok)
+Bu listede yer alan referanslar **PLAN‑ONLY PLACEHOLDER** olarak işaretlenmiştir ve repo’da bulunmaması normaldir.
+- [PLAN-ONLY PLACEHOLDER] ci/validate_format_contracts.py
+- [PLAN-ONLY PLACEHOLDER] ci/validate_iso_core_presence.py
+- [PLAN-ONLY PLACEHOLDER] ci/validate_tenant_consistency.py
+- [PLAN-ONLY PLACEHOLDER] schemas/format-contract.schema.json
+- [PLAN-ONLY PLACEHOLDER] formats/format-code-gen.v1.json
+- [PLAN-ONLY PLACEHOLDER] formats/format-decision-proposal.v1.json
+- [PLAN-ONLY PLACEHOLDER] formats/format-procedure-iso.v1.json
+- [PLAN-ONLY PLACEHOLDER] formats/format-recommendation.v1.json
+- [PLAN-ONLY PLACEHOLDER] docs/OPERATIONS/roadmap-runner-demo.md
+- [PLAN-ONLY PLACEHOLDER] packs/pack-demo
+- [PLAN-ONLY PLACEHOLDER] packs/pack-demo/manifest.v1.json
+- [PLAN-ONLY PLACEHOLDER] packs/bp-*
+- [PLAN-ONLY PLACEHOLDER] packs/formats/learning/autopilot
+- [PLAN-ONLY PLACEHOLDER] docs/specs
+- [PLAN-ONLY PLACEHOLDER] workflows/formatlar/paketler/standartlar/kontrol
+- [PLAN-ONLY PLACEHOLDER] workflows/templates/policy
+- [PLAN-ONLY PLACEHOLDER] governor/budget/quota
+- [PLAN-ONLY PLACEHOLDER] governor/budget/quota/tool-capability
+- [PLAN-ONLY PLACEHOLDER] governor/report_only
 
 ---
 
-## 0) Sistem Anayasası (Başlamadan kilitlenecek kurallar)
-
-### 0.1 Temel ilke
-
-- Control plane deterministik: Registry + Policy + Schemas + Gates + DAG + Governor + Orchestrator Decisioning
-- Execution plane kısıtlı: AI yalnızca node executor (ve opsiyonel ranker), policy/gate aşamaz
-- Her şey sözleşmeli: Request Envelope → Node Input → Node Output (JSON)
-- Replayability: Evidence + Provenance + Compliance + Trace her run’da zorunlu
-- Fail-closed: şüphede dur, mod düşür, karantinaya al
-- Operasyonel gerçekler çekirdeğe dahildir: DLQ, GC, model pinning
-
-### 0.2 Normatif dil
-
-- MUST = olmazsa olmaz
-- SHOULD = güçlü öneri
-- MAY = opsiyonel
-
-### 0.3 Control plane değişiklik yönetimi (MUST)
-
-- Değişiklik sınıfları: low / medium / high risk
-- Canary tenant/workflow + otomatik rollback kriterleri
-- Backup/restore + DR hedefleri (RPO/RTO)
-- Medium/High değişikliklerde: Policy Simulation & Dry-Run raporu zorunlu (bkz. [0.12](#012-policy-simulation--dry-run-gate-must-for-mediumhigh-risk))
-
-### 0.4 Güvenlik & Etik çerçeve (MUST)
-
-- Policy-as-code (OWASP/SAIF çizgisi)
-- Etik gates + bias detection MUST
-- Prompt injection / tool abuse / data poisoning riskleri için test+gate yaklaşımı
-
-### 0.5 Veri sınıflandırma & gizlilik (MUST)
-
-- Her run için `data_classification` zorunlu (public/internal/confidential/PII)
-- Redaction/DLP kuralları policy ile yönetilir (log/evidence/feedback dahil)
-- Tenant izolasyonu + şifreleme (in-transit / at-rest)
-
-### 0.6 Threat model & trust boundaries (MUST)
-
-- Control plane / execution plane / tool gateway / artifact store trust boundary dokümanı zorunlu
-- High risk değişikliklerde threat model güncellenir
-
-### 0.7 Kriptografik bütünlük & değiştirilemezlik (MUST)
-
-- Registry/policy/workflow + evidence/ledger için signing/attestation zorunlu
-- Evidence pack tamper-evident olmalı (hash-chain/Merkle + verify)
-- Prod kritik kayıtları için append-only / WORM hedeflenir
-
-### 0.8 Orchestrator Decisioning (MUST) — “Tek Komut” Deneyimi
-
-Orchestrator deterministik olarak:
-
-1. Komutu Request Envelope’a çevirir
-2. Hangi workflow/modüller çalışacak seçer (Discovery)
-3. DAG’i seçer/üretir (Planner; dynamic expansion MAY)
-4. Paralel mi sıralı mı yürüneceğini belirler (Scheduler)
-5. Her adımı gate’lerden geçirir (Gatekeeper)
-6. Evidence/Provenance/Trace üretip run’ı kapatır
-
-5 “beyin”:
-
-- Planner
-- Discovery
-- Scheduler
-- Governor
-- Gatekeeper
-
-### 0.9 Intent Contract (MUST)
-
-- `intent` serbest string değildir; kontrollü set (URN/enum/registry).
-- Örn: `urn:core:summary:summary_to_file`
-- Orchestrator `intent → workflow` eşlemesini sadece bu setten yapar.
-- Unknown intent = CI FAIL.
-
-### 0.10 Context Strategy & Token Pruning (MUST)
-
-- Her modül için registry’de `context_strategy`: raw/summarize/sliding_window/rag/hybrid
-- Executor input limitini aşarsa stratejiyi otomatik uygular ve evidence’a yazar.
-- “Sessiz taşma” yok.
-
-### 0.11 Naming Convention Standard (MUST)
-
-- Schema dosyaları: `kebab-case.schema.json`  
-  Örn: `request-envelope.schema.json`, `registry-item.schema.json`
-- Instance dosyaları: `snake_case.vX.json`  
-  Örn: `registry.v1.json`, `policy_security.v1.json`, `wf_core.v1.json`
-- ID formatları (JSON içi): `UPPER_SNAKE_CASE`  
-  Örn: `MOD_CORE_SUMMARIZE`, `WF_CORE_PIPE`
-
-### 0.12 Policy Simulation & Dry-Run Gate (MUST for medium/high risk)
-
-Amaç: Yeni policy/registry/workflow/strategy değişikliği merge edilmeden önce etkisini görmek.
-
-- CI’da “dry-run simulation” çalışır:
-  - geçmiş X günün request envelope’ları (veya yoksa fixture set) üzerinde
-  - side_effect_policy zorla `none` (simülasyon asla gerçek yan etki üretmez)
-  - output: “kaç run allow/block/degrade/suspend olurdu?” raporu + örnekler
-- Canary/traffic shifting kararlarını besler.
-- Medium/High risk değişikliklerde rapor zorunlu, low risk’te SHOULD.
-
-DoD: Policy değişikliği “neye ne yapıyor” bilinmeden merge edilmez (medium/high).
+## Mevcut durum (program‑led özet)
+- Doc‑nav “tek kapı” ölçümü: broken_refs=1, ambiguity=0, critical_nav_gaps=0 (strict rapor cockpit’i etkilemez).
+- M10.2 Assessment: DONE (blok kalktı, index‑first çalışıyor).
+- M10.3 Gap register: DONE (gap_register + gap_summary mevcut).
+- M10.4 Cockpit benchmark: DONE (system_status sections.benchmark mevcut).
+- Portfolio tracking: portfolio-status + system_status sections.projects (program‑led tek kapı).
+- Next focus: **M0 Maintainability** (SCRIPT_BUDGET borçları; davranış değişmeden refactor planı).
 
 ---
 
-## Faz-0: Guardrail-First Starter Kit (Schema + Security + Ethics + Bias + Data + Intent)
+## Kilitlenen ana kararlar (işletim sistemi kuralı)
 
-### Amaç
+Bu bölüm “tek mantık + katmanlar” kararını SSOT seviyesinde kilitler.  
+Tamamlanmayan kısımlar legacy değildir; yol haritası burada kilitli kalır.
 
-AI çalıştırmadan önce güvenlik/etik/veri/intent + şema omurgasını kurmak.
+### 0.1 Tek Mantık Zinciri (her işte aynı)
+Her iş şu zincirden geçer (yöntem değil, ürün davranışı):
 
-### Çıktılar
+Bağlam → Paydaş → Kapsam → Kriter → Risk → Kanıt → Üretim → Recheck
 
-1) `schemas/` (minimum)
+### 0.2 Katmanlar “görev” değil, “izin/sahiplik”
+- **L0 CORE:** motor + kapılar + doğrulamalar. Varsayılan kilitli.
+- **L1 CATALOG:** workflows/formatlar/paketler/standartlar/kontrol noktaları. “Kütüphane”.
+- **L2 WORKSPACE:** türev indeksler/raporlar/incubator/CHG taslakları/session RAM. “Çalışma masası”.
+- **L3 EXTERNAL:** müşterinin gerçek işi (kod/doküman/proje çıktısı). “Teslimat alanı”.
 
-- `registry-item.schema.json`
-- `request-envelope.schema.json` (intent + risk + budget + data_classification)
-- `intent-registry.schema.json`
-- `node-output-base.schema.json`
-- `quality-criteria.schema.json`
-- `approval-policy.schema.json`
+Kural: Aynı mantık zinciri her yerde aynı; katman sadece nereye yazabileceğimizi belirler.
 
-2) `policies/` (minimum)
+### 0.3 Tek katalog görünümü (bakım kolaylığı)
+- Tek mantıksal katalog (tek derived index)
+- İki kaynak olabilir:
+  - Global (L1) → core tarafından sağlanan
+  - Customer‑owned (L2’de saklanır, katalog entry olarak etiketlenir)
+- Derived index bu ikisini deterministik birleştirir (origin/owner/priority/conflict kurallarıyla).
 
-- `policy_security.v1.json`
-- `policy_ethics.v1.json` (bias detection MUST)
-- `policy_data.v1.json` (DLP/redaction/retention)
-- `policy_default.v1.json` (cost + degradation steps)
-
-3) CI gates
-
-- schema validation
-- secret scanning
-- SAST baseline
-- ethics+bias simulation
-- data policy simulation
-- intent contract gate
-- policy simulation dry-run gate (en az fixture set ile)
-
-DoD: AI çalışmadan önce schema+security+ethics+bias+data+intent kapıları var.
+### 0.4 Core dokunulmazlığı (müşteri güveni)
+- Core‑lock default ENABLED.
+- Müşteri modunda core’a yazma denemesi fail‑closed + kanıtlı BLOCKED.
+- Core’a dokunulacaksa bilinçli akış: “unlock + gerekçe + CHG + review”.
 
 ---
 
-## Faz-0.25: Uygulama Disiplini (WWV + Workshop + Day-1 Ops) (SHOULD)
+## 1) “Bir yazılım yaz” dediğinde hangi seviyede yazılır?
+Varsayılan: **L3 EXTERNAL** (müşteri projesi / gerçek çıktı).  
+Eş zamanlı olarak:
+- **L2 WORKSPACE:** sentez + kararlar + format/kanıt pointer’ları + recheck sonucu
+- **L1 CATALOG:** genellenebilir akış/format varsa, önce customer‑owned entry olarak üretilir (origin=CUSTOMER)
 
-### Amaç
-
-“Başarı tuzakları”na düşmeden ilerlemek.
-
-### Çıktılar
-
-1) WWV (Worst Working Version) yaklaşımı (SHOULD)
-
-- Faz-0’da aylar kaybetmemek için minimum sözleşme ile çekirdeği koştur:
-  - Envelope v0.1: id + intent + risk_score (+ budget minimal)
-  - data_classification v1.1’e genişleyebilir (ama hedef yine MUST)
-
-2) Başlangıç Workshop (SHOULD)
-
-- 1 günlük oturum: planı değil, çekirdek mini workflow’u tahtada çizin.
-- intent URN, context_strategy alanı, approval davranışı somutlaştırılır.
-
-3) Day-1 Operasyon Sahipliği (SHOULD → Faz-1.5 başlamadan MUST)
-
-- Governor/DLQ/GC izleme-alarm-runbook sahibi atanır.
-- Runbook skeleton’ı yazılmadan Governor “prod niyetiyle” başlamaz.
-
-DoD: Herkes aynı “sözleşmeyi” anlar; operasyon bileşenleri sahipsiz kalmaz; WWV ile hızlı koşar.
+L0 CORE’a bu istekle dokunulmaz. Core davranış değişikliği istenirse ayrı kilit açma protokolü uygulanır.
 
 ---
 
-## Faz-0.5: Risk Scoring + HITL (Approval)
+## 2) Yol haritası (mevcut sistemle uyumlu “kilitli plan”)
+Mevcut çekirdekle uyumlu ve core‑lock açıkken çalışacak şekilde kilitlenmiştir.
 
-Çıktılar
+### Faz A — Davranış kilidi ve sınırlar (hemen, kalıcı)
+**A1 — Tek Mantık sözleşmesi (CAPABILITY spec‑core)**
+- Tüm katalog entry tipleri için meta alanlar (id/purpose/inputs/outputs/guardrails/iso_refs/evidence/risk/layer) standarttır.
+- Eksik/yanlış layer, core_lock_required ihlali, evidence boşluğu → fail‑closed.
 
-- `risk_score` + `risk_context`
-- HITL policy + escalation matrix + timeout
-- Approval node
+**A2 — Core‑lock: müşteri için dokunulmaz**
+- Core yazımı sadece açık kilit + CHG + review ile.
+- Müşteri modunda core dokunuşu → BLOCKED + kanıt.
 
----
+**A3 — Tek katalog görünümü**
+- Hard conflict → FAIL (katalog build iptal; stabil index korunur).
+- Soft conflict → WARN + deterministik seçim.
 
-## Faz-1: SSOT + Idempotency + Side-Effect Ledger + Progressive Autonomy
+DoD: Aynı girdi → aynı index hash; müşteri core’a dokunamaz; conflict raporu cockpit’te görünür.
 
-Çıktılar
+### Faz B — Katalog yaşam döngüsü (müşteri özelleştirir ama global’i bozmaz)
+**B1 — Customer‑owned katalog entry standardı**
+- Zorunlu etiketler: origin, owner_tenant, promotion_state, override_ref.
 
-- Envelope: `idempotency_key`, `budget`, `dry_run`, `side_effect_policy`, `risk_score`, `data_classification`, `intent`
-- Idempotency store
-- Side-effect ledger (hash + timestamp)
-- Progressive autonomy (manual/human_review/full_auto) + eşikler
+**B2 — Promotion disiplini**
+- customer‑owned → candidate → promoted
+- promoted sadece core‑lock açıkken, manual review ile.
 
----
+### Faz C — Benchmark/Gap Engine “kalp projesi” (M10.*)
+Hedef: her işte aynı zinciri otomatikleştirmek (O(delta), pointer‑only).
 
-## Faz-1.5: Governor + Cost Control + Graceful Degradation + Hot-fix Override
+**C1 — North Star (Standards catalog)**  
+Controls + Metrics + Maturity (0–5) deterministik kriterlerle (pointer + schema + index sinyali).
 
-Çıktılar
+**C2 — Assessment (O(delta))**  
+system_status + pack index + quality + repo hygiene + harvest sinyallerini okur.
 
-- Governor health brain + quarantine + global override
-- Cost policy + fallback + degradation_steps
-- Hot-fix override (config injection)
+**C3 — Gap register + Closure map**  
+safe‑only → incubator taslak/uygula; plan‑only → draft.
 
----
+**C4 — Cockpit**  
+benchmark_scorecard + top_actions + regression; “Top 5 Next Actions” deterministik sıralama.
 
-## Faz-2: Evidence + Provenance + Compliance + Artifact Store + Observability + GC
-### + Integrity Verify (MUST)
+### Faz D — Otomatik iyileştirme döngüsü (PDCA)
+**D1 — Recheck loop:** safe‑only apply sonrası otomatik recheck  
+**D2 — Öneri patlaması kontrolü:** quota + quality_score + cooldown  
+**D3 — Sürdürülebilirlik:** O(delta) + cursor + retention
+**D4 — M10.5 PDCA Recheck + Regression + Quota/Cooldown + Retention/Cursor:** recheck sonrası regression_flag + severity escalation + cooldown + deterministik top_actions
 
-Çıktılar
+### Faz E — M0 Maintainability (çekirdek borçlarını yönetilebilir kılma)
+Davranış değiştirmeden yapılır:
+- `local_runner.py` / `manage.py` / `smoke_test.py` borçlarını plan‑only CHG’lerle bölmek
+- script budget borcunu azaltmak (hard 0 kalsın, warn sayısı düşsün)
 
-- Evidence pack + provenance + manifests + compliance
-- OTel (trace_id/run_id)
-- GC/Reaper job
-- Integrity:
-  - hash-chain/Merkle + signing/attestation + verifier
-
-Verify konumu (MUST)
-
-- CI: `evidence_verify_test` (üret → verify → PASS)
-- Runtime: Konsol/audit aracı evidence açarken otomatik verify + sonucu gösterir
-
----
-
-## Faz-3: Discovery + Cost-aware Routing + Autoscaling
-### + Model Version Pinning (MUST)
-
-Çıktılar
-
-- In-memory indeks + refresh
-- Hard filter → score → AI tie-break MAY (kısa listede)
-- Cost-aware routing
-- Autoscaling triggers
-- Model pinning: “latest” yasak + CI gate + deprecation takvimi
+DoD: SMOKE_OK aynı kalır; CLI çıktıları/evidence şekli değişmez; yapı daha bakımı kolay olur.
 
 ---
 
-## Faz-3.5: Dual-Run & Geçiş Yönetimi
-
-Çıktılar
-
-- Dual-writer gateway
-- Reconciliation (parity/latency/error delta)
-- Traffic shifting + rollback
-- Parity Gate + Stability Gate
+## 3) Yol haritası “yaşayan” olacak: güncelleme protokolü
+- Yeni ihtiyaç → Action Register
+- Çözüm → CHG taslağı (safe‑only ise incubator, değilse plan‑only)
+- Kabul → promotion bundle (global’e geçecekse)
+- Kanıt → evidence; özet → project‑status
 
 ---
 
-## Faz-4: Workflow Orchestrator (DAG) + Suspend/Resume + Konsol + DLQ (MUST)
-### + Decision Policy + State Machine (MUST)
-
-Çıktılar
-
-- DAG scheduling + state store
-- State machine: RUNNING/SUSPENDED/FAILED/COMPLETED
-- Fail handling: retry → fallback → DLQ/SUSPEND
-- Yönetim konsolu: SUSPENDED list + aksiyon + integrity verify sonucu
-- DLQ: poison pill N fail → DLQ + alarm → governor degrade
+## 4) M0 Maintainability Sprint: çekirdek mi katalog mu?
+Bu açıkça **L0 CORE bakımıdır** (davranışı değiştirmeden).  
+Çıktılar (plan/CHG) **L2 WORKSPACE**’te tutulur; core‑lock gevşetilmez.
 
 ---
 
-## Faz-5: Executor (Sandbox) + Capability Enforcement + GPU/Virtualization + Env Caching
-### + Context Engine + Local Runner + JIT Secrets
+## 0) Bizim çekirdeğimiz (diğerlerinden ayrıştığımız yer)
 
-Çıktılar
+### 0.1 ISO mantık sırası: aktif devrede (iş yapılırken)
+Bu bir “doküman sırası” değil, **ürün davranışı**:
+1) **Bağlam analizi** (context)
+2) **Paydaş analizi** (stakeholders)
+3) **Kapsam** (scope)
+4) **Kriterler / risk iştahı** (criteria)
+5) **Kontroller / standart çıktılar** (controls + output standards)
+6) **Ölçüm** (measure)
+7) **İyileştirme** (improvement)
 
-- Capability model + Tool Gateway enforcement
-- GPU/virtualization resource_profile
-- Env caching
-- Context Strategy Engine (MUST)
-- Just-in-Time Secret Injection (MUST): Vault/Secrets Manager’dan session bazlı, RAM’e, loglarda yok
-- Local Runner CLI (SHOULD): yerelde docker içinde modül/workflow test
+Kural:
+- Ürün, bir işi “yapmadan önce” bağlam/paydaş/kapsam/kriterleri ya **SSOT’tan** okur ya da **session RAM**’de (ephemeral) geçici olarak tutar.
+- Bunlar yoksa **fail-closed**: `report_only` / `no side-effect` / conservative mode.
+
+### 0.2 “Genel platform” ilkesi: kullanıcı profil seçmez, sistem filtreler
+Kullanıcı sohbetten iş ister:  
+**amaç → domain → artifact türü → stack → izinler → format**
+
+Sistem discovery ile kategorik filtre uygular ve en uygun workflow/modül/formatı seçer.
+
+Kural:
+- UI’da “profil seç” yok; ama arkada kalıcı kararlar var: **Tenant Decision Bundle (SSOT)**.
+
+### 0.3 Learning karar vermez
+Learning plane sadece **öneri üretir** (suggest-only).  
+Control plane (policy/gates/governor/budget/quota) karar verir. Asla bypass yok.
+
+### 0.4 SSOT = Git; Index = cache
+- Kalıcı kararlar/kurallar/formatlar: Git repo’da deklaratif SSOT.
+- Discovery/Learning index: rebuildable cache (drift engeli).
+
+### 0.5 Standart ürün çıktısı üretme
+Ürün “ne yaparsa yapsın”, çıktılar **format contract**’lara uyar:
+- Kod üretimi formatı
+- Prosedür formatı
+- Karar/öneri formatı
+- Autopilot chat formatı
+
+Bunların hepsi katalogda ve schema’lıdır.
+
+### 0.6 CAPABILITY (KABİLİYET) spec-core meta sözleşmesi (Hybrid)
+Amaç: “tek mantık” ile hem keşif (discovery) hem yürütme (execution) hem de denetimi (evidence/risk) aynı sözleşmeye bağlamak.
+
+Neden:
+- **Tek sözleşme**: `capability` / `pack` / `format` / `roadmap` / `policy` gibi artefact türleri aynı “meta çekirdek” ile tanımlanır.
+- **ISO sırası aktif**: ISO bağlamı uzun metin olarak tekrar edilmez; `iso_refs` ile tenant ISO çekirdek dosyalarına referans verilir (M1).
+- **Evidence + risk birleşik**: her tanım kendi kanıt beklentisini (evidence) ve risk/guardrail sınırlarını taşır.
+
+Nedir (spec-core meta alanları, v0.1):
+- `id`: tekil kimlik (CAPABILITY id’si dahil)
+- `purpose`: kısa amaç/capsule
+- `inputs`: beklenen girişler (schema id/paths)
+- `steps`: yüksek seviye adımlar (DAG değil; “ne olur” tanımı)
+- `outputs`: beklenen çıktı türü + format contract referansı
+- `guardrails`: policy/gate/governor/budget/quota/tool-capability sınırları
+- `iso_refs`: `tenant/<TENANT>/{context,stakeholders,scope,criteria}.v1.md` referansları (içerik kopyalanmaz)
+- `evidence`: beklenen evidence dosyaları/izler (integrity/provenance dahil)
+- `risk`: risk sınıfı + side-effect beklentisi (fail-closed)
+
+Nasıl (hybrid meta+body):
+- Meta: strict JSON (schema ile) → makine tarafından doğrulanabilir.
+- Body: opsiyonel açıklama/şablon metni (markdown) → insan tarafından okunabilir.
+- Kural: CAPABILITY tanımları için **MUST** (meta zorunlu). Pack/format/roadmap/policy için **MAY** (kademeli).
+
+Terminology lock:
+- Canonical (code): **CAPABILITY**
+- Doküman (TR): **KABİLİYET**
+- Yasak terim: eski terminoloji (repo docs/specs içinde kullanılmaz; yerine CAPABILITY/KABİLİYET)
 
 ---
 
-## Faz-6: Security & Supply Chain + Multi-tenant Fairness/Quota + FinOps + Data Poisoning
+## 1) Mevcut durum (v1.0.0 çekirdek kapasite)
+Elimizdeki çekirdek zaten şunları sağlıyor:
+- `policy-check` (schema validate + dry-run + diff + markdown report + supply-chain gates)
+- evidence: integrity + provenance + replay + export
+- tool gateway + capabilities + limits + network allowlist + secrets provider
+- side-effect: `none`/`draft`/`pr` (merge/deploy blocked; SSOT manifest var)
+- ops: `src.ops.manage` + reaper + runbook
+- gerçek workflow: `policy_review` + `dlq_triage`
+- PR side-effect: integration-only gate ile gerçek PR açma (ops command dahil)
 
-Çıktılar
-
-- CVE scan + image scan + license gate + SBOM (prod/dış müşteri MUST)
-- Signing + verification (prod/dış müşteri MUST)
-- Data poisoning + prompt injection gates
-- Security Event → Response workflows
-- Multi-tenant quotas + fairness scheduler
-- FinOps gates + cost dashboards
-- Output sanitization
-
----
-
-## Faz-7: AI Testing + Evals + Shadow Mode + Feedback + Governor Öğrenmesi
-
-Çıktılar
-
-- Golden/regression/adversarial
-- Rule+judge hibrit eval + versioning + canary
-- Shadow mode
-- Kullanıcı feedback MUST (DLP/redaction dahil)
-- Governor policy optimization loop
+Not:
+- Bundan sonra “yeni ürün” yazmıyoruz; çekirdeğe **SSOT katmanları ve katalog** ekleyip autopilot + learning’i bu zemine oturtuyoruz.
 
 ---
 
-## Faz-8: Ürünleştirme (UI + SDK + Marketplace)
+## 2) Ürün yapısı (SSOT katmanları)
 
-Çıktılar
+### 2.1 Kalıcı SSOT (repo içinde)
 
-- Internal UI (MUST)
-- SDK + module kit + signing
-- External: tenant onboarding, quotas/cost, SLA görünürlüğü
+#### A) Tenant Decision Bundle (kalıcı karar demeti)
+Kullanıcı “backend dili Java” gibi sabit kararlar aldıkça buraya yazılır:
+- stack seçimleri
+- allowed tools
+- network allowlist
+- side_effect sınırları
+- output standards
+- enabled packs
+- risk criteria / eşikler
+
+#### B) ISO Çekirdek Dokümanları (kalıcı)
+- `tenant/<TENANT>/context.v1.md`
+- `tenant/<TENANT>/stakeholders.v1.md`
+- `tenant/<TENANT>/scope.v1.md`
+- `tenant/<TENANT>/criteria.v1.md`
+
+Kural:
+- Bunlar “iş yapılırken” referans alınır.
+- Yoksa conservative mode.
+
+#### C) Packs Catalog (kalıcı)
+Hazır kategorik setler:
+- workflows + templates + policy overlays + constraints
+
+#### D) Format & Conversation Contract Catalog (kalıcı)
+“Bu tür işte chat nasıl yazacak / çıktı formatı ne olacak” SSOT’u.
+
+#### E) Best Practice & Trend Library (kalıcı)
+Sektörel lider pratikler / checklists / standard hooks.
+“Aktif devrede”: quality gate olarak çalışır.
+
+### 2.2 Ephemeral SSOT (session RAM, geçici)
+Kullanıcı sohbet içinde küçük kararlar ekler:
+- “bu işte React kullan”
+- “bu raporu şu formatta yaz”
+
+Bu kararlar TTL ile yaşar, sonra düşer. Evidence/provenance’a hash olarak işlenir.
+
+### 2.3 Derived index (cache, rebuildable)
+- composite catalog index (tenant bundle + packs + formats + best practices birleşimi)
+- learning index (flaky/strategy stats)
+- autopilot state cache
 
 ---
 
-## Faz-9: Kurumsal Ölçek (SLA, DR, HA, Billing, Sürdürülebilirlik)
+## 3) Katalog-temelli “iş yapma” akışı (runtime)
 
-Çıktılar
+### 3.1 Intent → filters → selection
+1) Kullanıcı isteği → `intent` + `domain` + `artifact_type` çıkarımı
+2) ISO sırası:
+   - context/stakeholder/scope/criteria çekilir (SSOT veya session RAM)
+3) Composite catalog’dan filtre:
+   - allowed_tools, stack, output formats, policy constraints
+4) Workflow seçimi
+5) Format contract seçimi
+6) Execution (tool gateway)
+7) Evidence + integrity + provenance + (gerekirse) export
+8) Learning event log (öneri üretimi)
 
-- SLA/SLO + error budget
-- DR: RPO/RTO, warm standby, restore test, break-glass (MUST)
-- Billing/metering
-- Multi-region (SHOULD → büyüdükçe MUST)
-- Enerji optimizasyonu SHOULD (green mode)
+### 3.2 “Chat formatı” standardı
+Her çıktı, seçilen format contract’a göre:
+- neyi nasıl anlatacağını,
+- hangi bölümler zorunlu,
+- hangi dil ve şablon
+olacağını bilir.
 
 ---
 
-## Kırmızı Bayraklar
+## 4) Kilitli yol haritası (milestone bazlı)
 
-- Policy simülasyonu yoksa: “ne yaptığını bilmeden” policy merge edilir → felaket
-- WWV yoksa: Faz-0’da aylar kaybolur
-- Workshop yoksa: intent/context gibi kavramlarda sessiz anlaşmazlık çıkar
-- Day-1 Ops sahibi yoksa: governor/DLQ/GC sahipsiz kalır, sistem sessizce bozulur
-- Naming standard yoksa: JSON ormanında kaos çıkar
+### M0 — Maintainability Guardrails (Script Budget) + Core↔Workspace boundary
+Amaç: Kritik script’lerin kontrolsüz büyümesini önlemek ve bakım/refactor borcunu CI’da görünür kılmak.
+
+Deliverables:
+- Script budget SSOT: `ci/script_budget.v1.json` (+ `schemas/script-budget.schema.json`)
+- Checker: `ci/check_script_budget.py` (soft=warn, hard=fail)
+- CI: `gate-schema` içinde script budget step + artifact raporu
+- Dokümantasyon: `docs/OPERATIONS/maintainability-guardrails.md`
+
+DoD:
+- Soft aşım: CI geçer ama `WARN` raporlar.
+- Hard aşım: CI fail olur (refactor zorunlu).
+
+### M1 — ISO Çekirdeği SSOT (Context/Stakeholder/Scope/Criteria) + aktif gate
+Amaç: İş yapılırken ISO sırasını aktif hale getirmek.
+
+Deliverables:
+- `tenant/<TENANT>/context.v1.md`
+- `tenant/<TENANT>/stakeholders.v1.md`
+- `tenant/<TENANT>/scope.v1.md`
+- `tenant/<TENANT>/criteria.v1.md`
+- `ci/validate_iso_core_presence.py` (fail-closed kural):
+  - Bu dosyalar yoksa: `autopilot/report_only`, side_effect blocked.
+- `src.ops.policy_report` içine “ISO core status” bölümü.
+
+DoD:
+- ISO core yoksa system “conservative mode”u açık şekilde raporlar.
+- ISO core varsa üretimde referans olarak kullanılır.
+
+### M2 — Tenant Decision Bundle SSOT v0.1 + Consistency Gate (en kritik)
+Amaç: Kullanıcı kararları çelişmesin; discovery doğru filtrelesin.
+
+Dosya yapısı:
+- `tenant/<TENANT>/decision-bundle.v1.json`
+- `schemas/tenant-decision-bundle.schema.json` [PLAN-ONLY PLACEHOLDER]
+- `ci/validate_tenant_consistency.py` (FAIL-closed)
+
+Bundle içeriği (minimal v0.1):
+- tenant_id
+- stack defaults (backend/frontend/procedure/decision-support)
+- enabled packs
+- side_effect_policy limits
+- allowed tools (high-level)
+- network allowlist defaults (integration-only)
+- output standards (format ids)
+- risk criteria (eşikler)
+
+Consistency Gate (conflict matrix):
+- stack_type ↔ required packs
+- side_effect_policy=pr ↔ github tool + api.github.com allowlist + GITHUB_TOKEN allowlist
+- merge/deploy blocked ↔ bundle’da enabled olamaz
+- format id ↔ artifact_type uyumu
+- forbidden_paths ↔ tool capabilities
+
+DoD:
+- CI’da tenant consistency FAIL → merge yok.
+- policy-check raporunda “Tenant Decision Summary” görünür.
+
+### M3 — Packs Catalog v0.1 + Composite Catalog Builder
+Amaç: Kullanıcı amaçlarına göre hazır setleri aktive edip standart çıktı üretmek.
+
+Packs:
+- `packs/<pack_id>/manifest.v1.json` (+ schema)
+- içerik: intents/workflows/templates/policy overlays/constraints
+
+Composite catalog builder:
+- `src/tenant/build_catalog.py`
+  - input: decision bundle + enabled packs + tenant modules + format contracts
+  - output: `.cache/index/catalog.v1.json` (derived)
+- discovery bu catalog’dan beslenecek.
+
+DoD:
+- Catalog filtreleme deterministik ve explainable.
+
+### M4 — Format & Conversation Contract SSOT (M2.5 olarak da düşünülebilir)
+Amaç: Ürünün her çıktısı standart formata uysun; chat formatı da katalogdan gelsin.
+
+Deliverables:
+- `formats/` katalog
+  - `formats/format-code-gen.v1.json`
+  - `formats/format-procedure-iso.v1.json`
+  - `formats/format-decision-proposal.v1.json`
+  - `formats/format-recommendation.v1.json`
+  - `formats/format-autopilot-chat.v1.json`
+- `schemas/format-contract.schema.json` (strict)
+- `ci/validate_format_contracts.py`
+- discovery: intent+artifact_type+audience→format selection
+- policy-check raporu: “selected format” bölümü
+
+DoD:
+- Her output zorunlu başlık/bölüm setini üretir.
+- Format drift olursa gate yakalar.
+
+### M5 — Session RAM (Ephemeral mini-SSOT) v0.1
+Amaç: Sohbette eklenen küçük kararları TTL ile yönetmek ve evidence’a bağlamak.
+
+Deliverables:
+- `.cache/sessions/<session_id>/session_context.v1.json` (git-ignored)
+  - ephemeral_decisions[], ttl, last_updated
+- `session_context_hash` → provenance’a yazılır
+- “SSOT override” kuralı:
+  - SSOT kararlar > session kararlar (öncelik)
+  - session kararlar TTL sonrası düşer
+
+DoD:
+- Kullanıcı sohbetle geçici karar eklediğinde çıktı buna uyar.
+- TTL bitince sistem SSOT’a döner.
+
+### M6 — Best Practice & Trend Library (aktif gate) v0.1
+Amaç: “lider pratikler” sadece doküman değil; üretimde aktif kontrol olsun.
+
+Deliverables:
+- `best_practices/` veya `packs/bp-*`
+- `policies/policy_quality.v1.json`
+- quality gate:
+  - seçilen formatın zorunlu bölümleri var mı?
+  - ISO sırası uygulanmış mı?
+  - side_effect risk uyumu var mı?
+- ops: `ops best-practice-status`
+
+DoD:
+- Üretim sırasında kalite check otomatik devrede.
+- Yeni trendler ADR ile eklenip pack olarak sürülür.
+
+### M7 — Learning Plane v0.1 (Offline Advisor / Suggest-only)
+Amaç: Autopilot’u verimli yapacak öneri indeksi.
+
+Deliverables:
+- `learning/events.jsonl` (append-only)
+- `learning/flaky_index.v1.json`
+- `learning/strategy_stats.v1.json`
+- `learning_snapshot_hash` provenance’a
+- ops: learning-status/learning-export
+- poison/drift:
+  - only merged outcomes positive
+  - anomaly → governor learning disable/report_only
+
+DoD:
+- Rerun vs fix önerisi ve fix strateji sırası üretilir.
+- Karar control plane’de kalır.
+
+### M8 — Autopilot MVP v0.1 (İnsansız PR Loop)
+Amaç: PR lifecycle tamamen otomatik.
+
+Deliverables (özet):
+- PR discovery
+- checks monitor
+- retry/backoff
+- local reproduce + fix loop (frenler ile)
+- merge engine (PAT→GitHub App)
+- kill switches
+- ops autopilot-status + metrics
+
+DoD:
+- Fail→fix→push→green→merge loop en az 1 gerçek senaryoda çalışır.
+- Runaway yok: loop cap, budget, quota, governor.
+
+### M9 — Pack Ecosystem v0.1 (Selection + Advisor)
+Amaç: Pack manifest SSOT + deterministik seçim izi + pack‑aware öneri zenginleştirme.
+
+Deliverables (özet):
+- M9.1: Pack manifest SSOT + conflict gate (hard fail, soft warn)
+- M9.2: Pack index build (O(delta))
+- M9.3: Pack selection trace (shortlist + tie-break)
+- M9.4: Pack‑aware advisor suggestions (bounded, suggest‑only)
+- M9.5: Auto‑heal pack‑derived artefact rebuild, conflict gate ile koşullu (hard conflict → block)
 
 ---
 
-## Başlama Stratejisi (Son karar)
+## 5) Non‑negotiable maddeler (sapmama listesi)
+1) Learning karar vermez, önerir.
+2) SSOT = Git; index = cache.
+3) ISO sırası aktif devrede (yoksa conservative mode).
+4) Secrets asla log/evidence’a düşmez.
+5) Network default kapalı, integration-only açılır.
+6) merge/deploy side effects blocked (şimdilik; SSOT manifest ile).
+7) Her adım evidence + integrity + provenance ile izlenebilir.
+8) Her SSOT değişikliği sim/diff/policy-check’den geçer.
 
-Çekirdek Mini Workflow (MUST)
+---
 
-MOD-A → APPROVAL → MOD-B
+## 6) v1.0.0 ile uyum değerlendirmesi (durum matrisi)
 
-- MOD-A: Markdown oku → özet JSON
-- APPROVAL: risk_score’a göre dur/geç
-- MOD-B: dosyaya yaz (side_effect_policy=file_write/draft)
+### 6.1 “Bugün elimizde ne var?” (kanıtlı çekirdek)
+Bu repo şu an (v1.0.0 çekirdeğiyle) yol haritasının “güvenli platform” zeminiyle uyumlu:
+- Deterministik kontrol düzlemi: `schemas/`, `policies/`, `registry/`, `orchestrator/`, `workflows/`
+- Denetim hattı: `python -m src.ops.manage policy-check --source both` (dry-run + diff + markdown rapor)
+- Evidence paketi + integrity/provenance: `src/evidence/*`, `python -m src.evidence.integrity_verify --run evidence/<run_id>`
+- Side-effect SSOT: `docs/OPERATIONS/side-effects-manifest.v1.json` ve `docs/OPERATIONS/side-effects.md`
+- Tool gateway + capability enforcement + limits: `src/tools/gateway.py`
+- Network allowlist & secrets: `policies/policy_security.v1.json`, `policies/policy_secrets.v1.json`
+- Ops: `python -m src.ops.manage runs|dlq|suspends`, `python -m src.ops.reaper --dry-run true --out ...`
 
-Not: local_runner.py büyüyor; bu kötü değil ama bir noktada “işlevleri modüllere bölme” refactor’u lazım olacak. Onu “işlev bozmadan” ayrı sprint olarak yapalım.
+### 6.2 Milestone uyumu (özet)
+Bu yol haritası mevcut çekirdekle çelişmiyor; tam tersine, şu anki çekirdeği “SSOT katmanları + katalog” ile ürünleştirmeyi hedefliyor.
+
+En büyük fark:
+- v1.0.0 çekirdeği “guardrail + evidence + ops” omurgasını kurdu.
+- Bu plan ise “tenant‑bazlı kararlar + katalog + format sözleşmeleri + öğrenme/otopilot” katmanını SSOT olarak ekliyor.
+
+### 6.3 Milestone bazında durum
+| Milestone | Durum | Bugün repo’da karşılığı | Not / sonraki minimal adım |
+|---|---|---|---|
+| Doc‑nav “tek kapı” | WARN | doc‑nav‑check summary/strict (strict isolated) | broken_refs=1; strict only broken gerçekleri sayar |
+| M10.2 Assessment | DONE | `.cache/index/assessment.v1.json`, `.cache/reports/benchmark_scorecard.v1.json` | O(delta) assessment çalışıyor |
+| M10.3 Gap register | DONE | `.cache/index/gap_register.v1.json`, `.cache/reports/gap_summary.v1.md` | safe‑only/plan‑only ayrımı aktif |
+| M10.4 Cockpit benchmark | DONE | system_status `sections.benchmark` + top_next_actions | cockpit deterministik özet veriyor |
+| M10.5 PDCA recheck + regression | Plan | Faz D altında kilitli | recheck + regression + cooldown + retention/cursor |
+| M0 Maintainability | Next | SCRIPT_BUDGET WARN | davranış değiştirmeden refactor planı |
+| M1 ISO core SSOT + gate | Eksik | governor/report_only ve side-effect gating mevcut | `tenant/<TENANT>/*` ISO dosyaları + CI presence gate + policy_report ISO status |
+| M2 Tenant Decision Bundle + consistency | Eksik (kısmi benzerlik: quota override) | `tenant_id` var; `policy_quota` tenant override var | `tenant/<TENANT>/decision-bundle.v1.json` + schema + CI conflict matrix + policy_report summary |
+| M3 Packs + composite catalog builder | Eksik | workflow/modül katalog parçaları var (workflows/, templates/) | `packs/*` + schema + `.cache/index/catalog.v1.json` builder |
+| M4 Format & chat contracts | Eksik | bazı çıktılar markdown üretiyor (policy_report, dlq_triage) | `formats/*` + strict schema + selection + validate gate |
+| M5 Session RAM mini‑SSOT | Eksik | `.cache` kullanımı var; provenance alanları var | `.cache/sessions/*` + TTL + provenance hash |
+| M6 Best practice gate | Eksik | schema validation + smoke gates var | `policy_quality.v1.json` + output section checks |
+| M7 Learning suggest-only | Eksik (hazır zemin var) | autonomy store deterministik; replay/diff altyapısı var | events.jsonl + stats + governor kill switch |
+| M8 Autopilot PR loop | Kısmi (temel side-effect var) | `github_pr_create` integration-only; ops komutu var | PR lifecycle orchestration + caps/budget/kill switch ile loop |
+
+### 6.4 Net sonuç (ve bir sonraki adım)
+- Bu SSOT yol haritası mevcut sistemle uyumludur; çekirdekteki fail-closed, evidence, supply-chain, policy-check bileşenlerini “platform”a taşıma planıdır.
+- Sıralama açısından **M2** (Tenant Decision Bundle + Consistency Gate) en yüksek kaldıraçtır; discovery/packs/formats/learning/autopilot katmanlarının tamamı buna dayanır.
+
+---
+
+## Ek: Eski yol haritası (arşiv)
+v1.0.0 öncesi “çekirdek kurulum” yol haritası arşivlendi: `ROADMAP_v2.7_legacy.md` (archive only)

@@ -1,0 +1,25 @@
+{
+  "pack_id": "pack-owasp-ai",
+  "version": "1.0.0",
+  "lifecycle_state": "active",
+  "iso_kernel_refs": {
+    "context_ref": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders_ref": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope_ref": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria_ref": "tenant/TENANT-DEFAULT/criteria.v1.md",
+    "gate_level": "warn"
+  },
+  "provides": {
+    "intents": [],
+    "workflows": [],
+    "formats": ["FORMAT-AUTOPILOT-CHAT"],
+    "capability_refs": ["capabilities/CAP_OWASP_AI_BASE.v1.json"],
+    "format_refs": ["formats/format-autopilot-chat.v1.json"]
+  },
+  "namespace_prefix": "CAP_OWASP",
+  "conflict_policy": {
+    "hard_conflict": "fail",
+    "soft_conflict": "warn",
+    "deterministic_tie_break": "pack_id_lexicographic"
+  }
+}

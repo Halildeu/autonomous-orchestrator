@@ -1,0 +1,14 @@
+{
+  "domain_tags": [],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "project_id": "default",
+  "purpose": "Customer project workspace root",
+  "selected_pack_ids": [],
+  "target_maturity_level": 0,
+  "version": "v1"
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kernel API Response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "request_id", "status", "error_code", "payload", "evidence_paths", "notes"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["OK", "WARN", "FAIL", "BLOCKED"]
+    },
+    "error_code": {
+      "type": ["string", "null"]
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "codex_home": {"type": ["string", "null"]},
+        "config_path": {"type": ["string", "null"]},
+        "effective": {"type": "object"},
+        "mismatches": {"type": "array"},
+        "providers_path": {"type": "string"},
+        "policy_path": {"type": "string"},
+        "providers_summary": {"type": "array"},
+        "llm_request_preview": {"type": "object"},
+        "llm_error_details": {"type": "object"},
+        "probe_report": {"type": "object"},
+        "plan_path": {"type": "string"},
+        "plan_source": {"type": "string"},
+        "discovery_report_path": {"type": "string"},
+        "provider_id": {"type": "string"},
+        "model": {"type": "string"},
+        "dry_run": {"type": "boolean"},
+        "api_key_present": {"type": "boolean"},
+        "request_id": {"type": "string"}
+      }
+    },
+    "evidence_paths": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "notes": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "overall_status": {
+      "type": ["string", "null"]
+    },
+    "actions_top": {
+      "type": "array"
+    },
+    "message": {
+      "type": "string"
+    },
+    "stderr_excerpt": {
+      "type": "string"
+    },
+    "auth_checked": {
+      "type": "boolean"
+    },
+    "rate_limited": {
+      "type": "boolean"
+    }
+  }
+}

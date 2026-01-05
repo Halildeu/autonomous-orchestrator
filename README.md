@@ -2,6 +2,10 @@
 
 Bu repo, “request envelope → intent routing → workflow” akışını minimum çalışan bir iskelet olarak kurar.
 
+Customer-friendly mode (no user commands):
+- Kullanıcı shell komutu yazmaz; agent içeride ops komutlarını çalıştırır ve AUTOPILOT CHAT formatında raporlar.
+- Detaylar: `docs/OPERATIONS/CODEX-UX.md` ve `docs/OPERATIONS/CODEX-CONFIG.md`.
+
 ## Yerel geliştirme
 
 ```bash

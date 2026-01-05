@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "enabled": true,
+  "out_json": ".cache/reports/system_status.v1.json",
+  "out_md": ".cache/reports/system_status.v1.md",
+  "max_actions": 10,
+  "max_suggestions": 10,
+  "include_repo_hygiene_suggestions": false,
+  "on_fail": "warn"
+}

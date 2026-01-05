@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "controls": [
+    {
+      "id": "OWASP-AI-01",
+      "title": "Input validation",
+      "domain": "input",
+      "severity": "high",
+      "description": "Validate and sanitize model inputs to reduce prompt injection risks."
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "roadmap_id": "PRJ-PORTFOLIO-TRACKING",
+  "version": "v1",
+  "iso_core_required": false,
+  "global_gates": [],
+  "milestones": [
+    {
+      "id": "P0-CONTRACT",
+      "title": "Portfolio contract (doc-only)",
+      "notes": ["layer=PROJECT", "core_lock_required=false"],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Define portfolio-status outputs and deterministic ranking rules."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Portfolio contract documented in PRJ-PORTFOLIO-TRACKING README and manifest."
+      ]
+    },
+    {
+      "id": "P1-STATUS",
+      "title": "Portfolio status (program-led)",
+      "notes": ["layer=PROJECT", "core_lock_required=false"],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Provide portfolio-status report from manifests and workspace evidence."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "portfolio-status produces deterministic JSON and AUTOPILOT CHAT output."
+      ]
+    }
+  ]
+}

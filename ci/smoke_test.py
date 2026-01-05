@@ -62,6 +62,24 @@ def assert_not_git_ignored(repo_root: Path, rel_path: str) -> None:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
+    quota_policy_path = repo_root / "policies" / "policy_quota.v1.json"
+    quota_policy_repo: str | None = None
+    quota_policy_overridden = False
+    if quota_policy_path.exists():
+        quota_policy_repo = quota_policy_path.read_text(encoding="utf-8")
+        relaxed_quota_policy = {
+            "version": "v1",
+            "default": {"max_runs_per_day": 1000, "max_est_tokens_per_day": 10000000},
+            "overrides": {"TENANT-LOCAL": {"max_runs_per_day": 1000, "max_est_tokens_per_day": 10000000}},
+        }
+        quota_policy_path.write_text(
+            json.dumps(relaxed_quota_policy, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        quota_policy_overridden = True
+        quota_store_path = repo_root / ".cache" / "tenant_quota_store.v1.json"
+        if quota_store_path.exists():
+            quota_store_path.unlink()
 
     proc_cli_import = subprocess.run(
         [sys.executable, "-c", "from src.cli import main; print('CLI_OK')"],
@@ -192,6 +210,39 @@ def main() -> None:
         print("NOTE: not in a git work tree; skipping gitignore guard.")
 
     run([sys.executable, str(repo_root / "ci" / "validate_schemas.py")])
+
+    # Maintainability guardrail: Script Budget (soft=warn, hard=fail).
+    report_path = repo_root / ".cache" / "script_budget" / "report.json"
+    proc_budget = subprocess.run(
+        [sys.executable, str(repo_root / "ci" / "check_script_budget.py"), "--out", str(report_path)],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc_budget.returncode != 0:
+        raise SystemExit(
+            "Smoke test failed: script budget check must exit 0 (OK/WARN).\n"
+            + (proc_budget.stderr or proc_budget.stdout or "")
+        )
+    if not report_path.exists():
+        raise SystemExit("Smoke test failed: script budget report missing: " + str(report_path))
+    try:
+        budget_report = json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise SystemExit("Smoke test failed: failed to parse script budget report JSON.") from e
+
+    budget_status = budget_report.get("status") if isinstance(budget_report, dict) else None
+    if budget_status not in {"OK", "WARN"}:
+        raise SystemExit("Smoke test failed: script budget status must be OK|WARN.")
+
+    exceeded_hard = budget_report.get("exceeded_hard") if isinstance(budget_report, dict) else None
+    function_hard = budget_report.get("function_hard") if isinstance(budget_report, dict) else None
+    hard_exceeded = (len(exceeded_hard) if isinstance(exceeded_hard, list) else 0) + (
+        len(function_hard) if isinstance(function_hard, list) else 0
+    )
+    if hard_exceeded != 0:
+        raise SystemExit("Smoke test failed: script budget hard limit exceeded.")
+    print(f"CRITICAL_SCRIPT_BUDGET status={budget_status} hard_exceeded={hard_exceeded}")
 
     # Side-effects SSOT manifest must exist and be valid JSON.
     se_manifest_path = repo_root / "docs" / "OPERATIONS" / "side-effects-manifest.v1.json"
@@ -2111,16 +2162,17 @@ def main() -> None:
         raise SystemExit("Smoke test failed: expected normal behavior after releasing governor lock.")
 
     # Tenant quota v0.1 tests (runs/day): run 2 ok, 3rd must fail with QUOTA_RUNS_EXCEEDED.
-    quota_policy_path = repo_root / "policies" / "policy_quota.v1.json"
     if not quota_policy_path.exists():
         raise SystemExit("Smoke test failed: policies/policy_quota.v1.json missing.")
 
-    quota_policy_original = quota_policy_path.read_text(encoding="utf-8")
+    quota_policy_original = quota_policy_repo or quota_policy_path.read_text(encoding="utf-8")
     quota_store_path = repo_root / ".cache" / "tenant_quota_store.v1.json"
     if quota_store_path.exists():
         quota_store_path.unlink()
 
     try:
+        if quota_policy_overridden and quota_policy_repo is not None:
+            quota_policy_path.write_text(quota_policy_repo, encoding="utf-8")
         strict_quota_policy = {
             "version": "v1",
             "default": {"max_runs_per_day": 2, "max_est_tokens_per_day": 8000},
@@ -2239,6 +2291,8 @@ def main() -> None:
         quota_store_tenant_snapshot = tenant
     finally:
         quota_policy_path.write_text(quota_policy_original, encoding="utf-8")
+        if quota_store_path.exists():
+            quota_store_path.unlink()
 
     if in_git and failure_run_id_for_snapshot and failure_dlq_path_for_snapshot and failure_dlq_record_for_snapshot:
         def _one_line_tool_call(run_dir: Path, node_id: str) -> str:
@@ -3406,6 +3460,864 @@ def main() -> None:
         raise SystemExit("Smoke test failed: SDK policy_check report_path does not exist: " + str(report_abs))
 
     print(f"CRITICAL_SDK_POLICY_CHECK: ok=true report={report_p}")
+
+    # Roadmap Runner v0.1: compile -> dry-run apply -> apply (demo roadmap is safe: docs + .cache only).
+    # Avoid infinite recursion: the demo roadmap gate runs smoke_test.py, which would re-run this section.
+    if os.environ.get("ORCH_ROADMAP_RUNNER") != "1":
+        demo_roadmap = repo_root / "roadmaps" / "RM-DEMO" / "roadmap.v1.json"
+        if not demo_roadmap.exists():
+            raise SystemExit("Smoke test failed: missing demo roadmap: roadmaps/RM-DEMO/roadmap.v1.json")
+
+        demo_plan_out = repo_root / ".cache" / "roadmap_plan_demo.json"
+        demo_plan_out.parent.mkdir(parents=True, exist_ok=True)
+
+        def plan_hash(path: Path) -> str:
+            return sha256(path.read_bytes()).hexdigest()
+
+        proc_plan_1 = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-plan",
+                "--roadmap",
+                str(demo_roadmap),
+                "--out",
+                str(demo_plan_out.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_plan_1.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-plan must exit 0.\n"
+                + (proc_plan_1.stderr or proc_plan_1.stdout or "")
+            )
+        if not demo_plan_out.exists():
+            raise SystemExit("Smoke test failed: roadmap-plan did not write plan output to .cache/roadmap_plan_demo.json")
+        h1 = plan_hash(demo_plan_out)
+
+        proc_plan_2 = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-plan",
+                "--roadmap",
+                str(demo_roadmap),
+                "--out",
+                str(demo_plan_out.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_plan_2.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-plan (2nd run) must exit 0.\n"
+                + (proc_plan_2.stderr or proc_plan_2.stdout or "")
+            )
+        h2 = plan_hash(demo_plan_out)
+        if h1 != h2:
+            raise SystemExit("Smoke test failed: roadmap plan output must be deterministic (hash mismatch).")
+
+        demo_doc = repo_root / "docs" / "OPERATIONS" / "roadmap-runner-demo.md"
+        if demo_doc.exists():
+            demo_doc.unlink()
+
+        proc_apply_dry = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                str(demo_roadmap),
+                "--dry-run",
+                "true",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_apply_dry.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-apply --dry-run true must exit 0.\n"
+                + (proc_apply_dry.stderr or proc_apply_dry.stdout or "")
+            )
+        if demo_doc.exists():
+            raise SystemExit("Smoke test failed: roadmap-apply --dry-run must not create docs/OPERATIONS/roadmap-runner-demo.md")
+
+        try:
+            apply_dry_obj = json.loads((proc_apply_dry.stdout or "").strip() or "{}")
+        except Exception as e:
+            raise SystemExit("Smoke test failed: roadmap-apply --dry-run must output JSON.") from e
+        ev_path_dry = apply_dry_obj.get("evidence_path") if isinstance(apply_dry_obj, dict) else None
+        if not isinstance(ev_path_dry, str) or not ev_path_dry:
+            raise SystemExit("Smoke test failed: roadmap-apply --dry-run output missing evidence_path.")
+        ev_dir_dry = (repo_root / ev_path_dry).resolve()
+        if not (ev_dir_dry / "integrity.manifest.v1.json").exists():
+            raise SystemExit("Smoke test failed: roadmap evidence must include integrity.manifest.v1.json")
+
+        proc_apply = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                str(demo_roadmap),
+                "--dry-run",
+                "false",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_apply.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-apply --dry-run false must exit 0.\n"
+                + (proc_apply.stderr or proc_apply.stdout or "")
+            )
+        if not demo_doc.exists():
+            raise SystemExit("Smoke test failed: roadmap-apply (apply mode) must create docs/OPERATIONS/roadmap-runner-demo.md")
+        # Clean up demo doc to keep local dev less noisy.
+        demo_doc.unlink()
+
+        print("CRITICAL_ROADMAP_RUNNER: compile_ok=true dry_run_ok=true apply_ok=true")
+
+        # Roadmap Runner v0.2: SSOT roadmap subset (M2) + dry-run simulate/readonly.
+        ssot_roadmap = repo_root / "roadmaps" / "SSOT" / "roadmap.v1.json"
+        if not ssot_roadmap.exists():
+            raise SystemExit("Smoke test failed: missing SSOT roadmap: roadmaps/SSOT/roadmap.v1.json")
+
+        ssot_plan_out = repo_root / ".cache" / "roadmap_plan_ssot_m2.json"
+        ssot_plan_out.parent.mkdir(parents=True, exist_ok=True)
+
+        def git_status_porcelain() -> str:
+            proc = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=repo_root,
+                text=True,
+                capture_output=True,
+            )
+            if proc.returncode != 0:
+                raise SystemExit("Smoke test failed: git status --porcelain failed for readonly roadmap checks.")
+            return proc.stdout or ""
+
+        proc_ssot_plan_1 = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-plan",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--out",
+                str(ssot_plan_out.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ssot_plan_1.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: SSOT roadmap-plan --milestone M2 must exit 0.\n"
+                + (proc_ssot_plan_1.stderr or proc_ssot_plan_1.stdout or "")
+            )
+        if not ssot_plan_out.exists():
+            raise SystemExit("Smoke test failed: SSOT roadmap-plan did not write .cache/roadmap_plan_ssot_m2.json")
+        ssot_h1 = sha256(ssot_plan_out.read_bytes()).hexdigest()
+
+        proc_ssot_plan_2 = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-plan",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--out",
+                str(ssot_plan_out.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ssot_plan_2.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: SSOT roadmap-plan (2nd run) must exit 0.\n"
+                + (proc_ssot_plan_2.stderr or proc_ssot_plan_2.stdout or "")
+            )
+        ssot_h2 = sha256(ssot_plan_out.read_bytes()).hexdigest()
+        if ssot_h1 != ssot_h2:
+            raise SystemExit("Smoke test failed: SSOT M2 plan output must be deterministic (hash mismatch).")
+
+        baseline_status = git_status_porcelain()
+        proc_ssot_sim = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--dry-run",
+                "true",
+                "--dry-run-mode",
+                "simulate",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ssot_sim.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: SSOT M2 roadmap-apply dry-run simulate must exit 0.\n"
+                + (proc_ssot_sim.stderr or proc_ssot_sim.stdout or "")
+            )
+        if git_status_porcelain() != baseline_status:
+            raise SystemExit("Smoke test failed: SSOT M2 dry-run simulate must not change git status.")
+
+        sim_obj = json.loads((proc_ssot_sim.stdout or "").strip() or "{}")
+        sim_ev_path = sim_obj.get("evidence_path") if isinstance(sim_obj, dict) else None
+        if not isinstance(sim_ev_path, str) or not sim_ev_path:
+            raise SystemExit("Smoke test failed: SSOT M2 dry-run simulate output missing evidence_path.")
+        sim_ev_dir = (repo_root / sim_ev_path).resolve()
+        if not (sim_ev_dir / "integrity.manifest.v1.json").exists():
+            raise SystemExit("Smoke test failed: SSOT M2 roadmap evidence must include integrity.manifest.v1.json (simulate).")
+
+        proc_ssot_ro = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--dry-run",
+                "true",
+                "--dry-run-mode",
+                "readonly",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ssot_ro.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: SSOT M2 roadmap-apply dry-run readonly must exit 0.\n"
+                + (proc_ssot_ro.stderr or proc_ssot_ro.stdout or "")
+            )
+        if git_status_porcelain() != baseline_status:
+            raise SystemExit("Smoke test failed: SSOT M2 dry-run readonly must not change git status.")
+
+        ro_obj = json.loads((proc_ssot_ro.stdout or "").strip() or "{}")
+        ro_ev_path = ro_obj.get("evidence_path") if isinstance(ro_obj, dict) else None
+        if not isinstance(ro_ev_path, str) or not ro_ev_path:
+            raise SystemExit("Smoke test failed: SSOT M2 dry-run readonly output missing evidence_path.")
+        ro_ev_dir = (repo_root / ro_ev_path).resolve()
+        if not (ro_ev_dir / "integrity.manifest.v1.json").exists():
+            raise SystemExit("Smoke test failed: SSOT M2 roadmap evidence must include integrity.manifest.v1.json (readonly).")
+
+        ro_summary = json.loads((ro_ev_dir / "summary.json").read_text(encoding="utf-8"))
+        gate_results = ro_summary.get("gate_results") if isinstance(ro_summary, dict) else None
+        smoke_gate_ok = False
+        if isinstance(gate_results, list):
+            for gr in gate_results:
+                if not isinstance(gr, dict):
+                    continue
+                if gr.get("status") != "OK":
+                    continue
+                cmd = gr.get("cmd")
+                if not isinstance(cmd, str):
+                    continue
+                if cmd == "python -m src.ops.manage smoke --level fast" or "src.ops.manage smoke" in cmd:
+                    smoke_gate_ok = True
+                    break
+        if not smoke_gate_ok:
+            raise SystemExit("Smoke test failed: SSOT M2 readonly must run allowlisted gates (missing OK smoke_test gate result).")
+
+        print("CRITICAL_ROADMAP_RUNNER_V2: plan_ok=true simulate_ok=true readonly_ok=true")
+
+        # Roadmap Runner v0.3: workspace root + change proposals + promotion scan (deterministic, no network).
+        roadmap_change_schema = repo_root / "schemas" / "roadmap-change.schema.json"
+        promote_manifest_schema = repo_root / "schemas" / "promote.manifest.schema.json"
+        if not roadmap_change_schema.exists():
+            raise SystemExit("Smoke test failed: missing schemas/roadmap-change.schema.json")
+        if not promote_manifest_schema.exists():
+            raise SystemExit("Smoke test failed: missing schemas/promote.manifest.schema.json")
+
+        ws_demo = repo_root / ".cache" / "workspace_demo"
+        if ws_demo.exists():
+            rmtree(ws_demo)
+        ws_demo.mkdir(parents=True, exist_ok=True)
+
+        proc_ws_boot = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "workspace-bootstrap",
+                "--out",
+                str(ws_demo.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ws_boot.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: workspace-bootstrap must exit 0.\n" + (proc_ws_boot.stderr or proc_ws_boot.stdout or "")
+            )
+
+        def snapshot_files(root: Path) -> dict[str, str]:
+            snap: dict[str, str] = {}
+            for p in sorted(root.rglob("*"), key=lambda x: x.as_posix()):
+                if not p.is_file():
+                    continue
+                rel = p.relative_to(root).as_posix()
+                snap[rel] = sha256(p.read_bytes()).hexdigest()
+            return snap
+
+        ws_snap_before = snapshot_files(ws_demo)
+
+        ssot_plan_ws_out = repo_root / ".cache" / "roadmap_plan_ssot_m2_ws.json"
+        proc_plan_ws = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-plan",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--workspace-root",
+                str(ws_demo.relative_to(repo_root)),
+                "--out",
+                str(ssot_plan_ws_out.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_plan_ws.returncode != 0:
+            raise SystemExit("Smoke test failed: roadmap-plan with --workspace-root must exit 0.\n" + (proc_plan_ws.stderr or proc_plan_ws.stdout or ""))
+        if not ssot_plan_ws_out.exists():
+            raise SystemExit("Smoke test failed: roadmap-plan with --workspace-root did not write plan output.")
+
+        baseline_status_ws = git_status_porcelain()
+        proc_apply_ws_ro = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--workspace-root",
+                str(ws_demo.relative_to(repo_root)),
+                "--dry-run",
+                "true",
+                "--dry-run-mode",
+                "readonly",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_apply_ws_ro.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-apply readonly with --workspace-root must exit 0.\n"
+                + (proc_apply_ws_ro.stderr or proc_apply_ws_ro.stdout or "")
+            )
+        if git_status_porcelain() != baseline_status_ws:
+            raise SystemExit("Smoke test failed: roadmap-apply readonly with --workspace-root must not change git status.")
+        ws_snap_after = snapshot_files(ws_demo)
+        if ws_snap_after != ws_snap_before:
+            raise SystemExit("Smoke test failed: roadmap-apply readonly with --workspace-root must not write into workspace root.")
+
+        # Change proposal apply (safe): apply to a temporary copy under .cache/ (avoid dirty core repo).
+        tmp_roadmap = repo_root / ".cache" / "roadmap_ssot_copy.json"
+        tmp_roadmap.write_text(ssot_roadmap.read_text(encoding="utf-8"), encoding="utf-8")
+
+        tmp_change = repo_root / ".cache" / "CHG-20000101-001.json"
+        tmp_change_obj = {
+            "change_id": "CHG-20000101-001",
+            "version": "v1",
+            "type": "modify",
+            "risk_level": "low",
+            "target": {"milestone_id": "M2"},
+            "rationale": "Smoke test: append a safe note.",
+            "patches": [{"op": "append_milestone_note", "milestone_id": "M2", "note": "SMOKE_CHANGE_NOTE"}],
+            "gates": ["python ci/validate_schemas.py", "python -m src.ops.manage smoke --level fast"],
+        }
+        tmp_change.write_text(json.dumps(tmp_change_obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+        proc_chg_apply = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-change-apply",
+                "--change",
+                str(tmp_change.relative_to(repo_root)),
+                "--roadmap",
+                str(tmp_roadmap.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_chg_apply.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-change-apply must exit 0.\n" + (proc_chg_apply.stderr or proc_chg_apply.stdout or "")
+            )
+
+        changed_obj = json.loads(tmp_roadmap.read_text(encoding="utf-8"))
+        m2 = None
+        for ms in changed_obj.get("milestones", []) if isinstance(changed_obj, dict) else []:
+            if isinstance(ms, dict) and ms.get("id") == "M2":
+                m2 = ms
+                break
+        notes = m2.get("notes") if isinstance(m2, dict) else None
+        if not (isinstance(notes, list) and "SMOKE_CHANGE_NOTE" in notes):
+            raise SystemExit("Smoke test failed: roadmap-change-apply did not modify milestone notes as expected.")
+
+        # Promotion scan: fail-closed when forbidden token exists.
+        inc_dir = ws_demo / "incubator"
+        inc_dir.mkdir(parents=True, exist_ok=True)
+        bad_item = inc_dir / "item.md"
+        bad_item.write_text("Beykent", encoding="utf-8")
+
+        proc_promote_scan = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "promote-scan",
+                "--root",
+                str(inc_dir.relative_to(repo_root)),
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_promote_scan.returncode == 0:
+            raise SystemExit("Smoke test failed: promote-scan must fail on forbidden token.")
+        try:
+            scan_obj = json.loads((proc_promote_scan.stdout or "").strip() or "{}")
+        except Exception:
+            scan_obj = {}
+        if scan_obj.get("error_code") != "SANITIZE_VIOLATION":
+            raise SystemExit("Smoke test failed: promote-scan must return SANITIZE_VIOLATION.")
+
+        print("CRITICAL_ROADMAP_RUNNER_V3: workspace_root_ok=true changes_ok=true promote_scan_ok=true")
+    else:
+        print("NOTE: ORCH_ROADMAP_RUNNER=1; skipping roadmap-runner smoke to avoid recursion.")
+
+    # Roadmap Orchestrator v0.1: state bootstrap + ISO bootstrap (M1) + idempotent file steps.
+    # Avoid infinite recursion:
+    # - the orchestrator runs smoke_test.py as a post-gate, and that smoke run must not call roadmap-follow again.
+    # - roadmap runner gates can also call smoke_test.py with ORCH_ROADMAP_RUNNER=1.
+    if os.environ.get("ORCH_ROADMAP_ORCHESTRATOR") != "1" and os.environ.get("ORCH_ROADMAP_RUNNER") != "1":
+        from src.roadmap.step_templates import RoadmapStepError, VirtualFS, step_add_ci_gate_script, step_create_file, step_create_json_from_template
+
+        ssot_roadmap = repo_root / "roadmaps" / "SSOT" / "roadmap.v1.json"
+        ws_follow = repo_root / ".cache" / "ws_follow_demo"
+        rmtree(ws_follow, ignore_errors=True)
+
+        proc_ws = subprocess.run(
+            [sys.executable, "-m", "src.ops.manage", "workspace-bootstrap", "--out", str(ws_follow.relative_to(repo_root))],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ws.returncode != 0:
+            raise SystemExit("Smoke test failed: workspace-bootstrap for roadmap-follow failed:\n" + (proc_ws.stderr or proc_ws.stdout or ""))
+
+        # Create M2 workspace artifacts once (out-of-order allowed in this smoke); this enables state bootstrap to detect M2 as completed.
+        proc_apply_m2 = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--milestone",
+                "M2",
+                "--workspace-root",
+                str(ws_follow.relative_to(repo_root)),
+                "--dry-run",
+                "false",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_apply_m2.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-apply M2 (apply mode) must exit 0.\n" + (proc_apply_m2.stderr or proc_apply_m2.stdout or "")
+            )
+
+        state_path = ws_follow / ".cache" / "roadmap_state.v1.json"
+        if state_path.exists():
+            state_path.unlink()
+
+        proc_follow = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-follow",
+                "--roadmap",
+                str(ssot_roadmap),
+                "--workspace-root",
+                str(ws_follow.relative_to(repo_root)),
+                "--max-steps",
+                "1",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        try:
+            follow = json.loads((proc_follow.stdout or "").strip() or "{}")
+        except Exception:
+            follow = {}
+        if follow.get("status") != "OK":
+            raise SystemExit("Smoke test failed: roadmap-follow must be OK.\n" + (proc_follow.stderr or proc_follow.stdout or ""))
+        if not state_path.exists():
+            raise SystemExit("Smoke test failed: roadmap-follow must create workspace state file: " + str(state_path))
+
+        st = json.loads(state_path.read_text(encoding="utf-8"))
+        completed_ms = st.get("completed_milestones")
+        if not isinstance(completed_ms, list):
+            raise SystemExit("Smoke test failed: roadmap state completed_milestones must be a list.")
+        if "M2" not in completed_ms:
+            raise SystemExit("Smoke test failed: state bootstrap must detect M2 as completed when markers exist.")
+
+        # M1 apply must create ISO stub files (or treat them as idempotent no-ops if already present).
+        iso_dir = ws_follow / "tenant" / "TENANT-DEFAULT"
+        iso_files = [
+            iso_dir / "context.v1.md",
+            iso_dir / "stakeholders.v1.md",
+            iso_dir / "scope.v1.md",
+            iso_dir / "criteria.v1.md",
+        ]
+        if any(not p.exists() for p in iso_files):
+            missing = [p.as_posix() for p in iso_files if not p.exists()]
+            raise SystemExit("Smoke test failed: M1 ISO bootstrap files missing: " + ", ".join(missing))
+
+        # Idempotent create_file/create_json/add_ci_gate_script behavior (overwrite=false):
+        # - same content => OK (noop)
+        # - different content => CONTENT_MISMATCH
+        virtual_fs = VirtualFS(files={})
+
+        # create_file mismatch (should fail-closed)
+        try:
+            step_create_file(
+                workspace=ws_follow.resolve(),
+                virtual_fs=virtual_fs,
+                path="tenant/TENANT-DEFAULT/context.v1.md",
+                content="DIFFERENT",
+                overwrite=False,
+                dry_run=False,
+            )
+            raise SystemExit("Smoke test failed: create_file overwrite=false should fail on content mismatch.")
+        except RoadmapStepError as e:
+            if e.error_code != "CONTENT_MISMATCH":
+                raise SystemExit("Smoke test failed: create_file mismatch must be CONTENT_MISMATCH, got: " + str(e.error_code))
+
+        # create_json_from_template idempotence and mismatch checks
+        schema_path = ws_follow / "schemas" / "tenant-decision-bundle.schema.json"
+        schema_obj = json.loads(schema_path.read_text(encoding="utf-8"))
+        res_ok, _, _ = step_create_json_from_template(
+            workspace=ws_follow.resolve(),
+            virtual_fs=virtual_fs,
+            path="schemas/tenant-decision-bundle.schema.json",
+            json_obj=schema_obj,
+            overwrite=False,
+            dry_run=False,
+        )
+        if res_ok.get("status") != "OK":
+            raise SystemExit("Smoke test failed: create_json_from_template idempotent run must return OK.")
+        try:
+            step_create_json_from_template(
+                workspace=ws_follow.resolve(),
+                virtual_fs=virtual_fs,
+                path="schemas/tenant-decision-bundle.schema.json",
+                json_obj={"__smoke_mismatch__": True},
+                overwrite=False,
+                dry_run=False,
+            )
+            raise SystemExit("Smoke test failed: create_json_from_template overwrite=false should fail on content mismatch.")
+        except RoadmapStepError as e:
+            if e.error_code != "CONTENT_MISMATCH":
+                raise SystemExit("Smoke test failed: create_json mismatch must be CONTENT_MISMATCH, got: " + str(e.error_code))
+
+        # add_ci_gate_script idempotence and mismatch checks
+        script_path = ws_follow / "ci" / "validate_tenant_consistency.py"
+        script_text = script_path.read_text(encoding="utf-8")
+        res_ci_ok, _, _ = step_add_ci_gate_script(
+            workspace=ws_follow.resolve(),
+            virtual_fs=virtual_fs,
+            path="ci/validate_tenant_consistency.py",
+            content=script_text,
+            overwrite=False,
+            dry_run=False,
+        )
+        if res_ci_ok.get("status") != "OK":
+            raise SystemExit("Smoke test failed: add_ci_gate_script idempotent run must return OK.")
+        try:
+            step_add_ci_gate_script(
+                workspace=ws_follow.resolve(),
+                virtual_fs=virtual_fs,
+                path="ci/validate_tenant_consistency.py",
+                content=script_text + "# mismatch\n",
+                overwrite=False,
+                dry_run=False,
+            )
+            raise SystemExit("Smoke test failed: add_ci_gate_script overwrite=false should fail on content mismatch.")
+        except RoadmapStepError as e:
+            if e.error_code != "CONTENT_MISMATCH":
+                raise SystemExit("Smoke test failed: add_ci_gate_script mismatch must be CONTENT_MISMATCH, got: " + str(e.error_code))
+
+        print("CRITICAL_ROADMAP_STATE_BOOTSTRAP: ok=true")
+
+        # Roadmap Orchestrator v0.2: roadmap-finish loop (until DONE/BLOCKED) + actions register.
+        ws_finish = repo_root / ".cache" / "ws_finish_demo"
+        rmtree(ws_finish, ignore_errors=True)
+        proc_ws_finish = subprocess.run(
+            [sys.executable, "-m", "src.ops.manage", "workspace-bootstrap", "--out", str(ws_finish.relative_to(repo_root))],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_ws_finish.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: workspace-bootstrap for roadmap-finish failed:\n"
+                + (proc_ws_finish.stderr or proc_ws_finish.stdout or "")
+            )
+
+        # Use a minimal roadmap so finish completes quickly and deterministically.
+        finish_roadmap_path = repo_root / ".cache" / "roadmap_finish_demo.v1.json"
+        finish_roadmap_obj = {
+            "roadmap_id": "RM-FINISH-DEMO",
+            "version": "v1",
+            "iso_core_required": False,
+            "global_gates": [],
+            "milestones": [
+                {
+                    "id": "MF1",
+                    "title": "Roadmap Finish Demo",
+                    "steps": [{"type": "note", "text": "Finish demo milestone (safe)."}],
+                    "gates": [],
+                    "dod": [],
+                }
+            ],
+        }
+        finish_roadmap_path.write_text(
+            json.dumps(finish_roadmap_obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        proc_finish = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-finish",
+                "--roadmap",
+                str(finish_roadmap_path.relative_to(repo_root)),
+                "--workspace-root",
+                str(ws_finish.relative_to(repo_root)),
+                "--max-minutes",
+                "1",
+                "--sleep-seconds",
+                "0",
+                "--max-steps-per-iteration",
+                "2",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_finish.returncode not in (0, 2):
+            raise SystemExit(
+                "Smoke test failed: roadmap-finish unexpected exit code.\n"
+                + (proc_finish.stderr or proc_finish.stdout or "")
+            )
+        try:
+            finish_obj = json.loads((proc_finish.stdout or "").strip() or "{}")
+        except Exception as e:
+            raise SystemExit(
+                "Smoke test failed: roadmap-finish must output JSON.\n"
+                + (proc_finish.stderr or proc_finish.stdout or "")
+            ) from e
+        if finish_obj.get("status") not in {"DONE", "DONE_WITH_DEBT", "OK", "BLOCKED"}:
+            raise SystemExit("Smoke test failed: roadmap-finish invalid status: " + str(finish_obj.get("status")))
+
+        finish_state_path = ws_finish / ".cache" / "roadmap_state.v1.json"
+        if not finish_state_path.exists():
+            raise SystemExit("Smoke test failed: roadmap-finish must create state file: " + str(finish_state_path))
+        try:
+            json.loads(finish_state_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            raise SystemExit("Smoke test failed: roadmap state file must be valid JSON.") from e
+
+        finish_actions_path = ws_finish / ".cache" / "roadmap_actions.v1.json"
+        if not finish_actions_path.exists():
+            raise SystemExit("Smoke test failed: roadmap-finish must create action register: " + str(finish_actions_path))
+        try:
+            finish_actions_obj = json.loads(finish_actions_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            raise SystemExit("Smoke test failed: roadmap actions file must be valid JSON.") from e
+
+        if budget_status == "WARN":
+            actions_list = finish_actions_obj.get("actions") if isinstance(finish_actions_obj, dict) else []
+            ok = isinstance(actions_list, list) and any(isinstance(a, dict) and (a.get("source") == "SCRIPT_BUDGET" or a.get("kind") == "SCRIPT_BUDGET") and (a.get("target_milestone") == "M0" or a.get("milestone_hint") == "M0") for a in actions_list)
+            if not ok:
+                raise SystemExit("Smoke test failed: expected SCRIPT_BUDGET action targeting M0 when status=WARN.")
+        print(f"CRITICAL_ACTION_REGISTER_BUDGET ok=true status={budget_status}")
+
+        evidence_paths = finish_obj.get("evidence")
+        if not (isinstance(evidence_paths, list) and evidence_paths and isinstance(evidence_paths[0], str)):
+            raise SystemExit("Smoke test failed: roadmap-finish must return evidence list.")
+        finish_ev_dir = repo_root / evidence_paths[0]
+        required_finish_files = [finish_ev_dir / p for p in ("input.json", "output.json", "iterations.json", "actions_before.json", "actions_after.json", "script_budget_report.json", "integrity.manifest.v1.json")]
+        missing_finish = [str(p) for p in required_finish_files if not p.exists()]
+        if missing_finish:
+            raise SystemExit("Smoke test failed: roadmap-finish missing evidence files: " + ", ".join(missing_finish))
+
+        previews_dir = finish_ev_dir / "previews"
+        if not previews_dir.exists():
+            raise SystemExit("Smoke test failed: roadmap-finish must write previews/ in evidence.")
+        preview_files = [p for p in previews_dir.iterdir() if p.is_file() and p.suffix == ".json"]
+        if not preview_files:
+            raise SystemExit("Smoke test failed: roadmap-finish must write at least one preview JSON.")
+
+        print("CRITICAL_ROADMAP_FINISH ok=true")
+
+        # Customer-friendly mode (v0.1): --chat output must be consistent and include a final JSON line.
+        proc_chat_status = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-status",
+                "--roadmap",
+                str(ssot_roadmap.relative_to(repo_root)),
+                "--workspace-root",
+                str(ws_follow.relative_to(repo_root)),
+                "--chat",
+                "true",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_chat_status.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-status --chat true must exit 0.\n"
+                + (proc_chat_status.stderr or proc_chat_status.stdout or "")
+            )
+        chat_text = (proc_chat_status.stdout or "")
+        for heading in ("PREVIEW:", "RESULT:", "EVIDENCE:", "ACTIONS:", "NEXT:"):
+            if heading not in chat_text:
+                raise SystemExit("Smoke test failed: roadmap-status --chat missing heading: " + heading)
+        last_line = [ln for ln in chat_text.splitlines() if ln.strip()][-1]
+        try:
+            json.loads(last_line)
+        except Exception as e:
+            raise SystemExit("Smoke test failed: roadmap-status --chat last line must be JSON.") from e
+
+        # For smoke determinism, force finish to stop immediately by marking all milestones completed in state.
+        milestones = []
+        try:
+            ssot_obj = json.loads(ssot_roadmap.read_text(encoding="utf-8"))
+        except Exception:
+            ssot_obj = {}
+        for ms in ssot_obj.get("milestones", []) if isinstance(ssot_obj, dict) else []:
+            if isinstance(ms, dict) and isinstance(ms.get("id"), str):
+                milestones.append(ms["id"])
+
+        state_obj = json.loads(state_path.read_text(encoding="utf-8"))
+        state_obj["completed_milestones"] = milestones
+        state_obj["bootstrapped"] = True
+        state_obj["current_milestone"] = None
+        state_path.write_text(json.dumps(state_obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+        proc_chat_finish = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-finish",
+                "--roadmap",
+                str(ssot_roadmap.relative_to(repo_root)),
+                "--workspace-root",
+                str(ws_follow.relative_to(repo_root)),
+                "--max-minutes",
+                "1",
+                "--chat",
+                "true",
+            ],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            env=sc_env,
+        )
+        if proc_chat_finish.returncode != 0:
+            raise SystemExit(
+                "Smoke test failed: roadmap-finish --chat true must exit 0 for DONE.\n"
+                + (proc_chat_finish.stderr or proc_chat_finish.stdout or "")
+            )
+        finish_chat_text = (proc_chat_finish.stdout or "")
+        for heading in ("PREVIEW:", "RESULT:", "EVIDENCE:", "ACTIONS:", "NEXT:"):
+            if heading not in finish_chat_text:
+                raise SystemExit("Smoke test failed: roadmap-finish --chat missing heading: " + heading)
+        finish_last_line = [ln for ln in finish_chat_text.splitlines() if ln.strip()][-1]
+        try:
+            json.loads(finish_last_line)
+        except Exception as e:
+            raise SystemExit("Smoke test failed: roadmap-finish --chat last line must be JSON.") from e
+
+        print("CRITICAL_CUSTOMER_MODE ok=true")
+    else:
+        print("NOTE: ORCH_ROADMAP_ORCHESTRATOR=1 or ORCH_ROADMAP_RUNNER=1; skipping roadmap-autopilot smoke to avoid recursion.")
 
     # Ops management CLI (no UI): must run and be deterministic.
     proc_runs = subprocess.run(

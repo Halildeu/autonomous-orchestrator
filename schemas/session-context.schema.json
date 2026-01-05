@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/session-context.schema.json",
+  "title": "session-context.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "session_id",
+    "workspace_root",
+    "created_at",
+    "updated_at",
+    "ttl_seconds",
+    "expires_at",
+    "ephemeral_decisions",
+    "hashes"
+  ],
+  "properties": {
+    "version": { "const": "v1" },
+    "session_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "workspace_root": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "minLength": 1 },
+    "updated_at": { "type": "string", "minLength": 1 },
+    "ttl_seconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+    "expires_at": { "type": "string", "minLength": 1 },
+    "paused": { "type": "boolean", "default": false },
+    "ephemeral_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "value", "source", "created_at"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "value": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" },
+              { "type": "object" }
+            ]
+          },
+          "source": { "type": "string", "enum": ["user_chat", "agent"] },
+          "created_at": { "type": "string", "minLength": 1 }
+        }
+      },
+      "default": []
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_context_sha256"],
+      "properties": {
+        "session_context_sha256": { "type": "string", "minLength": 64, "maxLength": 64 }
+      }
+    }
+  }
+}
+

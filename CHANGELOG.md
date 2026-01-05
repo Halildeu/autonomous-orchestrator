@@ -3,7 +3,7 @@
 
 
 ## [1.0.0] - 2026-01-01
-- Deterministic orchestrator core (schemas/policies/gates, fail-closed)
+- Deterministic orchestrator core (`schemas/`, `policies/`, `ci/`, fail-closed)
 - Evidence pack: provenance + integrity verify + export zip
 - Ops tooling: manage CLI (runs/dlq/suspends), reaper retention, runbook
 - Policy workflow: policy-check + policy diff sim + Markdown report + policy editor

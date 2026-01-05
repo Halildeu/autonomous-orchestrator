@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-core-immutability.schema.json",
+  "title": "Policy Core Immutability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "enabled",
+    "default_mode",
+    "allow_core_writes_only_when",
+    "evidence_required_when_unlocked",
+    "blocked_write_error_code",
+    "core_git_required"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "enabled": { "type": "boolean" },
+    "default_mode": { "type": "string", "enum": ["locked"] },
+    "allow_core_writes_only_when": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["env_var", "env_value"],
+      "properties": {
+        "env_var": { "type": "string", "minLength": 1 },
+        "env_value": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence_required_when_unlocked": { "type": "boolean" },
+    "blocked_write_error_code": { "type": "string", "minLength": 1 },
+    "core_git_required": { "type": "boolean" }
+  }
+}

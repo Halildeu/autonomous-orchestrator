@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "id": "CAP_NIST_AI_RMF_BASE",
+    "version": "v1",
+    "kind": "CAPABILITY",
+    "purpose": "Baseline NIST AI RMF control catalog ingestion with deterministic parsing.",
+    "inputs": ["control_list"],
+    "steps": ["Parse control entries", "Normalize identifiers", "Emit catalog entries"],
+    "outputs": ["control_catalog"],
+    "guardrails": ["no_secrets_in_output", "deterministic_ordering"],
+    "iso_refs": {
+      "context_ref": "tenant/TENANT-DEFAULT/context.v1.md",
+      "stakeholders_ref": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+      "scope_ref": "tenant/TENANT-DEFAULT/scope.v1.md",
+      "criteria_ref": "tenant/TENANT-DEFAULT/criteria.v1.md",
+      "gate_level": "warn"
+    },
+    "evidence": {
+      "expected": [".cache/index/north_star_catalog.v1.json"],
+      "verify_on_read": true
+    },
+    "risk": {
+      "category": "low",
+      "default_mode": "normal",
+      "triggers": ["missing_controls"]
+    },
+    "sustainability": {
+      "intent": ["urn:core:docs:policy_review"],
+      "metrics": [{ "id": "controls_count", "target": ">=1" }]
+    },
+    "continuity": {
+      "resume_supported": true,
+      "idempotent": true,
+      "checkpointing": false
+    }
+  },
+  "body": {
+    "type": "capability",
+    "steps": ["Normalize control ids", "Emit deterministic catalog"],
+    "implementation_ref": "src/benchmark/assessment_runner.py"
+  }
+}

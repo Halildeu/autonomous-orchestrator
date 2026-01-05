@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "enabled": true,
+  "default_mode": "locked",
+  "allow_core_writes_only_when": {
+    "env_var": "CORE_UNLOCK",
+    "env_value": "1"
+  },
+  "evidence_required_when_unlocked": true,
+  "blocked_write_error_code": "CORE_IMMUTABLE_WRITE_BLOCKED",
+  "core_git_required": true
+}

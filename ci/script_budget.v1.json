@@ -1,0 +1,27 @@
+{
+  "version": "v1",
+  "python_file_limits": { "soft_lines": 1200, "hard_lines": 2000 },
+  "grandfathered_files": [
+    {
+      "path": "ci/smoke_test.py",
+      "current_lines": 4394,
+      "max_allowed_lines": 4394,
+      "expires_on": null,
+      "target_soft": 1200,
+      "target_hard": 2000
+    }
+  ],
+  "file_line_limits": [
+    { "path": "src/ops/manage.py", "soft": 1200, "hard": 1800 },
+    { "path": "smoke_test.py", "soft": 1000, "hard": 1500 },
+    { "path": "src/roadmap/executor.py", "soft": 900, "hard": 1300 },
+    { "path": "src/tools/gateway.py", "soft": 500, "hard": 800 }
+  ],
+  "function_line_limits": { "soft": 80, "hard": 150 },
+  "function_scan_paths": [
+    "src/ops/manage.py",
+    "src/roadmap/executor.py",
+    "src/tools/gateway.py",
+    "smoke_test.py"
+  ]
+}

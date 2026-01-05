@@ -180,7 +180,22 @@ Reaper kapsamı (bugünkü sistem):
 - DLQ: `dlq/*.json` (timestamp prefix varsa onu kullanır; yoksa mtime).
 - Cache: `.cache/**` altındaki dosyalar (mtime).
 
-## 9) Integration checks (OpenAI ping)
+## 9) Derived artifact auto-heal
+
+Ne yapar:
+- Eksik derived dosyaları (`.cache/index/formats.v1.json`, `.cache/index/catalog.v1.json`, `.cache/sessions/default/session_context.v1.json`, `.cache/index/run_index.v1.json`, `.cache/index/dlq_index.v1.json`, `.cache/learning/harvest_cursor.v1.json` vb.) tespit eder.
+- Eksik dosyanın sahibi olan milestone’u **bounded** şekilde yeniden uygular (v0.1: en fazla 2 milestone/finish run).
+- Fail‑closed: “block” seviyesindeki bir eksik dosya iyileşmezse finish `BLOCKED` olabilir.
+
+Nerede görünür:
+- Roadmap finish evidence’ında `artifact_completeness_report.json`.
+- Action Register’da `DERIVED_ARTIFACT_MISSING` / `DERIVED_ARTIFACT_HEAL_FAILED` aksiyonları.
+
+Notlar:
+- Bu mekanizma “gerçek borcu” gizlemez; örn. script budget WARN kalır.
+- Süre/deneme sınırları her run için deterministiktir.
+
+## 10) Integration checks (OpenAI ping)
 
 Bu komut **yalnızca entegrasyon testi** içindir; evidence run üretmez. (İstersen `.cache/openai_ping_last.json` yazar.)
 
@@ -202,7 +217,7 @@ python -m src.ops.manage openai-ping --timeout-ms 5000
 Test sonrası güvenlik için:
 - `network_access` tekrar `false` yap.
 
-## 10) Policy review report (MOD_POLICY_REVIEW)
+## 11) Policy review report (MOD_POLICY_REVIEW)
 
 Sistemde yeni bir intent var:
 - `urn:core:docs:policy_review`

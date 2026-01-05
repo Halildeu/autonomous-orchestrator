@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-system-status.schema.json",
+  "title": "Policy System Status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "enabled",
+    "out_json",
+    "out_md",
+    "max_actions",
+    "max_suggestions",
+    "on_fail"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "enabled": { "type": "boolean" },
+    "out_json": { "type": "string", "minLength": 1 },
+    "out_md": { "type": "string", "minLength": 1 },
+    "max_actions": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "max_suggestions": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "include_repo_hygiene_suggestions": { "type": "boolean" },
+    "on_fail": { "type": "string", "enum": ["warn", "block"] },
+    "note": { "type": "string" }
+  }
+}

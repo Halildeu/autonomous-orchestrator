@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "project_id": "PRJ-PORTFOLIO-TRACKING",
+  "title": "Project Portfolio Tracking",
+  "owner": "CORE",
+  "layer_scope": "L1",
+  "purpose": "Provide a program-led portfolio view across project manifests.",
+  "domain_tags": ["portfolio", "program-led"],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "selected_pack_ids": [],
+  "target_maturity_level": 1,
+  "target_milestones": ["M11.1", "M11.2", "M11.3"],
+  "success_metrics": ["portfolio_status_single_gate", "projects_visibility"],
+  "risk_category": "low",
+  "program_led_entrypoints": ["portfolio-status", "project-status", "system-status"],
+  "evidence_expectations": [".cache/reports/portfolio_status.v1.json"],
+  "promotion_policy": "plan-only"
+}

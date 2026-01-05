@@ -1,0 +1,101 @@
+{
+  "roadmap_id": "PRJ-KERNEL-API",
+  "version": "v1",
+  "iso_core_required": false,
+  "global_gates": [],
+  "milestones": [
+    {
+      "id": "P0",
+      "title": "Contract First (Spec)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Deliverables (docs-only): docs/PROJECTS/PRJ-KERNEL-API/api-contract.v1.md, security-model.v1.md, run-modes.v1.md"
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Program-led ilke açıkça yazılı: AUTOPILOT CHAT + JSON tail standardı referanslı."
+      ]
+    },
+    {
+      "id": "P1",
+      "title": "In-Process Wrapper Plan (No Code Yet)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Deliverables (docs-only): internal-call-map.v1.md, error-codes.v1.md"
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Endpoint -> src.ops.manage alt-komut eşlemesi net ve bounded."
+      ]
+    },
+    {
+      "id": "P2",
+      "title": "Minimal HTTP Server (PLAN-ONLY)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false",
+        "plan-only"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Plan-only: stdlib http.server vs mevcut stack seçenekleri, timeout ve bounded execution."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Uygulama yok; sadece plan ve tradeoff analizi."
+      ]
+    },
+    {
+      "id": "P3",
+      "title": "Packaging & Delivery (PLAN-ONLY)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false",
+        "plan-only"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Plan-only: dağıtım seçenekleri ve runbook notları."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Uygulama yok; plan-only."
+      ]
+    },
+    {
+      "id": "P4",
+      "title": "Tests (PLAN-ONLY)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false",
+        "plan-only"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Plan-only: API contract schema validation + dry-run safe senaryoları."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Uygulama yok; plan-only."
+      ]
+    }
+  ]
+}

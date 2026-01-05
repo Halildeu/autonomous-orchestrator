@@ -148,7 +148,6 @@ class ToolGateway:
                 raise
             except Exception as e:
                 raise RuntimeError(f"fs_read failed to stat file: {resolved}") from e
-
             if int(size) > int(self.max_bytes_in):
                 raise PolicyViolation("READ_TOO_LARGE", f"Read too large: {size} bytes > {self.max_bytes_in}")
 

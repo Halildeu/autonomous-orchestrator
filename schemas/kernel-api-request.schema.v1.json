@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kernel API Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kind", "workspace_root"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "project_status",
+        "system_status",
+        "doc_nav_check",
+        "roadmap_finish",
+        "roadmap_follow",
+        "codex_env_check",
+        "codex_home_init",
+        "m0_plan_ensure",
+        "llm_providers_init",
+        "llm_list_providers",
+        "llm_call",
+        "llm_live_probe"
+      ]
+    },
+    "workspace_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "params": {
+      "type": "object"
+    },
+    "env_mode": {
+      "type": "string",
+      "enum": ["dotenv", "process"],
+      "default": "dotenv"
+    },
+    "strict": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "boolean"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["json", "autopilot_chat"],
+      "default": "json"
+    }
+  }
+}

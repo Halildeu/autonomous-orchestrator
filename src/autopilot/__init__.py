@@ -1,0 +1,1 @@
+"""Autopilot utilities (offline, deterministic)."""
