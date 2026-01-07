@@ -15,7 +15,7 @@
     },
     "status": {
       "type": "string",
-      "enum": ["OK", "WARN", "FAIL", "BLOCKED"]
+      "enum": ["OK", "WARN", "FAIL", "BLOCKED", "IDLE"]
     },
     "error_code": {
       "type": ["string", "null"]
@@ -33,7 +33,11 @@
         "llm_request_preview": {"type": "object"},
         "llm_error_details": {"type": "object"},
         "probe_report": {"type": "object"},
-        "plan_path": {"type": "string"},
+        "plan_path": {"type": ["string", "null"]},
+        "work_intake_path": {"type": "string"},
+        "summary_path": {"type": "string"},
+        "items_count": {"type": "integer"},
+        "top_next": {"type": "array"},
         "plan_source": {"type": "string"},
         "discovery_report_path": {"type": "string"},
         "provider_id": {"type": "string"},

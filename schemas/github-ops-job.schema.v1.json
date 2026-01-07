@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/github-ops-job.schema.v1.json",
+  "title": "GitHub Ops Job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "job_id",
+    "kind",
+    "status",
+    "created_at",
+    "updated_at",
+    "workspace_root",
+    "dry_run",
+    "live_gate",
+    "evidence_paths",
+    "notes"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "job_id": { "type": "string", "minLength": 1 },
+    "kind": {
+      "type": "string",
+      "enum": ["pr_list", "pr_open", "pr_update", "merge", "deploy_trigger", "status_poll"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "last_poll_at": { "type": "string", "format": "date-time" },
+    "workspace_root": { "type": "string", "minLength": 1 },
+    "dry_run": { "type": "boolean" },
+    "live_gate": { "type": "boolean" },
+    "attempts": { "type": "integer", "minimum": 0 },
+    "error_code": { "type": "string" },
+    "skip_reason": { "type": "string" },
+    "failure_class": {
+      "type": "string",
+      "enum": ["DEMO_PREREQ_FAIL", "DEMO_CATALOG_PARSE", "CORE_BREAK", "OTHER"]
+    },
+    "signature_hash": { "type": "string", "minLength": 1 },
+    "evidence_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "result_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

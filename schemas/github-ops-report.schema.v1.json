@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/github-ops-report.schema.v1.json",
+  "title": "GitHub Ops Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "generated_at",
+    "workspace_root",
+    "status",
+    "live_gate",
+    "git_state",
+    "jobs_summary",
+    "jobs_index_path",
+    "notes"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "workspace_root": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL"] },
+    "live_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "env_flag", "env_key_present", "allowed_ops"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "env_flag": { "type": "string" },
+        "env_key_present": { "type": "boolean" },
+        "allowed_ops": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "git_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dirty_tree", "branch", "ahead", "behind", "index_lock"],
+      "properties": {
+        "dirty_tree": { "type": "boolean" },
+        "branch": { "type": "string" },
+        "ahead": { "type": "integer", "minimum": 0 },
+        "behind": { "type": "integer", "minimum": 0 },
+        "index_lock": { "type": "boolean" }
+      }
+    },
+    "signals": { "type": "array", "items": { "type": "string" } },
+    "jobs_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "by_status"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_status": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["QUEUED", "RUNNING", "PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"],
+          "properties": {
+            "QUEUED": { "type": "integer", "minimum": 0 },
+            "RUNNING": { "type": "integer", "minimum": 0 },
+            "PASS": { "type": "integer", "minimum": 0 },
+            "FAIL": { "type": "integer", "minimum": 0 },
+            "TIMEOUT": { "type": "integer", "minimum": 0 },
+            "KILLED": { "type": "integer", "minimum": 0 },
+            "SKIP": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "jobs_index_path": { "type": "string", "minLength": 1 },
+    "jobs": {
+      "type": "array",
+      "items": { "$ref": "https://example.com/schemas/github-ops-job.schema.v1.json" }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "version": "v1",
+  "enabled": false,
+  "lock_ttl_seconds": 900,
+  "heartbeat_interval_seconds": 300,
+  "schedule": {
+    "mode": "OFF",
+    "interval_seconds": 0,
+    "jitter_seconds": 0
+  },
+  "limits": {
+    "max_ticks_per_run": 1,
+    "max_actions_per_tick": 1,
+    "max_plans_per_tick": 1
+  },
+  "single_gate": {
+    "allowed_ops": [
+      "github-ops-check",
+      "github-ops-job-poll",
+      "github-ops-job-start",
+      "portfolio-status",
+      "system-status",
+      "work-intake-check",
+      "work-intake-exec-ticket"
+    ],
+    "require_strict_isolation": true
+  },
+  "notes": []
+}

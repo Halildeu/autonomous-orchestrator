@@ -27,12 +27,15 @@
         "core_lock",
         "project_boundary",
         "projects",
+        "pm_suite",
         "catalog",
         "packs",
         "formats",
         "session",
         "quality_gate",
+        "integrity",
         "benchmark",
+        "pdca",
         "harvest",
         "advisor",
         "pack_advisor",
@@ -94,6 +97,19 @@
             "notes": { "type": "array", "items": { "type": "string" } }
           }
         },
+        "layer_boundary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "report_path", "mode", "enforcement_mode", "would_block_count", "notes"],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
+            "report_path": { "type": "string" },
+            "mode": { "type": "string", "enum": ["report", "strict"] },
+            "enforcement_mode": { "type": "string" },
+            "would_block_count": { "type": "integer", "minimum": 0 },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
         "projects": {
           "type": "object",
           "additionalProperties": false,
@@ -117,6 +133,247 @@
               }
             },
             "next_project_focus": { "type": "string" },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "registry_status",
+            "count_total",
+            "enabled_count",
+            "top_extensions",
+            "last_registry_path",
+            "docs_coverage",
+            "tests_coverage",
+            "isolation_summary",
+            "last_extension_help_path",
+            "notes"
+          ],
+          "properties": {
+            "registry_status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL"] },
+            "count_total": { "type": "integer", "minimum": 0 },
+            "enabled_count": { "type": "integer", "minimum": 0 },
+            "top_extensions": { "type": "array", "items": { "type": "string" } },
+            "last_registry_path": { "type": "string" },
+            "docs_coverage": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["total", "with_docs_ref", "with_ai_context_refs"],
+              "properties": {
+                "total": { "type": "integer", "minimum": 0 },
+                "with_docs_ref": { "type": "integer", "minimum": 0 },
+                "with_ai_context_refs": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "tests_coverage": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["total", "with_tests_entrypoints", "with_tests_files"],
+              "properties": {
+                "total": { "type": "integer", "minimum": 0 },
+                "with_tests_entrypoints": { "type": "integer", "minimum": 0 },
+                "with_tests_files": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "isolation_summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "workspace_root_base",
+                "workspace_roots",
+                "network_allowed",
+                "last_run_path",
+                "notes"
+              ],
+              "properties": {
+                "status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL"] },
+                "workspace_root_base": { "type": "string" },
+                "workspace_roots": { "type": "array", "items": { "type": "string" } },
+                "network_allowed": { "type": "boolean" },
+                "last_run_path": { "type": "string" },
+                "notes": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "last_extension_help_path": { "type": "string" },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "airunner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "lock", "heartbeat", "jobs", "jobs_policy", "last_smoke_full_job", "cooldown_summary", "time_sinks", "notes"],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL"] },
+            "lock": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status", "lock_path", "expires_at", "stale"],
+              "properties": {
+                "status": { "type": "string", "enum": ["OK", "WARN", "IDLE"] },
+                "lock_path": { "type": "string" },
+                "expires_at": { "type": "string" },
+                "stale": { "type": "boolean" }
+              }
+            },
+            "heartbeat": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["last_tick_id", "last_tick_at", "last_status", "age_seconds", "heartbeat_path"],
+              "properties": {
+                "last_tick_id": { "type": "string" },
+                "last_tick_at": { "type": "string" },
+                "last_status": { "type": "string" },
+                "age_seconds": { "type": "integer", "minimum": 0 },
+                "heartbeat_path": { "type": "string" }
+              }
+            },
+            "jobs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["total", "by_status", "jobs_index_path"],
+              "properties": {
+                "total": { "type": "integer", "minimum": 0 },
+                "by_status": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["QUEUED", "RUNNING", "PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"],
+                  "properties": {
+                    "QUEUED": { "type": "integer", "minimum": 0 },
+                    "RUNNING": { "type": "integer", "minimum": 0 },
+                    "PASS": { "type": "integer", "minimum": 0 },
+                    "FAIL": { "type": "integer", "minimum": 0 },
+                    "TIMEOUT": { "type": "integer", "minimum": 0 },
+                    "KILLED": { "type": "integer", "minimum": 0 },
+                    "SKIP": { "type": "integer", "minimum": 0 }
+                  }
+                },
+                "jobs_index_path": { "type": "string" }
+              }
+            },
+            "jobs_policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["smoke_full"],
+              "properties": {
+                "smoke_full": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "enabled",
+                    "timeout_seconds",
+                    "poll_interval_seconds",
+                    "max_concurrent",
+                    "cooldown_seconds"
+                  ],
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "timeout_seconds": { "type": "integer", "minimum": 0 },
+                    "poll_interval_seconds": { "type": "integer", "minimum": 0 },
+                    "max_concurrent": { "type": "integer", "minimum": 1 },
+                    "cooldown_seconds": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              }
+            },
+            "last_smoke_full_job": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["job_id", "status", "failure_class", "signature_hash", "updated_at"],
+              "properties": {
+                "job_id": { "type": "string" },
+                "status": { "type": "string" },
+                "failure_class": { "type": "string" },
+                "signature_hash": { "type": "string" },
+                "updated_at": { "type": "string" }
+              }
+            },
+            "cooldown_summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["entries", "suppressed_count", "cooldown_path"],
+              "properties": {
+                "entries": { "type": "integer", "minimum": 0 },
+                "suppressed_count": { "type": "integer", "minimum": 0 },
+                "cooldown_path": { "type": "string" }
+              }
+            },
+            "time_sinks": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count", "top", "report_path"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 0 },
+                "top": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["event_key", "p95_ms", "threshold_ms", "breach_count"],
+                    "properties": {
+                      "event_key": { "type": "string" },
+                      "p95_ms": { "type": "integer", "minimum": 0 },
+                      "threshold_ms": { "type": "integer", "minimum": 0 },
+                      "breach_count": { "type": "integer", "minimum": 0 }
+                    }
+                  }
+                },
+                "report_path": { "type": "string" }
+              }
+            },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "pm_suite": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "extension_id", "manifest_path", "schema_paths", "policy_paths", "notes"],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL"] },
+            "extension_id": { "type": "string" },
+            "manifest_path": { "type": "string" },
+            "schema_paths": { "type": "array", "items": { "type": "string" } },
+            "policy_paths": { "type": "array", "items": { "type": "string" } },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "last_plan_path",
+            "last_manifest_path",
+            "next_channel_suggestion",
+            "channel",
+            "proposed_version",
+            "dirty_tree",
+            "evidence_paths",
+            "publish",
+            "publish_allowed",
+            "notes"
+          ],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL"] },
+            "last_plan_path": { "type": "string" },
+            "last_manifest_path": { "type": "string" },
+            "next_channel_suggestion": { "type": "string", "enum": ["rc", "final"] },
+            "channel": { "type": "string", "enum": ["rc", "final"] },
+            "proposed_version": { "type": "string" },
+            "dirty_tree": { "type": "boolean" },
+            "evidence_paths": { "type": "array", "items": { "type": "string" } },
+            "publish": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status", "reason"],
+              "properties": {
+                "status": { "type": "string", "enum": ["OK", "WARN", "IDLE", "FAIL", "SKIP"] },
+                "reason": { "type": "string" }
+              }
+            },
+            "publish_allowed": { "type": "boolean" },
             "notes": { "type": "array", "items": { "type": "string" } }
           }
         },
@@ -192,6 +449,17 @@
             "summary": { "type": "string" }
           }
         },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "last_verify_path", "verify_on_read_result", "mismatch_count"],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
+            "last_verify_path": { "type": "string" },
+            "verify_on_read_result": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
+            "mismatch_count": { "type": "integer", "minimum": 0 }
+          }
+        },
         "benchmark": {
           "type": "object",
           "additionalProperties": false,
@@ -199,8 +467,12 @@
             "status",
             "catalog_path",
             "assessment_path",
+            "last_assessment_raw_path",
+            "last_assessment_eval_path",
+            "last_integrity_verify_path",
             "scorecard_path",
             "gap_register_path",
+            "gaps_summary",
             "maturity_avg",
             "controls_count",
             "metrics_count",
@@ -213,8 +485,21 @@
             "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
             "catalog_path": { "type": "string" },
             "assessment_path": { "type": "string" },
+            "last_assessment_raw_path": { "type": "string" },
+            "last_assessment_eval_path": { "type": "string" },
+            "last_integrity_verify_path": { "type": "string" },
             "scorecard_path": { "type": "string" },
             "gap_register_path": { "type": "string" },
+            "gaps_summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["low", "medium", "high"],
+              "properties": {
+                "low": { "type": "integer", "minimum": 0 },
+                "medium": { "type": "integer", "minimum": 0 },
+                "high": { "type": "integer", "minimum": 0 }
+              }
+            },
             "maturity_avg": { "type": "number", "minimum": 0, "maximum": 1 },
             "controls_count": { "type": "integer", "minimum": 0 },
             "metrics_count": { "type": "integer", "minimum": 0 },
@@ -244,6 +529,161 @@
               }
             },
             "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "work_intake": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "work_intake_path", "items_count", "counts_by_bucket", "top_next_actions", "next_intake_focus"],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "IDLE"] },
+            "work_intake_path": { "type": "string" },
+            "items_count": { "type": "integer", "minimum": 0 },
+            "counts_by_bucket": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ROADMAP", "PROJECT", "TICKET", "INCIDENT"],
+              "properties": {
+                "ROADMAP": { "type": "integer", "minimum": 0 },
+                "PROJECT": { "type": "integer", "minimum": 0 },
+                "TICKET": { "type": "integer", "minimum": 0 },
+                "INCIDENT": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "top_next_actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["intake_id", "bucket", "severity", "priority", "status", "title", "source_type", "source_ref"],
+                "properties": {
+                  "intake_id": { "type": "string" },
+                  "bucket": { "type": "string" },
+                  "severity": { "type": "string" },
+                  "priority": { "type": "string" },
+                  "status": { "type": "string" },
+                  "title": { "type": "string" },
+                  "source_type": { "type": "string" },
+                  "source_ref": { "type": "string" },
+                  "suggested_extension": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                }
+              }
+            },
+            "next_intake_focus": { "type": "string" },
+            "by_bucket": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ROADMAP", "PROJECT", "TICKET", "INCIDENT"],
+              "properties": {
+                "ROADMAP": { "type": "integer", "minimum": 0 },
+                "PROJECT": { "type": "integer", "minimum": 0 },
+                "TICKET": { "type": "integer", "minimum": 0 },
+                "INCIDENT": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "top_next": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["intake_id", "bucket", "severity", "priority", "title"],
+                "properties": {
+                  "intake_id": { "type": "string" },
+                  "bucket": { "type": "string" },
+                  "severity": { "type": "string" },
+                  "priority": { "type": "string" },
+                  "title": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "work_intake_exec": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "exec_report_path",
+            "policy_source",
+            "policy_hash",
+            "applied_count",
+            "planned_count",
+            "idle_count"
+          ],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN"] },
+            "exec_report_path": { "type": "string" },
+            "policy_source": { "type": "string", "enum": ["core", "workspace_override", "missing"] },
+            "policy_hash": { "type": "string" },
+            "applied_count": { "type": "integer", "minimum": 0 },
+            "planned_count": { "type": "integer", "minimum": 0 },
+            "idle_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "context_router": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "last_request_id",
+            "last_context_pack_id",
+            "last_router_result_path",
+            "counts_by_bucket",
+            "next_focus",
+            "top_next_actions"
+          ],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "IDLE"] },
+            "last_request_id": { "type": "string" },
+            "last_context_pack_id": { "type": "string" },
+            "last_router_result_path": { "type": "string" },
+            "counts_by_bucket": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ROADMAP", "PROJECT", "TICKET", "INCIDENT"],
+              "properties": {
+                "ROADMAP": { "type": "integer", "minimum": 0 },
+                "PROJECT": { "type": "integer", "minimum": 0 },
+                "TICKET": { "type": "integer", "minimum": 0 },
+                "INCIDENT": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "top_next_actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["intake_id", "bucket", "severity", "priority", "title"],
+                "properties": {
+                  "intake_id": { "type": "string" },
+                  "bucket": { "type": "string" },
+                  "severity": { "type": "string" },
+                  "priority": { "type": "string" },
+                  "title": { "type": "string" }
+                }
+              }
+            },
+            "next_focus": { "type": "string" }
+          }
+        },
+        "pdca": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "last_recheck_path",
+            "regressions_count",
+            "quota_state",
+            "cooldown_state",
+            "cursor_state"
+          ],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
+            "last_recheck_path": { "type": "string" },
+            "regressions_count": { "type": "integer", "minimum": 0 },
+            "quota_state": { "type": "string" },
+            "cooldown_state": { "type": "string" },
+            "cursor_state": { "type": "string" }
           }
         },
         "harvest": {

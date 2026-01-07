@@ -27,7 +27,10 @@
         "llm_providers_init",
         "llm_list_providers",
         "llm_call",
-        "llm_live_probe"
+        "llm_live_probe",
+        "intake_status",
+        "intake_next",
+        "intake_create_plan"
       ]
     },
     "workspace_root": {

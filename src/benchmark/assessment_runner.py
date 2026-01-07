@@ -9,7 +9,9 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import build_gap_register, build_gap_summary_md
+from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity, load_previous_snapshot
 
 
 def _now_iso() -> str:
@@ -155,6 +157,28 @@ def _write_if_missing_or_same(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _write_integrity_md(path: Path, snapshot: dict[str, Any]) -> None:
+    lines = [
+        "# Integrity Verify Report",
+        "",
+        f"Generated at: {snapshot.get('generated_at', '')}",
+        f"Workspace: {snapshot.get('workspace_root', '')}",
+        f"Verify result: {snapshot.get('verify_on_read_result', '')}",
+        f"Mismatch count: {snapshot.get('mismatch_count', 0)}",
+        "",
+        "Mismatches:",
+    ]
+    mismatches = snapshot.get("mismatches") if isinstance(snapshot, dict) else None
+    if isinstance(mismatches, list) and mismatches:
+        for item in mismatches:
+            if isinstance(item, str) and item.strip():
+                lines.append(f"- {item}")
+    else:
+        lines.append("- (none)")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _draft_gap_chgs(*, workspace_root: Path, gap_register: dict[str, Any]) -> list[str]:
     gaps = gap_register.get("gaps") if isinstance(gap_register, dict) else None
     if not isinstance(gaps, list):
@@ -244,6 +268,12 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         out_scorecard_md = _resolve_output_path(workspace_root, str(outputs.get("scorecard_md")))
         out_gap_register = _resolve_output_path(workspace_root, str(outputs.get("gap_register")))
         out_gap_md = _resolve_output_path(workspace_root, str(outputs.get("gap_summary_md")))
+        out_assessment_raw = _resolve_output_path(workspace_root, ".cache/index/assessment_raw.v1.json")
+        out_bp_catalog = _resolve_output_path(workspace_root, ".cache/index/bp_catalog.v1.json")
+        out_trend_catalog = _resolve_output_path(workspace_root, ".cache/index/trend_catalog.v1.json")
+        out_assessment_eval = _resolve_output_path(workspace_root, ".cache/index/assessment_eval.v1.json")
+        out_integrity_json = _resolve_output_path(workspace_root, ".cache/reports/integrity_verify.v1.json")
+        out_integrity_md = _resolve_output_path(workspace_root, ".cache/reports/integrity_verify.v1.md")
     except Exception as e:
         return _fail("BENCHMARK_WRITE_VIOLATION", "output path escapes workspace_root", {"error": str(e)[:200]})
 
@@ -292,7 +322,15 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             cursor_obj = None
 
     if isinstance(cursor_obj, dict) and cursor_obj.get("inputs_sha256") == inputs_sha:
-        if out_catalog.exists() and out_assessment.exists() and out_scorecard_json.exists() and out_gap_register.exists():
+        if (
+            out_catalog.exists()
+            and out_assessment.exists()
+            and out_scorecard_json.exists()
+            and out_gap_register.exists()
+            and out_assessment_raw.exists()
+            and out_assessment_eval.exists()
+            and out_integrity_json.exists()
+        ):
             return {
                 "status": "OK",
                 "unchanged": True,
@@ -332,16 +370,49 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "warnings": sorted(set(warnings)),
     }
 
-    gap_register = build_gap_register(controls=controls, metrics=metrics)
-    gap_summary_md = build_gap_summary_md(gap_register=gap_register)
+    integrity_policy = load_policy_integrity(core_root=core_root, workspace_root=workspace_root)
+    previous_snapshot = load_previous_snapshot(workspace_root=workspace_root)
+    integrity_snapshot = build_integrity_snapshot(
+        workspace_root=workspace_root,
+        core_root=core_root,
+        policy=integrity_policy,
+        previous_snapshot=previous_snapshot,
+    )
+    integrity_ref = str(Path(".cache") / "reports" / "integrity_verify.v1.json")
+    integrity_result = str(integrity_snapshot.get("verify_on_read_result") or "WARN")
+    allow_report_only = bool(integrity_policy.get("allow_report_only_when_missing_sources", True))
 
-    schema_path = core_root / "schemas" / "gap.record.schema.json"
-    if schema_path.exists():
+    integrity_schema_path = core_root / "schemas" / "integrity-snapshot.schema.v1.json"
+    if integrity_schema_path.exists():
         try:
-            schema = _load_json(schema_path)
-            Draft202012Validator(schema).validate(gap_register)
+            schema = _load_json(integrity_schema_path)
+            Draft202012Validator(schema).validate(integrity_snapshot)
         except Exception as e:
-            return _fail("BENCHMARK_SCHEMA_INVALID", "gap register schema validation failed", {"error": str(e)[:200]})
+            return _fail("BENCHMARK_SCHEMA_INVALID", "integrity snapshot schema validation failed", {"error": str(e)[:200]})
+
+    assessment_raw = {
+        "version": "v1",
+        "generated_at": _now_iso(),
+        "workspace_root": str(workspace_root),
+        "status": assessment.get("status"),
+        "integrity_snapshot_ref": integrity_ref,
+        "source_hashes": integrity_snapshot.get("input_hashes") or {},
+        "inputs": {
+            "packs": len(packs),
+            "controls": len(controls),
+            "metrics": len(metrics),
+            "warnings": sorted(set(warnings)),
+        },
+        "notes": [],
+    }
+
+    raw_schema_path = core_root / "schemas" / "assessment-raw.schema.v1.json"
+    if raw_schema_path.exists():
+        try:
+            schema = _load_json(raw_schema_path)
+            Draft202012Validator(schema).validate(assessment_raw)
+        except Exception as e:
+            return _fail("BENCHMARK_SCHEMA_INVALID", "assessment_raw schema validation failed", {"error": str(e)[:200]})
 
     scorecard = {
         "version": "v1",
@@ -374,7 +445,13 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "outputs": [
                 str(out_catalog),
                 str(out_assessment),
+                str(out_assessment_raw),
                 str(out_cursor),
+                str(out_assessment_eval),
+                str(out_bp_catalog),
+                str(out_trend_catalog),
+                str(out_integrity_json),
+                str(out_integrity_md),
                 str(out_scorecard_json),
                 str(out_scorecard_md),
                 str(out_gap_register),
@@ -382,13 +459,72 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             ],
         }
 
-    for path in [out_catalog, out_assessment, out_cursor, out_scorecard_json, out_scorecard_md, out_gap_register, out_gap_md]:
+    for path in [
+        out_catalog,
+        out_assessment,
+        out_cursor,
+        out_scorecard_json,
+        out_scorecard_md,
+        out_gap_register,
+        out_gap_md,
+        out_assessment_raw,
+        out_assessment_eval,
+        out_bp_catalog,
+        out_trend_catalog,
+        out_integrity_json,
+        out_integrity_md,
+    ]:
         path.parent.mkdir(parents=True, exist_ok=True)
+
+    out_integrity_json.write_text(
+        json.dumps(integrity_snapshot, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _write_integrity_md(out_integrity_md, integrity_snapshot)
+
+    out_assessment_raw.write_text(
+        json.dumps(assessment_raw, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     out_catalog.write_text(json.dumps(catalog, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     out_assessment.write_text(json.dumps(assessment, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     out_scorecard_json.write_text(json.dumps(scorecard, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     out_scorecard_md.write_text(scorecard_md, encoding="utf-8")
+
+    if integrity_result == "FAIL" and not allow_report_only:
+        return _fail("INTEGRITY_BLOCKED", "integrity verify failed", {"integrity_ref": integrity_ref})
+
+    eval_res = run_eval(workspace_root=workspace_root, dry_run=False)
+    eval_report_only = bool(eval_res.get("report_only")) if isinstance(eval_res, dict) else False
+
+    source_eval_hash = _hash_bytes(out_assessment_eval.read_bytes()) if out_assessment_eval.exists() else None
+    source_raw_hash = _hash_bytes(out_assessment_raw.read_bytes()) if out_assessment_raw.exists() else None
+    evidence_pointers = [str(Path(".cache") / "index" / "assessment_raw.v1.json"), integrity_ref]
+    if out_assessment_eval.exists():
+        evidence_pointers.append(str(Path(".cache") / "index" / "assessment_eval.v1.json"))
+    evidence_pointers = sorted(set(evidence_pointers))
+
+    report_only = eval_report_only or integrity_result == "FAIL"
+    gap_register = build_gap_register(
+        controls=controls,
+        metrics=metrics,
+        integrity_snapshot_ref=integrity_ref,
+        source_eval_hash=source_eval_hash,
+        source_raw_hash=source_raw_hash,
+        evidence_pointers=evidence_pointers,
+        report_only=report_only,
+    )
+    gap_summary_md = build_gap_summary_md(gap_register=gap_register)
+
+    schema_path = core_root / "schemas" / "gap.record.schema.json"
+    if schema_path.exists():
+        try:
+            schema = _load_json(schema_path)
+            Draft202012Validator(schema).validate(gap_register)
+        except Exception as e:
+            return _fail("BENCHMARK_SCHEMA_INVALID", "gap register schema validation failed", {"error": str(e)[:200]})
+
     out_gap_register.write_text(json.dumps(gap_register, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     out_gap_md.write_text(gap_summary_md, encoding="utf-8")
 

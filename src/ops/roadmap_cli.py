@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.reaper import parse_bool as parse_reaper_bool
+from src.ops.portfolio_release import read_release_summary
 
 
 def repo_root() -> Path:
@@ -111,6 +112,56 @@ def _read_system_status_summary(workspace_root: Path) -> tuple[str | None, str |
     return (overall if isinstance(overall, str) else None, str(status_path))
 
 
+def _read_work_intake_focus(workspace_root: Path) -> tuple[str | None, str | None]:
+    intake_path = workspace_root / ".cache" / "index" / "work_intake.v1.json"
+    if not intake_path.exists():
+        return (None, None)
+    try:
+        obj = _load_json(intake_path)
+    except Exception:
+        return (None, str(intake_path))
+    summary = obj.get("summary") if isinstance(obj, dict) else None
+    next_focus = summary.get("next_intake_focus") if isinstance(summary, dict) else None
+    if isinstance(next_focus, str) and next_focus and next_focus != "NONE":
+        return (next_focus, str(intake_path))
+    top_next = summary.get("top_next_actions") if isinstance(summary, dict) else None
+    if not isinstance(top_next, list) or not top_next:
+        return (None, str(intake_path))
+    first = top_next[0] if isinstance(top_next[0], dict) else {}
+    intake_id = first.get("intake_id") if isinstance(first, dict) else None
+    bucket = first.get("bucket") if isinstance(first, dict) else None
+    if not isinstance(intake_id, str) or not intake_id:
+        return (None, str(intake_path))
+    if isinstance(bucket, str) and bucket:
+        return (f"{bucket}:{intake_id}", str(intake_path))
+    return (str(intake_id), str(intake_path))
+
+
+def _manual_request_counts(workspace_root: Path) -> tuple[int, dict[str, int]]:
+    intake_path = workspace_root / ".cache" / "index" / "work_intake.v1.json"
+    counts_by_bucket = {"ROADMAP": 0, "PROJECT": 0, "TICKET": 0, "INCIDENT": 0}
+    if not intake_path.exists():
+        return (0, counts_by_bucket)
+    try:
+        obj = _load_json(intake_path)
+    except Exception:
+        return (0, counts_by_bucket)
+    items = obj.get("items") if isinstance(obj, dict) else None
+    if not isinstance(items, list):
+        return (0, counts_by_bucket)
+    total = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("source_type")) != "MANUAL_REQUEST":
+            continue
+        bucket = item.get("bucket")
+        if bucket in counts_by_bucket:
+            counts_by_bucket[bucket] += 1
+        total += 1
+    return (total, counts_by_bucket)
+
+
 def _read_last_finish_evidence(workspace_root: Path) -> str | None:
     path = workspace_root / ".cache" / "last_finish_evidence.v1.txt"
     if not path.exists():
@@ -151,12 +202,36 @@ def _load_project_manifests(core_root: Path) -> list[dict[str, Any]]:
     return results
 
 
-def _portfolio_next_focus(bench_status: str | None, actions_top: list[dict[str, Any]]) -> str:
+def _read_extension_registry(workspace_root: Path) -> tuple[list[dict[str, Any]], str | None, str]:
+    registry_path = workspace_root / ".cache" / "index" / "extension_registry.v1.json"
+    if not registry_path.exists():
+        return ([], None, "MISSING")
+    try:
+        obj = _load_json(registry_path)
+    except Exception:
+        return ([], str(registry_path), "INVALID")
+    extensions = obj.get("extensions") if isinstance(obj, dict) else None
+    entries = [e for e in extensions if isinstance(e, dict)] if isinstance(extensions, list) else []
+    entries.sort(key=lambda x: str(x.get("extension_id") or ""))
+    status = obj.get("status") if isinstance(obj, dict) else None
+    status_str = str(status) if status in {"OK", "WARN", "IDLE", "FAIL"} else "WARN"
+    return (entries, str(registry_path), status_str)
+
+
+
+
+def _portfolio_next_focus(
+    bench_status: str | None,
+    actions_top: list[dict[str, Any]],
+    extensions: list[str],
+) -> str:
     if bench_status and bench_status != "OK":
         return "M10_CLOSEOUT"
     for a in actions_top:
         if isinstance(a, dict) and str(a.get("kind") or "") == "SCRIPT_BUDGET":
             return "PRJ-M0-MAINTAINABILITY"
+    if extensions:
+        return extensions[0]
     return "PRJ-KERNEL-API"
 
 
@@ -483,13 +558,41 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
     workspace_root = _resolve_under_root(root, Path(str(args.workspace_root)))
     mode = str(getattr(args, "mode", "autopilot_chat") or "autopilot_chat").strip()
 
-    projects = _load_project_manifests(root)
-    active_projects = [p.get("project_id") for p in projects if isinstance(p.get("project_id"), str)]
-    active_projects = [str(x) for x in active_projects if x]
-    active_projects.sort()
+    registry_entries, registry_path, registry_status = _read_extension_registry(workspace_root)
+    if registry_entries:
+        projects = []
+        for entry in registry_entries:
+            extension_id = entry.get("extension_id") if isinstance(entry.get("extension_id"), str) else None
+            if not extension_id:
+                continue
+            projects.append(
+                {
+                    "project_id": str(extension_id),
+                    "title": entry.get("title"),
+                    "version": entry.get("semver"),
+                    "manifest_path": entry.get("manifest_path"),
+                }
+            )
+        projects.sort(key=lambda x: str(x.get("project_id") or ""))
+        active_projects = [p.get("project_id") for p in projects if isinstance(p.get("project_id"), str)]
+        active_projects = [str(x) for x in active_projects if x]
+        active_projects.sort()
+    else:
+        projects = _load_project_manifests(root)
+        active_projects = [p.get("project_id") for p in projects if isinstance(p.get("project_id"), str)]
+        active_projects = [str(x) for x in active_projects if x]
+        active_projects.sort()
 
     actions_count, actions_top = _read_actions_top(workspace_root, limit=5)
     bench_status = None
+    pm_suite_summary: dict[str, Any] = {
+        "status": "IDLE",
+        "extension_id": "PRJ-PM-SUITE",
+        "manifest_path": "extensions/PRJ-PM-SUITE/extension.manifest.v1.json",
+        "schema_paths": [],
+        "policy_paths": [],
+        "notes": ["pm_suite_missing"],
+    }
     sys_path = workspace_root / ".cache" / "reports" / "system_status.v1.json"
     if sys_path.exists():
         try:
@@ -501,19 +604,37 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
             bench = sections.get("benchmark") if isinstance(sections, dict) else None
             if isinstance(bench, dict) and isinstance(bench.get("status"), str):
                 bench_status = bench.get("status")
+            pm_suite = sections.get("pm_suite") if isinstance(sections, dict) else None
+            if isinstance(pm_suite, dict):
+                pm_suite_summary = pm_suite
 
-    next_focus = _portfolio_next_focus(str(bench_status or "WARN"), actions_top)
+    next_focus = _portfolio_next_focus(str(bench_status or "WARN"), actions_top, active_projects)
+    intake_focus, intake_path = _read_work_intake_focus(workspace_root)
+    intake_focus_value = intake_focus or "NONE"
+    manual_request_count, manual_request_by_bucket = _manual_request_counts(workspace_root)
+    release_summary = read_release_summary(workspace_root)
     status = "OK" if active_projects and actions_count == 0 else "WARN"
 
     report = {
         "version": "v1",
         "generated_at": _now_iso8601(),
         "workspace_root": str(workspace_root),
+        "extensions": {
+            "registry_status": registry_status,
+            "registry_path": registry_path or "",
+            "count_total": len(active_projects),
+            "extension_ids": active_projects,
+        },
         "projects_count": len(active_projects),
         "active_projects": active_projects,
         "projects": projects,
         "top_project_debts": actions_top,
         "next_project_focus": next_focus,
+        "next_intake_focus": intake_focus_value,
+        "manual_request_count": int(manual_request_count),
+        "manual_requests_by_bucket": manual_request_by_bucket,
+        "release": release_summary,
+        "pm_suite": pm_suite_summary,
         "notes": [],
     }
 
@@ -527,6 +648,12 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         "active_projects": active_projects,
         "top_project_debts": actions_top,
         "next_project_focus": next_focus,
+        "next_intake_focus": intake_focus_value,
+        "manual_request_count": int(manual_request_count),
+        "release_status": release_summary.get("status"),
+        "release_version": release_summary.get("release_version"),
+        "extensions_registry_status": registry_status,
+        "extensions_registry_path": registry_path or "",
         "report_path": str(out_path.relative_to(workspace_root)) if out_path.is_relative_to(workspace_root) else str(out_path),
     }
 
@@ -534,12 +661,20 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         preview_lines = [
             f"projects_count={len(active_projects)}",
             f"next_project_focus={next_focus}",
+            f"next_intake_focus={intake_focus_value}",
+            f"manual_request_count={manual_request_count}",
+            f"extensions_count={len(active_projects)}",
+            f"release_status={release_summary.get('status')}",
         ]
         result_lines = [
             f"status={status}",
             f"bench_status={bench_status or 'unknown'}",
         ]
         evidence_lines = [f"portfolio_status={final_json.get('report_path')}"]
+        if intake_path:
+            evidence_lines.append(f"work_intake={intake_path}")
+        if registry_path:
+            evidence_lines.append(f"extension_registry={registry_path}")
         actions_lines = []
         for a in actions_top:
             actions_lines.append(

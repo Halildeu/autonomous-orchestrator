@@ -123,7 +123,10 @@ def schema_path_for_policy(policy_path: Path, *, schemas_dir: Path) -> Path:
     name = policy_path.name
     base = name.split(".v", 1)[0] if ".v" in name else name.rsplit(".json", 1)[0]
     schema_name = base.replace("_", "-") + ".schema.json"
-    return schemas_dir / schema_name
+    schema_path = schemas_dir / schema_name
+    if schema_path.exists():
+        return schema_path
+    return schemas_dir / (base.replace("_", "-") + ".schema.v1.json")
 
 
 def validate_policies(repo_root: Path) -> tuple[int, int]:

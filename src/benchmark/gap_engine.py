@@ -8,7 +8,16 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def build_gap_register(*, controls: list[dict[str, Any]], metrics: list[dict[str, Any]]) -> dict[str, Any]:
+def build_gap_register(
+    *,
+    controls: list[dict[str, Any]],
+    metrics: list[dict[str, Any]],
+    integrity_snapshot_ref: str | None = None,
+    source_eval_hash: str | None = None,
+    source_raw_hash: str | None = None,
+    evidence_pointers: list[str] | None = None,
+    report_only: bool = False,
+) -> dict[str, Any]:
     gaps: list[dict[str, Any]] = []
     def _risk_class(severity: str) -> str:
         return severity if severity in {"low", "medium", "high"} else "medium"
@@ -30,6 +39,16 @@ def build_gap_register(*, controls: list[dict[str, Any]], metrics: list[dict[str
             "status": "open",
             "notes": "Assessment not yet completed.",
         }
+        if integrity_snapshot_ref:
+            gap["integrity_snapshot_ref"] = integrity_snapshot_ref
+        if source_eval_hash:
+            gap["source_eval_hash"] = source_eval_hash
+        if source_raw_hash:
+            gap["source_raw_hash"] = source_raw_hash
+        if evidence_pointers:
+            gap["evidence_pointers"] = list(evidence_pointers)
+        if report_only:
+            gap["report_only"] = True
         gaps.append(gap)
     for m in sorted(metrics, key=lambda x: str(x.get("id") or "")):
         mid = m.get("id") if isinstance(m, dict) else None
@@ -45,6 +64,16 @@ def build_gap_register(*, controls: list[dict[str, Any]], metrics: list[dict[str
             "status": "open",
             "notes": "Assessment not yet completed.",
         }
+        if integrity_snapshot_ref:
+            gap["integrity_snapshot_ref"] = integrity_snapshot_ref
+        if source_eval_hash:
+            gap["source_eval_hash"] = source_eval_hash
+        if source_raw_hash:
+            gap["source_raw_hash"] = source_raw_hash
+        if evidence_pointers:
+            gap["evidence_pointers"] = list(evidence_pointers)
+        if report_only:
+            gap["report_only"] = True
         gaps.append(gap)
     return {
         "version": "v1",

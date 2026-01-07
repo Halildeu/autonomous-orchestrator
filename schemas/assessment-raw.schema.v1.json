@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/assessment-raw.schema.v1.json",
+  "title": "Assessment Raw",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "generated_at",
+    "workspace_root",
+    "status",
+    "integrity_snapshot_ref",
+    "source_hashes",
+    "inputs",
+    "notes"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "workspace_root": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["OK", "WARN", "SKIPPED"] },
+    "integrity_snapshot_ref": { "type": "string", "minLength": 1 },
+    "source_hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system_status",
+        "pack_index",
+        "quality_gate",
+        "repo_hygiene",
+        "harvest",
+        "script_budget"
+      ],
+      "properties": {
+        "system_status": { "type": ["string", "null"] },
+        "pack_index": { "type": ["string", "null"] },
+        "quality_gate": { "type": ["string", "null"] },
+        "repo_hygiene": { "type": ["string", "null"] },
+        "harvest": { "type": ["string", "null"] },
+        "script_budget": { "type": ["string", "null"] }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packs", "controls", "metrics", "warnings"],
+      "properties": {
+        "packs": { "type": "integer", "minimum": 0 },
+        "controls": { "type": "integer", "minimum": 0 },
+        "metrics": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

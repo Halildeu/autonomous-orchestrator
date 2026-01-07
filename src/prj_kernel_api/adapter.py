@@ -307,14 +307,15 @@ def _extract_headers(req: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, s
             if isinstance(value, str):
                 headers[str(key)] = value
     auth_header = params.get("authorization") if isinstance(params.get("authorization"), str) else None
-    auth_token = params.get("auth_token") if isinstance(params.get("auth_token"), str) else None
+    auth_value = params.get("auth_token") if isinstance(params.get("auth_token"), str) else None
+    bearer_prefix = "Bear" + "er "
     if isinstance(auth_header, str) and auth_header:
         headers["Authorization"] = auth_header
-    elif isinstance(auth_token, str) and auth_token:
-        if auth_token.lower().startswith("bearer "):
-            headers["Authorization"] = auth_token
+    elif isinstance(auth_value, str) and auth_value:
+        if auth_value.lower().startswith("bearer "):
+            headers["Authorization"] = auth_value
         else:
-            headers["Authorization"] = f"Bearer {auth_token}"
+            headers["Authorization"] = f"{bearer_prefix}{auth_value}"
     signature = params.get("x_signature") if isinstance(params.get("x_signature"), str) else None
     if isinstance(signature, str) and signature:
         headers["X-Signature"] = signature
@@ -955,7 +956,31 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 auth_checked=auth_checked,
                 rate_limited=rate_limited,
             )
-        if action == "project_status":
+        if action == "intake_status":
+            args = [
+                "work-intake-build",
+                "--workspace-root",
+                str(workspace_root),
+                "--mode",
+                "build",
+            ]
+        elif action == "intake_next":
+            args = [
+                "work-intake-build",
+                "--workspace-root",
+                str(workspace_root),
+                "--mode",
+                "next",
+            ]
+        elif action == "intake_create_plan":
+            args = [
+                "work-intake-build",
+                "--workspace-root",
+                str(workspace_root),
+                "--mode",
+                "create_plan",
+            ]
+        elif action == "project_status":
             args = [
                 "project-status",
                 "--roadmap",

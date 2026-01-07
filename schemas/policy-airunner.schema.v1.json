@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-airunner.schema.v1.json",
+  "title": "Airunner Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "enabled",
+    "schedule",
+    "lock_ttl_seconds",
+    "heartbeat_interval_seconds",
+    "limits",
+    "single_gate",
+    "notes"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "enabled": { "type": "boolean" },
+    "lock_ttl_seconds": { "type": "integer", "minimum": 1 },
+    "heartbeat_interval_seconds": { "type": "integer", "minimum": 1 },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "interval_seconds", "jitter_seconds"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["OFF", "interval"] },
+        "interval_seconds": { "type": "integer", "minimum": 0 },
+        "jitter_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_ticks_per_run", "max_actions_per_tick", "max_plans_per_tick"],
+      "properties": {
+        "max_ticks_per_run": { "type": "integer", "minimum": 1 },
+        "max_actions_per_tick": { "type": "integer", "minimum": 1 },
+        "max_plans_per_tick": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "single_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_ops", "require_strict_isolation"],
+      "properties": {
+        "allowed_ops": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "require_strict_isolation": { "type": "boolean" }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -9,8 +9,10 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from src.ops.commands.common import git_ref_exists, is_git_work_tree, repo_root, run_step, warn, write_json
+from src.ops.commands.maintenance_doc_cmds import cmd_doc_graph, cmd_doc_nav_check
 from src.ops.reaper import compute_reaper_report, parse_bool as parse_reaper_bool, parse_iso8601 as parse_reaper_iso, write_report as write_reaper_report
 
 
@@ -369,6 +371,591 @@ def cmd_system_status(args: argparse.Namespace) -> int:
     return 0 if res.get("status") in {"OK", "WOULD_WRITE", "WARN"} else 2
 
 
+def cmd_integrity_verify(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    mode = str(args.mode).strip().lower() if args.mode else "report"
+    if mode not in {"report", "strict"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+
+    from src.ops.integrity_verify import run_integrity_verify
+
+    res = run_integrity_verify(workspace_root=ws, mode=mode)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    verify = res.get("verify_on_read_result") if isinstance(res, dict) else None
+    if mode == "strict" and verify == "FAIL":
+        return 2
+    return 0 if res.get("status") in {"OK", "SKIPPED"} else 2
+
+
+def cmd_work_intake_build(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    from src.ops.work_intake_from_sources import run_work_intake_build
+
+    res = run_work_intake_build(workspace_root=ws)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    status = res.get("status") if isinstance(res, dict) else None
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_work_intake_check(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    mode = str(args.mode).strip().lower() if args.mode else "report"
+    if mode not in {"report", "strict"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+    detail = parse_reaper_bool(str(args.detail))
+
+    from src.ops.work_intake_from_sources import run_work_intake_build
+    from src.ops.system_status_report import run_system_status
+    from src.ops.roadmap_cli import cmd_portfolio_status
+
+    build_res = run_work_intake_build(workspace_root=ws)
+    work_intake_path = build_res.get("work_intake_path") if isinstance(build_res, dict) else None
+
+    intake_obj: dict[str, Any] = {}
+    if isinstance(work_intake_path, str) and work_intake_path:
+        intake_path_abs = (ws / work_intake_path).resolve()
+        try:
+            intake_obj = json.loads(intake_path_abs.read_text(encoding="utf-8"))
+        except Exception:
+            intake_obj = {}
+
+    plan_policy = intake_obj.get("plan_policy") if isinstance(intake_obj.get("plan_policy"), str) else "optional"
+    items = intake_obj.get("items") if isinstance(intake_obj.get("items"), list) else []
+    summary = intake_obj.get("summary") if isinstance(intake_obj.get("summary"), dict) else {}
+    counts_by_bucket = summary.get("counts_by_bucket") if isinstance(summary.get("counts_by_bucket"), dict) else {}
+    top_next_actions = summary.get("top_next_actions") if isinstance(summary.get("top_next_actions"), list) else []
+    next_intake_focus = summary.get("next_intake_focus") if isinstance(summary.get("next_intake_focus"), str) else "NONE"
+
+    sys_result = run_system_status(workspace_root=ws, core_root=root, dry_run=False)
+    sys_out = sys_result.get("out_json") if isinstance(sys_result, dict) else None
+    sys_rel = None
+    if isinstance(sys_out, str):
+        sys_rel = Path(sys_out).resolve()
+        try:
+            sys_rel = sys_rel.relative_to(ws)
+        except Exception:
+            sys_rel = None
+
+    portfolio_buf = StringIO()
+    with redirect_stdout(portfolio_buf), redirect_stderr(portfolio_buf):
+        cmd_portfolio_status(argparse.Namespace(workspace_root=str(ws), mode="json"))
+    portfolio_report = ws / ".cache" / "reports" / "portfolio_status.v1.json"
+    portfolio_rel = ".cache/reports/portfolio_status.v1.json" if portfolio_report.exists() else ""
+
+    status = build_res.get("status") if isinstance(build_res, dict) else "WARN"
+    error_code = None
+    plan_dir = ws / ".cache" / "reports" / "chg"
+    plan_missing = False
+    if plan_policy == "required" and items:
+        if not plan_dir.exists():
+            plan_missing = True
+        else:
+            plans = list(plan_dir.glob("CHG-INTAKE-*.plan.json"))
+            plan_missing = not bool(plans)
+        if plan_missing:
+            status = "IDLE"
+            error_code = "NO_PLAN_FOUND"
+
+    payload = {
+        "status": status,
+        "error_code": error_code,
+        "workspace_root": str(ws),
+        "work_intake_path": work_intake_path,
+        "items_count": len(items),
+        "counts_by_bucket": counts_by_bucket,
+        "top_next_actions": top_next_actions if detail else top_next_actions[:5],
+        "next_intake_focus": next_intake_focus,
+        "system_status_path": str(sys_rel) if isinstance(sys_rel, Path) else None,
+        "portfolio_status_path": portfolio_rel,
+        "notes": [f"mode={mode}", "PROGRAM_LED=true"],
+    }
+
+    if chat:
+        print("PREVIEW:")
+        print("PROGRAM-LED: work-intake-build + system-status + portfolio-status; user_command=false")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        print("RESULT:")
+        print(f"status={status} items={len(items)} next_intake_focus={next_intake_focus}")
+        if error_code:
+            print(f"error_code={error_code}")
+        print("EVIDENCE:")
+        for p in [work_intake_path, payload.get("system_status_path"), portfolio_rel]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        if plan_missing:
+            print("auto-plan_uret")
+            print("yeni_plan_ekle")
+            print("durumu_goster")
+        else:
+            if top_next_actions:
+                for item in top_next_actions[:5]:
+                    if not isinstance(item, dict):
+                        continue
+                    print(
+                        f"{item.get('intake_id')} bucket={item.get('bucket')} "
+                        f"priority={item.get('priority')}"
+                    )
+            else:
+                print("no_actions")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    try:
+        limit = max(0, int(args.limit))
+    except Exception:
+        warn("FAIL error=INVALID_LIMIT")
+        return 2
+    chat = parse_reaper_bool(str(args.chat))
+
+    from src.ops.work_intake_exec_ticket import run_work_intake_exec_ticket
+
+    res = run_work_intake_exec_ticket(workspace_root=ws, limit=limit)
+    status = res.get("status") if isinstance(res, dict) else "WARN"
+    report_rel = res.get("work_intake_exec_path") if isinstance(res, dict) else None
+    report_path = (ws / report_rel).resolve() if isinstance(report_rel, str) else None
+    entries = []
+    if report_path and report_path.exists():
+        try:
+            report_obj = json.loads(report_path.read_text(encoding="utf-8"))
+            entries = report_obj.get("entries") if isinstance(report_obj.get("entries"), list) else []
+        except Exception:
+            entries = []
+
+    payload = {
+        "status": status,
+        "workspace_root": str(ws),
+        "work_intake_exec_path": report_rel,
+        "work_intake_exec_md_path": res.get("work_intake_exec_md_path") if isinstance(res, dict) else None,
+        "applied_count": res.get("applied_count") if isinstance(res, dict) else 0,
+        "planned_count": res.get("planned_count") if isinstance(res, dict) else 0,
+        "idle_count": res.get("idle_count") if isinstance(res, dict) else 0,
+        "entries_count": res.get("entries_count") if isinstance(res, dict) else 0,
+    }
+
+    if chat:
+        print("PREVIEW:")
+        print("PROGRAM-LED: work-intake-exec-ticket (safe-only, workspace-only)")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        print("RESULT:")
+        print(
+            f"status={payload.get('status')} applied={payload.get('applied_count')} "
+            f"planned={payload.get('planned_count')} idle={payload.get('idle_count')}"
+        )
+        print("EVIDENCE:")
+        for p in [payload.get("work_intake_exec_path"), payload.get("work_intake_exec_md_path")]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        if entries:
+            for item in entries[:5]:
+                if not isinstance(item, dict):
+                    continue
+                print(f"{item.get('intake_id')} status={item.get('status')} action={item.get('action_kind')}")
+        else:
+            print("no_actions")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_manual_request_submit(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    text = str(args.text or "")
+    if args.text_file:
+        text_path = Path(str(args.text_file))
+        text_path = (root / text_path).resolve() if not text_path.is_absolute() else text_path.resolve()
+        if not text_path.exists():
+            warn("FAIL error=TEXT_FILE_MISSING")
+            return 2
+        text = text_path.read_text(encoding="utf-8")
+
+    payload_in: dict[str, Any] = {}
+    if args.in_json:
+        in_path = Path(str(args.in_json))
+        in_path = (root / in_path).resolve() if not in_path.is_absolute() else in_path.resolve()
+        if not in_path.exists():
+            warn("FAIL error=INPUT_JSON_MISSING")
+            return 2
+        try:
+            payload_in = json.loads(in_path.read_text(encoding="utf-8"))
+        except Exception:
+            warn("FAIL error=INPUT_JSON_INVALID")
+            return 2
+
+    artifact_type = str(args.artifact_type or payload_in.get("artifact_type") or "")
+    domain = str(args.domain or payload_in.get("domain") or "")
+    kind = str(args.kind or payload_in.get("kind") or "unspecified")
+    impact_scope = str(args.impact_scope or payload_in.get("impact_scope") or "workspace-only")
+    requires_core_change = payload_in.get("requires_core_change")
+    if args.requires_core_change is not None:
+        requires_core_change = bool(args.requires_core_change)
+    tenant_id = str(args.tenant_id or payload_in.get("tenant_id") or "") or None
+    source_type = str(args.source_type or (payload_in.get("source") or {}).get("type") or "human")
+    source_channel = str(args.source_channel or (payload_in.get("source") or {}).get("channel") or "") or None
+    source_user_id = str(args.source_user_id or (payload_in.get("source") or {}).get("user_id") or "") or None
+
+    if not text:
+        text = str(payload_in.get("text") or "")
+    if not text:
+        warn("FAIL error=TEXT_REQUIRED")
+        return 2
+    if not artifact_type or not domain:
+        warn("FAIL error=ARTIFACT_TYPE_DOMAIN_REQUIRED")
+        return 2
+
+    attachments = payload_in.get("attachments") if isinstance(payload_in.get("attachments"), list) else []
+    if args.attachments_json:
+        try:
+            attachments = json.loads(str(args.attachments_json))
+        except Exception:
+            attachments = []
+    constraints = payload_in.get("constraints") if isinstance(payload_in.get("constraints"), dict) else {}
+    if args.constraints_json:
+        try:
+            constraints = json.loads(str(args.constraints_json))
+        except Exception:
+            constraints = constraints
+
+    tags = payload_in.get("tags") if isinstance(payload_in.get("tags"), list) else []
+    if args.tags:
+        tags = [t for t in str(args.tags).split(",") if t.strip()]
+
+    try:
+        dry_run = parse_reaper_bool(str(args.dry_run))
+    except ValueError:
+        warn("FAIL error=INVALID_DRY_RUN")
+        return 2
+
+    from src.ops.manual_request_cli import submit_manual_request
+
+    res = submit_manual_request(
+        workspace_root=ws,
+        text=text,
+        artifact_type=artifact_type,
+        domain=domain,
+        kind=kind,
+        impact_scope=impact_scope,
+        tenant_id=tenant_id,
+        source_type=source_type,
+        source_channel=source_channel,
+        source_user_id=source_user_id,
+        attachments=attachments if isinstance(attachments, list) else None,
+        constraints=constraints if isinstance(constraints, dict) else None,
+        requires_core_change=requires_core_change if isinstance(requires_core_change, bool) else None,
+        tags=tags if isinstance(tags, list) else None,
+        dry_run=bool(dry_run),
+    )
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "IDLE"} else 2
+
+
+def cmd_context_pack_build(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    request_id = str(args.request_id or "").strip() or None
+    mode = str(args.mode or "summary").strip().lower()
+    if mode not in {"summary", "detail"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+
+    from src.ops.context_pack_router import build_context_pack
+
+    res = build_context_pack(workspace_root=ws, request_id=request_id, mode=mode)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_context_pack_route(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    pack_arg = str(args.context_pack or "").strip()
+    context_pack_path = None
+    if pack_arg:
+        pack_path = Path(pack_arg)
+        pack_path = (ws / pack_path).resolve() if not pack_path.is_absolute() else pack_path.resolve()
+        context_pack_path = pack_path
+
+    from src.ops.context_pack_router import build_context_pack, route_context_pack
+
+    if context_pack_path is None and args.request_id:
+        build_res = build_context_pack(workspace_root=ws, request_id=str(args.request_id), mode="detail")
+        pack_rel = build_res.get("context_pack_path") if isinstance(build_res, dict) else None
+        if isinstance(pack_rel, str) and pack_rel:
+            context_pack_path = (ws / pack_rel).resolve()
+
+    res = route_context_pack(workspace_root=ws, context_pack_path=context_pack_path)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_context_router_check(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+    detail = parse_reaper_bool(str(args.detail))
+
+    manual_request_id = str(args.request_id or "").strip() or None
+    manual_submit_res = None
+    if args.text or args.in_json or args.text_file:
+        submit_ns = argparse.Namespace(
+            workspace_root=str(ws),
+            text=args.text,
+            text_file=args.text_file,
+            in_json=args.in_json,
+            artifact_type=args.artifact_type,
+            domain=args.domain,
+            kind=args.kind,
+            impact_scope=args.impact_scope,
+            requires_core_change=args.requires_core_change,
+            tenant_id=args.tenant_id,
+            source_type=args.source_type,
+            source_channel=args.source_channel,
+            source_user_id=args.source_user_id,
+            attachments_json=args.attachments_json,
+            constraints_json=args.constraints_json,
+            tags=args.tags,
+            dry_run=args.dry_run,
+        )
+        buf = StringIO()
+        with redirect_stdout(buf), redirect_stderr(buf):
+            cmd_manual_request_submit(submit_ns)
+        try:
+            manual_submit_res = json.loads(buf.getvalue().strip() or "{}")
+        except Exception:
+            manual_submit_res = None
+        if isinstance(manual_submit_res, dict) and isinstance(manual_submit_res.get("request_id"), str):
+            manual_request_id = str(manual_submit_res.get("request_id"))
+
+    from src.ops.context_pack_router import build_context_pack, route_context_pack
+    from src.ops.work_intake_from_sources import run_work_intake_build
+    from src.ops.system_status_report import run_system_status
+
+    build_res = build_context_pack(workspace_root=ws, request_id=manual_request_id, mode="summary")
+    pack_rel = build_res.get("context_pack_path") if isinstance(build_res, dict) else None
+    pack_path = (ws / pack_rel).resolve() if isinstance(pack_rel, str) and pack_rel else None
+    route_res = route_context_pack(workspace_root=ws, context_pack_path=pack_path)
+
+    intake_res = run_work_intake_build(workspace_root=ws)
+    work_intake_path = intake_res.get("work_intake_path") if isinstance(intake_res, dict) else None
+    intake_obj: dict[str, Any] = {}
+    if isinstance(work_intake_path, str) and work_intake_path:
+        intake_path_abs = (ws / work_intake_path).resolve()
+        try:
+            intake_obj = json.loads(intake_path_abs.read_text(encoding="utf-8"))
+        except Exception:
+            intake_obj = {}
+
+    sys_res = run_system_status(workspace_root=ws, core_root=root, dry_run=False)
+    sys_out = sys_res.get("out_json") if isinstance(sys_res, dict) else None
+    sys_rel = None
+    if isinstance(sys_out, str):
+        sys_rel = Path(sys_out).resolve()
+        try:
+            sys_rel = sys_rel.relative_to(ws)
+        except Exception:
+            sys_rel = None
+
+    status = str(route_res.get("status") or "WARN")
+    error_code = route_res.get("error_code") if isinstance(route_res, dict) else None
+
+    plan_policy = intake_obj.get("plan_policy") if isinstance(intake_obj.get("plan_policy"), str) else "optional"
+    items = intake_obj.get("items") if isinstance(intake_obj.get("items"), list) else []
+    if plan_policy == "required" and items:
+        plan_dir = ws / ".cache" / "reports" / "chg"
+        plans = list(plan_dir.glob("CHG-INTAKE-*.plan.json")) if plan_dir.exists() else []
+        if not plans:
+            status = "IDLE"
+            error_code = "NO_PLAN_FOUND"
+
+    payload = {
+        "status": status,
+        "error_code": error_code,
+        "workspace_root": str(ws),
+        "request_id": manual_request_id,
+        "context_pack_path": pack_rel,
+        "context_router_result_path": str(Path(".cache") / "reports" / "context_pack_router_result.v1.json"),
+        "work_intake_path": work_intake_path,
+        "system_status_path": str(sys_rel) if isinstance(sys_rel, Path) else None,
+        "notes": ["PROGRAM_LED=true"],
+    }
+
+    if chat:
+        print("PREVIEW:")
+        print("PROGRAM-LED: manual-request-submit + context-pack-build + context-pack-route + work-intake-check + system-status")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        if manual_request_id:
+            print(f"request_id={manual_request_id}")
+        print("RESULT:")
+        print(f"status={status} bucket={route_res.get('bucket')} action={route_res.get('action')}")
+        if error_code:
+            print(f"error_code={error_code}")
+        print("EVIDENCE:")
+        for p in [
+            manual_submit_res.get("stored_path") if isinstance(manual_submit_res, dict) else None,
+            pack_rel,
+            payload.get("context_router_result_path"),
+            work_intake_path,
+            payload.get("system_status_path"),
+        ]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        next_actions = route_res.get("next_actions") if isinstance(route_res.get("next_actions"), list) else []
+        if not detail:
+            next_actions = next_actions[:5]
+        if next_actions:
+            print("\n".join([str(x) for x in next_actions]))
+        else:
+            print("no_actions")
+        print("NEXT:")
+        print("Devam et / Durumu goster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_layer_boundary_check(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    mode = str(args.mode).strip().lower() if args.mode else "report"
+    if mode not in {"report", "strict"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+
+    from src.ops.layer_boundary_check import run_layer_boundary_check
+
+    res = run_layer_boundary_check(workspace_root=ws, mode=mode)
+    if chat:
+        print("PREVIEW:")
+        print(f"PROGRAM-LED: layer-boundary-check mode={mode}; user_command=false")
+        print(f"workspace_root={res.get('workspace_root')}")
+        print("RESULT:")
+        print(f"status={res.get('status')} would_block={res.get('would_block_count', 0)}")
+        print("EVIDENCE:")
+        for p in res.get("evidence_paths", []):
+            print(str(p))
+        print("ACTIONS:")
+        if int(res.get("would_block_count", 0)) > 0:
+            print("review_would_block_paths")
+        else:
+            print("no_actions")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN"} else 2
+
+
 def cmd_promotion_bundle(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -431,208 +1018,6 @@ def cmd_repo_hygiene(args: argparse.Namespace) -> int:
     return 0 if res.get("status") in {"OK", "WARN"} else 2
 
 
-def cmd_doc_graph(args: argparse.Namespace) -> int:
-    root = repo_root()
-    ws_arg = str(args.workspace_root).strip()
-    if not ws_arg:
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    ws_path = Path(ws_arg)
-    if not ws_path.is_absolute():
-        ws_path = (root / ws_path).resolve()
-
-    mode = str(args.mode).strip().lower()
-    if mode not in {"report", "strict"}:
-        warn("FAIL error=INVALID_MODE")
-        return 2
-
-    out_arg = str(args.out).strip() if args.out else ".cache/reports/doc_graph_report.v1.json"
-    out_path = Path(out_arg)
-    if not out_path.is_absolute():
-        out_path = (ws_path / out_path).resolve()
-
-    from src.ops.doc_graph import run_doc_graph
-
-    res = run_doc_graph(
-        repo_root=root,
-        workspace_root=ws_path,
-        out_json=out_path,
-        mode=mode,
-    )
-    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
-    if mode == "strict" and res.get("status") == "FAIL":
-        return 2
-    return 0
-
-
-def _ensure_workspace_root(root: Path, ws_path: Path) -> tuple[bool, str | None]:
-    if ws_path.exists() and ws_path.is_dir():
-        return (True, None)
-    try:
-        from src.ops.roadmap_cli import cmd_workspace_bootstrap
-    except Exception:
-        return (False, "BOOTSTRAP_UNAVAILABLE")
-
-    buf = StringIO()
-    with redirect_stdout(buf), redirect_stderr(buf):
-        rc = cmd_workspace_bootstrap(argparse.Namespace(out=str(ws_path)))
-    if rc != 0:
-        return (False, "BOOTSTRAP_FAILED")
-    return (True, None)
-
-
-def cmd_doc_nav_check(args: argparse.Namespace) -> int:
-    root = repo_root()
-    ws_arg = str(args.workspace_root).strip()
-    if not ws_arg:
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    ws_path = Path(ws_arg)
-    if not ws_path.is_absolute():
-        ws_path = (root / ws_path).resolve()
-
-    ok, err = _ensure_workspace_root(root, ws_path)
-    if not ok:
-        print(json.dumps({"status": "FAIL", "error_code": err}, ensure_ascii=False, sort_keys=True))
-        return 2
-
-    detail = parse_reaper_bool(str(args.detail))
-    strict = parse_reaper_bool(str(args.strict))
-    chat = parse_reaper_bool(str(args.chat))
-    mode = "strict" if strict else "report"
-
-    from src.ops.doc_graph import run_doc_graph
-
-    doc_out_name = "doc_graph_report.strict.v1.json" if strict else "doc_graph_report.v1.json"
-    doc_out = ws_path / ".cache" / "reports" / doc_out_name
-    doc_report = run_doc_graph(repo_root=root, workspace_root=ws_path, out_json=doc_out, mode=mode)
-
-    sys_out_path = ws_path / ".cache" / "reports" / "system_status.v1.json"
-    if not strict:
-        from src.ops.system_status_report import run_system_status
-
-        sys_result = run_system_status(workspace_root=ws_path, core_root=root, dry_run=False)
-        sys_out = sys_result.get("out_json") if isinstance(sys_result, dict) else None
-        sys_out_path = (
-            Path(str(sys_out))
-            if isinstance(sys_out, str)
-            else (ws_path / ".cache" / "reports" / "system_status.v1.json")
-        )
-    sys_obj: dict[str, Any] = {}
-    try:
-        sys_obj = json.loads(sys_out_path.read_text(encoding="utf-8"))
-    except Exception:
-        sys_obj = {}
-
-    counts = doc_report.get("counts") if isinstance(doc_report, dict) else {}
-    broken_refs = int(counts.get("broken_refs", 0))
-    ambiguity = int(counts.get("ambiguity_count", counts.get("ambiguity", 0)))
-    orphan_critical = int(counts.get("orphan_critical", 0))
-    critical_nav_gaps = int(counts.get("critical_nav_gaps", 0))
-    workspace_bound_refs = int(counts.get("workspace_bound_refs_count", 0))
-    external_pointer_refs = int(counts.get("external_pointer_refs_count", 0))
-    placeholder_refs = int(counts.get("placeholder_refs_count", 0))
-    doc_status = doc_report.get("status") if isinstance(doc_report, dict) else "WARN"
-    if doc_status not in {"OK", "WARN", "FAIL"}:
-        doc_status = "WARN"
-
-    cockpit_sections = sys_obj.get("sections") if isinstance(sys_obj, dict) else {}
-    readiness = ""
-    if isinstance(cockpit_sections, dict):
-        readiness = str(cockpit_sections.get("readiness", {}).get("status", ""))
-    core_lock_obj = cockpit_sections.get("core_lock") if isinstance(cockpit_sections, dict) else {}
-    core_lock = "ENABLED" if isinstance(core_lock_obj, dict) and core_lock_obj.get("enabled") else "DISABLED"
-    project_boundary_obj = cockpit_sections.get("project_boundary") if isinstance(cockpit_sections, dict) else {}
-    project_boundary = str(project_boundary_obj.get("status", "WARN")) if isinstance(project_boundary_obj, dict) else "WARN"
-
-    status = "OK"
-    if doc_status == "FAIL" or critical_nav_gaps > 0:
-        status = "FAIL"
-    elif doc_status == "WARN" or str(sys_obj.get("overall_status", "")) in {"WARN", "NOT_READY"}:
-        status = "WARN"
-
-    top_broken = doc_report.get("broken_refs") if detail and isinstance(doc_report, dict) else []
-    top_orphans = doc_report.get("orphan_critical") if detail and isinstance(doc_report, dict) else []
-    top_placeholders = doc_report.get("top_placeholders") if detail and isinstance(doc_report, dict) else []
-    if not isinstance(top_broken, list):
-        top_broken = []
-    if not isinstance(top_orphans, list):
-        top_orphans = []
-    if not isinstance(top_placeholders, list):
-        top_placeholders = []
-
-    notes = ["PROGRAM_LED=true", f"detail={str(detail).lower()}", f"strict={str(strict).lower()}"]
-    if strict:
-        notes.append(f"strict_report_path={str(Path('.cache') / 'reports' / doc_out_name)}")
-
-    payload = {
-        "status": status,
-        "workspace_root": str(ws_path),
-        "doc_graph": {
-            "status": doc_status,
-            "broken_refs": broken_refs,
-            "ambiguity": ambiguity,
-            "orphan_critical": orphan_critical,
-            "critical_nav_gaps": critical_nav_gaps,
-            "workspace_bound_refs": workspace_bound_refs,
-            "external_pointer_refs": external_pointer_refs,
-            "placeholder_refs_count": placeholder_refs,
-            "top_broken": top_broken if detail else [],
-            "top_orphans": top_orphans if detail else [],
-            "top_placeholders": top_placeholders if detail else [],
-        },
-        "cockpit": {
-            "overall_status": str(sys_obj.get("overall_status", "")),
-            "readiness": readiness,
-            "core_lock": core_lock,
-            "project_boundary": project_boundary,
-        },
-        "evidence_paths": [
-            str(Path(".cache") / "reports" / doc_out_name),
-            str(Path(".cache") / "reports" / "system_status.v1.json"),
-        ],
-        "notes": notes,
-    }
-
-    if chat:
-        print("PREVIEW:")
-        if strict:
-            print("PROGRAM-LED: doc-graph (strict) çalıştırıldı; cockpit refresh yapılmadı; kullanıcı komut yazmadı.")
-        else:
-            print("PROGRAM-LED: doc-graph + system-status çalıştırıldı; kullanıcı komut yazmadı.")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(
-            "status="
-            + str(status)
-            + f" broken_refs={broken_refs} ambiguity={ambiguity} orphan_critical={orphan_critical} critical_nav_gaps={critical_nav_gaps}"
-        )
-        print("EVIDENCE:")
-        for p in payload.get("evidence_paths", []):
-            print(str(p))
-        print("ACTIONS:")
-        actions: list[str] = []
-        if critical_nav_gaps > 0:
-            actions.append(f"critical_nav_gaps={critical_nav_gaps}")
-        if broken_refs > 0:
-            actions.append(f"broken_refs={broken_refs}")
-        if ambiguity > 0:
-            actions.append(f"ambiguity={ambiguity}")
-        if orphan_critical > 0:
-            actions.append(f"orphan_critical={orphan_critical}")
-        for item in actions[:5]:
-            print(item)
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    if status == "FAIL":
-        return 2
-    return 0
-
-
 def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     ap_reaper = parent.add_parser("reaper", help="Run retention reaper (dry-run supported).")
     ap_reaper.add_argument("--dry-run", default="true", help="true|false")
@@ -666,6 +1051,109 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_sys.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_sys.add_argument("--dry-run", default="false", help="true|false (default: false).")
     ap_sys.set_defaults(func=cmd_system_status)
+
+    from src.ops.commands.extension_cmds import register_extension_subcommands as _register_extension
+
+    _register_extension(parent)
+
+    ap_int = parent.add_parser("integrity-verify", help="Run integrity verify (snapshot + verify-on-read).")
+    ap_int.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_int.add_argument("--mode", default="report", help="report|strict (default: report).")
+    ap_int.set_defaults(func=cmd_integrity_verify)
+
+    ap_intake = parent.add_parser("work-intake-build", help="Build work intake from gaps + PDCA (workspace).")
+    ap_intake.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake.set_defaults(func=cmd_work_intake_build)
+
+    ap_intake_check = parent.add_parser("work-intake-check", help="Build + summarize work intake (program-led).")
+    ap_intake_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_check.add_argument("--mode", default="report", help="report|strict (default: report).")
+    ap_intake_check.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_intake_check.add_argument("--detail", default="false", help="true|false (default: false).")
+    ap_intake_check.set_defaults(func=cmd_work_intake_check)
+
+    ap_intake_exec = parent.add_parser("work-intake-exec-ticket", help="Execute TICKET intake items (safe-only, workspace-only).")
+    ap_intake_exec.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_exec.add_argument("--limit", default="3", help="Max items to execute (default: 3).")
+    ap_intake_exec.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_intake_exec.set_defaults(func=cmd_work_intake_exec_ticket)
+
+    ap_manual = parent.add_parser("manual-request-submit", help="Submit manual request (workspace-scoped, program-led).")
+    ap_manual.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_manual.add_argument("--text", default="", help="Request text (short).")
+    ap_manual.add_argument("--text-file", default="", help="Path to request text file.")
+    ap_manual.add_argument("--in", dest="in_json", default="", help="Path to JSON input payload (optional).")
+    ap_manual.add_argument("--artifact-type", default="", help="Artifact type (required if --in not provided).")
+    ap_manual.add_argument("--domain", default="", help="Domain label (required if --in not provided).")
+    ap_manual.add_argument(
+        "--kind",
+        default="unspecified",
+        help="support|question|minor_fix|feature|refactor|new_project|strategy|multi-quarter|context-router|doc-fix|note|unspecified",
+    )
+    ap_manual.add_argument(
+        "--impact-scope",
+        default="workspace-only",
+        help="doc-only|workspace-only|core-change|external-change (default: workspace-only)",
+    )
+    ap_manual.add_argument("--requires-core-change", action="store_true", help="Flag: requires core change.")
+    ap_manual.add_argument("--tenant-id", default="", help="Optional tenant id.")
+    ap_manual.add_argument("--source-type", default="human", help="human|llm|system|api|webhook|ui|chat")
+    ap_manual.add_argument("--source-channel", default="", help="Optional source channel.")
+    ap_manual.add_argument("--source-user-id", default="", help="Optional source user id.")
+    ap_manual.add_argument("--attachments-json", default="", help="JSON array for attachments (optional).")
+    ap_manual.add_argument("--constraints-json", default="", help="JSON object for constraints (optional).")
+    ap_manual.add_argument("--tags", default="", help="Comma-separated tags (optional).")
+    ap_manual.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_manual.set_defaults(func=cmd_manual_request_submit)
+
+    ap_pack = parent.add_parser("context-pack-build", help="Build context pack (pointer graph).")
+    ap_pack.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_pack.add_argument("--request-id", default="", help="Manual request id (optional).")
+    ap_pack.add_argument("--mode", default="summary", help="summary|detail (default: summary).")
+    ap_pack.set_defaults(func=cmd_context_pack_build)
+
+    ap_route = parent.add_parser("context-pack-route", help="Route context pack to bucket/action.")
+    ap_route.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_route.add_argument("--context-pack", default="", help="Path to context pack JSON (optional).")
+    ap_route.add_argument("--request-id", default="", help="Manual request id (optional).")
+    ap_route.set_defaults(func=cmd_context_pack_route)
+
+    ap_router = parent.add_parser("context-router-check", help="Single gate: submit + build + route + intake + status.")
+    ap_router.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_router.add_argument("--request-id", default="", help="Manual request id (optional).")
+    ap_router.add_argument("--text", default="", help="Request text (short).")
+    ap_router.add_argument("--text-file", default="", help="Path to request text file.")
+    ap_router.add_argument("--in", dest="in_json", default="", help="Path to JSON input payload (optional).")
+    ap_router.add_argument("--artifact-type", default="", help="Artifact type (required if --in not provided).")
+    ap_router.add_argument("--domain", default="", help="Domain label (required if --in not provided).")
+    ap_router.add_argument(
+        "--kind",
+        default="unspecified",
+        help="support|question|minor_fix|feature|refactor|new_project|strategy|multi-quarter|context-router|doc-fix|note|unspecified",
+    )
+    ap_router.add_argument(
+        "--impact-scope",
+        default="workspace-only",
+        help="doc-only|workspace-only|core-change|external-change (default: workspace-only)",
+    )
+    ap_router.add_argument("--requires-core-change", action="store_true", help="Flag: requires core change.")
+    ap_router.add_argument("--tenant-id", default="", help="Optional tenant id.")
+    ap_router.add_argument("--source-type", default="human", help="human|llm|system|api|webhook|ui|chat")
+    ap_router.add_argument("--source-channel", default="", help="Optional source channel.")
+    ap_router.add_argument("--source-user-id", default="", help="Optional source user id.")
+    ap_router.add_argument("--attachments-json", default="", help="JSON array for attachments (optional).")
+    ap_router.add_argument("--constraints-json", default="", help="JSON object for constraints (optional).")
+    ap_router.add_argument("--tags", default="", help="Comma-separated tags (optional).")
+    ap_router.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_router.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_router.add_argument("--detail", default="false", help="true|false (default: false).")
+    ap_router.set_defaults(func=cmd_context_router_check)
+
+    ap_layer = parent.add_parser("layer-boundary-check", help="Check layer boundary constraints (report|strict).")
+    ap_layer.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_layer.add_argument("--mode", default="report", help="report|strict (default: report).")
+    ap_layer.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_layer.set_defaults(func=cmd_layer_boundary_check)
 
     ap_prom = parent.add_parser("promotion-bundle", help="Create promotion bundle from incubator (draft-only).")
     ap_prom.add_argument("--workspace-root", required=True, help="Workspace root path.")

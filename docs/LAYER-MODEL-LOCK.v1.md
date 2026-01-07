@@ -45,3 +45,9 @@ Core’a yazım yalnızca aşağıdaki koşullarda mümkün:
 - gerekçe + CHG + review kayıt altına alınır
 - evidence/provenance ile izlenir
 
+## 8) Extension Model Lock
+Extension modeli kilidi:
+- PRJ-* = extension
+- extension manifest SSOT (JSON + strict schema)
+- program-led extension registry (workspace index)
+- UI yakıtı JSON (system-status + portfolio-status)

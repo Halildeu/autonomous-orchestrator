@@ -29,6 +29,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - docs/OPERATIONS/spec-core.md (CAPABILITY/KABİLİYET spec-core)
 - docs/OPERATIONS/tags-registry.md (AUTOPILOT CHAT + status/action registry)
 - docs/OPERATIONS/SSOT-MAP.md (kritik SSOT haritası)
+- docs/OPERATIONS/EXTENSIONS.md (extension canonical doküman)
 - roadmaps/SSOT/roadmap.v1.json (SSOT roadmap)
 - roadmaps/PROJECTS/README.md (project roadmaps)
 - roadmaps/PROJECTS/project-roadmap.template.v1.json (project template)
