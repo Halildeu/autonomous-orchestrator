@@ -19,6 +19,16 @@ from src.ops.work_intake_release_sources import (
     _load_integrity_sources,
     _load_release_sources,
 )
+from src.ops.work_intake_helpers import (
+    _load_exec_ticket_applied_ids,
+    _normalize_evidence,
+    _suggested_extensions,
+)
+from src.ops.work_intake_autopilot import (
+    _autopilot_labels,
+    _load_autopilot_policy,
+    _load_autopilot_selection,
+)
 
 
 def _now_iso() -> str:
@@ -433,9 +443,27 @@ def _apply_rule(source: dict[str, Any], rule: dict[str, Any]) -> bool:
         required = bool(when.get("time_sink_escalate_eq"))
         if bool(source.get("time_sink_escalate", False)) != required:
             return False
+    if "time_sink_over_threshold_eq" in when:
+        required = bool(when.get("time_sink_over_threshold_eq"))
+        if bool(source.get("time_sink_over_threshold", False)) != required:
+            return False
     if "time_sink_breach_count_gte" in when:
         count = int(source.get("time_sink_breach_count", 0))
         if count < int(when.get("time_sink_breach_count_gte", 0)):
+            return False
+    if "time_sink_p95_ms_gte" in when:
+        cur = int(source.get("time_sink_p95_ms", 0))
+        if cur < int(when.get("time_sink_p95_ms_gte", 0)):
+            return False
+    if "lens_id_in" in when:
+        lens_id = str(source.get("lens_id", ""))
+        allowed = [str(x) for x in when.get("lens_id_in", []) if isinstance(x, str)]
+        if lens_id not in allowed:
+            return False
+    if "lens_reason_in" in when:
+        reason = str(source.get("lens_reason", ""))
+        allowed = [str(x) for x in when.get("lens_reason_in", []) if isinstance(x, str)]
+        if reason not in allowed:
             return False
     if "risk_in" in when:
         risk = _normalize_band(source.get("risk", ""))
@@ -488,44 +516,6 @@ def _intake_id(source_type: str, source_ref: str, bucket: str) -> str:
     return "INTAKE-" + _hash_text(f"{source_type}|{source_ref}|{bucket}")
 
 
-def _suggested_extensions(source: dict[str, Any], bucket: str) -> list[str]:
-    source_type = str(source.get("source_type") or "")
-    if source_type == "GITHUB_OPS":
-        return ["PRJ-GITHUB-OPS"]
-    if bucket == "PROJECT" and source_type == "RELEASE":
-        return ["PRJ-RELEASE-AUTOMATION"]
-    if source_type == "JOB_STATUS":
-        job_type = str(source.get("job_type") or "")
-        job_status = str(source.get("job_status") or "")
-        if job_type == "SMOKE_FULL" and job_status in {"FAIL", "TIMEOUT", "KILLED"}:
-            return ["PRJ-AIRUNNER"]
-        if job_type.startswith("RELEASE_"):
-            return ["PRJ-RELEASE-AUTOMATION"]
-    if bucket != "TICKET":
-        return []
-    if source_type == "TIME_SINK":
-        return ["PRJ-AIRUNNER"]
-    if source_type in {"MANUAL_REQUEST", "DOC_NAV"}:
-        return ["PRJ-AIRUNNER"]
-    if source_type == "SCRIPT_BUDGET":
-        path = str(source.get("path") or source.get("source_ref") or "")
-        if path.startswith("ci/"):
-            return ["PRJ-AIRUNNER"]
-    return []
-
-
-def _normalize_evidence(paths: list[str], workspace_root: Path) -> list[str]:
-    cleaned: list[str] = []
-    for p in paths:
-        if not isinstance(p, str) or not p.strip():
-            continue
-        abs_path = (workspace_root / p).resolve() if not Path(p).is_absolute() else Path(p).resolve()
-        rel = _rel_to_workspace(abs_path, workspace_root)
-        if rel:
-            cleaned.append(rel)
-    return sorted(set(cleaned))
-
-
 def _ensure_script_budget_report(core_root: Path, workspace_root: Path, notes: list[str]) -> Path | None:
     ws_report = workspace_root / ".cache" / "script_budget" / "report.json"
     if ws_report.exists():
@@ -560,6 +550,22 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
             continue
         control_id = gap.get("control_id") if isinstance(gap.get("control_id"), str) else ""
         metric_id = gap.get("metric_id") if isinstance(gap.get("metric_id"), str) else ""
+        lens_id = ""
+        lens_reason = ""
+        if metric_id.startswith("eval_lens:"):
+            parts = metric_id.split(":", 2)
+            if len(parts) >= 2:
+                lens_id = parts[1]
+            if len(parts) == 3:
+                lens_reason = parts[2]
+        elif gap_id.startswith("GAP-EVAL-LENS-"):
+            suffix = gap_id.replace("GAP-EVAL-LENS-", "", 1)
+            if "-" in suffix:
+                lens_id, lens_reason = suffix.split("-", 1)
+                lens_id = lens_id.lower()
+                lens_reason = lens_reason.lower()
+            else:
+                lens_id = suffix.lower()
         effort = gap.get("effort") if isinstance(gap.get("effort"), str) else "medium"
         risk = gap.get("risk_class") if isinstance(gap.get("risk_class"), str) else "medium"
         severity_band = gap.get("severity") if isinstance(gap.get("severity"), str) else "medium"
@@ -569,6 +575,8 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
             title = f"Control gap: {control_id}"
         elif metric_id:
             title = f"Metric gap: {metric_id}"
+        if lens_id:
+            title = f"Lens gap: {lens_id}"
         evidence = [str(Path(".cache") / "index" / "gap_register.v1.json")]
         extra = gap.get("evidence_pointers") if isinstance(gap.get("evidence_pointers"), list) else []
         for p in extra:
@@ -576,12 +584,14 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
                 evidence.append(p)
         sources.append(
             {
-                "source_type": "GAP",
+                "source_type": "LENS_GAP" if lens_id else "GAP",
                 "source_ref": gap_id,
                 "title": title,
                 "effort": effort,
                 "risk": risk,
                 "severity_level": severity_level,
+                "lens_id": lens_id,
+                "lens_reason": lens_reason,
                 "evidence_paths": evidence,
             }
         )
@@ -792,6 +802,11 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
     core_root = _find_repo_root(Path(__file__).resolve())
     policy, policy_notes = _load_policy(core_root=core_root, workspace_root=workspace_root)
     notes: list[str] = list(policy_notes)
+    autopilot_policy, _, autopilot_notes = _load_autopilot_policy(
+        core_root=core_root, workspace_root=workspace_root
+    )
+    notes.extend(autopilot_notes)
+    selected_ids = _load_autopilot_selection(workspace_root, notes)
     if not policy or policy.get("version") != "v2":
         policy = _policy_defaults()
         notes.append("policy_fallback_defaults")
@@ -843,12 +858,18 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
         sla_hints = policy.get("sla_hints") if isinstance(policy.get("sla_hints"), dict) else {}
         sla_hint = str(sla_hints.get(bucket, "")) if isinstance(sla_hints, dict) else ""
 
+        status = "OPEN"
+        closed_reason = None
+        if bool(rule.get("auto_close", False)):
+            status = "DONE"
+            closed_reason = str(rule.get("closed_reason") or "AUTO_CLOSE")
+
         item = {
             "intake_id": intake_id,
             "bucket": bucket,
             "severity": severity,
             "priority": priority,
-            "status": "OPEN",
+            "status": status,
             "title": title,
             "source_type": source_type,
             "source_ref": source_ref,
@@ -856,6 +877,14 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
             "owner_tenant": owner_tenant,
             "layer": "L2",
         }
+        last_seen = str(source.get("last_seen") or source.get("job_last_seen") or "")
+        if last_seen:
+            item["last_seen"] = last_seen
+        last_status = str(source.get("last_status") or source.get("job_last_status") or "")
+        if last_status:
+            item["last_status"] = last_status
+        if closed_reason:
+            item["closed_reason"] = closed_reason
         suggested = _suggested_extensions(source, bucket)
         if suggested:
             item["suggested_extension"] = sorted({str(x) for x in suggested if isinstance(x, str) and x})
@@ -863,7 +892,29 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
             item["tags"] = [str(t) for t in tags if isinstance(t, str)]
         if sla_hint:
             item["sla_hint"] = sla_hint
+        lens_id = source.get("lens_id")
+        if isinstance(lens_id, str) and lens_id:
+            item["lens_id"] = lens_id
+        lens_reason = source.get("lens_reason")
+        if isinstance(lens_reason, str) and lens_reason:
+            item["lens_reason"] = lens_reason
+        autopilot_allowed, autopilot_selected, autopilot_reason, autopilot_notes = _autopilot_labels(
+            item, source, autopilot_policy, selected_ids
+        )
+        item["autopilot_allowed"] = autopilot_allowed
+        item["autopilot_selected"] = autopilot_selected
+        if autopilot_reason:
+            item["autopilot_reason"] = autopilot_reason
+        if autopilot_notes:
+            item["autopilot_notes"] = autopilot_notes
         items.append(item)
+
+    applied_ids = _load_exec_ticket_applied_ids(workspace_root, notes)
+    if applied_ids:
+        for item in items:
+            if item.get("intake_id") in applied_ids and item.get("status") != "DONE":
+                item["status"] = "DONE"
+                item["closed_reason"] = "EXEC_APPLIED"
 
     bucket_order = policy.get("bucket_order") if isinstance(policy.get("bucket_order"), list) else []
     if not bucket_order:
@@ -898,6 +949,18 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
         suggested = item.get("suggested_extension")
         if isinstance(suggested, list) and suggested:
             summary_item["suggested_extension"] = suggested
+        if "autopilot_allowed" in item:
+            summary_item["autopilot_allowed"] = item.get("autopilot_allowed")
+        if "autopilot_selected" in item:
+            summary_item["autopilot_selected"] = item.get("autopilot_selected")
+        if "autopilot_reason" in item:
+            summary_item["autopilot_reason"] = item.get("autopilot_reason")
+        if "autopilot_notes" in item:
+            summary_item["autopilot_notes"] = item.get("autopilot_notes")
+        if "lens_id" in item:
+            summary_item["lens_id"] = item.get("lens_id")
+        if "lens_reason" in item:
+            summary_item["lens_reason"] = item.get("lens_reason")
         top_next_actions.append(summary_item)
 
     next_focus = "NONE"
@@ -910,7 +973,12 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
                 next_focus = f"{bucket}:{intake_id}"
 
     status = "OK" if items else "IDLE"
-    if notes and status == "OK":
+    warn_notes = [
+        n
+        for n in notes
+        if not str(n).startswith(("job_status_suppressed=", "github_ops_suppressed="))
+    ]
+    if warn_notes and status == "OK":
         status = "WARN"
 
     payload = {

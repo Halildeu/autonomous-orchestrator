@@ -163,6 +163,35 @@ def _load_manual_request(workspace_root: Path, request_id: str) -> dict[str, Any
     return obj if isinstance(obj, dict) else None
 
 
+def _load_decisions_applied(workspace_root: Path) -> list[dict[str, Any]]:
+    path = workspace_root / ".cache" / "index" / "decisions_applied.v1.jsonl"
+    if not path.exists():
+        return []
+    items: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            items.append(obj)
+    return items
+
+
+def _decision_allows_auto_apply(decisions: list[dict[str, Any]], intake_id: str) -> bool:
+    for item in decisions:
+        if str(item.get("source_intake_id") or "") != intake_id:
+            continue
+        if str(item.get("decision_kind") or "") != "AUTO_APPLY_ALLOW":
+            continue
+        option_id = str(item.get("option_id") or "")
+        if option_id and option_id not in {"A", "KEEP"}:
+            return True
+    return False
+
+
 def _matches_when(*, when: dict[str, Any], source_type: str, context: dict[str, Any]) -> bool:
     if not isinstance(when, dict):
         return False
@@ -427,21 +456,89 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             str(x.get("intake_id") or ""),
         )
     )
-    selected = ticket_items[: max(0, int(limit))]
+    selected = [i for i in ticket_items if bool(i.get("autopilot_selected", False))]
+    selected_count = len(selected)
+
+    if selected_count == 0:
+        report = {
+            "version": "v1",
+            "generated_at": _now_iso(),
+            "workspace_root": str(workspace_root),
+            "status": "IDLE",
+            "error_code": "NO_SELECTED_AUTOPILOT_ITEMS",
+            "selection_rule": "bucket=TICKET selected_only sort by priority,severity,intake_id",
+            "policy_source": policy_source,
+            "policy_hash": policy_hash,
+            "selected_count": 0,
+            "applied_count": 0,
+            "planned_count": 0,
+            "idle_count": 0,
+            "ignored_count": 0,
+            "ignored_by_reason": {},
+            "entries": [],
+            "notes": ["CORE_LOCK=ENABLED", "SAFE_ONLY_REQUESTED=true", "WORKSPACE_ONLY=true"],
+        }
+
+        out_json = workspace_root / ".cache" / "reports" / "work_intake_exec_ticket.v1.json"
+        out_md = workspace_root / ".cache" / "reports" / "work_intake_exec_ticket.v1.md"
+        _ensure_inside_workspace(workspace_root, out_json)
+        _ensure_inside_workspace(workspace_root, out_md)
+        _write_json(out_json, report)
+        out_md.write_text(
+            "\n".join(
+                [
+                    "WORK INTAKE TICKET EXECUTION",
+                    "",
+                    "Selection: bucket=TICKET selected_only sort by priority,severity,intake_id",
+                    f"Policy source: {policy_source}",
+                    f"Policy hash: {policy_hash}",
+                    "Applied: 0",
+                    "Planned: 0",
+                    "Idle: 0",
+                    "",
+                    "Reason: NO_SELECTED_AUTOPILOT_ITEMS",
+                    "",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        return {
+            "status": "IDLE",
+            "error_code": "NO_SELECTED_AUTOPILOT_ITEMS",
+            "work_intake_exec_path": str(Path(".cache") / "reports" / "work_intake_exec_ticket.v1.json"),
+            "work_intake_exec_md_path": str(Path(".cache") / "reports" / "work_intake_exec_ticket.v1.md"),
+            "selected_count": 0,
+            "applied_count": 0,
+            "planned_count": 0,
+            "idle_count": 0,
+            "entries_count": 0,
+        }
 
     doc_nav_report = _load_doc_nav_report(workspace_root)
+    decisions_applied = _load_decisions_applied(workspace_root)
     unsafe_kinds = {str(x) for x in (policy.get("unsafe_kinds") or []) if isinstance(x, str)}
 
     entries: list[dict[str, Any]] = []
     applied = 0
     planned = 0
     idle = 0
+    ignored = 0
+    ignored_by_reason: dict[str, int] = {}
+    skipped = 0
+    decision_needed = 0
+    skipped_by_reason: dict[str, int] = {}
+    apply_slots = max(0, int(limit))
 
-    for item in selected:
+    for item in ticket_items:
         intake_id = str(item.get("intake_id") or "")
         source_type = str(item.get("source_type") or "")
         source_ref = str(item.get("source_ref") or "")
         title = str(item.get("title") or "")
+        autopilot_allowed = bool(item.get("autopilot_allowed", False))
+        autopilot_selected = bool(item.get("autopilot_selected", False))
+        autopilot_reason = str(item.get("autopilot_reason") or "")
 
         manual_request = _load_manual_request(workspace_root, source_ref) if source_type == "MANUAL_REQUEST" else None
         manual_scope_present = isinstance(manual_request, dict) and "impact_scope" in manual_request
@@ -466,6 +563,10 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         action_kind, plan_only, rule_id = _select_action(
             policy=policy, source_type=source_type, context=context
         )
+        decision_override = _decision_allows_auto_apply(decisions_applied, intake_id)
+        effective_allowed = autopilot_allowed or decision_override
+        if not effective_allowed:
+            plan_only = True
         if action_kind in unsafe_kinds:
             plan_only = True
         if source_type == "MANUAL_REQUEST" and action_kind == "WRITE_DOC_NOTE" and not plan_only:
@@ -523,7 +624,41 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             "action_kind": action_kind,
             "apply_scope": "WORKSPACE_ONLY",
             "rule_id": rule_id,
+            "autopilot_allowed": autopilot_allowed,
+            "autopilot_selected": autopilot_selected,
         }
+        if autopilot_reason:
+            entry["autopilot_reason"] = autopilot_reason
+
+        if not autopilot_selected:
+            entry["status"] = "IGNORED"
+            entry["ignored_reason"] = "NOT_SELECTED"
+            ignored += 1
+            ignored_by_reason["NOT_SELECTED"] = ignored_by_reason.get("NOT_SELECTED", 0) + 1
+            entries.append(entry)
+            continue
+        if not effective_allowed:
+            reason = "DECISION_NEEDED"
+            if autopilot_reason in {"REQUIRES_CORE_UNLOCK", "POLICY_BLOCKED"}:
+                reason = "POLICY_BLOCKED"
+            if autopilot_reason == "NETWORK_DISABLED":
+                reason = "NETWORK_BLOCKED"
+            entry["status"] = "SKIPPED"
+            entry["skip_reason"] = reason
+            entry["decision_needed"] = reason == "DECISION_NEEDED"
+            skipped += 1
+            skipped_by_reason[reason] = skipped_by_reason.get(reason, 0) + 1
+            if reason == "DECISION_NEEDED":
+                decision_needed += 1
+            entries.append(entry)
+            continue
+        if apply_slots == 0:
+            entry["status"] = "SKIPPED"
+            entry["skip_reason"] = "LIMIT_REACHED"
+            skipped += 1
+            skipped_by_reason["LIMIT_REACHED"] = skipped_by_reason.get("LIMIT_REACHED", 0) + 1
+            entries.append(entry)
+            continue
 
         if action_kind == "WRITE_DOC_NOTE" and not plan_only:
             if source_type == "MANUAL_REQUEST" and manual_kind in {"doc-fix", "doc-link-fix", "doc-metadata", "note"}:
@@ -616,6 +751,7 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
                     applied += 1
             else:
                 applied += 1
+            apply_slots = max(0, apply_slots - 1)
         elif entry.get("status") == "IDLE":
             idle += 1
         else:
@@ -631,22 +767,43 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             entry["reason"] = "PLAN_ONLY"
             entry["evidence_paths"] = [plan_path]
             planned += 1
+            apply_slots = max(0, apply_slots - 1)
 
         entries.append(entry)
+
+    normalized_skipped: dict[str, int] = {
+        str(k): int(v) for k, v in skipped_by_reason.items() if isinstance(k, str) and isinstance(v, int) and v >= 0
+    }
+    skipped_total = sum(normalized_skipped.values())
+    if skipped > 0:
+        if skipped_total == 0:
+            normalized_skipped = {"UNKNOWN": skipped}
+        elif skipped_total < skipped:
+            normalized_skipped["UNKNOWN"] = normalized_skipped.get("UNKNOWN", 0) + (skipped - skipped_total)
+        elif skipped_total > skipped:
+            normalized_skipped = {"UNKNOWN": skipped}
 
     report = {
         "version": "v1",
         "generated_at": _now_iso(),
         "workspace_root": str(workspace_root),
-        "selection_rule": "bucket=TICKET sort by priority,severity,intake_id",
+        "selection_rule": "bucket=TICKET selected_only sort by priority,severity,intake_id",
         "policy_source": policy_source,
         "policy_hash": policy_hash,
+        "selected_count": selected_count,
         "applied_count": applied,
         "planned_count": planned,
         "idle_count": idle,
+        "ignored_count": ignored,
+        "ignored_by_reason": {k: ignored_by_reason[k] for k in sorted(ignored_by_reason)},
+        "skipped_count": skipped,
+        "skipped_by_reason": {k: normalized_skipped[k] for k in sorted(normalized_skipped)},
+        "decision_needed_count": decision_needed,
         "entries": entries,
         "notes": ["CORE_LOCK=ENABLED", "SAFE_ONLY_REQUESTED=true", "WORKSPACE_ONLY=true"],
     }
+    if decision_needed > 0:
+        report["decision_inbox_path"] = str(Path(".cache") / "index" / "decision_inbox.v1.json")
 
     out_json = workspace_root / ".cache" / "reports" / "work_intake_exec_ticket.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "work_intake_exec_ticket.v1.md"
@@ -657,12 +814,13 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
     md_lines = [
         "WORK INTAKE TICKET EXECUTION",
         "",
-        "Selection: bucket=TICKET sort by priority,severity,intake_id",
+        "Selection: bucket=TICKET selected_only sort by priority,severity,intake_id",
         f"Policy source: {policy_source}",
         f"Policy hash: {policy_hash}",
         f"Applied: {applied}",
         f"Planned: {planned}",
         f"Idle: {idle}",
+        f"Ignored: {ignored}",
         "",
     ]
     for entry in entries:
@@ -674,12 +832,25 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         md_lines.append(line)
     out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
 
+    if decision_needed > 0:
+        try:
+            from src.ops.decision_inbox import run_decision_inbox_build
+
+            run_decision_inbox_build(workspace_root=workspace_root)
+        except Exception:
+            pass
+
     return {
         "status": "OK",
         "work_intake_exec_path": str(Path(".cache") / "reports" / "work_intake_exec_ticket.v1.json"),
         "work_intake_exec_md_path": str(Path(".cache") / "reports" / "work_intake_exec_ticket.v1.md"),
+        "selected_count": selected_count,
         "applied_count": applied,
         "planned_count": planned,
         "idle_count": idle,
+        "ignored_count": ignored,
+        "skipped_count": skipped,
+        "skipped_by_reason": {k: normalized_skipped[k] for k in sorted(normalized_skipped)},
+        "decision_needed_count": decision_needed,
         "entries_count": len(entries),
     }

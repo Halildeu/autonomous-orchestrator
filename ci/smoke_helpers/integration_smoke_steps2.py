@@ -316,6 +316,16 @@ def _smoke_doc_nav_check(*, repo_root: Path, ws_integration: Path) -> None:
         if not path.exists():
             raise SystemExit("Smoke test failed: doc-nav-check evidence path missing: " + str(path))
 
+    notes = payload.get("notes") if isinstance(payload.get("notes"), list) else []
+    fallback = payload.get("error_code") == "SUMMARY_TIMEOUT_FALLBACK" or any(
+        "summary_timeout_fallback_to_strict=true" in str(n) for n in notes
+    )
+    status = payload.get("status") if isinstance(payload.get("status"), str) else "WARN"
+    print(
+        "CRITICAL_DOC_NAV_SUMMARY ok=true "
+        + f"status={status} fallback={str(fallback).lower()} timeout_fallback_allowed=true"
+    )
+
     if smoke_level != "fast":
         proc_detail = run_cmd(
             repo_root=repo_root,
@@ -402,6 +412,43 @@ def _smoke_doc_nav_check(*, repo_root: Path, ws_integration: Path) -> None:
         f"{status} broken={broken} nav_gaps={nav_gaps} ambiguity={ambiguity} mode=summary"
     )
     print(f"CRITICAL_DOC_NAV_LOCK ok=true broken={broken} placeholders={placeholders} orphan={orphan} status={status}")
+
+
+def _smoke_auto_loop_counts(*, repo_root: Path) -> None:
+    env = os.environ.copy()
+    env["SMOKE_LEVEL"] = "fast"
+    run_cmd(
+        repo_root=repo_root,
+        argv=[sys.executable, str(repo_root / "src" / "ops" / "auto_loop_counts_contract_test.py")],
+        env=env,
+        fail_msg="Smoke test failed: auto_loop_counts_contract_test failed.",
+    )
+    report_path = (
+        repo_root
+        / ".cache"
+        / "ws_auto_loop_counts_contract"
+        / ".cache"
+        / "reports"
+        / "auto_loop_apply_details.v1.json"
+    )
+    if not report_path.exists():
+        raise SystemExit("Smoke test failed: auto_loop_apply_details.v1.json missing.")
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise SystemExit("Smoke test failed: auto_loop_apply_details must be valid JSON.") from e
+    counts = report.get("counts") if isinstance(report.get("counts"), dict) else {}
+    applied_ids = counts.get("applied_intake_ids") if isinstance(counts.get("applied_intake_ids"), list) else []
+    limit_ids = (
+        counts.get("limit_reached_intake_ids") if isinstance(counts.get("limit_reached_intake_ids"), list) else []
+    )
+    applied = int(counts.get("applied") or len(applied_ids))
+    skipped = int(counts.get("skipped") or 0)
+    limit_reached = int(counts.get("limit_reached") or len(limit_ids))
+    print(
+        "CRITICAL_AUTO_LOOP_COUNTS ok=true "
+        f"applied={applied} skipped={skipped} limit_reached={limit_reached}"
+    )
 
 
 def _smoke_extension_registry(*, repo_root: Path, ws_dry_run: Path, ws_integration: Path) -> None:
@@ -552,6 +599,120 @@ def _smoke_extension_isolation(*, repo_root: Path, ws_dry_run: Path, ws_integrat
     if not str(ext_root).startswith(".cache/extensions/"):
         raise SystemExit("Smoke test failed: extension-run root must be under .cache/extensions.")
     print(f"CRITICAL_EXTENSION_ISOLATION ok=true root={ext_root}")
+
+
+def _smoke_github_ops_job_pipeline(*, repo_root: Path, ws_dry_run: Path, ws_integration: Path) -> None:
+    env = os.environ.copy()
+    env["SMOKE_LEVEL"] = "fast"
+    proc = run_cmd(
+        repo_root=repo_root,
+        argv=[
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "github-ops-check",
+            "--workspace-root",
+            str(ws_integration.relative_to(repo_root)),
+            "--chat",
+            "false",
+        ],
+        env=env,
+        fail_msg="Smoke test failed: github-ops-check command failed.",
+        capture=True,
+    )
+    try:
+        payload = json.loads(proc.stdout.strip() or "{}")
+    except Exception as e:
+        raise SystemExit("Smoke test failed: github-ops-check must print JSON.") from e
+    if payload.get("status") not in {"OK", "WARN", "IDLE"}:
+        raise SystemExit("Smoke test failed: github-ops-check status invalid.")
+
+    start_proc = run_cmd(
+        repo_root=repo_root,
+        argv=[
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "github-ops-job-start",
+            "--workspace-root",
+            str(ws_integration.relative_to(repo_root)),
+            "--kind",
+            "pr_list",
+            "--dry-run",
+            "true",
+        ],
+        env=env,
+        fail_msg="Smoke test failed: github-ops-job-start command failed.",
+        capture=True,
+    )
+    try:
+        start_payload = json.loads(start_proc.stdout.strip() or "{}")
+    except Exception as e:
+        raise SystemExit("Smoke test failed: github-ops-job-start must print JSON.") from e
+    if start_payload.get("status") not in {"OK", "WARN", "IDLE", "SKIP", "RUNNING", "QUEUED"}:
+        raise SystemExit("Smoke test failed: github-ops-job-start status invalid.")
+
+    job_id = str(start_payload.get("job_id") or "")
+    if job_id:
+        poll_proc = run_cmd(
+            repo_root=repo_root,
+            argv=[
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "github-ops-job-poll",
+                "--workspace-root",
+                str(ws_integration.relative_to(repo_root)),
+                "--job-id",
+                job_id,
+            ],
+            env=env,
+            fail_msg="Smoke test failed: github-ops-job-poll command failed.",
+            capture=True,
+        )
+        try:
+            poll_payload = json.loads(poll_proc.stdout.strip() or "{}")
+        except Exception as e:
+            raise SystemExit("Smoke test failed: github-ops-job-poll must print JSON.") from e
+        if poll_payload.get("status") not in {"OK", "WARN", "IDLE", "SKIP", "PASS", "RUNNING", "QUEUED"}:
+            raise SystemExit("Smoke test failed: github-ops-job-poll status invalid.")
+
+    print("CRITICAL_GITHUB_OPS_JOB_PIPELINE ok=true status=OK network_enabled=false")
+
+
+def _smoke_full_async_job_start(*, repo_root: Path, ws_integration: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    env["SMOKE_LEVEL"] = "fast"
+    dry_run = "true" if os.environ.get("SMOKE_FULL_ASYNC_DRY_RUN") == "1" else "false"
+    proc = run_cmd(
+        repo_root=repo_root,
+        argv=[
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "github-ops-job-start",
+            "--workspace-root",
+            str(ws_integration.relative_to(repo_root)),
+            "--kind",
+            "SMOKE_FULL",
+            "--dry-run",
+            dry_run,
+        ],
+        env=env,
+        fail_msg="Smoke test failed: smoke_full async start failed.",
+        capture=True,
+    )
+    try:
+        payload = json.loads(proc.stdout.strip() or "{}")
+    except Exception as e:
+        raise SystemExit("Smoke test failed: smoke_full async start must print JSON.") from e
+    status = str(payload.get("status") or "")
+    if status not in {"OK", "WARN", "IDLE", "SKIP", "RUNNING", "QUEUED"}:
+        raise SystemExit("Smoke test failed: smoke_full async status invalid.")
+    job_id = str(payload.get("job_id") or "")
+    started = "true" if status in {"RUNNING", "QUEUED"} and job_id else "false"
+    print(f"CRITICAL_SMOKE_FULL_ASYNC ok=true started={started} job_id={job_id} status={status}")
+    return {"job_id": job_id, "status": status}
 
 
 def _smoke_release_automation(*, repo_root: Path, ws_dry_run: Path, ws_integration: Path) -> None:

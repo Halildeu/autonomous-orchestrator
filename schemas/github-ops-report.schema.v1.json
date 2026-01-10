@@ -23,9 +23,10 @@
     "live_gate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "env_flag", "env_key_present", "allowed_ops"],
+      "required": ["enabled", "network_enabled", "env_flag", "env_key_present", "allowed_ops"],
       "properties": {
         "enabled": { "type": "boolean" },
+        "network_enabled": { "type": "boolean" },
         "env_flag": { "type": "string" },
         "env_key_present": { "type": "boolean" },
         "allowed_ops": { "type": "array", "items": { "type": "string" } }

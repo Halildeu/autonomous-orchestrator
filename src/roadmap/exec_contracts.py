@@ -30,6 +30,9 @@ class _CoreImmutabilityPolicy:
     default_mode: str
     allow_env_var: str
     allow_env_value: str
+    core_write_mode: str
+    ssot_write_allowlist: tuple[str, ...]
+    require_unlock_reason: bool
     evidence_required_when_unlocked: bool
     blocked_write_error_code: str
     core_git_required: bool

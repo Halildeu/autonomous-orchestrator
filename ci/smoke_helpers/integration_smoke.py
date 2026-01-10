@@ -23,7 +23,10 @@ from ci.smoke_helpers.integration_smoke_steps2 import (
     _smoke_debt_pipeline,
     _smoke_doc_graph,
     _smoke_doc_nav_check,
+    _smoke_auto_loop_counts,
     _smoke_airunner_async,
+    _smoke_full_async_job_start,
+    _smoke_github_ops_job_pipeline,
     _smoke_extension_help,
     _smoke_extension_isolation,
     _smoke_extension_registry,
@@ -46,7 +49,9 @@ def run_smoke_sequence(
     smoke_level: str,
     resolve_workspace_override: Callable[[Path], Path | None],
 ) -> None:
-    if smoke_level != "fast":
+    async_job = os.environ.get("SMOKE_FULL_ASYNC_JOB") == "1"
+    launcher_mode = smoke_level != "fast" and not async_job
+    if smoke_level != "fast" and not launcher_mode:
         include_ci = os.environ.get("SMOKE_FULL_INCLUDE_CI", "0") == "1"
         if include_ci:
             t_ci = time.monotonic()
@@ -85,7 +90,7 @@ def run_smoke_sequence(
             "M9.3",
             "M9.4",
         ]
-        if smoke_level == "fast":
+        if smoke_level == "fast" or launcher_mode:
             ws_integration = prepare_workspace(
                 repo_root=repo_root,
                 name="ws_integration_demo",
@@ -170,20 +175,24 @@ def run_smoke_sequence(
         _smoke_promotion_bundle(repo_root=repo_root, ws_integration=ws_integration)
     else:
         print("SMOKE_NOTE=demo_prereq_skipped_fast")
+    _smoke_auto_loop_counts(repo_root=repo_root)
+    _smoke_github_ops_job_pipeline(repo_root=repo_root, ws_dry_run=ws_dry_run, ws_integration=ws_integration)
     print_timer("milestone_checks", t_checks)
     _smoke_bootstrap_m3_5(repo_root)
     _smoke_json_idempotency_guard(repo_root)
     _smoke_spec_core(repo_root)
     _smoke_m10_2_benchmark(repo_root)
     _smoke_py_budget_report(repo_root)
-    if smoke_level != "fast":
+    if smoke_level != "fast" and not launcher_mode:
         t_drift = time.monotonic()
         _smoke_roadmap_drift(repo_root)
         print_timer("roadmap_drift", t_drift)
     t_actions = time.monotonic()
     _smoke_actions_self_heal(repo_root)
     print_timer("actions_self_heal", t_actions)
-    if smoke_level != "fast":
+    if launcher_mode:
+        _smoke_full_async_job_start(repo_root=repo_root, ws_integration=ws_integration)
+    if smoke_level != "fast" and not launcher_mode:
         _smoke_artifact_completeness(repo_root)
     if smoke_level == "fast":
         print("SMOKE_OK")

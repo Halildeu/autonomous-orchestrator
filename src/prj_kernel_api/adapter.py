@@ -956,7 +956,58 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 auth_checked=auth_checked,
                 rate_limited=rate_limited,
             )
-        if action == "intake_status":
+        if action == "github_ops_check":
+            args = [
+                "github-ops-check",
+                "--workspace-root",
+                str(workspace_root),
+                "--chat",
+                "false",
+            ]
+        elif action == "github_ops_job_start":
+            kind = str(params.get("kind") or "").strip()
+            if not kind:
+                return _build_response(
+                    status="FAIL",
+                    payload=None,
+                    notes=["PROGRAM_LED=true", "no_secrets=true"],
+                    request_id=request_id,
+                    error_code="KIND_REQUIRED",
+                    message="GitHub ops job kind required.",
+                    auth_checked=auth_checked,
+                    rate_limited=rate_limited,
+                )
+            dry_run = bool(params.get("dry_run", True))
+            args = [
+                "github-ops-job-start",
+                "--workspace-root",
+                str(workspace_root),
+                "--kind",
+                kind,
+                "--dry-run",
+                "true" if dry_run else "false",
+            ]
+        elif action == "github_ops_job_poll":
+            job_id = str(params.get("job_id") or "").strip()
+            if not job_id:
+                return _build_response(
+                    status="FAIL",
+                    payload=None,
+                    notes=["PROGRAM_LED=true", "no_secrets=true"],
+                    request_id=request_id,
+                    error_code="JOB_ID_REQUIRED",
+                    message="GitHub ops job id required.",
+                    auth_checked=auth_checked,
+                    rate_limited=rate_limited,
+                )
+            args = [
+                "github-ops-job-poll",
+                "--workspace-root",
+                str(workspace_root),
+                "--job-id",
+                job_id,
+            ]
+        elif action == "intake_status":
             args = [
                 "work-intake-build",
                 "--workspace-root",
@@ -1078,6 +1129,14 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
 
         status = payload.get("status") if isinstance(payload, dict) else None
         status_str = str(status) if isinstance(status, str) and status else "OK"
+        if action in {"github_ops_check", "github_ops_job_start", "github_ops_job_poll"}:
+            raw = str(status or "")
+            if raw in {"SKIP"}:
+                status_str = "IDLE"
+            elif raw in {"RUNNING", "QUEUED", "PASS", "OK"}:
+                status_str = "OK"
+            elif raw in {"FAIL"}:
+                status_str = "WARN"
         response = _build_response(
             status=status_str,
             payload=payload,

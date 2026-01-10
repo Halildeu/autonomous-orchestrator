@@ -13,21 +13,22 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .system_status_context_router import build_context_router_section, context_router_md_lines
+from .system_status_sections_extensions import _auto_loop_section
 from .system_status_sections import (
     _actions_status,
     _airunner_section,
+    _airunner_proof_section,
     _advisor_status,
     _auto_heal_section,
     _benchmark_status,
-    _catalog_status,
     _core_integrity_section,
     _core_lock_section,
     _doc_graph_section,
+    _doer_section,
     _extensions_section,
     _formats_status,
     _harvest_status,
     _integrity_status,
-    _iso_core_status,
     _layer_boundary_section,
     _pack_advisor_status,
     _pack_index_status,
@@ -43,9 +44,11 @@ from .system_status_sections import (
     _repo_hygiene_section,
     _session_status,
     _spec_core_status,
+    _decisions_section,
     _work_intake_exec_section,
     _work_intake_section,
 )
+from .system_status_sections_catalog import _catalog_status, _iso_core_status
 
 
 def _now_iso8601() -> str:
@@ -206,6 +209,9 @@ def build_system_status(
     pdca_section = _pdca_status(workspace_root)
     work_intake_section = _work_intake_section(workspace_root)
     work_intake_exec_section = _work_intake_exec_section(workspace_root)
+    doer_section = _doer_section(workspace_root)
+    auto_loop_section = _auto_loop_section(workspace_root)
+    decisions_section = _decisions_section(workspace_root)
     context_router_section = build_context_router_section(workspace_root)
     harvest_status, candidates_count, harvest_kinds = _harvest_status(workspace_root)
     adv_status, suggestions_count, adv_kinds = _advisor_status(workspace_root, policy.max_suggestions)
@@ -223,6 +229,7 @@ def build_system_status(
     )
     extensions_section = _extensions_section(workspace_root)
     airunner_section = _airunner_section(workspace_root)
+    airunner_proof_section = _airunner_proof_section(workspace_root)
     pm_suite_section = _pm_suite_section()
     release_section = _release_section(workspace_root)
     auto_heal = _auto_heal_section(core_root, workspace_root)
@@ -319,6 +326,7 @@ def build_system_status(
             "projects": projects_section,
             "extensions": extensions_section,
             "airunner": airunner_section,
+            "airunner_proof": airunner_proof_section,
             "pm_suite": pm_suite_section,
             "release": release_section,
             "catalog": {
@@ -372,6 +380,10 @@ def build_system_status(
                 "metrics_count": int(bench.get("metrics_count") or 0),
                 "gaps_count": int(bench.get("gaps_count") or 0),
                 "gaps_by_severity": bench.get("gaps_by_severity") or {"low": 0, "medium": 0, "high": 0},
+                "eval_lenses": bench.get("eval_lenses") or {},
+                "lenses": bench.get("lenses") or [],
+                "lens_gaps_count": int(bench.get("lens_gaps_count") or 0),
+                "lens_gaps_top": bench.get("lens_gaps_top") or [],
                 "top_next_actions": bench.get("top_next_actions") or [],
                 "notes": bench.get("notes") or [],
             },
@@ -419,6 +431,12 @@ def build_system_status(
         report["sections"]["work_intake"] = work_intake_section
     if isinstance(work_intake_exec_section, dict):
         report["sections"]["work_intake_exec"] = work_intake_exec_section
+    if isinstance(doer_section, dict):
+        report["sections"]["doer"] = doer_section
+    if isinstance(auto_loop_section, dict):
+        report["sections"]["auto_loop"] = auto_loop_section
+    if isinstance(decisions_section, dict):
+        report["sections"]["decisions"] = decisions_section
     if isinstance(context_router_section, dict):
         report["sections"]["context_router"] = context_router_section
     if isinstance(layer_boundary, dict):
@@ -574,9 +592,30 @@ def _render_md(report: dict[str, Any]) -> str:
                         for k in ["QUEUED", "RUNNING", "PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"]
                     )
                 )
+        auto_mode = airunner.get("auto_mode") if isinstance(airunner.get("auto_mode"), dict) else None
+        if isinstance(auto_mode, dict):
+            last_tick = auto_mode.get("last_tick") if isinstance(auto_mode.get("last_tick"), dict) else {}
+            lines.append(
+                "Auto-mode: "
+                + f"enabled={auto_mode.get('auto_mode_effective', False)} "
+                + f"selected={last_tick.get('selected_count', 0)} "
+                + f"applied={last_tick.get('applied_count', 0)} "
+                + f"planned={last_tick.get('planned_count', 0)} "
+                + f"idle={last_tick.get('idle_count', 0)}"
+            )
         sinks = airunner.get("time_sinks") if isinstance(airunner.get("time_sinks"), dict) else None
         if isinstance(sinks, dict):
             lines.append(f"Time sinks: {sinks.get('count', 0)}")
+        lines.append("")
+
+    airunner_proof = sections.get("airunner_proof") if isinstance(sections, dict) else {}
+    if isinstance(airunner_proof, dict) and airunner_proof:
+        _section_title("Airrunner Proof")
+        lines.append(f"Status: {airunner_proof.get('status', '')}")
+        lines.append(f"Last proof bundle: {airunner_proof.get('last_proof_bundle_path', '')}")
+        timestamp = airunner_proof.get("last_proof_bundle_timestamp") if isinstance(airunner_proof, dict) else None
+        if isinstance(timestamp, str) and timestamp:
+            lines.append(f"Last proof timestamp: {timestamp}")
         lines.append("")
 
     pm_suite = sections.get("pm_suite") if isinstance(sections, dict) else {}
@@ -604,6 +643,12 @@ def _render_md(report: dict[str, Any]) -> str:
             lines.append(f"Plan: {plan_path}")
         if isinstance(manifest_path, str) and manifest_path:
             lines.append(f"Manifest: {manifest_path}")
+        apply_proof = release.get("last_apply_proof_path") if isinstance(release, dict) else None
+        apply_mode = release.get("last_apply_mode") if isinstance(release, dict) else None
+        if isinstance(apply_proof, str) and apply_proof:
+            lines.append(f"Apply proof: {apply_proof}")
+        if isinstance(apply_mode, str) and apply_mode:
+            lines.append(f"Apply mode: {apply_mode}")
         rel_notes = release.get("notes") if isinstance(release, dict) else None
         if isinstance(rel_notes, list) and rel_notes:
             lines.append("Notes: " + ", ".join(str(x) for x in rel_notes))
@@ -737,6 +782,31 @@ def _render_md(report: dict[str, Any]) -> str:
                 ]
             )
         )
+        if "skipped_count" in work_intake_exec:
+            lines.append(f"Skipped: {work_intake_exec.get('skipped_count', 0)}")
+        if "ignored_count" in work_intake_exec:
+            lines.append(f"Ignored: {work_intake_exec.get('ignored_count', 0)}")
+        if "decision_needed_count" in work_intake_exec:
+            lines.append(f"Decision needed: {work_intake_exec.get('decision_needed_count', 0)}")
+        lines.append("")
+
+    decisions = sections.get("decisions") if isinstance(sections, dict) else {}
+    if isinstance(decisions, dict) and decisions:
+        _section_title("Decisions")
+        lines.append(f"Pending: {decisions.get('pending_decisions_count', 0)}")
+        lines.append(f"Blocked count: {decisions.get('blocked_count', 0)}")
+        inbox_path = decisions.get("last_decision_inbox_path", "")
+        if inbox_path:
+            lines.append(f"Inbox path: {inbox_path}")
+        apply_path = decisions.get("last_decision_apply_path", "")
+        if apply_path:
+            lines.append(f"Last apply: {apply_path}")
+        by_kind = decisions.get("pending_decisions_by_kind") if isinstance(decisions, dict) else None
+        if isinstance(by_kind, dict) and by_kind:
+            lines.append(
+                "By kind: "
+                + ", ".join(f"{k}={by_kind.get(k, 0)}" for k in sorted(by_kind))
+            )
         lines.append("")
 
     context_router = sections.get("context_router") if isinstance(sections, dict) else {}

@@ -6,7 +6,36 @@
     "env_var": "CORE_UNLOCK",
     "env_value": "1"
   },
+  "core_write_mode": "ssot_only_when_unlocked",
+  "ssot_write_allowlist": [
+    "AGENTS.md",
+    "docs/LAYER-MODEL-LOCK.v1.md",
+    "docs/OPERATIONS/",
+    "docs/OPERATIONS/SSOT-MAP.md",
+    "docs/ROADMAP.md",
+    "extensions/",
+    "policies/",
+    "schemas/",
+    "src/benchmark/",
+    "src/extensions/",
+    "src/ops/",
+    "src/prj_airunner/",
+    "src/prj_github_ops/",
+    "src/prj_release_automation/",
+    "src/ops/debt_drafter.py",
+    "src/ops/repo_hygiene.py",
+    "src/ops/roadmap_cli.py",
+    "src/ops/system_status_builder.py",
+    "src/ops/work_intake_from_sources.py",
+    "src/ops/work_intake_job_sources.py",
+    "src/prj_airunner/airrunner_jobs.py",
+    "src/prj_airunner/airrunner_tick.py"
+  ],
+  "require_unlock_reason": true,
   "evidence_required_when_unlocked": true,
   "blocked_write_error_code": "CORE_IMMUTABLE_WRITE_BLOCKED",
-  "core_git_required": true
+  "core_git_required": true,
+  "notes": [
+    "Temporary narrowing MUST be done via workspace override, not core SSOT."
+  ]
 }

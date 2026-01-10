@@ -23,6 +23,12 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _dedup_key(job_id: str, job_type: str, failure_class: str, signature_hash: str = "") -> str:
+    bucket = "INCIDENT" if failure_class == "CORE_BREAK" else "TICKET"
+    sig = signature_hash or job_id
+    return f"{job_type}|{bucket}|{sig}"
+
+
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
     sys.path.insert(0, str(repo_root))
@@ -120,16 +126,48 @@ def main() -> None:
                 "notes": [],
                 "failure_class": "CORE_BREAK",
             },
+            {
+                "version": "v1",
+                "job_id": "job-demo-6",
+                "job_type": "SMOKE_FULL",
+                "kind": "SMOKE_FULL",
+                "workspace_root": str(ws),
+                "status": "SKIP",
+                "created_at": now,
+                "started_at": now,
+                "last_poll_at": now,
+                "updated_at": now,
+                "attempts": 1,
+                "evidence_paths": [".cache/reports/jobs/smoke_full_job-demo-6.stderr.log"],
+                "notes": [],
+                "skip_reason": "AUTH_MISSING",
+            },
+            {
+                "version": "v1",
+                "job_id": "job-demo-7",
+                "job_type": "SMOKE_FULL",
+                "kind": "SMOKE_FULL",
+                "workspace_root": str(ws),
+                "status": "SKIP",
+                "created_at": now,
+                "started_at": now,
+                "last_poll_at": now,
+                "updated_at": now,
+                "attempts": 1,
+                "evidence_paths": [".cache/reports/jobs/smoke_full_job-demo-7.stderr.log"],
+                "notes": [],
+                "skip_reason": "POLICY_BLOCKED",
+            },
         ],
         "counts": {
-            "total": 5,
+            "total": 7,
             "queued": 0,
             "running": 0,
             "pass": 0,
             "fail": 4,
             "timeout": 1,
             "killed": 0,
-            "skip": 0,
+            "skip": 2,
         },
         "notes": [],
     }
@@ -145,16 +183,20 @@ def main() -> None:
         raise SystemExit("work_intake_jobstatus_contract_test failed: items missing")
 
     buckets = {item.get("source_ref"): item.get("bucket") for item in items if isinstance(item, dict)}
-    if buckets.get("job-demo-1") != "TICKET":
+    if buckets.get(_dedup_key("job-demo-1", "SMOKE_FULL", "DEMO_PREREQ_FAIL")) != "TICKET":
         raise SystemExit("work_intake_jobstatus_contract_test failed: DEMO_PREREQ_FAIL must be TICKET")
-    if buckets.get("job-demo-2") != "INCIDENT":
-        raise SystemExit("work_intake_jobstatus_contract_test failed: OTHER fail must be INCIDENT")
-    if buckets.get("job-demo-3") != "TICKET":
+    if buckets.get(_dedup_key("job-demo-2", "SMOKE_FULL", "OTHER")) != "TICKET":
+        raise SystemExit("work_intake_jobstatus_contract_test failed: OTHER fail must be TICKET")
+    if buckets.get(_dedup_key("job-demo-3", "SMOKE_FULL", "")) != "TICKET":
         raise SystemExit("work_intake_jobstatus_contract_test failed: TIMEOUT must be TICKET")
-    if buckets.get("job-demo-4") != "TICKET":
+    if buckets.get(_dedup_key("job-demo-4", "SMOKE_FULL", "DEMO_CATALOG_PARSE")) != "TICKET":
         raise SystemExit("work_intake_jobstatus_contract_test failed: DEMO_CATALOG_PARSE must be TICKET")
-    if buckets.get("job-demo-5") != "INCIDENT":
+    if buckets.get(_dedup_key("job-demo-5", "SMOKE_FULL", "CORE_BREAK")) != "INCIDENT":
         raise SystemExit("work_intake_jobstatus_contract_test failed: CORE_BREAK must be INCIDENT")
+    if buckets.get(_dedup_key("job-demo-6", "SMOKE_FULL", "")) != "TICKET":
+        raise SystemExit("work_intake_jobstatus_contract_test failed: AUTH_MISSING must be TICKET")
+    if buckets.get(_dedup_key("job-demo-7", "SMOKE_FULL", "")) != "ROADMAP":
+        raise SystemExit("work_intake_jobstatus_contract_test failed: POLICY_BLOCKED must be ROADMAP")
 
     print(json.dumps({"status": "OK", "items": len(items)}, ensure_ascii=False, sort_keys=True))
 

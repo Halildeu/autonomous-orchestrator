@@ -81,8 +81,14 @@ def _work_intake_exec_section(workspace_root: Path) -> dict[str, Any] | None:
     applied_count = int(obj.get("applied_count") or 0) if isinstance(obj, dict) else 0
     planned_count = int(obj.get("planned_count") or 0) if isinstance(obj, dict) else 0
     idle_count = int(obj.get("idle_count") or 0) if isinstance(obj, dict) else 0
+    ignored_count = int(obj.get("ignored_count") or 0) if isinstance(obj, dict) else 0
+    ignored_by_reason = obj.get("ignored_by_reason") if isinstance(obj, dict) else None
+    skipped_count = int(obj.get("skipped_count") or 0) if isinstance(obj, dict) else 0
+    decision_needed_count = int(obj.get("decision_needed_count") or 0) if isinstance(obj, dict) else 0
+    decision_inbox_path = obj.get("decision_inbox_path") if isinstance(obj, dict) else None
+    skipped_by_reason = obj.get("skipped_by_reason") if isinstance(obj, dict) else None
     status = "OK" if policy_hash else "WARN"
-    return {
+    payload: dict[str, Any] = {
         "status": status,
         "exec_report_path": rel_path,
         "policy_source": policy_source,
@@ -91,3 +97,55 @@ def _work_intake_exec_section(workspace_root: Path) -> dict[str, Any] | None:
         "planned_count": planned_count,
         "idle_count": idle_count,
     }
+    if skipped_count:
+        payload["skipped_count"] = skipped_count
+    if ignored_count:
+        payload["ignored_count"] = ignored_count
+    if decision_needed_count:
+        payload["decision_needed_count"] = decision_needed_count
+    if isinstance(decision_inbox_path, str) and decision_inbox_path:
+        payload["decision_inbox_path"] = decision_inbox_path
+    if isinstance(skipped_by_reason, dict):
+        payload["skipped_by_reason"] = {
+            str(k): int(v) for k, v in skipped_by_reason.items() if isinstance(v, int) and v >= 0
+        }
+    if isinstance(ignored_by_reason, dict):
+        payload["ignored_by_reason"] = {
+            str(k): int(v) for k, v in ignored_by_reason.items() if isinstance(v, int) and v >= 0
+        }
+    return payload
+
+
+def _decisions_section(workspace_root: Path) -> dict[str, Any] | None:
+    inbox_path = workspace_root / ".cache" / "index" / "decision_inbox.v1.json"
+    rel_path = str(Path(".cache") / "index" / "decision_inbox.v1.json")
+    pending_count = 0
+    pending_by_kind: dict[str, int] = {}
+    if inbox_path.exists():
+        try:
+            obj = _load_json(inbox_path)
+        except Exception:
+            obj = {}
+        items = obj.get("items") if isinstance(obj, dict) else None
+        items_list = items if isinstance(items, list) else []
+        counts = obj.get("counts") if isinstance(obj, dict) else None
+        by_kind = counts.get("by_kind") if isinstance(counts, dict) else None
+        if isinstance(by_kind, dict):
+            pending_by_kind = {str(k): int(v) for k, v in by_kind.items() if isinstance(v, int) and v >= 0}
+        pending_count = int(counts.get("total") or 0) if isinstance(counts, dict) else len(items_list)
+    blocked_count = pending_count
+
+    decisions_applied_path = workspace_root / ".cache" / "index" / "decisions_applied.v1.jsonl"
+    last_apply_path = None
+    if decisions_applied_path.exists():
+        last_apply_path = str(Path(".cache") / "index" / "decisions_applied.v1.jsonl")
+
+    payload = {
+        "last_decision_inbox_path": rel_path,
+        "blocked_count": blocked_count,
+        "pending_decisions_count": pending_count,
+        "pending_decisions_by_kind": {k: pending_by_kind[k] for k in sorted(pending_by_kind)},
+    }
+    if last_apply_path:
+        payload["last_decision_apply_path"] = last_apply_path
+    return payload

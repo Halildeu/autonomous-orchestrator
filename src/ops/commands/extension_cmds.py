@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from src.ops.commands.common import repo_root, warn
 from src.ops.reaper import parse_bool as parse_reaper_bool
@@ -66,14 +67,99 @@ def cmd_extension_run(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
+def cmd_planner_build_plan(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    mode = str(args.mode or "plan_first").strip() or "plan_first"
+    out = str(args.out or "latest").strip() or "latest"
+
+    from src.prj_planner.planner_build import run_planner_build_plan
+
+    payload = run_planner_build_plan(workspace_root=ws, mode=mode, out=out)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_planner_show_plan(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    plan_id = str(args.plan_id or "").strip() or None
+    latest = parse_reaper_bool(str(args.latest))
+    chat = parse_reaper_bool(str(args.chat))
+
+    from src.prj_planner.planner_build import run_planner_show_plan
+
+    payload = run_planner_show_plan(workspace_root=ws, plan_id=plan_id, latest=latest)
+    if chat and isinstance(payload, dict):
+        _emit_planner_show_plan_chat(payload)
+    else:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_planner_apply_selection(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    plan_id = str(args.plan_id or "").strip() or None
+    latest = parse_reaper_bool(str(args.latest))
+
+    from src.prj_planner.planner_build import run_planner_apply_selection
+
+    payload = run_planner_apply_selection(workspace_root=ws, plan_id=plan_id, latest=latest)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_airunner_status(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:
         return 2
 
-    from src.prj_airunner.airunner_tick import run_airunner_status
+    from src.prj_airunner.airunner_tick_admin import run_airunner_status
 
     payload = run_airunner_status(workspace_root=ws)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_lock_status(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    from src.prj_airunner.airunner_tick_admin import run_airunner_lock_status
+
+    payload = run_airunner_lock_status(workspace_root=ws)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_lock_clear_stale(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    try:
+        max_age = int(args.max_age_seconds)
+    except Exception:
+        warn("FAIL error=MAX_AGE_REQUIRED")
+        return 2
+    if max_age <= 0:
+        warn("FAIL error=MAX_AGE_REQUIRED")
+        return 2
+
+    from src.prj_airunner.airunner_tick_admin import run_airunner_lock_clear_stale
+
+    payload = run_airunner_lock_clear_stale(workspace_root=ws, max_age_seconds=max_age)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
 
@@ -83,10 +169,204 @@ def cmd_airunner_run(args: argparse.Namespace) -> int:
     if ws is None:
         return 2
 
+    ticks = 2
+    try:
+        ticks = int(args.ticks)
+    except Exception:
+        ticks = 2
+    mode = str(args.mode or "no_wait")
+    budget_seconds = 0
+    try:
+        budget_seconds = int(args.budget_seconds)
+    except Exception:
+        budget_seconds = 0
+    force_active_hours = parse_reaper_bool(str(getattr(args, "force_active_hours", "false")))
+
+    from src.prj_airunner.airunner_run import run_airunner_run
+
+    payload = run_airunner_run(
+        workspace_root=ws,
+        ticks=ticks,
+        mode=mode,
+        budget_seconds=budget_seconds if budget_seconds > 0 else None,
+        force_active_hours=force_active_hours,
+    )
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_jobs_seed(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    kind = str(args.kind or "").strip()
+    state = str(args.state or "").strip()
+    try:
+        count = int(args.count)
+    except Exception:
+        count = 1
+
+    from src.prj_airunner.airunner_jobs import seed_jobs
+
+    payload = seed_jobs(workspace_root=ws, kind=kind, state=state, count=count)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_baseline(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    from src.prj_airunner.airunner_run import run_airunner_baseline
+
+    payload = run_airunner_baseline(workspace_root=ws)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_proof_bundle(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+    from src.prj_airunner.airunner_proof_bundle import run_airunner_proof_bundle
+
+    payload = run_airunner_proof_bundle(workspace_root=ws)
+    if chat and isinstance(payload, dict):
+        _emit_airunner_proof_bundle_chat(payload)
+    else:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def _emit_airunner_chat(payload: dict[str, Any], *, title: str) -> None:
+    evidence = []
+    for key in ("report_path", "report_md_path", "heartbeat_path", "jobs_index_path", "watchdog_state_path"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            evidence.append(value)
+    evidence = sorted(set(evidence))
+
+    print("PREVIEW:")  # AUTOPILOT CHAT
+    print(f"- {title} program-led run")
+    print("RESULT:")
+    print(f"- status={payload.get('status')}")
+    if payload.get("error_code"):
+        print(f"- error_code={payload.get('error_code')}")
+    print("EVIDENCE:")
+    if evidence:
+        for path in evidence:
+            print(f"- {path}")
+    else:
+        print("- (none)")
+    print("ACTIONS:")
+    print("- Check work-intake + system-status if status WARN/FAIL")
+    print("NEXT:")
+    print("- Devam et / Durumu göster / Duraklat")
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
+def _emit_airunner_proof_bundle_chat(payload: dict[str, Any]) -> None:
+    evidence = []
+    for key in ("report_path", "report_md_path"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            evidence.append(value)
+    evidence = sorted(set(evidence))
+
+    missing = payload.get("missing_inputs")
+    missing_list = sorted([str(item) for item in missing if isinstance(item, str)]) if isinstance(missing, list) else []
+
+    print("PREVIEW:")  # AUTOPILOT CHAT
+    print("- airrunner-proof-bundle program-led run")
+    print("RESULT:")
+    print(f"- status={payload.get('status')}")
+    if payload.get("error_code"):
+        print(f"- error_code={payload.get('error_code')}")
+    print("EVIDENCE:")
+    if evidence:
+        for path in evidence:
+            print(f"- {path}")
+    else:
+        print("- (none)")
+    if missing_list:
+        print("ACTIONS:")
+        print("- Missing inputs detected; run airunner-baseline, airunner-run, and seed/proof as needed")
+    else:
+        print("ACTIONS:")
+        print("- Verify proof bundle via UI snapshot if needed")
+    print("NEXT:")
+    if missing_list:
+        print("- Run seed/proof inputs / Durumu göster / Duraklat")
+    else:
+        print("- Devam et / Durumu göster / Duraklat")
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
+def _emit_planner_show_plan_chat(payload: dict[str, Any]) -> None:
+    evidence = []
+    for key in ("plan_path", "summary_path", "selection_path"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            evidence.append(value)
+    evidence = sorted(set(evidence))
+
+    print("PREVIEW:")  # AUTOPILOT CHAT
+    print("- planner-show-plan program-led run")
+    print("RESULT:")
+    print(f"- status={payload.get('status')}")
+    if payload.get("error_code"):
+        print(f"- error_code={payload.get('error_code')}")
+    if payload.get("plan_id"):
+        print(f"- plan_id={payload.get('plan_id')}")
+    print("EVIDENCE:")
+    if evidence:
+        for path in evidence:
+            print(f"- {path}")
+    else:
+        print("- (none)")
+    print("ACTIONS:")
+    if payload.get("status") == "IDLE":
+        print("- Build a plan first or provide --plan-id")
+    else:
+        print("- Review plan steps + selection before apply")
+    print("NEXT:")
+    print("- Devam et / Durumu göster / Duraklat")
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
+def cmd_airunner_tick(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
     from src.prj_airunner.airunner_tick import run_airunner_tick
 
     payload = run_airunner_tick(workspace_root=ws)
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    if chat and isinstance(payload, dict):
+        _emit_airunner_chat(payload, title="Airunner tick")
+    else:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_watchdog(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+    from src.prj_airunner.airunner_tick_admin import run_airunner_watchdog
+
+    payload = run_airunner_watchdog(workspace_root=ws)
+    if chat and isinstance(payload, dict):
+        _emit_airunner_chat(payload, title="Airunner watchdog")
+    else:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
 
 
@@ -245,9 +525,53 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_airunner_status.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_airunner_status.set_defaults(func=cmd_airunner_status)
 
+    ap_airunner_lock_status = parent.add_parser("airunner-lock-status", help="Airunner lock status (program-led).")
+    ap_airunner_lock_status.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_lock_status.set_defaults(func=cmd_airunner_lock_status)
+
+    ap_airunner_lock_clear = parent.add_parser("airunner-lock-clear-stale", help="Clear stale airunner lock (program-led).")
+    ap_airunner_lock_clear.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_lock_clear.add_argument("--max-age-seconds", required=True, help="Max heartbeat age in seconds.")
+    ap_airunner_lock_clear.set_defaults(func=cmd_airunner_lock_clear_stale)
+
+    ap_airunner_baseline = parent.add_parser("airunner-baseline", help="Airunner baseline snapshot (program-led).")
+    ap_airunner_baseline.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_baseline.set_defaults(func=cmd_airunner_baseline)
+
+    ap_airunner_proof = parent.add_parser("airunner-proof-bundle", help="Build airrunner proof bundle (program-led).")
+    ap_airunner_proof.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_proof.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_airunner_proof.set_defaults(func=cmd_airunner_proof_bundle)
+
     ap_airunner_run = parent.add_parser("airunner-run", help="Airunner tick (program-led).")
     ap_airunner_run.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_run.add_argument("--ticks", default="2", help="Number of ticks (default: 2).")
+    ap_airunner_run.add_argument("--mode", default="no_wait", help="no_wait (default: no_wait).")
+    ap_airunner_run.add_argument("--budget-seconds", default="0", help="Budget seconds (default: 0=disabled).")
+    ap_airunner_run.add_argument("--budget_seconds", dest="budget_seconds", default="0", help="Alias for --budget-seconds.")
+    ap_airunner_run.add_argument(
+        "--force-active-hours",
+        default="false",
+        help="true|false (default: false). Bypass active-hours gate for manual proof.",
+    )
     ap_airunner_run.set_defaults(func=cmd_airunner_run)
+
+    ap_airunner_seed = parent.add_parser("airunner-jobs-seed", help="Seed airunner jobs (workspace-only).")
+    ap_airunner_seed.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_seed.add_argument("--kind", required=True, help="Job kind (SMOKE_FULL etc.).")
+    ap_airunner_seed.add_argument("--state", default="queued", help="queued|running (default: queued).")
+    ap_airunner_seed.add_argument("--count", default="1", help="Number of jobs to seed (default: 1).")
+    ap_airunner_seed.set_defaults(func=cmd_airunner_jobs_seed)
+
+    ap_airunner_tick = parent.add_parser("airunner-tick", help="Airunner tick (program-led, chat-aware).")
+    ap_airunner_tick.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_tick.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_airunner_tick.set_defaults(func=cmd_airunner_tick)
+
+    ap_airunner_watchdog = parent.add_parser("airunner-watchdog", help="Airunner watchdog (program-led).")
+    ap_airunner_watchdog.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_watchdog.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_airunner_watchdog.set_defaults(func=cmd_airunner_watchdog)
 
     ap_plan = parent.add_parser("release-plan", help="Build release plan (workspace, program-led).")
     ap_plan.add_argument("--workspace-root", required=True, help="Workspace root path.")
@@ -280,7 +604,11 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
 
     ap_gh_start = parent.add_parser("github-ops-job-start", help="Start GitHub ops job (program-led).")
     ap_gh_start.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_gh_start.add_argument("--kind", required=True, help="Job kind (pr_list|pr_open|pr_update|merge|deploy_trigger|status_poll).")
+    ap_gh_start.add_argument(
+        "--kind",
+        required=True,
+        help="Job kind (pr_list|pr_open|pr_update|merge|deploy_trigger|status_poll|PR_OPEN|PR_POLL|CI_POLL|MERGE|RELEASE_RC|RELEASE_FINAL).",
+    )
     ap_gh_start.add_argument("--dry-run", default="true", help="true|false (default: true).")
     ap_gh_start.set_defaults(func=cmd_github_ops_job_start)
 

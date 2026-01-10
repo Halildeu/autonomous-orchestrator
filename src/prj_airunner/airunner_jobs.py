@@ -13,6 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from src.prj_airunner.airunner_jobs_lifecycle import closeout_jobs, cleanup_stuck_jobs
 from src.prj_airunner.airunner_perf import append_perf_event
 
 
@@ -57,6 +58,13 @@ def _policy_defaults() -> dict[str, Any]:
             "ttl_seconds": 604800,
             "timeout_seconds": 3600,
             "stale_after_seconds": 3600,
+            "stuck_job": {
+                "max_polls_without_progress": 2,
+                "stale_after_seconds": 1800,
+                "action_on_stale": "ARCHIVE",
+            },
+            "archive": {"keep_last_n": 50, "ttl_days": 7},
+            "classify": {"release_publish_no_network": "SKIP"},
             "smoke_full": {
                 "enabled": True,
                 "timeout_seconds": 900,
@@ -95,17 +103,25 @@ def _policy_defaults() -> dict[str, Any]:
 def load_jobs_policy(*, core_root: Path, workspace_root: Path) -> tuple[dict[str, Any], str, list[str]]:
     notes: list[str] = []
     policy = _policy_defaults()
-    core_path = core_root / "policies" / "policy_airunner_jobs.v1.json"
-    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v1.json"
+    core_path_v2 = core_root / "policies" / "policy_airunner_jobs.v2.json"
+    core_path_v1 = core_root / "policies" / "policy_airunner_jobs.v1.json"
+    override_path_v2 = workspace_root / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v2.json"
+    override_path_v1 = workspace_root / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v1.json"
+
+    core_path = core_path_v2 if core_path_v2.exists() else core_path_v1
     if core_path.exists():
         try:
             obj = json.loads(core_path.read_text(encoding="utf-8"))
             if isinstance(obj, dict):
                 policy = _deep_merge(policy, obj)
+                if core_path == core_path_v2:
+                    notes.append("policy_v2_loaded")
         except Exception:
             notes.append("policy_invalid")
     else:
         notes.append("policy_missing")
+
+    override_path = override_path_v2 if override_path_v2.exists() else override_path_v1
     if override_path.exists():
         try:
             obj = json.loads(override_path.read_text(encoding="utf-8"))
@@ -145,6 +161,130 @@ def load_jobs_index(workspace_root: Path) -> tuple[dict[str, Any], list[str]]:
     if not isinstance(obj, dict):
         return _default_index(workspace_root), ["jobs_index_invalid"]
     return obj, []
+
+
+def seed_jobs(
+    *,
+    workspace_root: Path,
+    kind: str,
+    state: str,
+    count: int,
+) -> dict[str, Any]:
+    safe_kind = str(kind or "").strip().upper()
+    if safe_kind not in {
+        "SMOKE_FULL",
+        "RELEASE_PREPARE",
+        "RELEASE_PUBLISH",
+        "GITHUB_CHECKS_POLL",
+        "GITHUB_MERGE_POLL",
+    }:
+        return {"status": "FAIL", "error_code": "INVALID_KIND"}
+    safe_state = str(state or "").strip().upper()
+    if safe_state not in {"QUEUED", "RUNNING"}:
+        return {"status": "FAIL", "error_code": "INVALID_STATE"}
+    count = max(1, int(count or 1))
+
+    index, notes = load_jobs_index(workspace_root)
+    jobs = [j for j in index.get("jobs", []) if isinstance(j, dict)]
+    now_iso = _now_iso()
+    seeded_ids: list[str] = []
+    evidence_paths: list[str] = []
+
+    for idx in range(count):
+        job_id = _hash_text(f"{safe_kind}:{safe_state}:{idx}:{workspace_root}")
+        existing = next((j for j in jobs if j.get("job_id") == job_id), None)
+        if existing:
+            existing_notes = existing.get("notes") if isinstance(existing.get("notes"), list) else []
+            if "seeded=true" in existing_notes and job_id not in seeded_ids:
+                seeded_ids.append(job_id)
+                if isinstance(existing.get("evidence_paths"), list):
+                    evidence_paths.extend(
+                        [p for p in existing.get("evidence_paths") if isinstance(p, str) and p]
+                    )
+            continue
+        job = {
+            "version": "v1",
+            "job_id": job_id,
+            "job_type": safe_kind,
+            "kind": safe_kind,
+            "workspace_root": str(workspace_root),
+            "status": safe_state,
+            "created_at": now_iso,
+            "started_at": now_iso,
+            "last_poll_at": now_iso,
+            "updated_at": now_iso,
+            "attempts": 0,
+            "pid": None,
+            "rc": None,
+            "policy_hash": "",
+            "evidence_paths": [],
+            "notes": ["seeded=true", "PROGRAM_LED=true"],
+            "polls_without_progress": 0,
+            "last_progress_at": now_iso,
+        }
+        rc_path = workspace_root / ".cache" / "reports" / "jobs" / f"seeded_{job_id}.rc.json"
+        rc_path.parent.mkdir(parents=True, exist_ok=True)
+        rc_path.write_text(_dump_json({"rc": None, "seeded": True}), encoding="utf-8")
+        job["evidence_paths"] = [str(Path(".cache") / "reports" / "jobs" / f"seeded_{job_id}.rc.json")]
+        evidence_paths.extend(job["evidence_paths"])
+        jobs.append(job)
+        seeded_ids.append(job_id)
+
+    jobs_sorted = sorted(
+        jobs,
+        key=lambda j: (str(j.get("status") or ""), str(j.get("job_type") or ""), str(j.get("job_id") or "")),
+    )
+    active_jobs = [j for j in jobs_sorted if not j.get("archived") and j.get("status") != "ARCHIVED"]
+    counts = {
+        "total": len(active_jobs),
+        "queued": len([j for j in active_jobs if j.get("status") == "QUEUED"]),
+        "running": len([j for j in active_jobs if j.get("status") == "RUNNING"]),
+        "pass": len([j for j in active_jobs if j.get("status") == "PASS"]),
+        "fail": len([j for j in active_jobs if j.get("status") == "FAIL"]),
+        "timeout": len([j for j in active_jobs if j.get("status") == "TIMEOUT"]),
+        "killed": len([j for j in active_jobs if j.get("status") == "KILLED"]),
+        "skip": len([j for j in active_jobs if j.get("status") == "SKIP"]),
+    }
+    payload = {
+        "version": "v1",
+        "generated_at": now_iso,
+        "workspace_root": str(workspace_root),
+        "status": "OK" if seeded_ids else "IDLE",
+        "jobs": jobs_sorted,
+        "counts": counts,
+        "last_tick_id": index.get("last_tick_id"),
+        "notes": sorted(set(notes + ["seeded_jobs"])),
+    }
+    out_path = _jobs_index_path(workspace_root)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(_dump_json(payload), encoding="utf-8")
+
+    seed_audit_rel = Path(".cache") / "reports" / "airunner_seed_audit.v1.json"
+    if seeded_ids:
+        seed_id = sorted(seeded_ids)[0]
+        notes_list = ["seeded=true", "purpose=poll_only_proof", "PROGRAM_LED=true"]
+        if count > 1:
+            notes_list.append(f"seed_count={count}")
+        audit = {
+            "version": "v1",
+            "seed_id": seed_id,
+            "kind": safe_kind,
+            "state": safe_state.lower(),
+            "created_at": now_iso,
+            "workspace_root": str(workspace_root),
+            "notes": sorted(notes_list),
+        }
+        audit_path = workspace_root / seed_audit_rel
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        audit_path.write_text(_dump_json(audit), encoding="utf-8")
+
+    return {
+        "status": "OK" if seeded_ids else "IDLE",
+        "seeded_job_ids": seeded_ids,
+        "jobs_index_path": str(Path(".cache") / "airunner" / "jobs_index.v1.json"),
+        "seed_audit_path": str(seed_audit_rel) if seeded_ids else "",
+        "evidence_paths": sorted(set(evidence_paths)),
+    }
 
 
 def _job_id(job_type: str, tick_id: str) -> str:
@@ -518,6 +658,9 @@ def update_jobs(
     tick_id: str,
     policy_hash: str,
     policy: dict[str, Any],
+    lifecycle_policy: dict[str, Any] | None = None,
+    allow_enqueue: bool = True,
+    poll_only: bool = False,
 ) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
     notes: list[str] = []
     index, idx_notes = load_jobs_index(workspace_root)
@@ -537,10 +680,20 @@ def update_jobs(
     network_required = {str(x) for x in jobs_cfg.get("network_required_job_types", []) if isinstance(x, str)}
     max_poll = int(jobs_cfg.get("max_poll_per_tick", 1) or 1)
     max_running = int(jobs_cfg.get("max_running", 1) or 1)
+    job_policy = lifecycle_policy if isinstance(lifecycle_policy, dict) else {}
+    max_running_jobs = int(job_policy.get("max_running_jobs", max_running) or max_running)
     default_poll_interval = int(jobs_cfg.get("poll_interval_seconds", 0) or 0)
     keep_last_n = int(jobs_cfg.get("keep_last_n", 0) or 0)
     ttl_seconds = int(jobs_cfg.get("ttl_seconds", 0) or 0)
     stale_after = int(jobs_cfg.get("stale_after_seconds", 0) or 0)
+    stuck_cfg = jobs_cfg.get("stuck_job") if isinstance(jobs_cfg.get("stuck_job"), dict) else {}
+    stuck_max_polls = int(stuck_cfg.get("max_polls_without_progress", 0) or 0)
+    stuck_stale_after = int(stuck_cfg.get("stale_after_seconds", stale_after) or stale_after)
+    stuck_action = str(stuck_cfg.get("action_on_stale", "ARCHIVE") or "ARCHIVE")
+    archive_cfg = jobs_cfg.get("archive") if isinstance(jobs_cfg.get("archive"), dict) else {}
+    archive_keep_last_n = int(archive_cfg.get("keep_last_n", keep_last_n) or keep_last_n)
+    archive_ttl_days = int(archive_cfg.get("ttl_days", 0) or 0)
+    classify_cfg = jobs_cfg.get("classify") if isinstance(jobs_cfg.get("classify"), dict) else {}
 
     jobs = [j for j in index.get("jobs", []) if isinstance(j, dict)]
     active_by_type = {str(j.get("job_type") or j.get("kind") or "") for j in jobs if j.get("status") in {"QUEUED", "RUNNING"}}
@@ -565,59 +718,86 @@ def update_jobs(
         return (priority, job_type, str(job.get("job_id") or ""))
 
     if str(index.get("last_tick_id") or "") != tick_id:
-        for job_type in sorted(allowed_types):
-            if job_type in active_by_type:
-                continue
-            if job_type == "SMOKE_FULL":
-                if not smoke_full_enabled:
-                    notes.append("smoke_full_disabled")
+        if allow_enqueue:
+            for job_type in sorted(allowed_types):
+                if job_type in active_by_type:
                     continue
-                if smoke_full_cooldown and last_smoke_full_started and now - last_smoke_full_started < timedelta(seconds=smoke_full_cooldown):
-                    notes.append("smoke_full_cooldown_active")
+                if job_type == "SMOKE_FULL":
+                    if not smoke_full_enabled:
+                        notes.append("smoke_full_disabled")
+                        continue
+                    if smoke_full_cooldown and last_smoke_full_started and now - last_smoke_full_started < timedelta(seconds=smoke_full_cooldown):
+                        notes.append("smoke_full_cooldown_active")
+                        continue
+                    if smoke_full_running >= smoke_full_max_concurrent:
+                        notes.append("smoke_full_max_concurrent")
+                        continue
+                job_id = _job_id(job_type, tick_id)
+                if any(j.get("job_id") == job_id for j in jobs):
                     continue
-                if smoke_full_running >= smoke_full_max_concurrent:
-                    notes.append("smoke_full_max_concurrent")
-                    continue
-            job_id = _job_id(job_type, tick_id)
-            if any(j.get("job_id") == job_id for j in jobs):
-                continue
-            now_iso = _now_iso()
-            jobs.append(
-                {
-                    "version": "v1",
-                    "job_id": job_id,
-                    "job_type": job_type,
-                    "kind": job_type,
-                    "workspace_root": str(workspace_root),
-                    "status": "QUEUED",
-                    "created_at": now_iso,
-                    "started_at": now_iso,
-                    "last_poll_at": now_iso,
-                    "updated_at": now_iso,
-                    "attempts": 0,
-                    "pid": None,
-                    "rc": None,
-                    "policy_hash": policy_hash,
-                    "evidence_paths": [],
-                    "notes": ["enqueued"],
-                }
-            )
+                now_iso = _now_iso()
+                jobs.append(
+                    {
+                        "version": "v1",
+                        "job_id": job_id,
+                        "job_type": job_type,
+                        "kind": job_type,
+                        "workspace_root": str(workspace_root),
+                        "status": "QUEUED",
+                        "created_at": now_iso,
+                        "started_at": now_iso,
+                        "last_poll_at": now_iso,
+                        "updated_at": now_iso,
+                        "polls_without_progress": 0,
+                        "last_progress_at": now_iso,
+                        "attempts": 0,
+                        "pid": None,
+                        "rc": None,
+                        "policy_hash": policy_hash,
+                        "evidence_paths": [],
+                        "notes": ["enqueued"],
+                    }
+                )
         index["last_tick_id"] = tick_id
 
     jobs_sorted = sorted(jobs, key=_job_sort_key)
     polled = 0
+    poll_only_mode = bool(poll_only)
     perf_cfg = policy.get("perf") if isinstance(policy.get("perf"), dict) else {}
     perf_enabled = bool(perf_cfg.get("enable", True))
     perf_max = int(perf_cfg.get("event_log_max_lines", 0) or 0)
-    run_stats = {"started": 0, "polled": 0, "running": 0, "failed": 0, "passed": 0, "last_smoke_full_job_id": ""}
+    run_stats = {
+        "started": 0,
+        "polled": 0,
+        "running": 0,
+        "failed": 0,
+        "passed": 0,
+        "archived": 0,
+        "skipped": 0,
+        "last_smoke_full_job_id": "",
+        "queued_before": 0,
+        "running_before": 0,
+        "queued_after": 0,
+        "running_after": 0,
+        "polled_count": 0,
+    }
 
     running_count = len([j for j in jobs_sorted if j.get("status") == "RUNNING"])
+    run_stats["queued_before"] = len([j for j in jobs_sorted if j.get("status") == "QUEUED"])
+    run_stats["running_before"] = running_count
     for job in jobs_sorted:
         if polled >= max_poll:
             break
         status = str(job.get("status") or "")
         if status not in {"QUEUED", "RUNNING"}:
             continue
+        pre_status = status
+        pre_failure = str(job.get("failure_class") or "")
+        pre_rc = job.get("rc")
+        pre_skip_reason = str(job.get("skip_reason") or "")
+        polled_this = False
+        queued_poll = poll_only_mode and status == "QUEUED"
+        counted_polled = False
         job_type = str(job.get("job_type") or job.get("kind") or "")
         poll_interval = smoke_full_poll_interval if job_type == "SMOKE_FULL" else default_poll_interval
         last_poll = job.get("last_poll_at")
@@ -635,12 +815,16 @@ def update_jobs(
             except Exception:
                 upd_dt = None
             if upd_dt and now - upd_dt > timedelta(seconds=stale_after):
-                job["status"] = "FAIL"
-                job["error_code"] = "JOB_STALE"
-                job["failure_class"] = "OTHER"
+                job["status"] = "SKIP"
+                job["skip_reason"] = "STUCK_JOB"
+                job["stale_reason"] = "STALE_AGE"
                 job["updated_at"] = _now_iso()
                 job["last_poll_at"] = _now_iso()
                 polled += 1
+                polled_this = True
+                if poll_only_mode:
+                    run_stats["polled"] += 1
+                    counted_polled = True
                 continue
 
         if not job_type:
@@ -658,6 +842,10 @@ def update_jobs(
             job["last_poll_at"] = job.get("created_at", now_iso)
         if not job.get("updated_at"):
             job["updated_at"] = job.get("created_at", now_iso)
+        if "polls_without_progress" not in job or not isinstance(job.get("polls_without_progress"), int):
+            job["polls_without_progress"] = int(job.get("polls_without_progress", 0) or 0)
+        if not job.get("last_progress_at"):
+            job["last_progress_at"] = str(job.get("updated_at") or job.get("created_at") or now_iso)
         if not isinstance(job.get("attempts"), int):
             job["attempts"] = int(job.get("attempts", 0) or 0)
         if "pid" not in job:
@@ -668,15 +856,33 @@ def update_jobs(
             job["evidence_paths"] = []
         if not isinstance(job.get("notes"), list):
             job["notes"] = []
-        if status == "QUEUED" and running_count >= max_running:
+        if status == "QUEUED" and running_count >= max_running_jobs:
             continue
         if status == "QUEUED" and job_type in network_required:
             job["status"] = "SKIP"
-            job["skip_reason"] = "NO_NETWORK"
+            skip_reason = "NO_NETWORK"
+            if job_type == "RELEASE_PUBLISH" and str(classify_cfg.get("release_publish_no_network") or "").upper() == "SKIP":
+                skip_reason = "NETWORK_DISABLED"
+            job["skip_reason"] = skip_reason
             job["updated_at"] = _now_iso()
             job["last_poll_at"] = _now_iso()
             job["attempts"] = int(job.get("attempts", 0)) + 1
             polled += 1
+            polled_this = True
+            if queued_poll and not counted_polled:
+                run_stats["polled"] += 1
+                counted_polled = True
+        elif poll_only_mode and status == "QUEUED":
+            job["last_poll_at"] = _now_iso()
+            polled += 1
+            polled_this = True
+            if queued_poll and not counted_polled:
+                run_stats["polled"] += 1
+                counted_polled = True
+            job["polls_without_progress"] = int(job.get("polls_without_progress", 0) or 0) + 1
+            if not job.get("last_progress_at"):
+                job["last_progress_at"] = _now_iso()
+            continue
         else:
             start_iso = _now_iso()
             started = time.monotonic()
@@ -685,10 +891,15 @@ def update_jobs(
                     _start_smoke_full_job(workspace_root, job, policy)
                     running_count += 1
                     run_stats["started"] += 1
+                    if queued_poll and not counted_polled:
+                        run_stats["polled"] += 1
+                        counted_polled = True
                 else:
                     _poll_smoke_full_job(workspace_root, job, policy, timeout_seconds=smoke_full_timeout)
                     run_stats["polled"] += 1
+                    counted_polled = True
                 polled += 1
+                polled_this = True
                 run_stats["last_smoke_full_job_id"] = str(job.get("job_id") or "")
                 new_status = str(job.get("status") or "")
                 if perf_enabled and new_status in {"PASS", "FAIL", "TIMEOUT", "KILLED"}:
@@ -716,6 +927,10 @@ def update_jobs(
                 job["updated_at"] = _now_iso()
                 job["last_poll_at"] = _now_iso()
                 polled += 1
+                polled_this = True
+                if poll_only_mode and not counted_polled:
+                    run_stats["polled"] += 1
+                    counted_polled = True
             else:
                 job["status"] = "RUNNING"
                 job["updated_at"] = _now_iso()
@@ -763,6 +978,25 @@ def update_jobs(
                         max_lines=perf_max,
                     )
                 polled += 1
+                polled_this = True
+                if queued_poll and not counted_polled:
+                    run_stats["polled"] += 1
+                    counted_polled = True
+
+        if polled_this:
+            progressed = (
+                str(job.get("status") or "") != pre_status
+                or str(job.get("failure_class") or "") != pre_failure
+                or job.get("rc") != pre_rc
+                or str(job.get("skip_reason") or "") != pre_skip_reason
+            )
+            if progressed:
+                job["polls_without_progress"] = 0
+                job["last_progress_at"] = _now_iso()
+            else:
+                job["polls_without_progress"] = int(job.get("polls_without_progress", 0) or 0) + 1
+                if not job.get("last_progress_at"):
+                    job["last_progress_at"] = _now_iso()
 
         result_payload = {
             "version": "v1",
@@ -786,7 +1020,48 @@ def update_jobs(
 
     jobs_sorted = sorted(jobs_sorted, key=_job_sort_key)
     pruned_jobs = []
-    if keep_last_n or ttl_seconds:
+    archive_paths: list[str] = []
+    if stuck_max_polls or stuck_stale_after:
+        jobs_sorted, stuck_stats, stuck_archive_paths = cleanup_stuck_jobs(
+            workspace_root=workspace_root,
+            jobs=jobs_sorted,
+            action_on_stale=stuck_action,
+            max_polls_without_progress=stuck_max_polls,
+            stale_after_seconds=stuck_stale_after,
+        )
+        if stuck_stats.get("archived", 0):
+            notes.append(f"jobs_archived_delta={int(stuck_stats.get('archived', 0))}")
+        if stuck_stats.get("skipped", 0):
+            notes.append(f"jobs_skipped_delta={int(stuck_stats.get('skipped', 0))}")
+        if stuck_archive_paths:
+            archive_paths.extend(stuck_archive_paths)
+        run_stats["archived"] += int(stuck_stats.get("archived", 0))
+        run_stats["skipped"] += int(stuck_stats.get("skipped", 0))
+
+    if job_policy or archive_cfg:
+        if "closeout_ttl_days" in job_policy:
+            closeout_ttl_days = int(job_policy.get("closeout_ttl_days") or 0)
+        else:
+            closeout_ttl_days = archive_ttl_days
+        if "keep_last_n" in job_policy:
+            keep_last_n = int(job_policy.get("keep_last_n") or 0)
+        else:
+            keep_last_n = archive_keep_last_n
+        jobs_sorted, closeout_stats, closeout_archive_paths = closeout_jobs(
+            workspace_root=workspace_root,
+            jobs=jobs_sorted,
+            closeout_ttl_days=closeout_ttl_days,
+            keep_last_n=keep_last_n,
+        )
+        if closeout_archive_paths:
+            archive_paths.extend(closeout_archive_paths)
+        if closeout_stats.get("archived", 0):
+            notes.append(f"jobs_archived={int(closeout_stats.get('archived', 0))}")
+        if closeout_stats.get("pruned", 0):
+            notes.append(f"jobs_pruned={int(closeout_stats.get('pruned', 0))}")
+        if archive_paths:
+            notes.append(f"jobs_archive_paths={len(set(archive_paths))}")
+    elif keep_last_n or ttl_seconds:
         jobs_sorted, pruned_jobs = _prune_jobs(
             jobs_sorted,
             keep_last_n=keep_last_n,
@@ -796,15 +1071,16 @@ def update_jobs(
         if pruned_jobs:
             _archive_pruned_jobs(workspace_root, pruned_jobs)
             notes.append(f"jobs_pruned={len(pruned_jobs)}")
+    active_jobs = [j for j in jobs_sorted if not j.get("archived") and j.get("status") != "ARCHIVED"]
     counts = {
-        "total": len(jobs_sorted),
-        "queued": len([j for j in jobs_sorted if j.get("status") == "QUEUED"]),
-        "running": len([j for j in jobs_sorted if j.get("status") == "RUNNING"]),
-        "pass": len([j for j in jobs_sorted if j.get("status") == "PASS"]),
-        "fail": len([j for j in jobs_sorted if j.get("status") == "FAIL"]),
-        "timeout": len([j for j in jobs_sorted if j.get("status") == "TIMEOUT"]),
-        "killed": len([j for j in jobs_sorted if j.get("status") == "KILLED"]),
-        "skip": len([j for j in jobs_sorted if j.get("status") == "SKIP"]),
+        "total": len(active_jobs),
+        "queued": len([j for j in active_jobs if j.get("status") == "QUEUED"]),
+        "running": len([j for j in active_jobs if j.get("status") == "RUNNING"]),
+        "pass": len([j for j in active_jobs if j.get("status") == "PASS"]),
+        "fail": len([j for j in active_jobs if j.get("status") == "FAIL"]),
+        "timeout": len([j for j in active_jobs if j.get("status") == "TIMEOUT"]),
+        "killed": len([j for j in active_jobs if j.get("status") == "KILLED"]),
+        "skip": len([j for j in active_jobs if j.get("status") == "SKIP"]),
     }
     status = "OK" if counts["total"] else "IDLE"
     if counts["fail"] or counts["timeout"] or counts["killed"] or counts["skip"]:
@@ -812,6 +1088,9 @@ def update_jobs(
     run_stats["running"] = counts["running"]
     run_stats["failed"] = counts["fail"] + counts["timeout"] + counts["killed"]
     run_stats["passed"] = counts["pass"]
+    run_stats["queued_after"] = counts["queued"]
+    run_stats["running_after"] = counts["running"]
+    run_stats["polled_count"] = run_stats["polled"]
 
     payload = {
         "version": "v1",

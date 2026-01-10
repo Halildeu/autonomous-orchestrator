@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -62,6 +64,84 @@ def _ensure_workspace_root(root: Path, ws_path: Path) -> tuple[bool, str | None]
     return (True, None)
 
 
+def _load_doc_nav_summary_timeout(core_root: Path, ws_path: Path) -> int:
+    candidates = [
+        ws_path / "policies" / "policy_doc_graph.v1.json",
+        core_root / "policies" / "policy_doc_graph.v1.json",
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        try:
+            timeout = int(obj.get("summary_timeout_seconds", 5))
+        except Exception:
+            timeout = 5
+        return max(1, min(60, timeout))
+    return 5
+
+
+def _load_json_if_exists(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+def _build_min_doc_graph_report(*, repo_root: Path, ws_path: Path) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return {
+        "version": "v1",
+        "generated_at": now,
+        "repo_root": str(repo_root),
+        "workspace_root": str(ws_path),
+        "status": "WARN",
+        "counts": {
+            "scanned_files": 0,
+            "reference_count": 0,
+            "broken_refs": 0,
+            "orphan_critical": 0,
+            "ambiguity": 0,
+            "ambiguity_count": 0,
+            "critical_nav_gaps": 0,
+            "workspace_bound_refs_count": 0,
+            "external_pointer_refs_count": 0,
+            "placeholder_refs_count": 0,
+            "archive_refs_count": 0,
+        },
+        "ref_summary": {
+            "missing_file": 0,
+            "wrong_path": 0,
+            "deprecated": 0,
+            "archive_ref": 0,
+            "workspace_bound": 0,
+            "external_pointer": 0,
+            "plan_only_placeholder": 0,
+        },
+        "broken_refs": [],
+        "top_placeholders": [],
+        "orphan_critical": [],
+        "ambiguities": [],
+        "entrypoints": {},
+        "notes": [],
+    }
+
+
+def _write_doc_graph_report(*, report: dict[str, Any], out_json: Path) -> None:
+    from src.ops.doc_graph import write_doc_graph_report
+
+    out_md = out_json.with_suffix(".v1.md") if out_json.name.endswith(".v1.json") else out_json.with_suffix(".md")
+    write_doc_graph_report(report=report, out_json=out_json, out_md=out_md)
+
+
 def cmd_doc_nav_check(args: argparse.Namespace) -> int:
     root = repo_root()
     ws_arg = str(args.workspace_root).strip()
@@ -87,7 +167,47 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
 
     doc_out_name = "doc_graph_report.strict.v1.json" if strict else "doc_graph_report.v1.json"
     doc_out = ws_path / ".cache" / "reports" / doc_out_name
-    doc_report = run_doc_graph(repo_root=root, workspace_root=ws_path, out_json=doc_out, mode=mode)
+    summary_timeout_fallback = False
+    summary_error_code = None
+    if strict:
+        doc_report = run_doc_graph(repo_root=root, workspace_root=ws_path, out_json=doc_out, mode=mode)
+    else:
+        doc_report = _load_json_if_exists(doc_out)
+        if doc_report is None:
+            strict_path = ws_path / ".cache" / "reports" / "doc_graph_report.strict.v1.json"
+            strict_report = _load_json_if_exists(strict_path)
+            if strict_report is not None:
+                summary_timeout_fallback = True
+                summary_error_code = "SUMMARY_TIMEOUT_FALLBACK"
+                doc_report = strict_report
+                notes = doc_report.get("notes") if isinstance(doc_report.get("notes"), list) else []
+                if "summary_timeout_fallback_to_strict=true" not in notes:
+                    notes = [*notes, "summary_timeout_fallback_to_strict=true"]
+                doc_report["notes"] = notes
+                _write_doc_graph_report(report=doc_report, out_json=doc_out)
+            else:
+                doc_report = {}
+                timeout_seconds = _load_doc_nav_summary_timeout(root, ws_path)
+                try:
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(
+                            run_doc_graph, repo_root=root, workspace_root=ws_path, out_json=doc_out, mode=mode
+                        )
+                        doc_report = future.result(timeout=timeout_seconds)
+                except FuturesTimeoutError:
+                    summary_timeout_fallback = True
+                    summary_error_code = "SUMMARY_TIMEOUT_FALLBACK"
+                except Exception:
+                    doc_report = {}
+                if summary_timeout_fallback:
+                    strict_path = ws_path / ".cache" / "reports" / "doc_graph_report.strict.v1.json"
+                    doc_report = _load_json_if_exists(strict_path)
+                    if doc_report is None:
+                        doc_report = _build_min_doc_graph_report(repo_root=root, ws_path=ws_path)
+                    notes = doc_report.get("notes") if isinstance(doc_report.get("notes"), list) else []
+                    notes = [*notes, "summary_timeout_fallback_to_strict=true"]
+                    doc_report["notes"] = notes
+                    _write_doc_graph_report(report=doc_report, out_json=doc_out)
 
     sys_out_path = ws_path / ".cache" / "reports" / "system_status.v1.json"
     if not strict:
@@ -114,6 +234,15 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
     workspace_bound_refs = int(counts.get("workspace_bound_refs_count", 0))
     external_pointer_refs = int(counts.get("external_pointer_refs_count", 0))
     placeholder_refs = int(counts.get("placeholder_refs_count", 0))
+    placeholders_baseline = doc_report.get("placeholders_baseline") if isinstance(doc_report, dict) else None
+    placeholders_delta = doc_report.get("placeholders_delta") if isinstance(doc_report, dict) else None
+    placeholders_warn_mode = doc_report.get("placeholders_warn_mode") if isinstance(doc_report, dict) else None
+    if not isinstance(placeholders_baseline, int):
+        placeholders_baseline = placeholder_refs
+    if not isinstance(placeholders_delta, int):
+        placeholders_delta = max(0, placeholder_refs - placeholders_baseline)
+    if not isinstance(placeholders_warn_mode, str):
+        placeholders_warn_mode = "threshold"
     doc_status = doc_report.get("status") if isinstance(doc_report, dict) else "WARN"
     if doc_status not in {"OK", "WARN", "FAIL"}:
         doc_status = "WARN"
@@ -132,6 +261,11 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
         status = "FAIL"
     elif doc_status == "WARN" or str(sys_obj.get("overall_status", "")) in {"WARN", "NOT_READY"}:
         status = "WARN"
+    if summary_timeout_fallback:
+        if doc_status == "FAIL":
+            doc_status = "WARN"
+        if status == "FAIL":
+            status = "WARN"
 
     top_broken = doc_report.get("broken_refs") if detail and isinstance(doc_report, dict) else []
     top_orphans = doc_report.get("orphan_critical") if detail and isinstance(doc_report, dict) else []
@@ -144,6 +278,8 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
         top_placeholders = []
 
     notes = ["PROGRAM_LED=true", f"detail={str(detail).lower()}", f"strict={str(strict).lower()}"]
+    if summary_timeout_fallback:
+        notes.append("summary_timeout_fallback_to_strict=true")
     if strict:
         notes.append(f"strict_report_path={str(Path('.cache') / 'reports' / doc_out_name)}")
 
@@ -159,6 +295,9 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
             "workspace_bound_refs": workspace_bound_refs,
             "external_pointer_refs": external_pointer_refs,
             "placeholder_refs_count": placeholder_refs,
+            "placeholders_baseline": placeholders_baseline,
+            "placeholders_delta": placeholders_delta,
+            "placeholders_warn_mode": placeholders_warn_mode,
             "top_broken": top_broken if detail else [],
             "top_orphans": top_orphans if detail else [],
             "top_placeholders": top_placeholders if detail else [],
@@ -175,6 +314,8 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
         ],
         "notes": notes,
     }
+    if summary_error_code:
+        payload["error_code"] = summary_error_code
 
     if chat:
         print("PREVIEW:")

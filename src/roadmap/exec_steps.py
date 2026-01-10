@@ -88,6 +88,9 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         default_mode="locked",
         allow_env_var="CORE_UNLOCK",
         allow_env_value="1",
+        core_write_mode="locked",
+        ssot_write_allowlist=tuple(),
+        require_unlock_reason=False,
         evidence_required_when_unlocked=True,
         blocked_write_error_code="CORE_IMMUTABLE_WRITE_BLOCKED",
         core_git_required=True,
@@ -103,6 +106,17 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         return defaults
     if not isinstance(obj, dict):
         return defaults
+    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_core_immutability.override.v1.json"
+    if override_path.exists():
+        try:
+            override_obj = json.loads(override_path.read_text(encoding="utf-8"))
+        except Exception:
+            override_obj = {}
+        if isinstance(override_obj, dict):
+            override_allowlist = override_obj.get("ssot_write_allowlist")
+            if isinstance(override_allowlist, list):
+                obj = dict(obj)
+                obj["ssot_write_allowlist"] = override_allowlist
     enabled = bool(obj.get("enabled", defaults.enabled))
     default_mode = obj.get("default_mode", defaults.default_mode)
     if default_mode not in {"locked"}:
@@ -116,6 +130,14 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         allow_env_var = defaults.allow_env_var
     if not isinstance(allow_env_value, str) or not allow_env_value.strip():
         allow_env_value = defaults.allow_env_value
+    core_write_mode = obj.get("core_write_mode", defaults.core_write_mode)
+    if core_write_mode not in {"locked", "ssot_only_when_unlocked"}:
+        core_write_mode = defaults.core_write_mode
+    raw_allowlist = obj.get("ssot_write_allowlist", list(defaults.ssot_write_allowlist))
+    if not isinstance(raw_allowlist, list):
+        raw_allowlist = list(defaults.ssot_write_allowlist)
+    ssot_write_allowlist = tuple(sorted({str(x) for x in raw_allowlist if isinstance(x, str) and x.strip()}))
+    require_unlock_reason = bool(obj.get("require_unlock_reason", defaults.require_unlock_reason))
     evidence_required_when_unlocked = bool(
         obj.get("evidence_required_when_unlocked", defaults.evidence_required_when_unlocked)
     )
@@ -128,6 +150,9 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         default_mode=str(default_mode),
         allow_env_var=str(allow_env_var),
         allow_env_value=str(allow_env_value),
+        core_write_mode=str(core_write_mode),
+        ssot_write_allowlist=ssot_write_allowlist,
+        require_unlock_reason=require_unlock_reason,
         evidence_required_when_unlocked=evidence_required_when_unlocked,
         blocked_write_error_code=str(blocked_write_error_code),
         core_git_required=core_git_required,
@@ -135,7 +160,12 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
 
 
 def _core_unlock_requested(policy: _CoreImmutabilityPolicy) -> bool:
-    return str(os.environ.get(policy.allow_env_var, "")).strip() == str(policy.allow_env_value)
+    unlock_ok = str(os.environ.get(policy.allow_env_var, "")).strip() == str(policy.allow_env_value)
+    if not unlock_ok:
+        return False
+    if policy.require_unlock_reason:
+        return bool(str(os.environ.get("CORE_UNLOCK_REASON", "")).strip())
+    return True
 
 
 def _get_counter(counters_by_milestone: dict[str, ChangeCounter], ms_id: str) -> ChangeCounter:
@@ -149,6 +179,19 @@ def _is_write_allowed(write_allowlist: list[str] | None, rel_path: str) -> bool:
         return True
     p = _normalize_rel_path(Path(rel_path).as_posix())
     for pref in write_allowlist:
+        pref_s = str(pref).strip().replace("\\", "/").strip("/")
+        if not pref_s:
+            continue
+        if p == pref_s or p.startswith(pref_s + "/"):
+            return True
+    return False
+
+
+def _is_ssot_write_allowed(allowlist: tuple[str, ...], rel_path: str) -> bool:
+    if not allowlist:
+        return False
+    p = _normalize_rel_path(Path(rel_path).as_posix())
+    for pref in allowlist:
         pref_s = str(pref).strip().replace("\\", "/").strip("/")
         if not pref_s:
             continue
@@ -260,11 +303,47 @@ def _require_writable_path(
                 "core write blocked (locked mode)",
                 {"blocked_path": rel},
             )
+        if core_policy.core_write_mode == "ssot_only_when_unlocked":
+            if not _is_ssot_write_allowed(core_policy.ssot_write_allowlist, rel):
+                raise RoadmapStepError(
+                    core_policy.blocked_write_error_code,
+                    "core write blocked (ssot allowlist)",
+                    {"blocked_path": rel},
+                )
     bad = _is_forbidden(rel, forbidden)
     if bad:
         raise RoadmapStepError("FORBIDDEN_PATH", f"Path is forbidden by pattern {bad!r}: {rel}")
     if not _is_write_allowed(write_allowlist, rel):
         raise RoadmapStepError("POLICY_VIOLATION", "WRITE_NOT_ALLOWED")
+
+
+def _write_core_unlock_blocked_report(
+    *,
+    workspace_root: Path,
+    error_code: str,
+    blocked_path: str,
+    step_id: str,
+    milestone_id: str,
+    unlock_env_var: str,
+    unlock_env_value: str,
+) -> None:
+    report_path = workspace_root / ".cache" / "reports" / "core_unlock_blocked.v1.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    unlock_requested = str(os.environ.get(unlock_env_var, "")).strip() == unlock_env_value
+    reason_present = bool(str(os.environ.get("CORE_UNLOCK_REASON", "")).strip())
+    report = {
+        "version": "v1",
+        "generated_at": _now_iso8601(),
+        "error_code": error_code,
+        "blocked_path": blocked_path,
+        "step_id": step_id,
+        "milestone_id": milestone_id,
+        "core_unlock_requested": bool(unlock_requested),
+        "core_unlock_reason_present": bool(reason_present),
+        "reason_missing": bool(unlock_requested and not reason_present),
+        "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
+    }
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _handle_create_file_step(
@@ -1004,6 +1083,16 @@ def _apply_plan_steps(
                 step_output["details"] = e.details
                 if isinstance(e.details, dict) and "blocked_path" in e.details:
                     step_output["blocked_path"] = e.details.get("blocked_path")
+                    if e.error_code == core_policy.blocked_write_error_code:
+                        _write_core_unlock_blocked_report(
+                            workspace_root=workspace_root,
+                            error_code=str(e.error_code),
+                            blocked_path=str(e.details.get("blocked_path")),
+                            step_id=str(step_id),
+                            milestone_id=str(ms_id),
+                            unlock_env_var=str(core_policy.allow_env_var),
+                            unlock_env_value=str(core_policy.allow_env_value),
+                        )
             state.dlq = {
                 "stage": "ROADMAP_STEP",
                 "error_code": e.error_code,

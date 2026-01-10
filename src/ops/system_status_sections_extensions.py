@@ -382,8 +382,13 @@ def _airunner_section(workspace_root: Path) -> dict[str, Any]:
         }
     }
     repo_root = Path(__file__).resolve().parents[2]
-    policy_path = repo_root / "policies" / "policy_airunner_jobs.v1.json"
-    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v1.json"
+    policy_path_v2 = repo_root / "policies" / "policy_airunner_jobs.v2.json"
+    policy_path_v1 = repo_root / "policies" / "policy_airunner_jobs.v1.json"
+    override_path_v2 = workspace_root / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v2.json"
+    override_path_v1 = workspace_root / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v1.json"
+
+    policy_path = policy_path_v2 if policy_path_v2.exists() else policy_path_v1
+    override_path = override_path_v2 if override_path_v2.exists() else override_path_v1
     policy_obj: dict[str, Any] = {}
     if policy_path.exists():
         try:
@@ -393,6 +398,8 @@ def _airunner_section(workspace_root: Path) -> dict[str, Any]:
         else:
             if isinstance(policy_raw, dict):
                 policy_obj = _deep_merge(policy_obj, policy_raw)
+                if policy_path == policy_path_v2:
+                    notes.append("airunner_jobs_policy_v2_loaded")
     else:
         notes.append("airunner_jobs_policy_missing")
     if override_path.exists():
@@ -495,21 +502,105 @@ def _airunner_section(workspace_root: Path) -> dict[str, Any]:
                 top = [
                     {
                         "event_key": str(s.get("event_key") or ""),
+                        "op_name": str(s.get("op_name") or ""),
+                        "count": int(s.get("count") or 0),
+                        "p50_ms": int(s.get("p50_ms") or 0),
                         "p95_ms": int(s.get("p95_ms") or 0),
                         "threshold_ms": int(s.get("threshold_ms") or 0),
                         "breach_count": int(s.get("breach_count") or 0),
+                        "last_seen": str(s.get("last_seen") or ""),
                     }
                     for s in sinks
                     if isinstance(s, dict) and str(s.get("event_key") or "")
                 ]
-                top.sort(key=lambda s: (-int(s.get("breach_count", 0)), str(s.get("event_key"))))
+                top.sort(key=lambda s: (-int(s.get("p95_ms", 0)), str(s.get("event_key"))))
                 time_sinks_summary = {
                     "count": len(top),
-                    "top": top[:5],
+                    "top": top[:3],
                     "report_path": str(Path(".cache") / "reports" / "time_sinks.v1.json"),
                 }
     else:
         notes.append("airunner_time_sinks_missing")
+
+    auto_mode = {
+        "auto_mode_effective": False,
+        "auto_select_enabled": False,
+        "enabled": False,
+        "last_selection_path": str(Path(".cache") / "index" / "work_intake_selection.v1.json"),
+        "mode": "",
+        "last_tick": {
+            "tick_id": "",
+            "selected_count": 0,
+            "applied_count": 0,
+            "planned_count": 0,
+            "idle_count": 0,
+        },
+    }
+    try:
+        from src.ops.work_intake_from_sources import _load_autopilot_policy
+
+        autopilot_policy, _, autopilot_notes = _load_autopilot_policy(
+            core_root=repo_root, workspace_root=workspace_root
+        )
+        notes.extend(autopilot_notes)
+        auto_select_cfg = (
+            autopilot_policy.get("auto_select") if isinstance(autopilot_policy.get("auto_select"), dict) else {}
+        )
+        auto_select_enabled = bool(auto_select_cfg.get("enabled", False))
+        auto_mode["auto_select_enabled"] = auto_select_enabled
+    except Exception:
+        notes.append("airunner_autopilot_policy_missing")
+
+    try:
+        from src.prj_airunner.auto_mode_dispatch import load_auto_mode_policy
+
+        auto_policy, _, _, auto_notes = load_auto_mode_policy(workspace_root=workspace_root)
+        notes.extend(auto_notes)
+        auto_enabled = bool(auto_policy.get("enabled", False))
+        auto_mode["enabled"] = auto_enabled
+        auto_mode["mode"] = str(auto_policy.get("mode") or "")
+        auto_mode["auto_mode_effective"] = bool(auto_select_enabled or auto_enabled)
+    except Exception:
+        notes.append("airunner_auto_mode_policy_missing")
+
+    tick_path = workspace_root / ".cache" / "reports" / "airunner_tick.v1.json"
+    if not tick_path.exists():
+        tick_path = workspace_root / ".cache" / "reports" / "airunner_tick_1.v1.json"
+    if tick_path.exists():
+        try:
+            tick_obj = _load_json(tick_path)
+        except Exception:
+            notes.append("airunner_tick_report_invalid")
+        else:
+            actions = tick_obj.get("actions") if isinstance(tick_obj, dict) else None
+            if not isinstance(actions, dict):
+                actions = {}
+            auto_mode["last_tick"] = {
+                "tick_id": str(tick_obj.get("tick_id") or ""),
+                "selected_count": int(actions.get("selected") or 0),
+                "applied_count": int(actions.get("applied") or 0),
+                "planned_count": int(actions.get("planned") or 0),
+                "idle_count": int(actions.get("idle") or 0),
+            }
+            dispatch_summary = tick_obj.get("dispatch_summary") if isinstance(tick_obj, dict) else None
+            if isinstance(dispatch_summary, dict):
+                auto_mode["last_dispatch_summary"] = dispatch_summary
+
+    github_jobs_total = 0
+    github_jobs_path = workspace_root / ".cache" / "github_ops" / "jobs_index.v1.json"
+    if github_jobs_path.exists():
+        try:
+            github_obj = _load_json(github_jobs_path)
+        except Exception:
+            notes.append("github_jobs_index_invalid")
+        else:
+            jobs = github_obj.get("jobs") if isinstance(github_obj, dict) else None
+            if isinstance(jobs, list):
+                github_jobs_total = len([j for j in jobs if isinstance(j, dict)])
+    auto_mode["last_jobs_summary"] = {
+        "airunner_jobs_total": int(jobs_summary.get("total", 0) or 0),
+        "github_jobs_total": int(github_jobs_total),
+    }
 
     status = "IDLE"
     if heartbeat.get("last_tick_id") or jobs_summary.get("total") or time_sinks_summary.get("count"):
@@ -526,17 +617,129 @@ def _airunner_section(workspace_root: Path) -> dict[str, Any]:
         "last_smoke_full_job": last_smoke_full_job,
         "cooldown_summary": cooldown_summary,
         "time_sinks": time_sinks_summary,
+        "auto_mode": auto_mode,
         "notes": notes,
     }
+
+
+def _airunner_proof_section(workspace_root: Path) -> dict[str, Any]:
+    rel_path = str(Path(".cache") / "reports" / "airunner_proof_bundle.v1.json")
+    proof_path = workspace_root / rel_path
+    status = "IDLE"
+    notes: list[str] = []
+    timestamp = ""
+
+    if proof_path.exists():
+        try:
+            _load_json(proof_path)
+        except Exception:
+            status = "WARN"
+            notes.append("airunner_proof_invalid")
+        else:
+            status = "OK"
+            try:
+                ts = datetime.fromtimestamp(proof_path.stat().st_mtime, tz=timezone.utc)
+                timestamp = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            except Exception:
+                notes.append("airunner_proof_timestamp_unavailable")
+    else:
+        notes.append("airunner_proof_missing")
+
+    return {
+        "status": status,
+        "last_proof_bundle_path": rel_path,
+        "last_proof_bundle_timestamp": timestamp,
+        "notes": notes,
+    }
+
+
+def _auto_loop_section(workspace_root: Path) -> dict[str, Any] | None:
+    rel_path = str(Path(".cache") / "reports" / "auto_loop.v1.json")
+    report_path = workspace_root / rel_path
+    if not report_path.exists():
+        return None
+    try:
+        obj = _load_json(report_path)
+    except Exception:
+        obj = {}
+    counts = obj.get("counts") if isinstance(obj, dict) else {}
+    if not isinstance(counts, dict):
+        counts = {}
+    doer_counts = counts.get("doer_counts") if isinstance(counts.get("doer_counts"), dict) else {}
+    skipped_by_reason = doer_counts.get("skipped_by_reason") if isinstance(doer_counts.get("skipped_by_reason"), dict) else {}
+    last_counts = {
+        "decision_pending_before": int(counts.get("decision_pending_before") or 0),
+        "decision_pending_after": int(counts.get("decision_pending_after") or 0),
+        "bulk_applied_count": int(counts.get("bulk_applied_count") or 0),
+        "selected_count": int(counts.get("selected_count") or 0),
+        "doer_counts": {
+            "applied": int(doer_counts.get("applied") or 0),
+            "planned": int(doer_counts.get("planned") or 0),
+            "skipped": int(doer_counts.get("skipped") or 0),
+            "skipped_by_reason": {
+                k: int(skipped_by_reason[k])
+                for k in sorted(skipped_by_reason)
+                if isinstance(skipped_by_reason.get(k), int)
+            },
+        },
+    }
+    apply_details_rel = str(Path(".cache") / "reports" / "auto_loop_apply_details.v1.json")
+    apply_details_path = workspace_root / apply_details_rel
+    apply_counts: dict[str, int] | None = None
+    if apply_details_path.exists():
+        try:
+            apply_obj = _load_json(apply_details_path)
+        except Exception:
+            apply_obj = {}
+        raw_counts = apply_obj.get("counts") if isinstance(apply_obj, dict) else {}
+        if not isinstance(raw_counts, dict):
+            raw_counts = {}
+        applied_ids = raw_counts.get("applied_intake_ids")
+        planned_ids = raw_counts.get("planned_intake_ids")
+        limit_ids = raw_counts.get("limit_reached_intake_ids")
+        if not isinstance(applied_ids, list):
+            applied_ids = apply_obj.get("applied_intake_ids") if isinstance(apply_obj, dict) else []
+        if not isinstance(planned_ids, list):
+            planned_ids = apply_obj.get("planned_intake_ids") if isinstance(apply_obj, dict) else []
+        if not isinstance(limit_ids, list):
+            limit_ids = apply_obj.get("limit_reached_intake_ids") if isinstance(apply_obj, dict) else []
+        if not isinstance(applied_ids, list):
+            applied_ids = []
+        if not isinstance(planned_ids, list):
+            planned_ids = []
+        if not isinstance(limit_ids, list):
+            limit_ids = []
+        applied_ids = sorted({str(x) for x in applied_ids if isinstance(x, str) and x.strip()})
+        planned_ids = sorted({str(x) for x in planned_ids if isinstance(x, str) and x.strip()})
+        limit_ids = sorted({str(x) for x in limit_ids if isinstance(x, str) and x.strip()})
+        apply_counts = {
+            "applied": int(raw_counts.get("applied") or len(applied_ids)),
+            "planned": int(raw_counts.get("planned") or len(planned_ids)),
+            "skipped": int(raw_counts.get("skipped") or 0),
+            "limit_reached": int(raw_counts.get("limit_reached") or len(limit_ids)),
+            "applied_intake_ids": applied_ids,
+            "planned_intake_ids": planned_ids,
+            "limit_reached_intake_ids": limit_ids,
+        }
+    section = {
+        "last_auto_loop_path": rel_path,
+        "last_auto_loop_counts": last_counts,
+    }
+    if apply_counts is not None:
+        section["last_apply_details_path"] = apply_details_rel
+        section["last_counts"] = apply_counts
+    return section
 
 
 def _release_section(workspace_root: Path) -> dict[str, Any]:
     plan_rel = str(Path(".cache") / "reports" / "release_plan.v1.json")
     manifest_rel = str(Path(".cache") / "reports" / "release_manifest.v1.json")
     notes_rel = str(Path(".cache") / "reports" / "release_notes.v1.md")
+    proof_rel = str(Path(".cache") / "reports" / "release_apply_proof.v1.json")
     plan_path = workspace_root / plan_rel
     manifest_path = workspace_root / manifest_rel
     notes_path = workspace_root / notes_rel
+    proof_path = workspace_root / proof_rel
 
     status = "IDLE"
     next_channel = "rc"
@@ -548,6 +751,8 @@ def _release_section(workspace_root: Path) -> dict[str, Any]:
     evidence_paths: list[str] = []
     publish_status = "SKIP"
     publish_reason = "NETWORK_PUBLISH_DISABLED"
+    apply_mode = ""
+    apply_generated_at = ""
 
     if plan_path.exists():
         try:
@@ -596,6 +801,21 @@ def _release_section(workspace_root: Path) -> dict[str, Any]:
     if notes_path.exists():
         evidence_paths.append(notes_rel)
 
+    if proof_path.exists():
+        try:
+            proof = _load_json(proof_path)
+        except Exception:
+            notes.append("apply_proof_invalid_json")
+            proof = {}
+        if isinstance(proof, dict):
+            mode = str(proof.get("apply_mode") or "")
+            if mode in {"NOOP", "APPLIED"}:
+                apply_mode = mode
+            generated_at = str(proof.get("generated_at") or "")
+            if generated_at:
+                apply_generated_at = generated_at
+        evidence_paths.append(proof_rel)
+
     try:
         from src.prj_release_automation.release_engine import publish_release
 
@@ -607,7 +827,7 @@ def _release_section(workspace_root: Path) -> dict[str, Any]:
         publish_status = "WARN"
         publish_reason = "PUBLISH_STATUS_UNAVAILABLE"
 
-    return {
+    release_section = {
         "status": status,
         "last_plan_path": plan_rel,
         "last_manifest_path": manifest_rel,
@@ -623,6 +843,14 @@ def _release_section(workspace_root: Path) -> dict[str, Any]:
         "publish_allowed": publish_allowed,
         "notes": notes,
     }
+
+    if apply_mode:
+        release_section["last_apply_proof_path"] = proof_rel
+        release_section["last_apply_mode"] = apply_mode
+        if apply_generated_at:
+            release_section["last_apply_generated_at"] = apply_generated_at
+
+    return release_section
 
 
 def _pm_suite_section() -> dict[str, Any]:

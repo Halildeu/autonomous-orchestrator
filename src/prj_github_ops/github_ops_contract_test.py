@@ -5,7 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, RefResolver
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -17,6 +17,11 @@ def _find_repo_root(start: Path) -> Path:
 
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _validator(schema: dict, *, store: dict | None = None) -> Draft202012Validator:
+    resolver = RefResolver.from_schema(schema, store=store or {})
+    return Draft202012Validator(schema, resolver=resolver)
 
 
 def _strip_generated_at(obj: dict) -> dict:
@@ -43,7 +48,7 @@ def main() -> None:
         raise SystemExit("github_ops_contract_test failed: report missing")
 
     report_schema_path = repo_root / "schemas" / "github-ops-report.schema.v1.json"
-    Draft202012Validator(_load_json(report_schema_path)).validate(_load_json(report_path))
+    _validator(_load_json(report_schema_path)).validate(_load_json(report_path))
 
     report2 = build_github_ops_report(workspace_root=ws)
     if _strip_generated_at(report) != _strip_generated_at(report2):
@@ -58,7 +63,16 @@ def main() -> None:
         raise SystemExit("github_ops_contract_test failed: job report missing")
 
     job_schema_path = repo_root / "schemas" / "github-ops-job.schema.v1.json"
-    Draft202012Validator(_load_json(job_schema_path)).validate(_load_json(job_report_path))
+    job_schema = _load_json(job_schema_path)
+    _validator(job_schema).validate(_load_json(job_report_path))
+
+    jobs_index_path = ws / ".cache" / "github_ops" / "jobs_index.v1.json"
+    if not jobs_index_path.exists():
+        raise SystemExit("github_ops_contract_test failed: jobs_index missing")
+    jobs_index_schema = repo_root / "schemas" / "github-ops-jobs-index.schema.v1.json"
+    jobs_index_obj = _load_json(jobs_index_schema)
+    store = {str(job_schema.get(\"$id\") or \"\"): job_schema}
+    _validator(jobs_index_obj, store=store).validate(_load_json(jobs_index_path))
 
     poll = poll_github_ops_job(workspace_root=ws, job_id=str(job_start.get("job_id") or ""))
     if poll.get("status") not in {"SKIP", "PASS", "RUNNING", "QUEUED"}:

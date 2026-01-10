@@ -25,6 +25,16 @@ def _parse_iso(value: str | None) -> datetime | None:
         return None
 
 
+def _job_failure_bucket(failure_class: str) -> str:
+    return "INCIDENT" if failure_class == "CORE_BREAK" else "TICKET"
+
+
+def _job_dedup_key(job_type: str, failure_class: str, signature_hash: str, fallback: str) -> str:
+    bucket = _job_failure_bucket(failure_class)
+    sig = signature_hash or fallback
+    return f"{job_type}|{bucket}|{sig}"
+
+
 def _rel_to_workspace(path: Path, workspace_root: Path) -> str | None:
     try:
         return path.resolve().relative_to(workspace_root.resolve()).as_posix()
@@ -70,6 +80,23 @@ def _github_ops_source(signal: str, *, title: str, evidence: list[str]) -> dict[
     }
 
 
+def _github_ops_job_source_ref(
+    *,
+    job_id: str,
+    job_kind: str,
+    status: str,
+    failure_class: str,
+    skip_reason: str,
+    signature_hash: str,
+) -> str:
+    if signature_hash:
+        reason = failure_class or skip_reason or status
+        return f"github_ops_sig:{job_kind}|{status}|{reason}|{signature_hash}"
+    if job_id:
+        return f"github_ops_job:{job_id}"
+    return f"github_ops:{job_kind}:{status}"
+
+
 def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, Any]]:
     report_rel = str(Path(".cache") / "reports" / "github_ops_report.v1.json")
     report_path = workspace_root / report_rel
@@ -105,14 +132,47 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
         notes.append("github_ops_jobs_index_empty")
         return sources
 
-    for job in sorted([j for j in jobs if isinstance(j, dict)], key=lambda j: str(j.get("job_id") or "")):
+    latest_by_key: dict[str, dict[str, Any]] = {}
+    latest_key_meta: dict[str, tuple[datetime, str]] = {}
+    terminal_statuses = {"PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"}
+    for job in [j for j in jobs if isinstance(j, dict)]:
         status = str(job.get("status") or "")
-        if status not in {"FAIL", "TIMEOUT", "KILLED", "SKIP"}:
+        if status not in terminal_statuses:
             continue
         job_id = str(job.get("job_id") or "")
         job_kind = str(job.get("kind") or "")
         if not job_id or not job_kind:
             continue
+        signature_hash = str(job.get("signature_hash") or "")
+        key = f"{job_kind}|{signature_hash}" if signature_hash else f"id:{job_id}"
+        ts = _parse_iso(
+            str(job.get("updated_at") or job.get("last_poll_at") or job.get("started_at") or job.get("created_at") or "")
+        ) or datetime.fromtimestamp(0, tz=timezone.utc)
+        meta = (ts, job_id)
+        prev_meta = latest_key_meta.get(key)
+        if prev_meta is None or meta > prev_meta:
+            latest_key_meta[key] = meta
+            latest_by_key[key] = job
+
+    for key in sorted(latest_by_key):
+        job = latest_by_key[key]
+        status = str(job.get("status") or "")
+        job_id = str(job.get("job_id") or "")
+        job_kind = str(job.get("kind") or "")
+        failure_class = str(job.get("failure_class") or "")
+        skip_reason = str(job.get("skip_reason") or "")
+        signature_hash = str(job.get("signature_hash") or "")
+        last_seen = str(
+            job.get("updated_at") or job.get("last_poll_at") or job.get("started_at") or job.get("created_at") or ""
+        )
+        source_ref = _github_ops_job_source_ref(
+            job_id=job_id,
+            job_kind=job_kind,
+            status=status,
+            failure_class=failure_class,
+            skip_reason=skip_reason,
+            signature_hash=signature_hash,
+        )
         evidence = list(evidence_base)
         for p in job.get("evidence_paths") if isinstance(job.get("evidence_paths"), list) else []:
             if isinstance(p, str):
@@ -123,13 +183,15 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
         sources.append(
             {
                 "source_type": "GITHUB_OPS",
-                "source_ref": job_id,
+                "source_ref": source_ref,
                 "title": f"GitHub ops job {status}: {job_kind}",
                 "github_ops_job_status": status,
                 "github_ops_job_kind": job_kind,
-                "github_ops_job_skip_reason": str(job.get("skip_reason") or ""),
-                "github_ops_job_failure_class": str(job.get("failure_class") or ""),
-                "github_ops_signature_hash": str(job.get("signature_hash") or ""),
+                "github_ops_job_skip_reason": skip_reason,
+                "github_ops_job_failure_class": failure_class,
+                "github_ops_signature_hash": signature_hash,
+                "last_seen": last_seen,
+                "last_status": status,
                 "evidence_paths": evidence,
             }
         )
@@ -157,12 +219,21 @@ def _load_job_status_sources(workspace_root: Path, notes: list[str]) -> list[dic
     evidence_base = [str(Path(".cache") / "airunner" / "jobs_index.v1.json")]
     for job in sorted([j for j in jobs if isinstance(j, dict)], key=lambda j: str(j.get("job_id") or "")):
         status = str(job.get("status") or "")
-        if status not in {"FAIL", "TIMEOUT", "KILLED", "SKIP"}:
+        if job.get("archived") or status == "ARCHIVED":
+            continue
+        if status not in {"FAIL", "TIMEOUT", "KILLED", "SKIP", "PASS"}:
+            continue
+        skip_reason = str(job.get("skip_reason") or "")
+        if status == "SKIP" and skip_reason == "STUCK_JOB":
             continue
         job_id = str(job.get("job_id") or "")
         job_type = str(job.get("job_type") or "")
         if not job_id or not job_type:
             continue
+        failure_class = str(job.get("failure_class") or "")
+        signature_hash = str(job.get("signature_hash") or "")
+        dedup_key = _job_dedup_key(job_type, failure_class, signature_hash, job_id)
+        updated_at = str(job.get("updated_at") or job.get("started_at") or job.get("created_at") or "")
         evidence = list(evidence_base)
         job_evidence = job.get("evidence_paths") if isinstance(job.get("evidence_paths"), list) else []
         for p in job_evidence:
@@ -175,14 +246,18 @@ def _load_job_status_sources(workspace_root: Path, notes: list[str]) -> list[dic
         sources.append(
             {
                 "source_type": "JOB_STATUS",
-                "source_ref": job_id,
+                "source_ref": dedup_key,
                 "title": f"Job {status}: {job_type}",
                 "job_status": status,
                 "job_type": job_type,
                 "job_skip_reason": str(job.get("skip_reason") or ""),
                 "job_error_code": str(job.get("error_code") or ""),
-                "job_failure_class": str(job.get("failure_class") or ""),
-                "job_signature_hash": str(job.get("signature_hash") or ""),
+                "job_failure_class": failure_class,
+                "job_signature_hash": signature_hash,
+                "job_last_seen": updated_at,
+                "job_last_status": status,
+                "job_severity_bucket": _job_failure_bucket(failure_class),
+                "job_dedup_key": dedup_key,
                 "evidence_paths": evidence,
             }
         )
@@ -205,19 +280,47 @@ def _load_time_sink_sources(workspace_root: Path, notes: list[str]) -> list[dict
         return []
     sources: list[dict[str, Any]] = []
     evidence = [str(Path(".cache") / "reports" / "time_sinks.v1.json")]
-    for sink in sorted([s for s in sinks if isinstance(s, dict)], key=lambda s: str(s.get("event_key") or "")):
-        event_key = str(sink.get("event_key") or "")
+    candidates: list[dict[str, Any]] = []
+    for sink in [s for s in sinks if isinstance(s, dict)]:
+        event_key = str(sink.get("op_name") or sink.get("event_key") or "")
         if not event_key:
             continue
+        p95 = int(sink.get("p95_ms", 0) or 0)
+        threshold = int(sink.get("threshold_ms", 0) or 0)
         breach_count = int(sink.get("breach_count", 0) or 0)
-        if breach_count <= 0:
+        p50 = int(sink.get("p50_ms", 0) or 0)
+        count = int(sink.get("count", 0) or 0)
+        last_seen = str(sink.get("last_seen") or "")
+        if p95 <= 0:
             continue
+        candidates.append(
+            {
+                "event_key": event_key,
+                "p95_ms": p95,
+                "threshold_ms": threshold,
+                "breach_count": breach_count,
+                "p50_ms": p50,
+                "count": count,
+                "last_seen": last_seen,
+                "over_threshold": bool(threshold and p95 >= threshold),
+            }
+        )
+    candidates.sort(key=lambda s: (-int(s.get("p95_ms", 0)), str(s.get("event_key"))))
+    for rank, sink in enumerate(candidates[:3], start=1):
+        event_key = str(sink.get("event_key") or "")
         sources.append(
             {
                 "source_type": "TIME_SINK",
                 "source_ref": event_key,
                 "title": f"Time sink: {event_key}",
-                "time_sink_breach_count": breach_count,
+                "time_sink_count": int(sink.get("count", 0)),
+                "time_sink_p50_ms": int(sink.get("p50_ms", 0)),
+                "time_sink_p95_ms": int(sink.get("p95_ms", 0)),
+                "time_sink_threshold_ms": int(sink.get("threshold_ms", 0)),
+                "time_sink_breach_count": int(sink.get("breach_count", 0)),
+                "time_sink_over_threshold": bool(sink.get("over_threshold", False)),
+                "time_sink_rank": int(rank),
+                "time_sink_last_seen": str(sink.get("last_seen") or ""),
                 "evidence_paths": evidence,
             }
         )
@@ -272,6 +375,24 @@ def _save_cooldowns(workspace_root: Path, cooldowns: dict[str, Any]) -> str:
     return rel or str(path)
 
 
+def _update_index_notes(index_path: Path, note: str) -> None:
+    if not note:
+        return
+    if not index_path.exists():
+        return
+    try:
+        obj = _load_json(index_path)
+    except Exception:
+        return
+    if not isinstance(obj, dict):
+        return
+    notes = obj.get("notes") if isinstance(obj.get("notes"), list) else []
+    notes_set = {str(x) for x in notes if isinstance(x, str)}
+    notes_set.add(note)
+    obj["notes"] = sorted(notes_set)
+    index_path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
 def _apply_job_status_cooldown(
     sources: list[dict[str, Any]],
     workspace_root: Path,
@@ -284,6 +405,7 @@ def _apply_job_status_cooldown(
     now = datetime.now(timezone.utc)
     suppressed = 0
     filtered: list[dict[str, Any]] = []
+    job_sources: dict[str, dict[str, Any]] = {}
 
     for source in sources:
         if source.get("source_type") != "JOB_STATUS":
@@ -292,35 +414,52 @@ def _apply_job_status_cooldown(
         job_type = str(source.get("job_type") or "")
         failure_class = str(source.get("job_failure_class") or "")
         signature_hash = str(source.get("job_signature_hash") or "")
-        if not job_type or not failure_class or not signature_hash:
-            filtered.append(source)
-            continue
-        key = f"{job_type}|{failure_class}|{signature_hash}"
-        entry = entries.get(key) if isinstance(entries.get(key), dict) else {}
-        last_seen = _parse_iso(str(entry.get("last_seen") or ""))
-        if last_seen and now - last_seen < timedelta(seconds=window_seconds):
-            entry["suppressed_count"] = int(entry.get("suppressed_count", 0)) + 1
-            entry["count"] = int(entry.get("count", 0)) + 1
-            entry["last_seen"] = _now_iso()
-            entry["job_type"] = job_type
-            entry["failure_class"] = failure_class
-            entry["signature_hash"] = signature_hash
-            entries[key] = entry
-            suppressed += 1
-            continue
+        dedup_key = str(source.get("job_dedup_key") or "")
+        if not dedup_key:
+            dedup_key = _job_dedup_key(job_type, failure_class, signature_hash, str(source.get("source_ref") or ""))
+        last_seen_raw = str(source.get("job_last_seen") or "")
+        last_seen = _parse_iso(last_seen_raw) or now
+        entry = entries.get(dedup_key) if isinstance(entries.get(dedup_key), dict) else {}
+        entry_last_seen = _parse_iso(str(entry.get("last_seen") or ""))
+        within_window = bool(entry_last_seen and now - entry_last_seen < timedelta(seconds=window_seconds))
+        was_suppressed = False
+
         entry["count"] = int(entry.get("count", 0)) + 1
-        entry["last_seen"] = _now_iso()
+        entry["last_seen"] = last_seen.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        entry["last_status"] = str(source.get("job_status") or "")
         entry["job_type"] = job_type
-        entry["failure_class"] = failure_class
+        entry["severity_bucket"] = _job_failure_bucket(failure_class)
         entry["signature_hash"] = signature_hash
-        entries[key] = entry
-        filtered.append(source)
+        if within_window:
+            entry["suppressed_count"] = int(entry.get("suppressed_count", 0)) + 1
+            suppressed += 1
+            source["job_update_only"] = True
+            was_suppressed = True
+        entries[dedup_key] = entry
+
+        existing = job_sources.get(dedup_key)
+        if existing is None:
+            job_sources[dedup_key] = source
+        else:
+            if not was_suppressed:
+                suppressed += 1
+            existing_seen = _parse_iso(str(existing.get("job_last_seen") or ""))
+            if last_seen and (existing_seen is None or last_seen > existing_seen):
+                job_sources[dedup_key] = source
+
+    if job_sources:
+        for key in sorted(job_sources):
+            filtered.append(job_sources[key])
 
     cooldowns["entries"] = entries
     cooldowns["notes"] = sorted({*(cooldowns.get("notes") or []), f"suppressed={suppressed}"})
     _save_cooldowns(workspace_root, cooldowns)
     if suppressed:
         notes.append(f"job_status_suppressed={suppressed}")
+        _update_index_notes(
+            workspace_root / ".cache" / "airunner" / "jobs_index.v1.json",
+            f"job_status_suppressed={suppressed}",
+        )
     return filtered
 
 
@@ -336,22 +475,26 @@ def _apply_github_ops_cooldown(
     now = datetime.now(timezone.utc)
     suppressed = 0
     filtered: list[dict[str, Any]] = []
+    emitted: set[str] = set()
+    emitted_index: dict[str, int] = {}
 
     for source in sources:
         if source.get("source_type") != "GITHUB_OPS":
             filtered.append(source)
             continue
         status = str(source.get("github_ops_job_status") or "")
-        if status not in {"FAIL", "TIMEOUT", "KILLED"}:
+        if status not in {"FAIL", "TIMEOUT", "KILLED", "SKIP"}:
             filtered.append(source)
             continue
         failure_class = str(source.get("github_ops_job_failure_class") or "")
         signature_hash = str(source.get("github_ops_signature_hash") or "")
         job_kind = str(source.get("github_ops_job_kind") or "")
-        if not failure_class or not signature_hash or not job_kind:
+        skip_reason = str(source.get("github_ops_job_skip_reason") or "")
+        if not signature_hash or not job_kind:
             filtered.append(source)
             continue
-        key = f"github_ops|{job_kind}|{failure_class}|{signature_hash}"
+        reason = failure_class or skip_reason or status
+        key = f"github_ops|{job_kind}|{reason}|{signature_hash}"
         entry = entries.get(key) if isinstance(entries.get(key), dict) else {}
         last_seen = _parse_iso(str(entry.get("last_seen") or ""))
         if last_seen and now - last_seen < timedelta(seconds=window_seconds):
@@ -363,13 +506,23 @@ def _apply_github_ops_cooldown(
             entry["signature_hash"] = signature_hash
             entries[key] = entry
             suppressed += 1
-            continue
+            if key in emitted:
+                idx = emitted_index.get(key)
+                if isinstance(idx, int) and 0 <= idx < len(filtered):
+                    latest_seen = str(source.get("last_seen") or "")
+                    if latest_seen:
+                        filtered[idx]["last_seen"] = latest_seen
+                        filtered[idx]["last_status"] = status
+                continue
+            source["github_ops_suppressed"] = True
         entry["count"] = int(entry.get("count", 0)) + 1
         entry["last_seen"] = _now_iso()
         entry["job_kind"] = job_kind
         entry["failure_class"] = failure_class
         entry["signature_hash"] = signature_hash
         entries[key] = entry
+        emitted.add(key)
+        emitted_index[key] = len(filtered)
         filtered.append(source)
 
     cooldowns["entries"] = entries
@@ -377,4 +530,8 @@ def _apply_github_ops_cooldown(
     _save_cooldowns(workspace_root, cooldowns)
     if suppressed:
         notes.append(f"github_ops_suppressed={suppressed}")
+        _update_index_notes(
+            workspace_root / ".cache" / "github_ops" / "jobs_index.v1.json",
+            f"github_ops_suppressed={suppressed}",
+        )
     return filtered

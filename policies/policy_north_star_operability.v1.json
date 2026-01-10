@@ -1,0 +1,63 @@
+{
+  "version": "v1",
+  "thresholds": {
+    "hard_exceeded_must_be": 0,
+    "soft_target": 0,
+    "soft_warn": 1,
+    "placeholders_warn": 25,
+    "placeholders_fail": 200,
+    "jobs_stuck_warn": 1,
+    "jobs_stuck_fail": 5,
+    "jobs_fail_warn": 3,
+    "jobs_fail_fail": 10,
+    "pdca_cursor_stale_hours_warn": 24,
+    "pdca_cursor_stale_hours_fail": 72,
+    "heartbeat_stale_seconds_warn": 1800,
+    "heartbeat_stale_seconds_fail": 7200,
+    "intake_new_items_per_day_warn": 25,
+    "intake_new_items_per_day_fail": 100,
+    "suppressed_per_day_warn": 200
+  },
+  "signals": {
+    "script_budget": true,
+    "doc_nav_placeholders": true,
+    "airunner_jobs": true,
+    "pdca_cursor": true,
+    "airunner_heartbeat": true,
+    "work_intake_noise": true,
+    "integrity_pass_required": true
+  },
+  "classification": {
+    "FAIL_if": {
+      "hard_exceeded_gt": 0,
+      "integrity_fail": true,
+      "jobs_stuck_gt": "jobs_stuck_fail",
+      "pdca_cursor_stale_hours_gt": "pdca_cursor_stale_hours_fail",
+      "heartbeat_stale_seconds_gt": "heartbeat_stale_seconds_fail",
+      "placeholders_gt": "placeholders_fail",
+      "intake_new_items_per_day_gt": "intake_new_items_per_day_fail"
+    },
+    "WARN_if": {
+      "soft_exceeded_gt": 0,
+      "jobs_fail_gt": "jobs_fail_warn",
+      "jobs_stuck_gt": "jobs_stuck_warn",
+      "pdca_cursor_stale_hours_gt": "pdca_cursor_stale_hours_warn",
+      "heartbeat_stale_seconds_gt": "heartbeat_stale_seconds_warn",
+      "placeholders_gt": "placeholders_warn",
+      "intake_new_items_per_day_gt": "intake_new_items_per_day_warn",
+      "suppressed_per_day_gt": "suppressed_per_day_warn"
+    }
+  },
+  "gap_rules": {
+    "hard_exceeded_gt": "INCIDENT:MAINTAINABILITY_BLOCKER",
+    "integrity_fail": "INCIDENT:INTEGRITY_DRIFT",
+    "soft_exceeded_gt": "PROJECT:MAINTAINABILITY_PLAN_ONLY",
+    "jobs_stuck_gt": "TICKET:JOB_LIFECYCLE_HYGIENE",
+    "jobs_fail_gt": "TICKET:JOB_FAILURE_TRIAGE",
+    "pdca_cursor_stale_hours_gt": "TICKET:PDCA_STALENESS",
+    "heartbeat_stale_seconds_gt": "INCIDENT:RUNNER_STALLED",
+    "placeholders_gt": "TICKET:DOC_PLACEHOLDER_REVIEW",
+    "intake_new_items_per_day_gt": "TICKET:NOISE_CONTROL",
+    "suppressed_per_day_gt": "TICKET:NOISE_CONTROL"
+  }
+}

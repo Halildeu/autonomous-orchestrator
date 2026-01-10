@@ -221,7 +221,7 @@
         "id": { "type": "string", "minLength": 1 },
         "source_type": {
           "type": "string",
-          "enum": ["GAP", "PDCA_REGRESSION", "SCRIPT_BUDGET", "DOC_NAV", "USER_REQUEST", "ROADMAP_ITEM", "INTEGRITY", "MANUAL_REQUEST", "RELEASE", "JOB_STATUS", "TIME_SINK", "GITHUB_OPS"]
+          "enum": ["GAP", "LENS_GAP", "PDCA_REGRESSION", "SCRIPT_BUDGET", "DOC_NAV", "USER_REQUEST", "ROADMAP_ITEM", "INTEGRITY", "MANUAL_REQUEST", "RELEASE", "JOB_STATUS", "TIME_SINK", "GITHUB_OPS"]
         },
         "when": {
           "type": "object",
@@ -265,14 +265,20 @@
             "job_failure_class_in": { "type": "array", "items": { "$ref": "#/$defs/job_failure_class" } },
             "job_skip_reason_in": { "type": "array", "items": { "type": "string" } },
             "time_sink_escalate_eq": { "type": "boolean" },
-            "time_sink_breach_count_gte": { "type": "integer", "minimum": 0 }
+            "time_sink_breach_count_gte": { "type": "integer", "minimum": 0 },
+            "time_sink_over_threshold_eq": { "type": "boolean" },
+            "time_sink_p95_ms_gte": { "type": "integer", "minimum": 0 },
+            "lens_id_in": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "lens_reason_in": { "type": "array", "items": { "type": "string", "minLength": 1 } }
           }
         },
         "bucket": { "$ref": "#/$defs/bucket" },
         "severity": { "$ref": "#/$defs/severity" },
         "priority": { "$ref": "#/$defs/priority" },
         "tags": { "type": "array", "items": { "type": "string" } },
-        "suggested_extension": { "type": "string", "minLength": 1 }
+        "suggested_extension": { "type": "string", "minLength": 1 },
+        "auto_close": { "type": "boolean" },
+        "closed_reason": { "type": "string" }
       }
     }
   }

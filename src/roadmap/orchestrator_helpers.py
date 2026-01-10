@@ -217,7 +217,17 @@ def _core_paths_allowed(paths: list[str], allowed: tuple[str, ...]) -> bool:
     if not allowed:
         return False
     for path in paths:
-        if not any(fnmatch.fnmatch(path, pattern) for pattern in allowed):
+        matched = False
+        for pattern in allowed:
+            pat = str(pattern)
+            if pat.endswith("/"):
+                if path.startswith(pat):
+                    matched = True
+                    break
+            if fnmatch.fnmatch(path, pat):
+                matched = True
+                break
+        if not matched:
             return False
     return True
 
@@ -758,6 +768,17 @@ def _load_debt_policy(*, core_root: Path, workspace_root: Path) -> _DebtPolicy:
         return defaults
     if not isinstance(obj, dict):
         return defaults
+    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_core_immutability.override.v1.json"
+    if override_path.exists():
+        try:
+            override_obj = _load_json(override_path)
+        except Exception:
+            override_obj = {}
+        if isinstance(override_obj, dict):
+            override_allowlist = override_obj.get("ssot_write_allowlist")
+            if isinstance(override_allowlist, list):
+                obj = dict(obj)
+                obj["ssot_write_allowlist"] = override_allowlist
     enabled = bool(obj.get("enabled", defaults.enabled))
     try:
         max_items = int(obj.get("max_items", defaults.max_items))
@@ -803,6 +824,9 @@ class _CoreImmutabilityPolicy:
     default_mode: str
     allow_env_var: str
     allow_env_value: str
+    core_write_mode: str
+    ssot_write_allowlist: tuple[str, ...]
+    require_unlock_reason: bool
     evidence_required_when_unlocked: bool
     blocked_write_error_code: str
     core_git_required: bool
@@ -814,6 +838,9 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         default_mode="locked",
         allow_env_var="CORE_UNLOCK",
         allow_env_value="1",
+        core_write_mode="locked",
+        ssot_write_allowlist=tuple(),
+        require_unlock_reason=False,
         evidence_required_when_unlocked=True,
         blocked_write_error_code="CORE_IMMUTABLE_WRITE_BLOCKED",
         core_git_required=True,
@@ -842,6 +869,14 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         allow_env_var = defaults.allow_env_var
     if not isinstance(allow_env_value, str) or not allow_env_value.strip():
         allow_env_value = defaults.allow_env_value
+    core_write_mode = obj.get("core_write_mode", defaults.core_write_mode)
+    if core_write_mode not in {"locked", "ssot_only_when_unlocked"}:
+        core_write_mode = defaults.core_write_mode
+    raw_allowlist = obj.get("ssot_write_allowlist", list(defaults.ssot_write_allowlist))
+    if not isinstance(raw_allowlist, list):
+        raw_allowlist = list(defaults.ssot_write_allowlist)
+    ssot_write_allowlist = tuple(sorted({str(x) for x in raw_allowlist if isinstance(x, str) and x.strip()}))
+    require_unlock_reason = bool(obj.get("require_unlock_reason", defaults.require_unlock_reason))
     evidence_required_when_unlocked = bool(
         obj.get("evidence_required_when_unlocked", defaults.evidence_required_when_unlocked)
     )
@@ -854,6 +889,9 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
         default_mode=str(default_mode),
         allow_env_var=str(allow_env_var),
         allow_env_value=str(allow_env_value),
+        core_write_mode=str(core_write_mode),
+        ssot_write_allowlist=ssot_write_allowlist,
+        require_unlock_reason=require_unlock_reason,
         evidence_required_when_unlocked=evidence_required_when_unlocked,
         blocked_write_error_code=str(blocked_write_error_code),
         core_git_required=core_git_required,
@@ -861,7 +899,12 @@ def _load_core_immutability_policy(*, core_root: Path, workspace_root: Path) -> 
 
 
 def _core_unlock_requested(policy: _CoreImmutabilityPolicy) -> bool:
-    return str(os.environ.get(policy.allow_env_var, "")).strip() == str(policy.allow_env_value)
+    unlock_ok = str(os.environ.get(policy.allow_env_var, "")).strip() == str(policy.allow_env_value)
+    if not unlock_ok:
+        return False
+    if policy.require_unlock_reason:
+        return bool(str(os.environ.get("CORE_UNLOCK_REASON", "")).strip())
+    return True
 
 
 def _core_immutability_check(
@@ -881,6 +924,10 @@ def _core_immutability_check(
     if not new_lines:
         return (True, None, [])
     if _core_unlock_requested(policy) and policy.default_mode == "locked":
+        if policy.core_write_mode == "ssot_only_when_unlocked":
+            paths = _git_status_paths(new_lines)
+            if not _core_paths_allowed(paths, policy.ssot_write_allowlist):
+                return (False, policy.blocked_write_error_code, new_lines)
         return (True, None, new_lines)
     return (False, policy.blocked_write_error_code, new_lines)
 

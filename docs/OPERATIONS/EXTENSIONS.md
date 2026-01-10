@@ -19,6 +19,22 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Network default kapali; publish/deploy policy ile ve explicit enable ile.
 - Plan yok => IDLE (non-fatal).
 
+## Model Extension Contract (MUST)
+- schema + policy + ops + intake + cockpit + tests tek pakettir.
+- core yalniz motor/gates/evidence; domain logic extension icinde kalir.
+- tenant policy side-effect ve network kararlarini belirler (default OFF).
+- delivery mode: embedded | vendor_pack.
+- evidence/provenance her cikti icin zorunludur.
+
+## Customer mode
+- Ayni extension, farkli tenant policy ile calisir.
+- Workspace output'lari repo-bazli izole edilir.
+
+## Portability Contract
+- Extension ops-only single-gate calisir; shell komut yok.
+- Tenant policy network/push/merge/release davranisini belirler.
+- Workspace output'lari repo-bazli izole edilir (per-repo cache + evidence).
+
 ## AI Context Pack
 - AGENTS.md
 - docs/LAYER-MODEL-LOCK.v1.md
@@ -71,6 +87,13 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Single gate: pm-suite-check (planned).
 - Outputs: .cache/reports/pm_suite_status.v1.json
 - Policies: policies/policy_pm_suite.v1.json
+
+<a id="ext-PRJ-PLANNER"></a>
+### PRJ-PLANNER
+- Purpose: plan-first selection + CHG drafts (no direct apply).
+- Single gate: planner-show-plan.
+- Outputs: .cache/index/plans/PLN-*.v1.json, .cache/reports/planner_plan_summary.v1.md, .cache/index/work_intake_selection.v1.json
+- Policies: policies/policy_planner.v1.json
 
 <a id="ext-PRJ-AIRUNNER"></a>
 ### PRJ-AIRUNNER

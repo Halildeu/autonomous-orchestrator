@@ -122,6 +122,15 @@ def schema_path_for_policy(policy_path: Path, *, schemas_dir: Path) -> Path:
     # policy_security.v1.json -> policy-security.schema.json
     name = policy_path.name
     base = name.split(".v", 1)[0] if ".v" in name else name.rsplit(".json", 1)[0]
+    version = None
+    if ".v" in name:
+        version_part = name.split(".v", 1)[1].split(".json", 1)[0]
+        if version_part.isdigit():
+            version = f"v{version_part}"
+    if version and version != "v1":
+        candidate = schemas_dir / (base.replace("_", "-") + f".schema.{version}.json")
+        if candidate.exists():
+            return candidate
     schema_name = base.replace("_", "-") + ".schema.json"
     schema_path = schemas_dir / schema_name
     if schema_path.exists():

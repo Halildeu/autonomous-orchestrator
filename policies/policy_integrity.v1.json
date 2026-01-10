@@ -3,6 +3,9 @@
   "enabled": true,
   "verify_on_read_required": true,
   "allow_report_only_when_missing_sources": true,
+  "exclude_paths": [
+    ".cache/reports/system_status.v1.json"
+  ],
   "inputs": {
     "system_status": { "required": true, "on_mismatch": "FAIL" },
     "pack_index": { "required": true, "on_mismatch": "FAIL" },

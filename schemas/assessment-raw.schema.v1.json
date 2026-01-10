@@ -51,6 +51,85 @@
         "warnings": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "script_budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hard_exceeded", "soft_exceeded"],
+          "properties": {
+            "hard_exceeded": { "type": "integer", "minimum": 0 },
+            "soft_exceeded": { "type": "integer", "minimum": 0 },
+            "top_offenders": { "type": "array", "items": { "type": "string" } },
+            "report_path": { "type": "string" }
+          }
+        },
+        "doc_nav": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["placeholders_count", "broken_refs", "orphan_critical"],
+          "properties": {
+            "placeholders_count": { "type": "integer", "minimum": 0 },
+            "broken_refs": { "type": "integer", "minimum": 0 },
+            "orphan_critical": { "type": "integer", "minimum": 0 },
+            "report_path": { "type": "string" }
+          }
+        },
+        "airunner_jobs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["queued", "running", "fail", "pass", "stuck"],
+          "properties": {
+            "queued": { "type": "integer", "minimum": 0 },
+            "running": { "type": "integer", "minimum": 0 },
+            "fail": { "type": "integer", "minimum": 0 },
+            "pass": { "type": "integer", "minimum": 0 },
+            "stuck": { "type": "integer", "minimum": 0 },
+            "last_job_age_seconds": { "type": "integer", "minimum": 0 },
+            "jobs_index_path": { "type": "string" }
+          }
+        },
+        "pdca_cursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stale_hours"],
+          "properties": {
+            "stale_hours": { "type": "number", "minimum": 0 },
+            "cursor_hash": { "type": "string" },
+            "last_updated": { "type": "string", "format": "date-time" }
+          }
+        },
+        "airunner_heartbeat": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stale_seconds"],
+          "properties": {
+            "stale_seconds": { "type": "integer", "minimum": 0 },
+            "lock_state": { "type": "string" },
+            "heartbeat_path": { "type": "string" }
+          }
+        },
+        "work_intake_noise": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["new_items_24h", "suppressed_24h"],
+          "properties": {
+            "new_items_24h": { "type": "integer", "minimum": 0 },
+            "suppressed_24h": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "type": "string", "enum": ["PASS", "WARN", "FAIL", "UNKNOWN"] }
+          }
+        }
+      }
+    },
     "notes": { "type": "array", "items": { "type": "string" } }
   }
 }

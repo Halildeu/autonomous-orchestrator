@@ -20,7 +20,9 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - src/prj_kernel_api/dotenv_loader_contract_test.py
 
 ## Operations Docs (SSOT)
+- docs/LAYER-MODEL-LOCK.v1.md
 - docs/OPERATIONS/EXTENSIONS.md
+- docs/OPERATIONS/NORTH-STAR-EVAL-LENSES.v1.md
 
 ## Schemas (SSOT)
 - schemas/advisor-suggestions.schema.json
@@ -29,6 +31,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/airunner-jobs-index.schema.v1.json
 - schemas/airunner-lock.schema.v1.json
 - schemas/airunner-perf-event.schema.v1.json
+- schemas/airunner-proof-bundle.schema.v1.json
+- schemas/airunner-seed-audit.schema.v1.json
 - schemas/airunner-time-sinks.schema.v1.json
 - schemas/assessment-eval.schema.v1.json
 - schemas/assessment-raw.schema.v1.json
@@ -37,13 +41,20 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/chg-debt.schema.json
 - schemas/context-pack-router-result.schema.v1.json
 - schemas/context-pack.schema.v1.json
+- schemas/context-pack-candidates.schema.v1.json
+- schemas/context-pack-merge.schema.v1.json
 - schemas/doc-graph-report.schema.json
+- schemas/doer-actionability.schema.v1.json
+- schemas/decision-inbox.schema.v1.json
+- schemas/decision-apply-bulk.schema.v1.json
 - schemas/extension-help.schema.v1.json
 - schemas/extension-manifest.schema.v1.json
 - schemas/extension-registry.schema.v1.json
 - schemas/format-autopilot-chat.schema.json
 - schemas/gap.record.schema.json
 - schemas/github-ops-job.schema.v1.json
+- schemas/github-ops-job.schema.v2.json
+- schemas/github-ops-jobs-index.schema.v1.json
 - schemas/github-ops-report.schema.v1.json
 - schemas/integrity-snapshot.schema.v1.json
 - schemas/kernel-api-request.schema.v1.json
@@ -55,6 +66,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-layer-boundary.schema.v1.json
 - schemas/policy-llm-live.schema.json
 - schemas/policy-llm-providers-guardrails.schema.json
+- schemas/policy-north-star-eval-lenses.schema.v1.json
+- schemas/policy-north-star-operability.schema.v1.json
 - schemas/policy-pdca.schema.json
 - src/prj_kernel_api/http_gateway.py
 - src/prj_kernel_api/http_gateway_contract_test.py
@@ -75,12 +88,15 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-advisor.schema.json
 - schemas/policy-airunner.schema.v1.json
 - schemas/policy-airunner-jobs.schema.v1.json
+- schemas/policy-airunner-jobs.schema.v2.json
 - schemas/policy-artifact-completeness.schema.json
 - schemas/policy-autonomy.schema.json
+- schemas/policy-autopilot-apply.schema.v1.json
 - schemas/policy-autopilot-readiness.schema.json
 - schemas/policy-benchmark.schema.json
 - schemas/policy-core-immutability.schema.json
 - schemas/policy-context-pack-router.schema.v1.json
+- schemas/policy-context-triangulation.schema.v1.json
 - schemas/policy-cve.schema.json
 - schemas/policy-data.schema.json
 - schemas/policy-debt.schema.json
@@ -95,6 +111,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-ops-index.schema.json
 - schemas/policy-pack-selection.schema.json
 - schemas/policy-pm-suite.schema.v1.json
+- schemas/policy-planner.schema.v1.json
+- schemas/policy-preflight-stamp.schema.v1.json
 - schemas/policy-promotion.schema.json
 - schemas/policy-quality.schema.json
 - schemas/policy-quota.schema.json
@@ -103,6 +121,9 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-secrets.schema.json
 - schemas/policy-security.schema.json
 - schemas/policy-system-status.schema.json
+- schemas/planner-plan.schema.v1.json
+- schemas/planner-step.schema.v1.json
+- schemas/preflight-stamp.schema.v1.json
 - schemas/project-manifest.schema.json
 - schemas/promote.manifest.schema.json
 - schemas/promotion-manifest.schema.json
@@ -119,8 +140,11 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/spec-capability.schema.json
 - schemas/spec-core.schema.json
 - schemas/system-status.schema.json
+- schemas/ui-snapshot-bundle.schema.v1.json
 - schemas/work-intake.schema.v1.json
 - schemas/work-intake-action.schema.v1.json
+- schemas/policy-auto-mode.schema.v1.json
+- schemas/policy-decision-inbox.schema.v1.json
 - schemas/policy-work-intake.schema.json
 - schemas/policy-work-intake.schema.v1.json
 - schemas/policy-work-intake-exec.schema.v1.json
@@ -129,14 +153,19 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/policy_advisor.v1.json
 - policies/policy_airunner.v1.json
 - policies/policy_airunner_jobs.v1.json
+- policies/policy_airunner_jobs.v2.json
 - policies/policy_artifact_completeness.v1.json
 - policies/policy_autonomy.v1.json
+- policies/policy_autopilot_apply.v1.json
 - policies/policy_autopilot_readiness.v1.json
+- policies/policy_auto_mode.v1.json
 - policies/policy_benchmark.v1.json
 - policies/policy_core_immutability.v1.json
 - policies/policy_context_pack_router.v1.json
+- policies/policy_context_triangulation.v1.json
 - policies/policy_cve.v1.json
 - policies/policy_data.v1.json
+- policies/policy_decision_inbox.v1.json
 - policies/policy_debt.v1.json
 - policies/policy_default.v1.json
 - policies/policy_doc_graph.v1.json
@@ -151,10 +180,14 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/policy_layer_boundary.v1.json
 - policies/policy_llm_live.v1.json
 - policies/policy_llm_providers_guardrails.v1.json
+- policies/policy_north_star_eval_lenses.v1.json
+- policies/policy_north_star_operability.v1.json
 - policies/policy_ops_index.v1.json
 - policies/policy_pdca.v1.json
 - policies/policy_pack_selection.v1.json
 - policies/policy_promotion.v1.json
+- policies/policy_planner.v1.json
+- policies/policy_preflight_stamp.v1.json
 - policies/policy_quality.v1.json
 - policies/policy_quota.v1.json
 - policies/policy_release_automation.v1.json
@@ -175,15 +208,21 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - capabilities/CAP_OWASP_AI_BASE.v1.json
 
 ## Standards Packs (SSOT)
+- packs/standards/pack-github-ops/pack.manifest.v1.json
+- packs/standards/pack-github-ops/controls.v1.json
+- packs/standards/pack-github-ops/metrics.v1.json
 - packs/standards/pack-iso9001-2015/pack.manifest.v1.json
 - packs/standards/pack-iso9001-2015/controls.v1.json
 - packs/standards/pack-iso9001-2015/metrics.v1.json
-- packs/standards/pack-owasp-ai/pack.manifest.v1.json
-- packs/standards/pack-owasp-ai/controls.v1.json
-- packs/standards/pack-owasp-ai/metrics.v1.json
 - packs/standards/pack-nist-ai-rmf/pack.manifest.v1.json
 - packs/standards/pack-nist-ai-rmf/controls.v1.json
 - packs/standards/pack-nist-ai-rmf/metrics.v1.json
+- packs/standards/pack-owasp-ai/pack.manifest.v1.json
+- packs/standards/pack-owasp-ai/controls.v1.json
+- packs/standards/pack-owasp-ai/metrics.v1.json
+- packs/standards/pack-release-automation/pack.manifest.v1.json
+- packs/standards/pack-release-automation/controls.v1.json
+- packs/standards/pack-release-automation/metrics.v1.json
 
 ## Extensions (SSOT)
 - extensions/release-automation/extension.manifest.v1.json
@@ -192,7 +231,11 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - extensions/PRJ-KERNEL-API/extension.manifest.v1.json
 - extensions/PRJ-M0-MAINTAINABILITY/extension.manifest.v1.json
 - extensions/PRJ-PM-SUITE/extension.manifest.v1.json
+- extensions/PRJ-PLANNER/extension.manifest.v1.json
 - extensions/PRJ-WORK-INTAKE/extension.manifest.v1.json
+
+## Contract Tests (SSOT-bound)
+- src/ops/system_status_release_apply_proof_contract_test.py
 
 ## Notes
 - Bu listede olmayan dosyalar yardımcı olabilir; ancak kritik SSOT olarak değerlendirilmez.

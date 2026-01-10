@@ -123,11 +123,28 @@ def build_integrity_snapshot(
 
     inputs_policy = policy.get("inputs") if isinstance(policy, dict) else {}
     inputs_policy = inputs_policy if isinstance(inputs_policy, dict) else {}
+    exclude_inputs = policy.get("exclude_inputs") if isinstance(policy, dict) else []
+    if not isinstance(exclude_inputs, list):
+        exclude_inputs = []
+    exclude_paths = policy.get("exclude_paths") if isinstance(policy, dict) else []
+    if not isinstance(exclude_paths, list):
+        exclude_paths = []
+    exclude_inputs_set = {str(x) for x in exclude_inputs if isinstance(x, str) and x.strip()}
+    exclude_paths_set = {str(x) for x in exclude_paths if isinstance(x, str) and x.strip()}
+    excluded_keys: set[str] = set()
+    for key, rel_path in INTEGRITY_INPUTS.items():
+        rel = rel_path.as_posix()
+        abs_rel = _relpath_or_fallback(workspace_root, input_paths[key], rel)
+        if key in exclude_inputs_set or rel in exclude_paths_set or abs_rel in exclude_paths_set:
+            excluded_keys.add(key)
+            input_hashes[key] = None
 
     mismatch_keys: set[str] = set()
     missing_required: set[str] = set()
 
     for key, path in input_paths.items():
+        if key in excluded_keys:
+            continue
         curr = input_hashes.get(key)
         prev = prev_hashes.get(key)
         rule = inputs_policy.get(key) if isinstance(inputs_policy.get(key), dict) else {}
@@ -173,6 +190,7 @@ def build_integrity_snapshot(
         "generated_at": _now_iso(),
         "workspace_root": str(workspace_root),
         "input_hashes": input_hashes,
+        "excluded_inputs": sorted(excluded_keys),
         "pointer_store_head": pointer_store_head,
         "verify_on_read_result": verify_on_read_result,
         "mismatch_count": len(mismatch_paths),

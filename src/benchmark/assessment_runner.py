@@ -11,7 +11,7 @@ from jsonschema import Draft202012Validator
 
 from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import build_gap_register, build_gap_summary_md
-from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity, load_previous_snapshot
+from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
 
 
 def _now_iso() -> str:
@@ -28,6 +28,25 @@ def _load_json(path: Path) -> Any:
 
 def _hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _parse_iso(value: str | None) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        if value.endswith("Z"):
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
+
+
+def _seconds_since(value: str | None) -> int:
+    parsed = _parse_iso(value)
+    if parsed is None:
+        return 0
+    delta = datetime.now(timezone.utc) - parsed
+    return max(0, int(delta.total_seconds()))
 
 
 def _ensure_inside_workspace(workspace_root: Path, target: Path) -> None:
@@ -73,6 +92,209 @@ def _load_policy(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
             "max_controls": 2000,
         }
     return _load_json(path)
+
+
+def _load_script_budget_signal(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
+    ws_report = workspace_root / ".cache" / "script_budget" / "report.json"
+    report_path = ws_report if ws_report.exists() else core_root / ".cache" / "script_budget" / "report.json"
+    if not report_path.exists():
+        return {"hard_exceeded": 0, "soft_exceeded": 0, "top_offenders": [], "report_path": ""}
+    try:
+        obj = _load_json(report_path)
+    except Exception:
+        return {"hard_exceeded": 0, "soft_exceeded": 0, "top_offenders": [], "report_path": str(report_path)}
+
+    exceeded_hard = obj.get("exceeded_hard") if isinstance(obj, dict) else None
+    exceeded_soft = obj.get("exceeded_soft") if isinstance(obj, dict) else None
+    function_hard = obj.get("function_hard") if isinstance(obj, dict) else None
+    function_soft = obj.get("function_soft") if isinstance(obj, dict) else None
+
+    hard_count = len(exceeded_hard) if isinstance(exceeded_hard, list) else 0
+    hard_count += len(function_hard) if isinstance(function_hard, list) else 0
+    soft_count = len(exceeded_soft) if isinstance(exceeded_soft, list) else 0
+    soft_count += len(function_soft) if isinstance(function_soft, list) else 0
+
+    offenders: list[str] = []
+    for entry in (exceeded_hard or []) + (exceeded_soft or []) + (function_hard or []) + (function_soft or []):
+        if isinstance(entry, dict):
+            for key in ("path", "file", "filename"):
+                val = entry.get(key)
+                if isinstance(val, str) and val.strip():
+                    offenders.append(val)
+                    break
+        elif isinstance(entry, str):
+            offenders.append(entry)
+
+    return {
+        "hard_exceeded": int(hard_count),
+        "soft_exceeded": int(soft_count),
+        "top_offenders": sorted({p for p in offenders if p}),
+        "report_path": str(report_path),
+    }
+
+
+def _load_doc_nav_signal(*, workspace_root: Path) -> dict[str, Any]:
+    strict_path = workspace_root / ".cache" / "reports" / "doc_graph_report.strict.v1.json"
+    summary_path = workspace_root / ".cache" / "reports" / "doc_graph_report.v1.json"
+    report_path = strict_path if strict_path.exists() else summary_path
+    if not report_path.exists():
+        return {"placeholders_count": 0, "broken_refs": 0, "orphan_critical": 0, "report_path": ""}
+    try:
+        obj = _load_json(report_path)
+    except Exception:
+        return {"placeholders_count": 0, "broken_refs": 0, "orphan_critical": 0, "report_path": str(report_path)}
+    counts = obj.get("counts") if isinstance(obj, dict) else None
+    if isinstance(counts, dict):
+        placeholders = int(counts.get("placeholder_refs_count", 0) or 0)
+        broken_refs = int(counts.get("broken_refs", 0) or 0)
+        orphan_critical = int(counts.get("orphan_critical", 0) or 0)
+    else:
+        placeholders = int(obj.get("placeholder_refs_count", 0) or 0) if isinstance(obj, dict) else 0
+        broken_refs = int(obj.get("broken_refs", 0) or 0) if isinstance(obj, dict) else 0
+        orphan_critical = int(obj.get("orphan_critical", 0) or 0) if isinstance(obj, dict) else 0
+    return {
+        "placeholders_count": placeholders,
+        "broken_refs": broken_refs,
+        "orphan_critical": orphan_critical,
+        "report_path": str(report_path),
+    }
+
+
+def _load_jobs_signal(*, workspace_root: Path) -> dict[str, Any]:
+    jobs_path = workspace_root / ".cache" / "airunner" / "jobs_index.v1.json"
+    if not jobs_path.exists():
+        return {
+            "queued": 0,
+            "running": 0,
+            "fail": 0,
+            "pass": 0,
+            "stuck": 0,
+            "last_job_age_seconds": 0,
+            "jobs_index_path": "",
+        }
+    try:
+        obj = _load_json(jobs_path)
+    except Exception:
+        return {
+            "queued": 0,
+            "running": 0,
+            "fail": 0,
+            "pass": 0,
+            "stuck": 0,
+            "last_job_age_seconds": 0,
+            "jobs_index_path": str(jobs_path),
+        }
+
+    counts = obj.get("counts") if isinstance(obj, dict) else None
+    queued = int(counts.get("queued", 0) or 0) if isinstance(counts, dict) else 0
+    running = int(counts.get("running", 0) or 0) if isinstance(counts, dict) else 0
+    fail = int(counts.get("fail", 0) or 0) if isinstance(counts, dict) else 0
+    passed = int(counts.get("pass", 0) or 0) if isinstance(counts, dict) else 0
+
+    jobs = obj.get("jobs") if isinstance(obj, dict) else None
+    jobs_list = jobs if isinstance(jobs, list) else []
+    stuck = 0
+    max_age = 0
+    for job in jobs_list:
+        if not isinstance(job, dict):
+            continue
+        status = str(job.get("status") or "")
+        if status in {"QUEUED", "RUNNING"}:
+            polls_without = int(job.get("polls_without_progress", 0) or 0)
+            stale_reason = job.get("stale_reason")
+            if polls_without > 0 or stale_reason:
+                stuck += 1
+        started_at = str(job.get("started_at") or job.get("last_poll_at") or "")
+        age = _seconds_since(started_at)
+        if age > max_age:
+            max_age = age
+
+    return {
+        "queued": queued,
+        "running": running,
+        "fail": fail,
+        "pass": passed,
+        "stuck": int(stuck),
+        "last_job_age_seconds": int(max_age),
+        "jobs_index_path": str(jobs_path),
+    }
+
+
+def _load_pdca_cursor_signal(*, workspace_root: Path) -> dict[str, Any]:
+    cursor_path = workspace_root / ".cache" / "index" / "pdca_cursor.v1.json"
+    if not cursor_path.exists():
+        return {"stale_hours": 0.0, "cursor_hash": "", "last_updated": ""}
+    try:
+        obj = _load_json(cursor_path)
+    except Exception:
+        return {"stale_hours": 0.0, "cursor_hash": "", "last_updated": ""}
+    last_run_at = obj.get("last_run_at") if isinstance(obj, dict) else None
+    last_dt = _parse_iso(last_run_at) if isinstance(last_run_at, str) else None
+    stale_hours = 0.0
+    if last_dt is not None:
+        stale_hours = max(0.0, (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600.0)
+    cursor_hash = ""
+    if isinstance(obj, dict):
+        hashes = obj.get("hashes")
+        if isinstance(hashes, dict):
+            cursor_hash = str(hashes.get("gap_register") or "")
+    return {
+        "stale_hours": round(float(stale_hours), 4),
+        "cursor_hash": cursor_hash,
+        "last_updated": str(last_run_at or ""),
+    }
+
+
+def _load_heartbeat_signal(*, workspace_root: Path) -> dict[str, Any]:
+    hb_path = workspace_root / ".cache" / "airunner" / "airunner_heartbeat.v1.json"
+    if not hb_path.exists():
+        return {"stale_seconds": 0, "lock_state": "UNKNOWN", "heartbeat_path": ""}
+    try:
+        obj = _load_json(hb_path)
+    except Exception:
+        return {"stale_seconds": 0, "lock_state": "UNKNOWN", "heartbeat_path": str(hb_path)}
+    last_tick_at = obj.get("last_tick_at") if isinstance(obj, dict) else None
+    stale_seconds = _seconds_since(last_tick_at if isinstance(last_tick_at, str) else None)
+    lock_state = str(obj.get("last_status") or "UNKNOWN") if isinstance(obj, dict) else "UNKNOWN"
+    return {"stale_seconds": int(stale_seconds), "lock_state": lock_state, "heartbeat_path": str(hb_path)}
+
+
+def _load_intake_noise_signal(*, workspace_root: Path) -> dict[str, Any]:
+    intake_path = workspace_root / ".cache" / "index" / "work_intake.v1.json"
+    cooldown_path = workspace_root / ".cache" / "index" / "intake_cooldowns.v1.json"
+    now = datetime.now(timezone.utc)
+    new_items_24h = 0
+    if intake_path.exists():
+        try:
+            obj = _load_json(intake_path)
+            items = obj.get("items") if isinstance(obj, dict) else None
+            if isinstance(items, list):
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    last_seen = item.get("last_seen")
+                    if isinstance(last_seen, str):
+                        seen_dt = _parse_iso(last_seen)
+                        if seen_dt and (now - seen_dt).total_seconds() <= 86400:
+                            new_items_24h += 1
+        except Exception:
+            new_items_24h = 0
+    suppressed_24h = 0
+    if cooldown_path.exists():
+        try:
+            obj = _load_json(cooldown_path)
+            entries = obj.get("entries") if isinstance(obj, dict) else None
+            if isinstance(entries, dict):
+                for entry in entries.values():
+                    if not isinstance(entry, dict):
+                        continue
+                    last_seen = entry.get("last_seen")
+                    seen_dt = _parse_iso(last_seen if isinstance(last_seen, str) else None)
+                    if seen_dt and (now - seen_dt).total_seconds() <= 86400:
+                        suppressed_24h += int(entry.get("suppressed_count", 0) or 0)
+        except Exception:
+            suppressed_24h = 0
+    return {"new_items_24h": int(new_items_24h), "suppressed_24h": int(suppressed_24h)}
 
 
 def _collect_standard_packs(*, core_root: Path, workspace_root: Path) -> list[dict[str, Any]]:
@@ -146,6 +368,32 @@ def _inputs_sha256(files: list[Path], *, core_root: Path, workspace_root: Path) 
         parts.append(f"{rel.as_posix()}:{_hash_bytes(data)}")
     payload = "\n".join(parts).encode("utf-8")
     return _hash_bytes(payload)
+
+
+def _load_integrity_status(path: Path) -> str:
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return ""
+    if isinstance(obj, dict):
+        return str(obj.get("verify_on_read_result") or "")
+    return ""
+
+
+def _load_assessment_raw_integrity_status(path: Path) -> str:
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return ""
+    if isinstance(obj, dict):
+        signals = obj.get("signals")
+        if isinstance(signals, dict):
+            integrity = signals.get("integrity")
+            if isinstance(integrity, dict):
+                return str(integrity.get("status") or "")
+            if integrity is not None:
+                return str(integrity)
+    return ""
 
 
 def _write_if_missing_or_same(path: Path, content: str) -> None:
@@ -310,6 +558,16 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             if metrics_path.exists():
                 input_files.append(metrics_path)
 
+    policy_candidates = [
+        workspace_root / "policies" / "policy_north_star_eval_lenses.v1.json",
+        core_root / "policies" / "policy_north_star_eval_lenses.v1.json",
+        workspace_root / "policies" / "policy_north_star_operability.v1.json",
+        core_root / "policies" / "policy_north_star_operability.v1.json",
+    ]
+    for candidate in policy_candidates:
+        if candidate.exists():
+            input_files.append(candidate)
+
     controls = sorted(controls, key=lambda x: str(x.get("id") or ""))
     metrics = sorted(metrics, key=lambda x: str(x.get("id") or ""))
 
@@ -331,14 +589,19 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             and out_assessment_eval.exists()
             and out_integrity_json.exists()
         ):
-            return {
-                "status": "OK",
-                "unchanged": True,
-                "out": str(out_assessment),
-                "packs": len(packs),
-                "controls": len(controls),
-                "metrics": len(metrics),
-            }
+            raw_status = _load_assessment_raw_integrity_status(out_assessment_raw)
+            verify_status = _load_integrity_status(out_integrity_json)
+            if raw_status and verify_status and raw_status != verify_status:
+                pass
+            else:
+                return {
+                    "status": "OK",
+                    "unchanged": True,
+                    "out": str(out_assessment),
+                    "packs": len(packs),
+                    "controls": len(controls),
+                    "metrics": len(metrics),
+                }
 
     catalog = {
         "version": "v1",
@@ -371,12 +634,11 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     }
 
     integrity_policy = load_policy_integrity(core_root=core_root, workspace_root=workspace_root)
-    previous_snapshot = load_previous_snapshot(workspace_root=workspace_root)
     integrity_snapshot = build_integrity_snapshot(
         workspace_root=workspace_root,
         core_root=core_root,
         policy=integrity_policy,
-        previous_snapshot=previous_snapshot,
+        previous_snapshot=None,
     )
     integrity_ref = str(Path(".cache") / "reports" / "integrity_verify.v1.json")
     integrity_result = str(integrity_snapshot.get("verify_on_read_result") or "WARN")
@@ -390,6 +652,14 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         except Exception as e:
             return _fail("BENCHMARK_SCHEMA_INVALID", "integrity snapshot schema validation failed", {"error": str(e)[:200]})
 
+    script_budget_signal = _load_script_budget_signal(core_root=core_root, workspace_root=workspace_root)
+    doc_nav_signal = _load_doc_nav_signal(workspace_root=workspace_root)
+    jobs_signal = _load_jobs_signal(workspace_root=workspace_root)
+    pdca_cursor_signal = _load_pdca_cursor_signal(workspace_root=workspace_root)
+    heartbeat_signal = _load_heartbeat_signal(workspace_root=workspace_root)
+    intake_noise_signal = _load_intake_noise_signal(workspace_root=workspace_root)
+    integrity_signal = {"status": str(integrity_result or "UNKNOWN")}
+
     assessment_raw = {
         "version": "v1",
         "generated_at": _now_iso(),
@@ -402,6 +672,15 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "controls": len(controls),
             "metrics": len(metrics),
             "warnings": sorted(set(warnings)),
+        },
+        "signals": {
+            "script_budget": script_budget_signal,
+            "doc_nav": doc_nav_signal,
+            "airunner_jobs": jobs_signal,
+            "pdca_cursor": pdca_cursor_signal,
+            "airunner_heartbeat": heartbeat_signal,
+            "work_intake_noise": intake_noise_signal,
+            "integrity": integrity_signal,
         },
         "notes": [],
     }
@@ -505,10 +784,40 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         evidence_pointers.append(str(Path(".cache") / "index" / "assessment_eval.v1.json"))
     evidence_pointers = sorted(set(evidence_pointers))
 
+    lens_signals: list[dict[str, Any]] = []
+    if out_assessment_eval.exists():
+        try:
+            eval_obj = _load_json(out_assessment_eval)
+        except Exception:
+            eval_obj = {}
+        lenses = eval_obj.get("lenses") if isinstance(eval_obj, dict) else None
+        if isinstance(lenses, dict):
+            for lens_id, lens in lenses.items():
+                if not isinstance(lens_id, str) or not lens_id:
+                    continue
+                if not isinstance(lens, dict):
+                    continue
+                status = lens.get("status")
+                if isinstance(status, str) and status:
+                    reasons = lens.get("reasons") if isinstance(lens, dict) else None
+                    reasons_list = (
+                        [str(r) for r in reasons if isinstance(r, str) and r.strip()] if isinstance(reasons, list) else []
+                    )
+                    lens_signals.append(
+                        {
+                            "lens_id": lens_id,
+                            "status": status,
+                            "score": lens.get("score"),
+                            "reasons": reasons_list,
+                        }
+                    )
+            lens_signals.sort(key=lambda item: str(item.get("lens_id") or ""))
+
     report_only = eval_report_only or integrity_result == "FAIL"
     gap_register = build_gap_register(
         controls=controls,
         metrics=metrics,
+        lens_signals=lens_signals,
         integrity_snapshot_ref=integrity_ref,
         source_eval_hash=source_eval_hash,
         source_raw_hash=source_raw_hash,

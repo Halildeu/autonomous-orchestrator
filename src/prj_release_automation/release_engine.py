@@ -472,23 +472,40 @@ def publish_release(
     policy: ReleasePolicy | None = None,
 ) -> dict[str, Any]:
     policy = policy or _load_policy(workspace_root)
+    related_job = {}
+    try:
+        from src.prj_github_ops.github_ops import start_github_ops_job
+
+        job_kind = "RELEASE_FINAL" if str(channel or "").strip().lower() == "final" else "RELEASE_RC"
+        related_job = start_github_ops_job(workspace_root=workspace_root, kind=job_kind, dry_run=False)
+    except Exception:
+        related_job = {}
+    related_job_id = related_job.get("job_id") if isinstance(related_job, dict) else None
+    related_job_status = related_job.get("status") if isinstance(related_job, dict) else None
+
     if not policy.network_publish_enabled:
         return {
             "status": "SKIP",
             "error_code": "NETWORK_PUBLISH_DISABLED",
             "next_steps": ["release-plan", "release-prepare", "Durumu goster"],
+            "related_job_id": related_job_id,
+            "related_job_status": related_job_status,
         }
     if not allow_network or not trusted_context:
         return {
             "status": "IDLE",
             "error_code": "NETWORK_PUBLISH_NOT_ALLOWED",
             "next_steps": ["Enable policy.network_publish_enabled", "Provide trusted context"],
+            "related_job_id": related_job_id,
+            "related_job_status": related_job_status,
         }
 
     return {
         "status": "SKIP",
         "error_code": "NETWORK_DISABLED",
         "next_steps": ["Network is disabled by default"],
+        "related_job_id": related_job_id,
+        "related_job_status": related_job_status,
     }
 
 
@@ -505,6 +522,8 @@ def run_release_check(
     publish = publish_release(workspace_root=workspace_root, channel=channel, allow_network=False, trusted_context=False)
     publish_status = publish.get("status") if isinstance(publish, dict) else "SKIP"
     publish_reason = publish.get("error_code") if isinstance(publish, dict) else None
+    related_job_id = publish.get("related_job_id") if isinstance(publish, dict) else None
+    related_job_status = publish.get("related_job_status") if isinstance(publish, dict) else None
 
     status = "OK"
     for candidate in [plan_status, manifest_status, publish_status]:
@@ -584,6 +603,8 @@ def run_release_check(
         "release_version": plan.get("version_plan", {}).get("channel_version", ""),
         "publish_status": publish_status,
         "publish_reason": publish_reason,
+        "related_job_id": related_job_id,
+        "related_job_status": related_job_status,
     }
 
     if chat:

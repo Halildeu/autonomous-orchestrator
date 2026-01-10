@@ -91,6 +91,39 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                     "previous_status": "closed",
                     "current_status": "open",
                     "severity": "medium",
+            }
+        )
+
+    operability_status = None
+    operability_reasons: list[str] = []
+    eval_path = workspace_root / ".cache" / "index" / "assessment_eval.v1.json"
+    if eval_path.exists():
+        try:
+            eval_obj = _load_json(eval_path)
+            lenses = eval_obj.get("lenses") if isinstance(eval_obj, dict) else None
+            if isinstance(lenses, dict):
+                operability = lenses.get("operability")
+                if isinstance(operability, dict):
+                    status = operability.get("status")
+                    if isinstance(status, str):
+                        operability_status = status
+                    reasons = operability.get("reasons")
+                    if isinstance(reasons, list):
+                        operability_reasons = [str(r) for r in reasons if isinstance(r, str) and r.strip()]
+        except Exception:
+            operability_status = None
+            operability_reasons = []
+
+    prev_operability = prev_cursor.get("operability_status") if isinstance(prev_cursor, dict) else None
+    if isinstance(prev_operability, str) and isinstance(operability_status, str):
+        rank = {"OK": 0, "WARN": 1, "FAIL": 2}
+        if rank.get(operability_status, 0) > rank.get(prev_operability, 0):
+            regressions.append(
+                {
+                    "gap_id": "OPERABILITY_DRIFT",
+                    "previous_status": prev_operability,
+                    "current_status": operability_status,
+                    "severity": "high" if operability_status == "FAIL" else "medium",
                 }
             )
 
@@ -176,6 +209,9 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     if eval_path.exists():
         current_hashes["assessment_eval"] = _hash_bytes(eval_path.read_bytes())
 
+    operability_state = f"{operability_status or 'UNKNOWN'}|{','.join(sorted(set(operability_reasons)))}"
+    lens_state_hash = _hash_bytes(operability_state.encode("utf-8"))
+
     report = {
         "version": "v1",
         "generated_at": _now_iso(),
@@ -211,6 +247,9 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "hashes": current_hashes,
         "gap_statuses": gap_statuses,
         "history_reports": history_paths,
+        "operability_status": operability_status or "UNKNOWN",
+        "operability_reasons": sorted(set(operability_reasons)),
+        "lens_state_hash": lens_state_hash,
     }
 
     if dry_run:

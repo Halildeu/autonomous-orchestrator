@@ -20,6 +20,23 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _write_preflight_stamp(ws: Path, generated_at: str) -> None:
+    _write_json(
+        ws / ".cache" / "reports" / "preflight_stamp.v1.json",
+        {
+            "version": "v1",
+            "generated_at": generated_at,
+            "workspace_root": str(ws),
+            "gates": {
+                "validate_schemas": "PASS",
+                "smoke_fast": "PASS",
+                "script_budget": {"hard_exceeded": 0, "soft_exceeded": 0, "status": "OK"},
+            },
+            "overall": "PASS",
+            "notes": ["PROGRAM_LED=true", "NO_WAIT=true"],
+        },
+    )
+
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
     sys.path.insert(0, str(repo_root))
@@ -49,7 +66,20 @@ def main() -> None:
             "enabled": True,
             "lock_ttl_seconds": 900,
             "heartbeat_interval_seconds": 300,
-            "schedule": {"mode": "interval", "interval_seconds": 900, "jitter_seconds": 0},
+            "schedule": {
+                "mode": "interval",
+                "interval_seconds": 900,
+                "jitter_seconds": 0,
+                "active_hours": {"tz": "UTC", "start": "00:00", "end": "23:59"},
+                "weekday_only": False,
+            },
+            "watchdog": {"enabled": True, "heartbeat_stale_seconds": 1800, "max_recoveries_per_day": 3},
+            "job_policy": {
+                "max_running_jobs": 1,
+                "poll_interval_seconds": 60,
+                "closeout_ttl_days": 7,
+                "keep_last_n": 50,
+            },
             "limits": {"max_ticks_per_run": 1, "max_actions_per_tick": 3, "max_plans_per_tick": 5},
             "single_gate": {
                 "allowed_ops": [
@@ -57,6 +87,7 @@ def main() -> None:
                     "work-intake-exec-ticket",
                     "system-status",
                     "portfolio-status",
+                    "ui-snapshot-bundle",
                 ],
                 "require_strict_isolation": True,
             },
@@ -97,6 +128,8 @@ def main() -> None:
         },
     )
 
+    _write_preflight_stamp(ws, now.isoformat().replace("+00:00", "Z"))
+
     lock_path = ws / ".cache" / "airunner" / "airunner_lock.v1.json"
     now = datetime.now(timezone.utc).replace(microsecond=0)
     _write_json(
@@ -136,7 +169,13 @@ def main() -> None:
         raise SystemExit("airunner_tick_contract_test failed: policy_source must be core+workspace_override")
 
     ops_called = report.get("ops_called")
-    if ops_called != ["work-intake-check", "work-intake-exec-ticket", "system-status", "portfolio-status"]:
+    if ops_called != [
+        "work-intake-check",
+        "work-intake-exec-ticket",
+        "system-status",
+        "portfolio-status",
+        "ui-snapshot-bundle",
+    ]:
         raise SystemExit("airunner_tick_contract_test failed: ops_called mismatch")
 
     notes = report.get("notes")

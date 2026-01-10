@@ -22,11 +22,29 @@
     "job_id": { "type": "string", "minLength": 1 },
     "kind": {
       "type": "string",
-      "enum": ["pr_list", "pr_open", "pr_update", "merge", "deploy_trigger", "status_poll"]
+      "enum": [
+        "pr_list",
+        "pr_open",
+        "pr_update",
+        "merge",
+        "deploy_trigger",
+        "status_poll",
+        "PR_LIST",
+        "PR_OPEN",
+        "PR_UPDATE",
+        "PR_POLL",
+        "CI_POLL",
+        "MERGE",
+        "RELEASE_RC",
+        "RELEASE_FINAL",
+        "SMOKE_FULL",
+        "DEPLOY_TRIGGER",
+        "STATUS_POLL"
+      ]
     },
     "status": {
       "type": "string",
-      "enum": ["QUEUED", "RUNNING", "PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"]
+      "enum": ["QUEUED", "RUNNING", "PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP", "ARCHIVED"]
     },
     "created_at": { "type": "string", "format": "date-time" },
     "updated_at": { "type": "string", "format": "date-time" },
@@ -36,11 +54,13 @@
     "dry_run": { "type": "boolean" },
     "live_gate": { "type": "boolean" },
     "attempts": { "type": "integer", "minimum": 0 },
+    "pid": { "type": "integer" },
+    "rc": { "type": "integer" },
     "error_code": { "type": "string" },
     "skip_reason": { "type": "string" },
     "failure_class": {
       "type": "string",
-      "enum": ["DEMO_PREREQ_FAIL", "DEMO_CATALOG_PARSE", "CORE_BREAK", "OTHER"]
+      "enum": ["PASS", "TIMEOUT", "DEMO_PREREQ_FAIL", "DEMO_CATALOG_PARSE", "CORE_BREAK", "OTHER"]
     },
     "signature_hash": { "type": "string", "minLength": 1 },
     "evidence_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },

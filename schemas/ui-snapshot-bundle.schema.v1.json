@@ -1,0 +1,345 @@
+{
+  "$id": "https://example.com/schemas/ui-snapshot-bundle.schema.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "auto_mode_summary": {
+      "type": "object"
+    },
+    "doc_nav_placeholders_baseline": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "doc_nav_placeholders_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "doc_nav_placeholders_delta": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "doer_last_actionability_path": {
+      "type": "string"
+    },
+    "doer_last_exec_report_path": {
+      "type": "string"
+    },
+    "doer_last_run_path": {
+      "type": "string"
+    },
+    "doer_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "planned": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "skipped": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "applied",
+        "planned",
+        "skipped"
+      ],
+      "type": "object"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "last_auto_loop_path": {
+      "type": "string"
+    },
+    "last_auto_loop_apply_details_path": {
+      "type": "string"
+    },
+    "last_auto_loop_counts": {
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "applied_intake_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "planned": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "planned_intake_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "skipped": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limit_reached": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limit_reached_intake_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "applied",
+        "applied_intake_ids",
+        "planned",
+        "planned_intake_ids",
+        "skipped",
+        "limit_reached",
+        "limit_reached_intake_ids"
+      ],
+      "type": "object"
+    },
+    "last_decision_inbox_path": {
+      "type": "string"
+    },
+    "last_decision_counts": {
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "by_kind": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        }
+      },
+      "required": ["total", "by_kind"],
+      "type": "object"
+    },
+    "last_airunner_proof_bundle_path": {
+      "type": "string"
+    },
+    "last_airunner_tick_path": {
+      "type": "string"
+    },
+    "last_doer_actionability_path": {
+      "type": "string"
+    },
+    "last_doer_counts": {
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "planned": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "skipped": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "skipped_by_reason": {
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Z0-9_]+$": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "applied",
+        "planned",
+        "skipped",
+        "skipped_by_reason"
+      ],
+      "type": "object"
+    },
+    "last_doer_exec_path": {
+      "type": "string"
+    },
+    "missing_paths": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "paths": {
+      "additionalProperties": false,
+      "properties": {
+        "airunner_deltas": {
+          "type": "string"
+        },
+        "airunner_proof_bundle": {
+          "type": "string"
+        },
+        "airunner_tick": {
+          "type": "string"
+        },
+        "decision_inbox": {
+          "type": "string"
+        },
+        "extension_registry": {
+          "type": "string"
+        },
+        "github_ops_jobs_index": {
+          "type": "string"
+        },
+        "github_ops_report": {
+          "type": "string"
+        },
+        "jobs_index": {
+          "type": "string"
+        },
+        "portfolio_status": {
+          "type": "string"
+        },
+        "release_apply_proof": {
+          "type": "string"
+        },
+        "release_manifest": {
+          "type": "string"
+        },
+        "release_notes": {
+          "type": "string"
+        },
+        "release_plan": {
+          "type": "string"
+        },
+        "system_status": {
+          "type": "string"
+        },
+        "work_intake": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "airunner_deltas",
+        "airunner_proof_bundle",
+        "airunner_tick",
+        "extension_registry",
+        "github_ops_jobs_index",
+        "github_ops_report",
+        "jobs_index",
+        "portfolio_status",
+        "release_apply_proof",
+        "release_manifest",
+        "release_notes",
+        "release_plan",
+        "system_status",
+        "work_intake"
+      ],
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "OK",
+        "WARN",
+        "IDLE",
+        "FAIL"
+      ],
+      "type": "string"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "extensions_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "jobs_counts": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "missing_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "release_status": {
+          "type": "string"
+        },
+        "work_intake_exec_decision_needed_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "work_intake_exec_ignored_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "work_intake_exec_skipped_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "work_intake_buckets": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "work_intake_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "decisions_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "decisions_by_kind": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "work_intake_total",
+        "extensions_total",
+        "missing_count"
+      ],
+      "type": "object"
+    },
+    "version": {
+      "enum": [
+        "v1"
+      ],
+      "type": "string"
+    },
+    "workspace_root": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "generated_at",
+    "workspace_root",
+    "paths",
+    "summary",
+    "missing_paths"
+  ],
+  "title": "UI Snapshot Bundle",
+  "type": "object"
+}

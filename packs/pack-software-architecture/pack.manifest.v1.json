@@ -12,9 +12,9 @@
   "provides": {
     "intents": ["urn:pack:arch:adr_draft"],
     "workflows": ["WF_CORE"],
-    "formats": ["FORMAT-AUTOPILOT-CHAT"],
+    "formats": [],
     "capability_refs": ["capabilities/CAP_ARCH_ADR_DRAFT.v1.json"],
-    "format_refs": ["formats/format-autopilot-chat.v1.json"]
+    "format_refs": []
   },
   "namespace_prefix": "CAP_ARCH",
   "conflict_policy": {

@@ -30,7 +30,10 @@
         "llm_live_probe",
         "intake_status",
         "intake_next",
-        "intake_create_plan"
+        "intake_create_plan",
+        "github_ops_check",
+        "github_ops_job_start",
+        "github_ops_job_poll"
       ]
     },
     "workspace_root": {

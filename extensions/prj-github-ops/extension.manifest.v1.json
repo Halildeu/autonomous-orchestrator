@@ -8,6 +8,7 @@
     "extensions/prj-github-ops/extension.manifest.v1.json",
     "policies/policy_github_ops.v1.json",
     "schemas/github-ops-job.schema.v1.json",
+    "schemas/github-ops-jobs-index.schema.v1.json",
     "schemas/github-ops-report.schema.v1.json",
     "schemas/policy-github-ops.schema.v1.json",
     "src/prj_github_ops/github_ops.py",
@@ -22,7 +23,11 @@
   "enabled": false,
   "entrypoints": {
     "cockpit_sections": [],
-    "kernel_api_actions": [],
+    "kernel_api_actions": [
+      "github_ops_check",
+      "github_ops_job_poll",
+      "github_ops_job_start"
+    ],
     "ops": [
       "github-ops-check",
       "github-ops-job-poll",

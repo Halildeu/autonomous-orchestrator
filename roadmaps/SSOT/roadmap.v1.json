@@ -1204,6 +1204,49 @@
         ]
       },
       "dod": [
+        "Assessment eval ve lens ciktilari workspace altinda uretilir"
+      ],
+      "gates": [],
+      "id": "M10.2B",
+      "notes": [
+        "Eval lens ciktilari assessment_eval icinde kilitlenir.",
+        "apply_only run_cmd; dry-run readonly guvenli."
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "path": ".cache/reports",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage benchmark-assess --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/assessment_eval.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Assessment Eval Lenses v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
         "Gap register ve ozet raporu workspace altinda uretilir"
       ],
       "gates": [],

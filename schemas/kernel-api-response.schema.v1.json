@@ -44,7 +44,12 @@
         "model": {"type": "string"},
         "dry_run": {"type": "boolean"},
         "api_key_present": {"type": "boolean"},
-        "request_id": {"type": "string"}
+        "request_id": {"type": "string"},
+        "job_id": {"type": "string"},
+        "job_kind": {"type": "string"},
+        "failure_class": {"type": "string"},
+        "signature_hash": {"type": "string"},
+        "cooldown_hit": {"type": "boolean"}
       }
     },
     "evidence_paths": {

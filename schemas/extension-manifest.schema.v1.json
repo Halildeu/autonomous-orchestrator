@@ -65,6 +65,38 @@
       "items": { "type": "string" },
       "maxItems": 20
     },
+    "model_kind": {
+      "type": "string",
+      "enum": ["ops_model", "governance_model", "delivery_model"]
+    },
+    "delivery_modes": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["embedded", "vendor_pack"] }
+    },
+    "required_policies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "cockpit_sections": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "intake_sources": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "supported_modes": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["embedded", "vendor_pack"] }
+    },
+    "tenant_policy_requirements": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "repo_identity_fields": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "outputs": {
       "type": "object",
       "additionalProperties": false,

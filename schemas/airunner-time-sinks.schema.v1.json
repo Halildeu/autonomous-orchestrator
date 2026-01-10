@@ -38,9 +38,13 @@
         "required": ["event_key", "p95_ms", "threshold_ms", "breach_count", "status"],
         "properties": {
           "event_key": { "type": "string", "minLength": 1 },
+          "op_name": { "type": "string" },
+          "count": { "type": "integer", "minimum": 0 },
+          "p50_ms": { "type": "integer", "minimum": 0 },
           "p95_ms": { "type": "integer", "minimum": 0 },
           "threshold_ms": { "type": "integer", "minimum": 0 },
           "breach_count": { "type": "integer", "minimum": 0 },
+          "last_seen": { "type": "string" },
           "status": { "type": "string", "enum": ["OK", "WARN"] }
         }
       }

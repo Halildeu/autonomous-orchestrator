@@ -16,6 +16,16 @@
     "enabled": { "type": "boolean" },
     "verify_on_read_required": { "type": "boolean" },
     "allow_report_only_when_missing_sources": { "type": "boolean" },
+    "exclude_inputs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "exclude_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
     "inputs": {
       "type": "object",
       "additionalProperties": false,

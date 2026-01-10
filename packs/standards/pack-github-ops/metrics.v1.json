@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "metrics": [
+    {
+      "id": "GHOPS-SMOKE_FULL_PASS_RATE",
+      "title": "Full smoke pass rate",
+      "target": ">=0.95",
+      "unit": "ratio",
+      "category": "quality"
+    },
+    {
+      "id": "GHOPS-JOB_NOISE_SUPPRESSED_COUNT",
+      "title": "Job noise suppressed count",
+      "target": ">=0",
+      "unit": "count",
+      "category": "noise"
+    },
+    {
+      "id": "GHOPS-QUEUED_JOB_AGE_P95",
+      "title": "Queued job age p95",
+      "target": "<=900000",
+      "unit": "ms",
+      "category": "latency"
+    }
+  ]
+}

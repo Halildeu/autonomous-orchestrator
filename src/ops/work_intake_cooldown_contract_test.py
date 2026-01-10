@@ -110,7 +110,7 @@ def main() -> None:
     entries = cooldowns.get("entries") if isinstance(cooldowns, dict) else None
     if not isinstance(entries, dict):
         raise SystemExit("work_intake_cooldown_contract_test failed: entries missing")
-    key = f"SMOKE_FULL|OTHER|{signature}"
+    key = f"SMOKE_FULL|TICKET|{signature}"
     entry = entries.get(key) if isinstance(entries.get(key), dict) else {}
     if int(entry.get("suppressed_count", 0)) != 1:
         raise SystemExit("work_intake_cooldown_contract_test failed: suppressed_count must be 1")

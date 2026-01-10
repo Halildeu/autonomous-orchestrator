@@ -38,6 +38,10 @@
         "script_budget": { "type": ["string", "null"] }
       }
     },
+    "excluded_inputs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
     "pointer_store_head": { "type": ["string", "null"] },
     "verify_on_read_result": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
     "mismatch_count": { "type": "integer", "minimum": 0 },
