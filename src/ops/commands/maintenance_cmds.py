@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import subprocess
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +14,7 @@ from src.ops.commands.common import repo_root, run_step, warn
 from src.ops.commands.context_cmds import register_context_subcommands
 from src.ops.commands.maintenance_doc_cmds import cmd_doc_graph, cmd_doc_nav_check
 from src.ops.commands.maintenance_policy_cmds import cmd_evidence_export, cmd_policy_check, cmd_reaper
+from src.ops.commands.work_intake_select_cmds import cmd_work_intake_select
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
 
@@ -400,77 +399,6 @@ def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
         print("Devam et / Durumu göster / Duraklat")
 
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
-
-def cmd_work_intake_select(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    intake_id = str(args.intake_id).strip()
-    if not intake_id:
-        warn("FAIL error=INTAKE_ID_REQUIRED")
-        return 2
-
-    selected = parse_reaper_bool(str(args.selected))
-    selection_path = ws / ".cache" / "index" / "work_intake_selection.v1.json"
-    selected_ids: list[str] = []
-    if selection_path.exists():
-        try:
-            obj = json.loads(selection_path.read_text(encoding="utf-8"))
-        except Exception:
-            obj = {}
-        raw_ids = obj.get("selected_ids") if isinstance(obj, dict) else None
-        if not isinstance(raw_ids, list):
-            raw_ids = obj.get("intake_ids") if isinstance(obj, dict) else None
-        if isinstance(raw_ids, list):
-            selected_ids = [str(x) for x in raw_ids if isinstance(x, str) and x.strip()]
-
-    before_set = set(selected_ids)
-    if selected:
-        before_set.add(intake_id)
-    else:
-        before_set.discard(intake_id)
-    selected_ids = sorted(before_set)
-
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    payload = {
-        "version": "v1",
-        "generated_at": generated_at,
-        "workspace_root": str(ws),
-        "selected_ids": selected_ids,
-        "content_hash": hashlib.sha256(
-            json.dumps(selected_ids, ensure_ascii=True, sort_keys=True).encode("utf-8")
-        ).hexdigest(),
-        "notes": ["PROGRAM_LED=true"],
-    }
-    selection_path.parent.mkdir(parents=True, exist_ok=True)
-    selection_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-
-    status = "OK"
-    error_code = None
-    if not selected_ids:
-        status = "IDLE"
-        error_code = "NO_SELECTED_IDS"
-
-    out_payload = {
-        "status": status,
-        "error_code": error_code,
-        "workspace_root": str(ws),
-        "selection_path": str(Path(".cache") / "index" / "work_intake_selection.v1.json"),
-        "selected_ids": selected_ids,
-        "selected_count": len(selected_ids),
-    }
-    print(json.dumps(out_payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
@@ -1079,7 +1007,9 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
 
     ap_intake_select = parent.add_parser("work-intake-select", help="Select intake items for autopilot apply.")
     ap_intake_select.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_intake_select.add_argument("--intake-id", required=True, help="Intake id to select/deselect.")
+    ap_intake_select.add_argument("--mode", default="select", help="select|clear (default: select).")
+    ap_intake_select.add_argument("--backup", default="false", help="true|false (default: false).")
+    ap_intake_select.add_argument("--intake-id", required=False, help="Intake id to select/deselect.")
     ap_intake_select.add_argument("--selected", default="true", help="true|false (default: true).")
     ap_intake_select.set_defaults(func=cmd_work_intake_select)
 
