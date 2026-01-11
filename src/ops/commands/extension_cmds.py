@@ -2,11 +2,24 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root, warn
 from src.ops.reaper import parse_bool as parse_reaper_bool
+
+
+def _now_compact() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _load_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _dump_json(obj: Any) -> str:
+    return json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
 
 def cmd_extension_registry(args: argparse.Namespace) -> int:
@@ -435,6 +448,65 @@ def cmd_release_check(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
+def cmd_deploy_check(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+
+    from src.extensions.prj_deploy.deploy_jobs import run_deploy_check
+
+    res = run_deploy_check(workspace_root=ws, chat=chat)
+    status = res.get("status") if isinstance(res, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE", "SKIP"} else 2
+
+
+def cmd_deploy_job_start(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    kind = str(args.kind or "").strip()
+    if not kind:
+        warn("FAIL error=KIND_REQUIRED")
+        return 2
+
+    payload_ref = str(args.payload or "").strip()
+    if not payload_ref:
+        warn("FAIL error=PAYLOAD_REQUIRED")
+        return 2
+
+    mode_override = str(getattr(args, "mode", "") or "").strip()
+    if not mode_override:
+        mode_override = None
+
+    from src.extensions.prj_deploy.deploy_jobs import deploy_job_start
+
+    payload = deploy_job_start(workspace_root=ws, kind=kind, payload_ref=payload_ref, mode_override=mode_override)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "QUEUED", "RUNNING"} else 2
+
+
+def cmd_deploy_job_poll(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    job_id = str(args.job_id or "").strip()
+    if not job_id:
+        warn("FAIL error=JOB_ID_REQUIRED")
+        return 2
+
+    from src.extensions.prj_deploy.deploy_jobs import deploy_job_poll
+
+    payload = deploy_job_poll(workspace_root=ws, job_id=job_id)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "PASS", "RUNNING", "QUEUED"} else 2
+
+
 def cmd_github_ops_check(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:
@@ -485,6 +557,197 @@ def cmd_github_ops_job_poll(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     status = payload.get("status") if isinstance(payload, dict) else "WARN"
     return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "PASS", "RUNNING", "QUEUED"} else 2
+
+
+def cmd_github_ops_override(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    mode = str(args.mode or "").strip()
+    chat = parse_reaper_bool(str(args.chat))
+    overrides_dir = ws / ".cache" / "policy_overrides"
+    override_path = overrides_dir / "policy_github_ops.override.v1.json"
+    backup_path: Path | None = None
+    status = "OK"
+    reason = ""
+
+    if mode == "proof_cooldown_zero":
+        if override_path.exists():
+            ts = _now_compact()
+            backup_path = override_path.parent / f"{override_path.name}.bak.{ts}"
+            backup_path.write_text(override_path.read_text(encoding="utf-8"), encoding="utf-8")
+        overrides_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "version": "v1",
+            "network_enabled": False,
+            "rate_limit": {"cooldown_seconds": 0},
+            "job": {"cooldown_seconds": 0},
+            "notes": ["PROGRAM_LED=true", "proof_nonce=v0.7.4", "cooldown_zero=true"],
+        }
+        override_path.write_text(_dump_json(payload), encoding="utf-8")
+        reason = "OVERRIDE_WRITTEN"
+    elif mode == "restore_backup":
+        backups = sorted(override_path.parent.glob(f"{override_path.name}.bak.*"))
+        if backups:
+            backup_path = backups[-1]
+            override_path.write_text(backup_path.read_text(encoding="utf-8"), encoding="utf-8")
+            reason = "BACKUP_RESTORED"
+        else:
+            if override_path.exists():
+                override_path.unlink()
+                reason = "OVERRIDE_REMOVED_NO_BACKUP"
+            else:
+                status = "IDLE"
+                reason = "NO_BACKUP"
+    else:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+
+    report_path = ws / ".cache" / "reports" / "github_ops_override.v1.json"
+    report_payload = {
+        "status": status,
+        "mode": mode,
+        "override_path": str(Path(".cache") / "policy_overrides" / "policy_github_ops.override.v1.json"),
+        "backup_path": str(backup_path.relative_to(ws)) if isinstance(backup_path, Path) else None,
+        "reason": reason,
+        "notes": ["PROGRAM_LED=true"],
+    }
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(_dump_json(report_payload), encoding="utf-8")
+
+    if chat:
+        print("PREVIEW:")
+        print("PROGRAM-LED: github-ops-override (workspace-only)")
+        print(f"workspace_root={ws}")
+        print("RESULT:")
+        print(f"status={status} mode={mode} reason={reason}")
+        print("EVIDENCE:")
+        print(str(report_payload.get("override_path")))
+        if report_payload.get("backup_path"):
+            print(str(report_payload.get("backup_path")))
+        print(str(Path(".cache") / "reports" / "github_ops_override.v1.json"))
+        print("ACTIONS:")
+        print("github-ops-job-start")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(report_payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_github_ops_proof(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    kind = str(args.kind or "").strip()
+    if not kind:
+        warn("FAIL error=KIND_REQUIRED")
+        return 2
+
+    expects = [str(x) for x in (args.expect or []) if isinstance(x, str)]
+    expects = sorted({x for x in expects if x})
+    chat = parse_reaper_bool(str(args.chat))
+
+    jobs_index_path = ws / ".cache" / "github_ops" / "jobs_index.v1.json"
+    jobs: list[dict[str, Any]] = []
+    if jobs_index_path.exists():
+        try:
+            idx = _load_json(jobs_index_path)
+        except Exception:
+            idx = {}
+        jobs = idx.get("jobs") if isinstance(idx, dict) and isinstance(idx.get("jobs"), list) else []
+
+    def _parse_ts(raw: str) -> datetime:
+        try:
+            if raw.endswith("Z"):
+                return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            return datetime.fromisoformat(raw)
+        except Exception:
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    kind_jobs = [j for j in jobs if isinstance(j, dict) and str(j.get("kind") or "") == kind]
+    kind_jobs.sort(
+        key=lambda j: (_parse_ts(str(j.get("updated_at") or "")), str(j.get("job_id") or "")),
+        reverse=True,
+    )
+    job = kind_jobs[0] if kind_jobs else {}
+    job_id = str(job.get("job_id") or "")
+    job_status = str(job.get("status") or "")
+    job_report_path = ""
+    evidence_paths = {str(Path(".cache") / "github_ops" / "jobs_index.v1.json")}
+    if isinstance(job.get("evidence_paths"), list) and job.get("evidence_paths"):
+        job_report_path = str(job.get("evidence_paths")[0])
+        if job_report_path:
+            evidence_paths.add(job_report_path)
+
+    baseline_path = ws / ".cache" / "reports" / "v0_7_3_network_live_pr_proof_closeout.v1.json"
+    baseline_job_id = ""
+    if baseline_path.exists():
+        try:
+            baseline = _load_json(baseline_path)
+        except Exception:
+            baseline = {}
+        if isinstance(baseline, dict):
+            gh = baseline.get("github_pr") if isinstance(baseline.get("github_pr"), dict) else {}
+            baseline_job_id = str(gh.get("job_id") or "")
+    if baseline_path.exists():
+        evidence_paths.add(str(Path(".cache") / "reports" / baseline_path.name))
+
+    dry_run = job.get("dry_run")
+    live_gate = job.get("live_gate")
+    network_used = bool(job_status not in {"SKIP", "IDLE"} and dry_run is False and live_gate is not False)
+
+    failures: list[str] = []
+    for expect in expects:
+        if expect == "fresh_job_id":
+            if not job_id or (baseline_job_id and job_id == baseline_job_id):
+                failures.append("fresh_job_id")
+        elif expect.startswith("network_used="):
+            desired = expect.split("=", 1)[-1].strip().lower()
+            desired_val = desired in {"1", "true", "yes", "on"}
+            if bool(network_used) != desired_val:
+                failures.append(f"network_used={desired}")
+        elif expect.startswith("status="):
+            desired_status = expect.split("=", 1)[-1].strip().upper()
+            if job_status != desired_status:
+                failures.append(f"status={desired_status}")
+
+    status = "OK" if not failures else "WARN"
+    report_payload = {
+        "status": status,
+        "kind": kind,
+        "job_id": job_id,
+        "job_status": job_status,
+        "baseline_job_id": baseline_job_id,
+        "network_used": bool(network_used),
+        "expectations": expects,
+        "failed_expectations": sorted(failures),
+        "job_report_path": job_report_path,
+        "evidence_paths": sorted(evidence_paths),
+    }
+    report_path = ws / ".cache" / "reports" / "github_ops_proof.v1.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(_dump_json(report_payload), encoding="utf-8")
+
+    if chat:
+        print("PREVIEW:")
+        print("PROGRAM-LED: github-ops-proof (workspace-only)")
+        print(f"workspace_root={ws}")
+        print("RESULT:")
+        print(f"status={status} kind={kind} job_id={job_id}")
+        if failures:
+            print(f"failed={','.join(sorted(failures))}")
+        print("EVIDENCE:")
+        print(str(Path(".cache") / "reports" / "github_ops_proof.v1.json"))
+        print("ACTIONS:")
+        print("github-ops-job-start")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(report_payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
 def _resolve_workspace_root(args: argparse.Namespace) -> Path | None:
@@ -597,6 +860,27 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_check.add_argument("--chat", default="true", help="true|false (default: true).")
     ap_check.set_defaults(func=cmd_release_check)
 
+    ap_deploy_check = parent.add_parser("deploy-check", help="Deploy check (program-led, local).")
+    ap_deploy_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_deploy_check.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_deploy_check.set_defaults(func=cmd_deploy_check)
+
+    ap_deploy_start = parent.add_parser("deploy-job-start", help="Start deploy job (program-led).")
+    ap_deploy_start.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_deploy_start.add_argument(
+        "--kind",
+        required=True,
+        help="Job kind (DEPLOY_STATIC_FE|DEPLOY_SELFHOST_BE).",
+    )
+    ap_deploy_start.add_argument("--payload", required=True, help="Payload ref (path or id).")
+    ap_deploy_start.add_argument("--mode", default="", help="dry_run|dry_run_only|live (default: policy).")
+    ap_deploy_start.set_defaults(func=cmd_deploy_job_start)
+
+    ap_deploy_poll = parent.add_parser("deploy-job-poll", help="Poll deploy job (program-led).")
+    ap_deploy_poll.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_deploy_poll.add_argument("--job-id", required=True, help="Job id.")
+    ap_deploy_poll.set_defaults(func=cmd_deploy_job_poll)
+
     ap_gh_check = parent.add_parser("github-ops-check", help="GitHub ops check (program-led, local).")
     ap_gh_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_gh_check.add_argument("--chat", default="true", help="true|false (default: true).")
@@ -616,3 +900,25 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_gh_poll.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_gh_poll.add_argument("--job-id", required=True, help="Job id.")
     ap_gh_poll.set_defaults(func=cmd_github_ops_job_poll)
+
+    ap_gh_override = parent.add_parser("github-ops-override", help="Write/restore GitHub ops overrides (workspace-only).")
+    ap_gh_override.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_gh_override.add_argument(
+        "--mode",
+        default="proof_cooldown_zero",
+        help="proof_cooldown_zero|restore_backup (default: proof_cooldown_zero).",
+    )
+    ap_gh_override.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_gh_override.set_defaults(func=cmd_github_ops_override)
+
+    ap_gh_proof = parent.add_parser("github-ops-proof", help="Verify GitHub ops proof expectations (program-led).")
+    ap_gh_proof.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_gh_proof.add_argument("--kind", required=True, help="Job kind to verify (e.g., PR_OPEN).")
+    ap_gh_proof.add_argument(
+        "--expect",
+        action="append",
+        default=[],
+        help="Expectation like fresh_job_id, network_used=false, status=SKIP.",
+    )
+    ap_gh_proof.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_gh_proof.set_defaults(func=cmd_github_ops_proof)
