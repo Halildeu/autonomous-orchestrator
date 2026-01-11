@@ -65,6 +65,8 @@
       "type": "string",
       "enum": ["PASS", "TIMEOUT", "DEMO_PREREQ_FAIL", "DEMO_CATALOG_PARSE", "CORE_BREAK", "OTHER"]
     },
+    "pr_url": { "type": "string" },
+    "pr_number": { "type": "integer", "minimum": 1 },
     "signature_hash": { "type": "string", "minLength": 1 },
     "evidence_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "result_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },

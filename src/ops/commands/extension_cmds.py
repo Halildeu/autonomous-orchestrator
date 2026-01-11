@@ -541,6 +541,21 @@ def cmd_github_ops_job_start(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "QUEUED", "RUNNING"} else 2
 
 
+def cmd_github_ops_pr_open(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    dry_run = parse_reaper_bool(str(args.dry_run))
+
+    from src.prj_github_ops.github_ops import start_github_ops_job
+
+    payload = start_github_ops_job(workspace_root=ws, kind="PR_OPEN", dry_run=dry_run)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "QUEUED", "RUNNING"} else 2
+
+
 def cmd_github_ops_job_poll(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:
@@ -895,6 +910,11 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     )
     ap_gh_start.add_argument("--dry-run", default="true", help="true|false (default: true).")
     ap_gh_start.set_defaults(func=cmd_github_ops_job_start)
+
+    ap_gh_pr_open = parent.add_parser("github-ops-pr-open", help="Open PR (program-led, live-gated).")
+    ap_gh_pr_open.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_gh_pr_open.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_gh_pr_open.set_defaults(func=cmd_github_ops_pr_open)
 
     ap_gh_poll = parent.add_parser("github-ops-job-poll", help="Poll GitHub ops job (program-led).")
     ap_gh_poll.add_argument("--workspace-root", required=True, help="Workspace root path.")

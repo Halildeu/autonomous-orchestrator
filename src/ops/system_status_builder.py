@@ -13,7 +13,12 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .system_status_context_router import build_context_router_section, context_router_md_lines
-from .system_status_sections_extensions import _auto_loop_section
+from .system_status_sections_extensions import (
+    _auto_loop_section,
+    _deploy_section,
+    _github_ops_section,
+    _network_live_section,
+)
 from .system_status_sections import (
     _actions_status,
     _airunner_section,
@@ -211,6 +216,7 @@ def build_system_status(
     work_intake_exec_section = _work_intake_exec_section(workspace_root)
     doer_section = _doer_section(workspace_root)
     auto_loop_section = _auto_loop_section(workspace_root)
+    deploy_section = _deploy_section(workspace_root)
     decisions_section = _decisions_section(workspace_root)
     context_router_section = build_context_router_section(workspace_root)
     harvest_status, candidates_count, harvest_kinds = _harvest_status(workspace_root)
@@ -228,6 +234,8 @@ def build_system_status(
         actions_count=int(act_count),
     )
     extensions_section = _extensions_section(workspace_root)
+    network_live_section = _network_live_section(workspace_root)
+    github_ops_section = _github_ops_section(workspace_root)
     airunner_section = _airunner_section(workspace_root)
     airunner_proof_section = _airunner_proof_section(workspace_root)
     pm_suite_section = _pm_suite_section()
@@ -325,6 +333,7 @@ def build_system_status(
             "project_boundary": project_boundary,
             "projects": projects_section,
             "extensions": extensions_section,
+            "network_live": network_live_section,
             "airunner": airunner_section,
             "airunner_proof": airunner_proof_section,
             "pm_suite": pm_suite_section,
@@ -435,6 +444,10 @@ def build_system_status(
         report["sections"]["doer"] = doer_section
     if isinstance(auto_loop_section, dict):
         report["sections"]["auto_loop"] = auto_loop_section
+    if isinstance(github_ops_section, dict):
+        report["sections"]["github_ops"] = github_ops_section
+    if isinstance(deploy_section, dict):
+        report["sections"]["deploy"] = deploy_section
     if isinstance(decisions_section, dict):
         report["sections"]["decisions"] = decisions_section
     if isinstance(context_router_section, dict):

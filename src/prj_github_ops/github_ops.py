@@ -906,10 +906,12 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
             else:
                 rc_path = _job_output_paths(workspace_root, job_id)[2]
                 rc = None
+                rc_obj: dict[str, Any] | None = None
                 if rc_path.exists():
                     try:
-                        rc_obj = _load_json(rc_path)
-                        rc = int(rc_obj.get("rc")) if isinstance(rc_obj, dict) else None
+                        loaded = _load_json(rc_path)
+                        rc_obj = loaded if isinstance(loaded, dict) else None
+                        rc = int(rc_obj.get("rc")) if rc_obj is not None and isinstance(rc_obj.get("rc"), int) else None
                     except Exception:
                         rc = None
                 if rc is None:
@@ -922,6 +924,14 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
                     target["status"] = "FAIL"
                     target["error_code"] = "RC_NONZERO"
                     target["rc"] = rc
+
+                if rc_obj is not None:
+                    pr_url = rc_obj.get("pr_url")
+                    pr_number = rc_obj.get("pr_number")
+                    if isinstance(pr_url, str) and pr_url:
+                        target["pr_url"] = pr_url
+                    if isinstance(pr_number, int) and pr_number > 0:
+                        target["pr_number"] = pr_number
 
                 if target.get("status") == "FAIL":
                     stderr_path = _job_output_paths(workspace_root, job_id)[1]

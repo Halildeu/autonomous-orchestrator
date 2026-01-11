@@ -65,6 +65,13 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     last_auto_loop_path: str | None = None
     last_auto_loop_apply_details_path: str | None = None
     last_auto_loop_counts: dict[str, Any] | None = None
+    last_deploy_job_id: str | None = None
+    last_deploy_job_status: str | None = None
+    last_deploy_report_path: str | None = None
+    deploy_targets_summary: dict[str, Any] | None = None
+    network_live_summary: dict[str, Any] | None = None
+    github_ops_summary: dict[str, Any] | None = None
+    github_ops_last_pr_open: dict[str, Any] | None = None
     doer_summary: dict[str, Any] | None = None
     doer_last_actionability_path: str | None = None
     doer_last_exec_report_path: str | None = None
@@ -251,6 +258,63 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                 "planned_intake_ids": planned_ids,
                 "limit_reached_intake_ids": limit_ids,
             }
+        deploy = sections.get("deploy") if isinstance(sections.get("deploy"), dict) else {}
+        if isinstance(deploy.get("last_deploy_job_id"), str):
+            last_deploy_job_id = deploy.get("last_deploy_job_id")
+        if isinstance(deploy.get("last_deploy_job_status"), str):
+            last_deploy_job_status = deploy.get("last_deploy_job_status")
+        if isinstance(deploy.get("last_deploy_report_path"), str):
+            last_deploy_report_path = deploy.get("last_deploy_report_path")
+        deploy_targets = deploy.get("deploy_targets") if isinstance(deploy.get("deploy_targets"), dict) else {}
+        if isinstance(deploy_targets, dict):
+            policy_path = deploy_targets.get("policy_path")
+            env_count = deploy_targets.get("environments_count")
+            kinds_count = deploy_targets.get("deploy_kinds_count")
+            if isinstance(policy_path, str) and isinstance(env_count, int) and isinstance(kinds_count, int):
+                deploy_targets_summary = {
+                    "policy_path": str(policy_path),
+                    "environments_count": int(env_count),
+                    "deploy_kinds_count": int(kinds_count),
+                }
+        network_live = sections.get("network_live") if isinstance(sections.get("network_live"), dict) else {}
+        if isinstance(network_live, dict):
+            enabled = network_live.get("enabled")
+            domains_count = network_live.get("allow_domains_count")
+            actions_count = network_live.get("allow_actions_count")
+            decision_pending = network_live.get("decision_pending")
+            enabled_by_decision = network_live.get("enabled_by_decision")
+            if (
+                isinstance(enabled, bool)
+                and isinstance(domains_count, int)
+                and isinstance(actions_count, int)
+                and isinstance(decision_pending, int)
+                and isinstance(enabled_by_decision, bool)
+            ):
+                network_live_summary = {
+                    "enabled": bool(enabled),
+                    "allow_domains_count": int(domains_count),
+                    "allow_actions_count": int(actions_count),
+                    "enabled_by_decision": bool(enabled_by_decision),
+                    "decision_pending": int(decision_pending),
+                }
+                if isinstance(network_live.get("last_override_path"), str):
+                    network_live_summary["last_override_path"] = network_live.get("last_override_path")
+                if isinstance(network_live.get("reason_code"), str) and network_live.get("reason_code"):
+                    network_live_summary["reason_code"] = network_live.get("reason_code")
+        github_ops = sections.get("github_ops") if isinstance(sections.get("github_ops"), dict) else {}
+        if isinstance(github_ops, dict):
+            last_pr_open = github_ops.get("last_pr_open") if isinstance(github_ops.get("last_pr_open"), dict) else {}
+            job_id = last_pr_open.get("job_id")
+            status = last_pr_open.get("status")
+            if isinstance(job_id, str) and isinstance(status, str):
+                safe_pr = {"job_id": job_id, "status": status}
+                pr_url = last_pr_open.get("pr_url")
+                reason = last_pr_open.get("reason")
+                if isinstance(pr_url, str) and pr_url:
+                    safe_pr["pr_url"] = pr_url
+                if isinstance(reason, str) and reason:
+                    safe_pr["reason"] = reason
+                github_ops_last_pr_open = safe_pr
         if isinstance(exec_ignored_count, int):
             summary["work_intake_exec_ignored_count"] = exec_ignored_count
         if isinstance(exec_skipped_count, int):
@@ -326,6 +390,71 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                     "planned_intake_ids": planned_ids,
                     "limit_reached_intake_ids": limit_ids,
                 }
+    github_ops_counts = {
+        "total": 0,
+        "queued": 0,
+        "running": 0,
+        "pass": 0,
+        "fail": 0,
+        "timeout": 0,
+        "killed": 0,
+        "skip": 0,
+    }
+    github_ops_index_path = workspace_root / ".cache" / "github_ops" / "jobs_index.v1.json"
+    if github_ops_index_path.exists():
+        try:
+            github_idx = _load_json(github_ops_index_path)
+        except Exception:
+            github_idx = {}
+        counts = github_idx.get("counts") if isinstance(github_idx, dict) else {}
+        if isinstance(counts, dict):
+            github_ops_counts = {
+                "total": int(counts.get("total") or 0),
+                "queued": int(counts.get("queued") or 0),
+                "running": int(counts.get("running") or 0),
+                "pass": int(counts.get("pass") or 0),
+                "fail": int(counts.get("fail") or 0),
+                "timeout": int(counts.get("timeout") or 0),
+                "killed": int(counts.get("killed") or 0),
+                "skip": int(counts.get("skip") or 0),
+            }
+        else:
+            jobs = github_idx.get("jobs") if isinstance(github_idx, dict) else []
+            jobs_list = jobs if isinstance(jobs, list) else []
+            for job in jobs_list:
+                if not isinstance(job, dict):
+                    continue
+                github_ops_counts["total"] += 1
+                status = str(job.get("status") or "").upper()
+                if status == "QUEUED":
+                    github_ops_counts["queued"] += 1
+                elif status == "RUNNING":
+                    github_ops_counts["running"] += 1
+                elif status == "PASS":
+                    github_ops_counts["pass"] += 1
+                elif status == "FAIL":
+                    github_ops_counts["fail"] += 1
+                elif status == "TIMEOUT":
+                    github_ops_counts["timeout"] += 1
+                elif status == "KILLED":
+                    github_ops_counts["killed"] += 1
+                elif status == "SKIP":
+                    github_ops_counts["skip"] += 1
+    if github_ops_last_pr_open is not None or github_ops_index_path.exists():
+        github_ops_summary = {
+            "jobs_total": int(github_ops_counts.get("total") or 0),
+            "jobs_by_status": {
+                "queued": int(github_ops_counts.get("queued") or 0),
+                "running": int(github_ops_counts.get("running") or 0),
+                "pass": int(github_ops_counts.get("pass") or 0),
+                "fail": int(github_ops_counts.get("fail") or 0),
+                "timeout": int(github_ops_counts.get("timeout") or 0),
+                "killed": int(github_ops_counts.get("killed") or 0),
+                "skip": int(github_ops_counts.get("skip") or 0),
+            },
+        }
+        if isinstance(github_ops_last_pr_open, dict):
+            github_ops_summary["last_pr_open"] = github_ops_last_pr_open
     if doer_summary is None and isinstance(last_doer_counts, dict):
         doer_summary = {
             "applied": int(last_doer_counts.get("applied") or 0),
@@ -352,6 +481,18 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["last_auto_loop_apply_details_path"] = last_auto_loop_apply_details_path
     if isinstance(last_auto_loop_counts, dict):
         payload["last_auto_loop_counts"] = last_auto_loop_counts
+    if isinstance(network_live_summary, dict):
+        payload["network_live_summary"] = network_live_summary
+    if isinstance(github_ops_summary, dict):
+        payload["github_ops_summary"] = github_ops_summary
+    if isinstance(deploy_targets_summary, dict):
+        payload["deploy_targets_summary"] = deploy_targets_summary
+    if isinstance(last_deploy_job_id, str):
+        payload["last_deploy_job_id"] = last_deploy_job_id
+    if isinstance(last_deploy_job_status, str):
+        payload["last_deploy_job_status"] = last_deploy_job_status
+    if isinstance(last_deploy_report_path, str):
+        payload["last_deploy_report_path"] = last_deploy_report_path
     if isinstance(doer_summary, dict):
         payload["doer_summary"] = doer_summary
     if isinstance(doer_last_actionability_path, str):

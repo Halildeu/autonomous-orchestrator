@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -19,6 +23,15 @@ def _parse_iso(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value)
     except Exception:
         return None
+
+
+def _job_time(job: dict[str, Any]) -> datetime:
+    for key in ("updated_at", "created_at", "started_at"):
+        raw = job.get(key)
+        ts = _parse_iso(str(raw)) if raw else None
+        if ts:
+            return ts
+    return datetime.fromtimestamp(0, tz=timezone.utc)
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -279,6 +292,128 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
         "last_extension_help_path": last_help_path,
         "notes": notes,
     }
+
+
+def _network_live_section(workspace_root: Path) -> dict[str, Any]:
+    override_rel = Path(".cache") / "policy_overrides" / "policy_network_live.override.v1.json"
+    override_path = workspace_root / override_rel
+    enabled = False
+    enabled_by_decision = False
+    allow_domains_count = 0
+    allow_actions_count = 0
+    policy_source = "core"
+    reason_code = ""
+    last_override_path = ""
+    if override_path.exists():
+        policy_source = "workspace"
+        last_override_path = str(override_rel)
+        try:
+            obj = _load_json(override_path)
+        except Exception:
+            reason_code = "OVERRIDE_INVALID"
+        else:
+            if isinstance(obj, dict):
+                raw_enabled = bool(obj.get("enabled", False))
+                enabled_by_decision = bool(obj.get("enabled_by_decision", False))
+                enabled = bool(raw_enabled and enabled_by_decision)
+                if isinstance(obj.get("allow_domains_count"), int):
+                    allow_domains_count = int(obj.get("allow_domains_count") or 0)
+                else:
+                    allow_domains = obj.get("allow_domains") if isinstance(obj.get("allow_domains"), list) else []
+                    allow_domains_count = len({str(x) for x in allow_domains if isinstance(x, str) and x.strip()})
+                if isinstance(obj.get("allow_actions_count"), int):
+                    allow_actions_count = int(obj.get("allow_actions_count") or 0)
+                else:
+                    allow_actions = obj.get("allow_actions") if isinstance(obj.get("allow_actions"), list) else []
+                    allow_actions_count = len({str(x) for x in allow_actions if isinstance(x, str) and x.strip()})
+                if raw_enabled and not enabled_by_decision:
+                    reason_code = "DECISION_REQUIRED"
+            else:
+                reason_code = "OVERRIDE_INVALID"
+    else:
+        reason_code = "OVERRIDE_MISSING"
+    decision_pending = 0
+    inbox_path = workspace_root / ".cache" / "index" / "decision_inbox.v1.json"
+    if inbox_path.exists():
+        try:
+            inbox = _load_json(inbox_path)
+        except Exception:
+            inbox = {}
+        counts = inbox.get("counts") if isinstance(inbox, dict) else None
+        by_kind = counts.get("by_kind") if isinstance(counts, dict) else None
+        if isinstance(by_kind, dict) and isinstance(by_kind.get("NETWORK_LIVE_ENABLE"), int):
+            decision_pending = int(by_kind.get("NETWORK_LIVE_ENABLE") or 0)
+        else:
+            items = inbox.get("items") if isinstance(inbox, dict) else None
+            items_list = items if isinstance(items, list) else []
+            decision_pending = len(
+                [item for item in items_list if isinstance(item, dict) and str(item.get("decision_kind") or "") == "NETWORK_LIVE_ENABLE"]
+            )
+    payload = {
+        "enabled": enabled,
+        "enabled_by_decision": enabled_by_decision,
+        "policy_source": policy_source,
+        "allow_domains_count": int(allow_domains_count),
+        "allow_actions_count": int(allow_actions_count),
+        "decision_pending": int(decision_pending),
+    }
+    if last_override_path:
+        payload["last_override_path"] = last_override_path
+    if reason_code:
+        payload["reason_code"] = reason_code
+    return payload
+
+
+def _github_ops_section(workspace_root: Path) -> dict[str, Any] | None:
+    jobs_index_rel = Path(".cache") / "github_ops" / "jobs_index.v1.json"
+    jobs_index_path = workspace_root / jobs_index_rel
+    report_rel = Path(".cache") / "reports" / "github_ops_report.v1.json"
+    report_path = workspace_root / report_rel
+    if not jobs_index_path.exists() and not report_path.exists():
+        return None
+
+    status = "IDLE"
+    notes: list[str] = []
+    jobs: list[dict[str, Any]] = []
+    if jobs_index_path.exists():
+        try:
+            idx = _load_json(jobs_index_path)
+        except Exception:
+            notes.append("github_ops_jobs_index_invalid")
+            status = "WARN"
+        else:
+            loaded = idx.get("jobs") if isinstance(idx, dict) else None
+            jobs = [j for j in loaded if isinstance(j, dict)] if isinstance(loaded, list) else []
+            if jobs:
+                status = "OK"
+    else:
+        notes.append("github_ops_jobs_index_missing")
+
+    last_pr_open = {"job_id": "", "status": ""}
+    pr_jobs = [j for j in jobs if str(j.get("kind") or "") == "PR_OPEN"]
+    if pr_jobs:
+        pr_jobs.sort(key=lambda j: (_job_time(j), str(j.get("job_id") or "")), reverse=True)
+        job = pr_jobs[0]
+        last_pr_open = {
+            "job_id": str(job.get("job_id") or ""),
+            "status": str(job.get("status") or ""),
+        }
+        pr_url = job.get("pr_url")
+        if isinstance(pr_url, str) and pr_url:
+            last_pr_open["pr_url"] = pr_url
+        reason = job.get("skip_reason") or job.get("error_code")
+        if isinstance(reason, str) and reason:
+            last_pr_open["reason"] = reason
+
+    section = {
+        "status": status,
+        "jobs_index_path": str(jobs_index_rel),
+        "last_pr_open": last_pr_open,
+        "notes": notes,
+    }
+    if report_path.exists():
+        section["last_report_path"] = str(report_rel)
+    return section
 
 
 def _airunner_section(workspace_root: Path) -> dict[str, Any]:
@@ -728,6 +863,73 @@ def _auto_loop_section(workspace_root: Path) -> dict[str, Any] | None:
     if apply_counts is not None:
         section["last_apply_details_path"] = apply_details_rel
         section["last_counts"] = apply_counts
+    return section
+
+
+def _deploy_targets_summary() -> tuple[dict[str, Any] | None, list[str]]:
+    notes: list[str] = []
+    core_root = _repo_root()
+    policy_path = core_root / "policies" / "policy_deploy_targets.v1.json"
+    if not policy_path.exists():
+        notes.append("deploy_targets_policy_missing")
+        return None, notes
+    try:
+        obj = _load_json(policy_path)
+    except Exception:
+        notes.append("deploy_targets_policy_invalid")
+        return None, notes
+    if not isinstance(obj, dict):
+        notes.append("deploy_targets_policy_invalid")
+        return None, notes
+    envs = obj.get("environments") if isinstance(obj.get("environments"), list) else []
+    kinds = obj.get("deploy_job_kinds") if isinstance(obj.get("deploy_job_kinds"), list) else []
+    env_count = len({str(x) for x in envs if isinstance(x, str) and x.strip()})
+    kind_count = len({str(x) for x in kinds if isinstance(x, str) and x.strip()})
+    summary = {
+        "policy_path": str(policy_path.relative_to(core_root)),
+        "environments_count": int(env_count),
+        "deploy_kinds_count": int(kind_count),
+    }
+    return summary, notes
+
+
+def _deploy_section(workspace_root: Path) -> dict[str, Any] | None:
+    rel_path = str(Path(".cache") / "reports" / "deploy_report.v1.json")
+    report_path = workspace_root / rel_path
+    targets_summary, targets_notes = _deploy_targets_summary()
+    if not report_path.exists() and targets_summary is None:
+        return None
+
+    notes: list[str] = []
+    status = "IDLE"
+    job_id = ""
+    job_status = ""
+    if report_path.exists():
+        try:
+            report = _load_json(report_path)
+        except Exception:
+            report = {}
+            status = "WARN"
+            notes.append("deploy_report_invalid")
+        if isinstance(report, dict):
+            report_status = str(report.get("status") or "")
+            if report_status in {"OK", "WARN", "IDLE"}:
+                status = report_status
+            last_job = report.get("last_job") if isinstance(report.get("last_job"), dict) else {}
+            job_id = str(last_job.get("job_id") or "")
+            job_status = str(last_job.get("status") or "")
+    else:
+        notes.append("deploy_report_missing")
+    notes.extend(targets_notes)
+    section = {
+        "status": status,
+        "last_deploy_job_id": job_id,
+        "last_deploy_job_status": job_status,
+        "last_deploy_report_path": rel_path,
+        "notes": notes,
+    }
+    if isinstance(targets_summary, dict):
+        section["deploy_targets"] = targets_summary
     return section
 
 

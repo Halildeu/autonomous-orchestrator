@@ -1327,6 +1327,107 @@
           ],
           "type": "object"
         },
+        "network_live": {
+          "additionalProperties": false,
+          "properties": {
+            "allow_actions_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "allow_domains_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "decision_pending": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "enabled_by_decision": {
+              "type": "boolean"
+            },
+            "last_override_path": {
+              "type": "string"
+            },
+            "policy_source": {
+              "enum": [
+                "core",
+                "workspace",
+                "merged"
+              ],
+              "type": "string"
+            },
+            "reason_code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "policy_source",
+            "allow_domains_count",
+            "allow_actions_count",
+            "enabled_by_decision",
+            "decision_pending"
+          ],
+          "type": "object"
+        },
+        "github_ops": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "IDLE",
+                "FAIL"
+              ],
+              "type": "string"
+            },
+            "jobs_index_path": {
+              "type": "string"
+            },
+            "last_report_path": {
+              "type": "string"
+            },
+            "last_pr_open": {
+              "additionalProperties": false,
+              "properties": {
+                "job_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "pr_url": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "job_id",
+                "status"
+              ],
+              "type": "object"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "jobs_index_path",
+            "last_pr_open",
+            "notes"
+          ],
+          "type": "object"
+        },
         "formats": {
           "additionalProperties": false,
           "properties": {
@@ -1947,6 +2048,62 @@
             "evidence_paths",
             "publish",
             "publish_allowed",
+            "notes"
+          ],
+          "type": "object"
+        },
+        "deploy": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "last_deploy_job_id": {
+              "type": "string"
+            },
+            "last_deploy_job_status": {
+              "type": "string"
+            },
+            "last_deploy_report_path": {
+              "type": "string"
+            },
+            "deploy_targets": {
+              "additionalProperties": false,
+              "properties": {
+                "policy_path": {
+                  "type": "string"
+                },
+                "environments_count": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "deploy_kinds_count": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "policy_path",
+                "environments_count",
+                "deploy_kinds_count"
+              ],
+              "type": "object"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "last_deploy_report_path",
             "notes"
           ],
           "type": "object"
