@@ -140,6 +140,8 @@
         "closed_reason": { "type": "string" },
         "last_seen": { "type": "string", "format": "date-time" },
         "last_status": { "type": "string", "minLength": 1 },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "ingested_at": { "type": "string", "format": "date-time" },
         "autopilot_allowed": { "type": "boolean" },
         "autopilot_selected": { "type": "boolean" },
         "autopilot_reason": { "type": "string", "minLength": 1, "maxLength": 64 },
@@ -152,7 +154,11 @@
         "time_sink_over_threshold": { "type": "boolean" },
         "time_sink_rank": { "type": "integer", "minimum": 1 },
         "time_sink_last_seen": { "type": "string", "minLength": 1 }
-      }
+      },
+      "anyOf": [
+        { "required": ["updated_at"] },
+        { "required": ["ingested_at"] }
+      ]
     }
   }
 }

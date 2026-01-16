@@ -801,6 +801,7 @@ def _load_manual_request_sources(
             impact_scope = "external-change"
         artifact_type = obj.get("artifact_type") if isinstance(obj.get("artifact_type"), str) else "request"
         domain = obj.get("domain") if isinstance(obj.get("domain"), str) else "general"
+        created_at = obj.get("created_at") if isinstance(obj.get("created_at"), str) else ""
         title = f"Manual request: {artifact_type} / {domain}"
         constraints = obj.get("constraints") if isinstance(obj.get("constraints"), dict) else {}
         requires_core_change = bool(obj.get("requires_core_change", False))
@@ -836,6 +837,8 @@ def _load_manual_request_sources(
             "manual_request_requires_core_change": requires_core_change,
             "evidence_paths": evidence,
         }
+        if created_at:
+            source["created_at"] = created_at
         override = overrides.get(request_id) if isinstance(overrides, dict) else None
         if isinstance(override, dict):
             source["override_bucket"] = override.get("override_bucket")
@@ -864,6 +867,8 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
 
     if not bool(policy.get("enabled", True)):
         return {"status": "IDLE", "reason": "policy_disabled"}
+
+    generated_at = _now_iso()
 
     sources: list[dict[str, Any]] = []
     sources.extend(_load_gap_sources(workspace_root, notes))
@@ -937,6 +942,16 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
         last_status = str(source.get("last_status") or source.get("job_last_status") or "")
         if last_status:
             item["last_status"] = last_status
+        updated_at = str(
+            source.get("updated_at")
+            or source.get("last_seen")
+            or source.get("job_last_seen")
+            or source.get("created_at")
+            or ""
+        )
+        if updated_at:
+            item["updated_at"] = updated_at
+        item["ingested_at"] = generated_at
         if closed_reason:
             item["closed_reason"] = closed_reason
         suggested = _suggested_extensions(source, bucket)
@@ -1037,7 +1052,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
 
     payload = {
         "version": "v1",
-        "generated_at": _now_iso(),
+        "generated_at": generated_at,
         "workspace_root": str(workspace_root),
         "status": status,
         "plan_policy": plan_policy if plan_policy in {"optional", "required"} else "optional",
