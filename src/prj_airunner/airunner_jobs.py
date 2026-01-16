@@ -75,6 +75,7 @@ def _policy_defaults() -> dict[str, Any]:
             "smoke_full_cmd": [],
             "allowed_job_types": [
                 "SMOKE_FULL",
+                "SMOKE_FAST",
                 "RELEASE_PREPARE",
                 "RELEASE_PUBLISH",
                 "GITHUB_CHECKS_POLL",
@@ -173,6 +174,7 @@ def seed_jobs(
     safe_kind = str(kind or "").strip().upper()
     if safe_kind not in {
         "SMOKE_FULL",
+        "SMOKE_FAST",
         "RELEASE_PREPARE",
         "RELEASE_PUBLISH",
         "GITHUB_CHECKS_POLL",
@@ -310,13 +312,21 @@ def _jobs_archive_path(workspace_root: Path) -> Path:
     return workspace_root / ".cache" / "reports" / "jobs_archive.v1.json"
 
 
-def _smoke_full_paths(workspace_root: Path, job_id: str) -> tuple[Path, Path, Path]:
+def _smoke_job_paths(workspace_root: Path, job_id: str, label: str) -> tuple[Path, Path, Path]:
     base = _jobs_report_dir(workspace_root)
     return (
-        base / f"smoke_full_{job_id}.stdout.log",
-        base / f"smoke_full_{job_id}.stderr.log",
-        base / f"smoke_full_{job_id}.rc.json",
+        base / f"smoke_{label}_{job_id}.stdout.log",
+        base / f"smoke_{label}_{job_id}.stderr.log",
+        base / f"smoke_{label}_{job_id}.rc.json",
     )
+
+
+def _smoke_full_paths(workspace_root: Path, job_id: str) -> tuple[Path, Path, Path]:
+    return _smoke_job_paths(workspace_root, job_id, "full")
+
+
+def _smoke_fast_paths(workspace_root: Path, job_id: str) -> tuple[Path, Path, Path]:
+    return _smoke_job_paths(workspace_root, job_id, "fast")
 
 
 def _rel_job_path(path: Path) -> str:
@@ -444,12 +454,28 @@ def _detect_demo_prereq_failure(text: str) -> bool:
     return "prerequisite apply failed" in text and "ws_integration_demo" in text
 
 
+def _detect_demo_advisor_suggestions_missing(text: str) -> bool:
+    if ("advisor_suggestions" in text or "advisor suggestions" in text) and (
+        "must write" in text or "missing" in text
+    ):
+        return True
+    return False
+
+
 def _detect_demo_catalog_parse(text: str) -> bool:
     if "catalog parse error" in text:
         return True
     if "catalog" in text and "parse" in text and "ws_integration_demo" in text:
         return True
     if "catalog" in text and "valid json" in text and "ws_integration_demo" in text:
+        return True
+    return False
+
+
+def _detect_demo_catalog_missing(text: str) -> bool:
+    if "demo_catalog_missing" in text:
+        return True
+    if "catalog" in text and "missing" in text and "ws_integration_demo" in text:
         return True
     return False
 
@@ -472,7 +498,11 @@ def _classify_smoke_full_failure(stdout_path: Path, stderr_path: Path) -> tuple[
     stderr_text = _read_text_tail(stderr_path)
     combined = (stderr_text + "\n" + stdout_text).lower()
     if _detect_demo_prereq_failure(combined):
-        failure_class = "DEMO_PREREQ_FAIL"
+        failure_class = "DEMO_PREREQ_APPLY_FAIL"
+    elif _detect_demo_advisor_suggestions_missing(combined):
+        failure_class = "DEMO_ADVISOR_SUGGESTIONS_MISSING"
+    elif _detect_demo_catalog_missing(combined):
+        failure_class = "DEMO_CATALOG_MISSING"
     elif _detect_demo_catalog_parse(combined):
         failure_class = "DEMO_CATALOG_PARSE"
     elif _detect_core_break(combined):
@@ -491,7 +521,7 @@ def _classify_smoke_full_failure(stdout_path: Path, stderr_path: Path) -> tuple[
     return failure_class, _signature_hash(failure_class=failure_class, lines=lines)
 
 
-def _smoke_full_cmd(*, policy: dict[str, Any], workspace_root: Path, rc_path: Path) -> list[str]:
+def _smoke_full_cmd(*, policy: dict[str, Any], workspace_root: Path, rc_path: Path, level: str = "full") -> list[str]:
     jobs_cfg = policy.get("jobs") if isinstance(policy.get("jobs"), dict) else {}
     override_cmd = jobs_cfg.get("smoke_full_cmd")
     if isinstance(override_cmd, list) and override_cmd and all(isinstance(x, str) and x for x in override_cmd):
@@ -501,6 +531,7 @@ def _smoke_full_cmd(*, policy: dict[str, Any], workspace_root: Path, rc_path: Pa
                 str(arg)
                 .replace("{rc_path}", str(rc_path))
                 .replace("{workspace_root}", str(workspace_root))
+                .replace("{level}", str(level))
             )
         return rendered
     repo_root = _repo_root()
@@ -514,15 +545,26 @@ def _smoke_full_cmd(*, policy: dict[str, Any], workspace_root: Path, rc_path: Pa
         str(workspace_root),
         "--rc-path",
         str(rc_path),
+        "--level",
+        str(level),
     ]
 
 
-def _start_smoke_full_job(workspace_root: Path, job: dict[str, Any], policy: dict[str, Any]) -> None:
-    stdout_path, stderr_path, rc_path = _smoke_full_paths(workspace_root, str(job.get("job_id") or "unknown"))
+def _start_smoke_full_job(
+    workspace_root: Path,
+    job: dict[str, Any],
+    policy: dict[str, Any],
+    *,
+    level: str = "full",
+    paths: tuple[Path, Path, Path] | None = None,
+) -> None:
+    stdout_path, stderr_path, rc_path = paths or _smoke_full_paths(
+        workspace_root, str(job.get("job_id") or "unknown")
+    )
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
-    cmd = _smoke_full_cmd(policy=policy, workspace_root=workspace_root, rc_path=rc_path)
+    cmd = _smoke_full_cmd(policy=policy, workspace_root=workspace_root, rc_path=rc_path, level=level)
     env = os.environ.copy()
-    env["SMOKE_LEVEL"] = "full"
+    env["SMOKE_LEVEL"] = str(level or "full")
     repo_root = _repo_root()
     with stdout_path.open("w", encoding="utf-8") as stdout_file, stderr_path.open("w", encoding="utf-8") as stderr_file:
         proc = subprocess.Popen(
@@ -543,14 +585,27 @@ def _start_smoke_full_job(workspace_root: Path, job: dict[str, Any], policy: dic
     job["evidence_paths"] = sorted({str(x) for x in evidence if isinstance(x, str) and x})
 
 
+def _start_smoke_fast_job(workspace_root: Path, job: dict[str, Any], policy: dict[str, Any]) -> None:
+    _start_smoke_full_job(
+        workspace_root,
+        job,
+        policy,
+        level="fast",
+        paths=_smoke_fast_paths(workspace_root, str(job.get("job_id") or "unknown")),
+    )
+
+
 def _poll_smoke_full_job(
     workspace_root: Path,
     job: dict[str, Any],
     policy: dict[str, Any],
     *,
     timeout_seconds: int,
+    paths: tuple[Path, Path, Path] | None = None,
 ) -> None:
-    stdout_path, stderr_path, rc_path = _smoke_full_paths(workspace_root, str(job.get("job_id") or "unknown"))
+    stdout_path, stderr_path, rc_path = paths or _smoke_full_paths(
+        workspace_root, str(job.get("job_id") or "unknown")
+    )
     jobs_cfg = policy.get("jobs") if isinstance(policy.get("jobs"), dict) else {}
     started_at = _parse_iso(str(job.get("started_at") or ""))
     now = datetime.now(timezone.utc)
@@ -611,6 +666,22 @@ def _poll_smoke_full_job(
     job["signature_hash"] = signature_hash
     job["updated_at"] = _now_iso()
     job["last_poll_at"] = _now_iso()
+
+
+def _poll_smoke_fast_job(
+    workspace_root: Path,
+    job: dict[str, Any],
+    policy: dict[str, Any],
+    *,
+    timeout_seconds: int,
+) -> None:
+    _poll_smoke_full_job(
+        workspace_root,
+        job,
+        policy,
+        timeout_seconds=timeout_seconds,
+        paths=_smoke_fast_paths(workspace_root, str(job.get("job_id") or "unknown")),
+    )
 
 
 def _run_cmd_json(func, args: argparse.Namespace) -> dict[str, Any]:
@@ -701,12 +772,13 @@ def update_jobs(
         [
             j
             for j in jobs
-            if str(j.get("job_type") or j.get("kind") or "") == "SMOKE_FULL" and str(j.get("status") or "") == "RUNNING"
+            if str(j.get("job_type") or j.get("kind") or "") in {"SMOKE_FULL", "SMOKE_FAST"}
+            and str(j.get("status") or "") == "RUNNING"
         ]
     )
     last_smoke_full_started = None
     for job in jobs:
-        if str(job.get("job_type") or job.get("kind") or "") != "SMOKE_FULL":
+        if str(job.get("job_type") or job.get("kind") or "") not in {"SMOKE_FULL", "SMOKE_FAST"}:
             continue
         started_at = _parse_iso(str(job.get("started_at") or job.get("created_at") or ""))
         if started_at and (last_smoke_full_started is None or started_at > last_smoke_full_started):
@@ -714,7 +786,7 @@ def update_jobs(
 
     def _job_sort_key(job: dict[str, Any]) -> tuple[int, str, str]:
         job_type = str(job.get("job_type") or job.get("kind") or "")
-        priority = 0 if job_type == "SMOKE_FULL" else 1
+        priority = 0 if job_type in {"SMOKE_FULL", "SMOKE_FAST"} else 1
         return (priority, job_type, str(job.get("job_id") or ""))
 
     if str(index.get("last_tick_id") or "") != tick_id:
@@ -722,7 +794,7 @@ def update_jobs(
             for job_type in sorted(allowed_types):
                 if job_type in active_by_type:
                     continue
-                if job_type == "SMOKE_FULL":
+                if job_type in {"SMOKE_FULL", "SMOKE_FAST"}:
                     if not smoke_full_enabled:
                         notes.append("smoke_full_disabled")
                         continue
@@ -799,7 +871,9 @@ def update_jobs(
         queued_poll = poll_only_mode and status == "QUEUED"
         counted_polled = False
         job_type = str(job.get("job_type") or job.get("kind") or "")
-        poll_interval = smoke_full_poll_interval if job_type == "SMOKE_FULL" else default_poll_interval
+        poll_interval = (
+            smoke_full_poll_interval if job_type in {"SMOKE_FULL", "SMOKE_FAST"} else default_poll_interval
+        )
         last_poll = job.get("last_poll_at")
         if status == "RUNNING" and poll_interval and last_poll:
             try:
@@ -886,16 +960,22 @@ def update_jobs(
         else:
             start_iso = _now_iso()
             started = time.monotonic()
-            if job_type == "SMOKE_FULL":
+            if job_type in {"SMOKE_FULL", "SMOKE_FAST"}:
                 if status == "QUEUED":
-                    _start_smoke_full_job(workspace_root, job, policy)
+                    if job_type == "SMOKE_FAST":
+                        _start_smoke_fast_job(workspace_root, job, policy)
+                    else:
+                        _start_smoke_full_job(workspace_root, job, policy)
                     running_count += 1
                     run_stats["started"] += 1
                     if queued_poll and not counted_polled:
                         run_stats["polled"] += 1
                         counted_polled = True
                 else:
-                    _poll_smoke_full_job(workspace_root, job, policy, timeout_seconds=smoke_full_timeout)
+                    if job_type == "SMOKE_FAST":
+                        _poll_smoke_fast_job(workspace_root, job, policy, timeout_seconds=smoke_full_timeout)
+                    else:
+                        _poll_smoke_full_job(workspace_root, job, policy, timeout_seconds=smoke_full_timeout)
                     run_stats["polled"] += 1
                     counted_polled = True
                 polled += 1

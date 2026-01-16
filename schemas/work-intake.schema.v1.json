@@ -70,7 +70,7 @@
     },
     "source_type": {
       "type": "string",
-      "enum": ["GAP", "LENS_GAP", "PDCA_REGRESSION", "SCRIPT_BUDGET", "DOC_NAV", "USER_REQUEST", "ROADMAP_ITEM", "INTEGRITY", "MANUAL_REQUEST", "RELEASE", "JOB_STATUS", "TIME_SINK", "GITHUB_OPS"]
+      "enum": ["GAP", "LENS_GAP", "PDCA_REGRESSION", "SCRIPT_BUDGET", "DOC_NAV", "USER_REQUEST", "ROADMAP_ITEM", "INTEGRITY", "MANUAL_REQUEST", "RELEASE", "JOB_STATUS", "TIME_SINK", "GITHUB_OPS", "DEPLOY_JOB"]
     },
     "layer": {
       "type": "string",

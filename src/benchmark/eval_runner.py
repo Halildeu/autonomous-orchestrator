@@ -34,9 +34,25 @@ def _write_if_missing(path: Path, payload: dict[str, Any]) -> None:
 def _load_policy_north_star_eval_lenses(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
     defaults = {
         "version": "v1",
-        "eval_lenses_enabled": ["trend", "integrity_compat", "ai_ops_fit", "github_ops_release", "operability"],
+        "eval_lenses_enabled": [
+            "trend",
+            "integrity_compat",
+            "integration_coherence",
+            "ai_ops_fit",
+            "github_ops_release",
+            "operability",
+        ],
         "trend_best_practice": {"min_coverage_ok": 0.5, "min_coverage_warn": 0.2},
         "integrity_compat": {"min_score_ok": 1.0, "min_score_warn": 0.5},
+        "integration_coherence": {
+            "weight": 0.2,
+            "required_signals": [
+                "layer_boundary_report",
+                "pack_validation_report",
+                "core_unlock_compliance",
+                "schema_validation_summary",
+            ],
+        },
         "ai_ops_fit": {
             "required_fields": ["context_pack_present", "provider_policy_pinned", "secrets_redacted"],
             "min_score_ok": 1.0,
@@ -57,6 +73,8 @@ def _load_policy_north_star_eval_lenses(*, core_root: Path, workspace_root: Path
             "required_fields": [
                 "script_budget_present",
                 "doc_nav_present",
+                "docs_hygiene_present",
+                "docs_drift_present",
                 "airunner_jobs_present",
                 "pdca_cursor_present",
                 "heartbeat_present",
@@ -94,6 +112,14 @@ def _load_policy_north_star_operability(*, core_root: Path, workspace_root: Path
             "soft_warn": 1,
             "placeholders_warn": 25,
             "placeholders_fail": 200,
+            "docs_ops_md_count_warn": 40,
+            "docs_ops_md_count_fail": 80,
+            "docs_ops_md_bytes_warn": 250000,
+            "docs_ops_md_bytes_fail": 500000,
+            "repo_md_total_count_warn": 300,
+            "repo_md_total_count_fail": 800,
+            "docs_unmapped_md_warn": 1,
+            "docs_unmapped_md_fail": 5,
             "jobs_stuck_warn": 1,
             "jobs_stuck_fail": 5,
             "jobs_fail_warn": 3,
@@ -109,6 +135,8 @@ def _load_policy_north_star_operability(*, core_root: Path, workspace_root: Path
         "signals": {
             "script_budget": True,
             "doc_nav_placeholders": True,
+            "docs_hygiene": True,
+            "docs_drift": True,
             "airunner_jobs": True,
             "pdca_cursor": True,
             "airunner_heartbeat": True,
@@ -120,6 +148,45 @@ def _load_policy_north_star_operability(*, core_root: Path, workspace_root: Path
     }
     ws_policy = workspace_root / "policies" / "policy_north_star_operability.v1.json"
     core_policy = core_root / "policies" / "policy_north_star_operability.v1.json"
+    policy_path = ws_policy if ws_policy.exists() else core_policy
+    if not policy_path.exists():
+        return defaults
+    try:
+        obj = _load_json(policy_path)
+    except Exception:
+        return defaults
+    if not isinstance(obj, dict):
+        return defaults
+    merged = dict(defaults)
+    for key, value in obj.items():
+        merged[key] = value
+    return merged
+
+
+def _load_policy_north_star_integration_coherence(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
+    defaults = {
+        "version": "v1",
+        "thresholds": {
+            "layer_boundary_violations_warn": 0,
+            "layer_boundary_violations_fail": 0,
+            "pack_conflicts_warn": 0,
+            "pack_conflicts_fail": 0,
+            "core_unlock_scope_widen_warn": 0,
+            "core_unlock_scope_widen_fail": 1,
+            "schema_fail_warn": 0,
+            "schema_fail_fail": 1,
+        },
+        "signals": {
+            "layer_boundary_report": True,
+            "pack_validation_report": True,
+            "core_unlock_compliance": True,
+            "schema_validation_summary": True,
+        },
+        "classification": {"FAIL_if": {}, "WARN_if": {}},
+        "gap_rules": {},
+    }
+    ws_policy = workspace_root / "policies" / "policy_north_star_integration_coherence.v1.json"
+    core_policy = core_root / "policies" / "policy_north_star_integration_coherence.v1.json"
     policy_path = ws_policy if ws_policy.exists() else core_policy
     if not policy_path.exists():
         return defaults
@@ -336,14 +403,22 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     gh_notes = [f"missing:{key}" for key in gh_required_list if not gh_requirements.get(key)]
 
     operability_policy = _load_policy_north_star_operability(core_root=core_root, workspace_root=workspace_root)
+    integration_policy = _load_policy_north_star_integration_coherence(core_root=core_root, workspace_root=workspace_root)
     operability_cfg = (
         lenses_policy.get("operability") if isinstance(lenses_policy.get("operability"), dict) else {}
+    )
+    integration_cfg = (
+        lenses_policy.get("integration_coherence")
+        if isinstance(lenses_policy.get("integration_coherence"), dict)
+        else {}
     )
     operability_required_fields = operability_cfg.get("required_fields")
     if not isinstance(operability_required_fields, list):
         operability_required_fields = [
             "script_budget_present",
             "doc_nav_present",
+            "docs_hygiene_present",
+            "docs_drift_present",
             "airunner_jobs_present",
             "pdca_cursor_present",
             "heartbeat_present",
@@ -355,6 +430,11 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     raw_signals = raw_signals if isinstance(raw_signals, dict) else {}
     sb_signal = raw_signals.get("script_budget") if isinstance(raw_signals.get("script_budget"), dict) else {}
     doc_nav_signal = raw_signals.get("doc_nav") if isinstance(raw_signals.get("doc_nav"), dict) else {}
+    docs_hygiene_signal = raw_signals.get("docs_hygiene") if isinstance(raw_signals.get("docs_hygiene"), dict) else {}
+    docs_drift_signal = raw_signals.get("docs_drift") if isinstance(raw_signals.get("docs_drift"), dict) else {}
+    airunner_state = (
+        raw_signals.get("airrunner_state") if isinstance(raw_signals.get("airrunner_state"), dict) else {}
+    )
     jobs_signal = raw_signals.get("airunner_jobs") if isinstance(raw_signals.get("airunner_jobs"), dict) else {}
     pdca_signal = raw_signals.get("pdca_cursor") if isinstance(raw_signals.get("pdca_cursor"), dict) else {}
     heartbeat_signal = (
@@ -362,10 +442,17 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     )
     intake_signal = raw_signals.get("work_intake_noise") if isinstance(raw_signals.get("work_intake_noise"), dict) else {}
     integrity_signal = raw_signals.get("integrity") if isinstance(raw_signals.get("integrity"), dict) else {}
+    integration_signals = (
+        raw.get("integration_coherence_signals")
+        if isinstance(raw.get("integration_coherence_signals"), dict)
+        else {}
+    )
 
     required_map = {
         "script_budget_present": isinstance(raw_signals.get("script_budget"), dict),
         "doc_nav_present": isinstance(raw_signals.get("doc_nav"), dict),
+        "docs_hygiene_present": isinstance(raw_signals.get("docs_hygiene"), dict),
+        "docs_drift_present": isinstance(raw_signals.get("docs_drift"), dict),
         "airunner_jobs_present": isinstance(raw_signals.get("airunner_jobs"), dict),
         "pdca_cursor_present": isinstance(raw_signals.get("pdca_cursor"), dict),
         "heartbeat_present": isinstance(raw_signals.get("airunner_heartbeat"), dict),
@@ -394,13 +481,24 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     hard_exceeded = int(sb_signal.get("hard_exceeded", 0) or 0)
     soft_exceeded = int(sb_signal.get("soft_exceeded", 0) or 0)
     placeholders = int(doc_nav_signal.get("placeholders_count", 0) or 0)
+    docs_ops_md_count = int(docs_hygiene_signal.get("docs_ops_md_count", 0) or 0)
+    docs_ops_md_bytes = int(docs_hygiene_signal.get("docs_ops_md_bytes", 0) or 0)
+    repo_md_total_count = int(docs_hygiene_signal.get("repo_md_total_count", 0) or 0)
+    docs_unmapped_md_count = int(docs_drift_signal.get("unmapped_md_count", 0) or 0)
     jobs_stuck = int(jobs_signal.get("stuck", 0) or 0)
     jobs_fail = int(jobs_signal.get("fail", 0) or 0)
     pdca_stale = float(pdca_signal.get("stale_hours", 0.0) or 0.0)
     heartbeat_stale = int(heartbeat_signal.get("stale_seconds", 0) or 0)
+    airunner_enabled = bool(airunner_state.get("enabled_effective", False))
+    auto_mode_enabled = bool(airunner_state.get("auto_mode_enabled_effective", False))
+    heartbeat_enabled = airunner_enabled or auto_mode_enabled
     intake_new = int(intake_signal.get("new_items_24h", 0) or 0)
     suppressed = int(intake_signal.get("suppressed_24h", 0) or 0)
     integrity_status_signal = str(integrity_signal.get("status") or "")
+    layer_boundary_violations = int(integration_signals.get("layer_boundary_violations_count", 0) or 0)
+    pack_conflicts = int(integration_signals.get("pack_conflict_count", 0) or 0)
+    core_unlock_scope_widen = int(integration_signals.get("core_unlock_scope_widen_count", 0) or 0)
+    schema_fail_count = int(integration_signals.get("schema_fail_count", 0) or 0)
 
     def _resolve_threshold(value: Any) -> float:
         if isinstance(value, str):
@@ -411,6 +509,16 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
 
     fail_reasons: list[str] = []
     warn_reasons: list[str] = []
+    reason_map = {
+        "docs_ops_md_count_gt": "operability_docs_ops_md_count_gt",
+        "docs_ops_md_bytes_gt": "operability_docs_ops_md_bytes_gt",
+        "repo_md_total_count_gt": "operability_repo_md_total_count_gt",
+        "docs_unmapped_md_gt": "operability_docs_unmapped_md_gt",
+    }
+
+    def _reason_code(key: str) -> str:
+        return reason_map.get(key, key)
+
     ordered_checks = [
         "hard_exceeded_gt",
         "soft_exceeded_gt",
@@ -420,48 +528,76 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "pdca_cursor_stale_hours_gt",
         "heartbeat_stale_seconds_gt",
         "placeholders_gt",
+        "docs_ops_md_count_gt",
+        "docs_ops_md_bytes_gt",
+        "repo_md_total_count_gt",
+        "docs_unmapped_md_gt",
         "intake_new_items_per_day_gt",
         "suppressed_per_day_gt",
     ]
     for key in ordered_checks:
         if key in fail_cfg:
             if key == "integrity_fail" and bool(fail_cfg.get(key)) and integrity_status_signal == "FAIL":
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
             elif key == "hard_exceeded_gt" and hard_exceeded > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
             elif key == "jobs_stuck_gt" and jobs_stuck > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
             elif key == "jobs_fail_gt" and jobs_fail > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
             elif key == "pdca_cursor_stale_hours_gt" and pdca_stale > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
-            elif key == "heartbeat_stale_seconds_gt" and heartbeat_stale > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
+            elif (
+                key == "heartbeat_stale_seconds_gt"
+                and heartbeat_enabled
+                and heartbeat_stale > _resolve_threshold(fail_cfg.get(key))
+            ):
+                fail_reasons.append(_reason_code(key))
             elif key == "placeholders_gt" and placeholders > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
+            elif key == "docs_ops_md_count_gt" and docs_ops_md_count > _resolve_threshold(fail_cfg.get(key)):
+                fail_reasons.append(_reason_code(key))
+            elif key == "docs_ops_md_bytes_gt" and docs_ops_md_bytes > _resolve_threshold(fail_cfg.get(key)):
+                fail_reasons.append(_reason_code(key))
+            elif key == "repo_md_total_count_gt" and repo_md_total_count > _resolve_threshold(fail_cfg.get(key)):
+                fail_reasons.append(_reason_code(key))
+            elif key == "docs_unmapped_md_gt" and docs_unmapped_md_count > _resolve_threshold(fail_cfg.get(key)):
+                fail_reasons.append(_reason_code(key))
             elif key == "intake_new_items_per_day_gt" and intake_new > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
             elif key == "suppressed_per_day_gt" and suppressed > _resolve_threshold(fail_cfg.get(key)):
-                fail_reasons.append(key)
+                fail_reasons.append(_reason_code(key))
         if key in warn_cfg:
             if key == "hard_exceeded_gt" and hard_exceeded > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
             elif key == "jobs_stuck_gt" and jobs_stuck > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
             elif key == "jobs_fail_gt" and jobs_fail > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
             elif key == "pdca_cursor_stale_hours_gt" and pdca_stale > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
-            elif key == "heartbeat_stale_seconds_gt" and heartbeat_stale > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
+            elif (
+                key == "heartbeat_stale_seconds_gt"
+                and heartbeat_enabled
+                and heartbeat_stale > _resolve_threshold(warn_cfg.get(key))
+            ):
+                warn_reasons.append(_reason_code(key))
             elif key == "placeholders_gt" and placeholders > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
+            elif key == "docs_ops_md_count_gt" and docs_ops_md_count > _resolve_threshold(warn_cfg.get(key)):
+                warn_reasons.append(_reason_code(key))
+            elif key == "docs_ops_md_bytes_gt" and docs_ops_md_bytes > _resolve_threshold(warn_cfg.get(key)):
+                warn_reasons.append(_reason_code(key))
+            elif key == "repo_md_total_count_gt" and repo_md_total_count > _resolve_threshold(warn_cfg.get(key)):
+                warn_reasons.append(_reason_code(key))
+            elif key == "docs_unmapped_md_gt" and docs_unmapped_md_count > _resolve_threshold(warn_cfg.get(key)):
+                warn_reasons.append(_reason_code(key))
             elif key == "intake_new_items_per_day_gt" and intake_new > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
             elif key == "suppressed_per_day_gt" and suppressed > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
             elif key == "soft_exceeded_gt" and soft_exceeded > _resolve_threshold(warn_cfg.get(key)):
-                warn_reasons.append(key)
+                warn_reasons.append(_reason_code(key))
 
     if fail_reasons:
         operability_classification = "FAIL"
@@ -481,13 +617,32 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
 
     placeholders_warn = float(thresholds.get("placeholders_warn", 0) or 0)
     placeholders_fail = float(thresholds.get("placeholders_fail", 0) or 0)
+    docs_ops_md_count_warn = float(thresholds.get("docs_ops_md_count_warn", 0) or 0)
+    docs_ops_md_count_fail = float(thresholds.get("docs_ops_md_count_fail", 0) or 0)
+    docs_ops_md_bytes_warn = float(thresholds.get("docs_ops_md_bytes_warn", 0) or 0)
+    docs_ops_md_bytes_fail = float(thresholds.get("docs_ops_md_bytes_fail", 0) or 0)
+    repo_md_total_count_warn = float(thresholds.get("repo_md_total_count_warn", 0) or 0)
+    repo_md_total_count_fail = float(thresholds.get("repo_md_total_count_fail", 0) or 0)
     intake_warn = float(thresholds.get("intake_new_items_per_day_warn", 0) or 0)
     intake_fail = float(thresholds.get("intake_new_items_per_day_fail", 0) or 0)
     suppressed_warn = float(thresholds.get("suppressed_per_day_warn", 0) or 0)
     sustainability = 1.0
-    if placeholders > placeholders_fail or intake_new > intake_fail:
+    if (
+        placeholders > placeholders_fail
+        or intake_new > intake_fail
+        or docs_ops_md_count > docs_ops_md_count_fail
+        or docs_ops_md_bytes > docs_ops_md_bytes_fail
+        or repo_md_total_count > repo_md_total_count_fail
+    ):
         sustainability = 0.0
-    elif placeholders > placeholders_warn or intake_new > intake_warn or suppressed > suppressed_warn:
+    elif (
+        placeholders > placeholders_warn
+        or intake_new > intake_warn
+        or suppressed > suppressed_warn
+        or docs_ops_md_count > docs_ops_md_count_warn
+        or docs_ops_md_bytes > docs_ops_md_bytes_warn
+        or repo_md_total_count > repo_md_total_count_warn
+    ):
         sustainability = 0.5
 
     jobs_stuck_warn = float(thresholds.get("jobs_stuck_warn", 0) or 0)
@@ -505,20 +660,84 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         or jobs_stuck > jobs_stuck_fail
         or jobs_fail > jobs_fail_fail
         or pdca_stale > pdca_fail
-        or heartbeat_stale > heartbeat_fail
+        or (heartbeat_enabled and heartbeat_stale > heartbeat_fail)
     ):
         continuity = 0.0
     elif (
         jobs_stuck > jobs_stuck_warn
         or jobs_fail > jobs_fail_warn
         or pdca_stale > pdca_warn
-        or heartbeat_stale > heartbeat_warn
+        or (heartbeat_enabled and heartbeat_stale > heartbeat_warn)
     ):
         continuity = 0.5
 
     min_operability_ok = float(operability_cfg.get("min_score_ok", 1.0) or 1.0)
     min_operability_warn = float(operability_cfg.get("min_score_warn", 0.5) or 0.5)
     operability_status = _lens_status(float(operability_score), min_operability_ok, min_operability_warn)
+
+    integration_thresholds = (
+        integration_policy.get("thresholds") if isinstance(integration_policy.get("thresholds"), dict) else {}
+    )
+    integration_fail_cfg = (
+        integration_policy.get("classification", {}).get("FAIL_if")
+        if isinstance(integration_policy.get("classification"), dict)
+        else {}
+    )
+    integration_warn_cfg = (
+        integration_policy.get("classification", {}).get("WARN_if")
+        if isinstance(integration_policy.get("classification"), dict)
+        else {}
+    )
+    integration_checks = {
+        "layer_boundary_violations_gt": layer_boundary_violations,
+        "pack_conflicts_gt": pack_conflicts,
+        "core_unlock_scope_widen_gt": core_unlock_scope_widen,
+        "schema_fail_gt": schema_fail_count,
+    }
+    integration_reason_base = {
+        "layer_boundary_violations_gt": "layer_boundary_violations",
+        "pack_conflicts_gt": "pack_conflicts",
+        "core_unlock_scope_widen_gt": "core_unlock_scope_widen",
+        "schema_fail_gt": "schema_fail",
+    }
+
+    def _resolve_integration_threshold(value: Any) -> float:
+        if isinstance(value, str):
+            return float(integration_thresholds.get(value, 0) or 0)
+        if isinstance(value, (int, float)):
+            return float(value)
+        return 0.0
+
+    integration_fail_reasons: list[str] = []
+    integration_warn_reasons: list[str] = []
+    for key in ["layer_boundary_violations_gt", "pack_conflicts_gt", "core_unlock_scope_widen_gt", "schema_fail_gt"]:
+        count_val = int(integration_checks.get(key, 0) or 0)
+        base = integration_reason_base.get(key, key.replace("_gt", ""))
+        if key in integration_fail_cfg and count_val > _resolve_integration_threshold(integration_fail_cfg.get(key)):
+            integration_fail_reasons.append(f"{base}_fail")
+            continue
+        if key in integration_warn_cfg and count_val > _resolve_integration_threshold(integration_warn_cfg.get(key)):
+            integration_warn_reasons.append(f"{base}_warn")
+
+    if integration_fail_reasons:
+        integration_classification = "FAIL"
+    elif integration_warn_reasons:
+        integration_classification = "WARN"
+    else:
+        integration_classification = "OK"
+
+    integration_score = {"OK": 1.0, "WARN": 0.5, "FAIL": 0.0}[integration_classification]
+    integration_reasons = sorted(set(integration_fail_reasons or integration_warn_reasons))
+
+    integration_required = integration_cfg.get("required_signals")
+    integration_required_list = [str(x) for x in integration_required if isinstance(x, str) and x.strip()] if isinstance(
+        integration_required, list
+    ) else []
+    if integration_required_list:
+        present_count = len(integration_required_list) if isinstance(integration_signals, dict) else 0
+        integration_coverage = present_count / float(len(integration_required_list))
+    else:
+        integration_coverage = 0.0
 
     payload = {
         "version": "v1",
@@ -544,6 +763,13 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "score": round(float(integrity_score), 4),
                 "integrity_status": str(integrity_status or "FAIL"),
                 "notes": [],
+            },
+            "integration_coherence": {
+                "status": integration_classification,
+                "score": round(float(integration_score), 4),
+                "classification": integration_classification,
+                "coverage": round(float(integration_coverage), 4),
+                "reasons": integration_reasons,
             },
             "ai_ops_fit": {
                 "status": ai_ops_status,

@@ -1,106 +1,17 @@
 from __future__ import annotations
-
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def _load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _parse_iso(value: str | None) -> datetime | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        if value.endswith("Z"):
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        return datetime.fromisoformat(value)
-    except Exception:
-        return None
-
-
-def _job_time(job: dict[str, Any]) -> datetime:
-    for key in ("updated_at", "created_at", "started_at"):
-        raw = job.get(key)
-        ts = _parse_iso(str(raw)) if raw else None
-        if ts:
-            return ts
-    return datetime.fromtimestamp(0, tz=timezone.utc)
-
-
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    merged: dict[str, Any] = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged.get(key, {}), value)
-        else:
-            merged[key] = value
-    return merged
-
-
-def _is_within_root(path: Path, root: Path) -> bool:
-    try:
-        path.relative_to(root)
-        return True
-    except Exception:
-        return False
-
-
-def _normalize_core_path(core_root: Path, raw: str) -> Path | None:
-    if not raw:
-        return None
-    path = Path(raw)
-    if not path.is_absolute():
-        path = (core_root / path).resolve()
-    else:
-        path = path.resolve()
-    return path if _is_within_root(path, core_root) else None
-
-
-def _find_auto_heal_report(core_root: Path, workspace_root: Path) -> tuple[dict[str, Any] | None, Path | None]:
-    candidates: list[Path] = []
-    hint_path = workspace_root / ".cache" / "last_finish_evidence.v1.txt"
-    if hint_path.exists():
-        try:
-            for line in hint_path.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                resolved = _normalize_core_path(core_root, line)
-                if resolved is not None:
-                    candidates.append(resolved)
-                break
-        except Exception:
-            pass
-
-    evidence_root = core_root / "evidence" / "roadmap_finish"
-    if evidence_root.exists():
-        dirs = [d for d in evidence_root.iterdir() if d.is_dir()]
-        dirs.sort(key=lambda p: p.name, reverse=True)
-        candidates.extend(dirs[:50])
-
-    seen: set[Path] = set()
-    for base in candidates:
-        if base in seen:
-            continue
-        seen.add(base)
-        report_path = base / "artifact_completeness_report.json"
-        if not report_path.exists():
-            continue
-        try:
-            obj = _load_json(report_path)
-        except Exception:
-            continue
-        if isinstance(obj, dict):
-            return (obj, report_path)
-    return (None, None)
-
+from src.ops.system_status_sections_extensions_helpers_v2 import (
+    _deep_merge,
+    _find_auto_heal_report,
+    _job_time,
+    _load_json,
+    _normalize_core_path,
+    _parse_iso,
+    _repo_root,
+)
 
 def _extensions_section(workspace_root: Path) -> dict[str, Any]:
     rel_path = str(Path(".cache") / "index" / "extension_registry.v1.json")
@@ -116,7 +27,6 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
         "last_run_path": "",
         "notes": ["extension_isolation_policy_missing"],
     }
-
     if not path.exists():
         return {
             "registry_status": "IDLE",
@@ -130,7 +40,6 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
             "last_extension_help_path": "",
             "notes": ["registry_missing"],
         }
-
     try:
         obj = _load_json(path)
     except Exception:
@@ -146,7 +55,6 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
             "last_extension_help_path": "",
             "notes": ["invalid_registry_json"],
         }
-
     status = obj.get("status") if isinstance(obj, dict) else None
     if status not in {"OK", "WARN", "IDLE", "FAIL"}:
         status = "WARN"
@@ -241,7 +149,6 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
             "with_tests_files": with_tests_files,
         }
         notes.append("extension_help_missing")
-
     policy_path = Path(__file__).resolve().parents[2] / "policies" / "policy_extension_isolation.v1.json"
     if policy_path.exists():
         try:
@@ -279,6 +186,9 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
                 "last_run_path": last_run_path,
                 "notes": isolation_notes,
             }
+    healthcheck_rel = str(Path(".cache") / "reports" / "cockpit_healthcheck.v1.json")
+    healthcheck_path = workspace_root / healthcheck_rel
+    last_cockpit_healthcheck_path = healthcheck_rel if healthcheck_path.exists() else ""
 
     return {
         "registry_status": str(status),
@@ -290,7 +200,65 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
         "tests_coverage": tests_coverage,
         "isolation_summary": isolation_summary,
         "last_extension_help_path": last_help_path,
+        "last_cockpit_healthcheck_path": last_cockpit_healthcheck_path,
         "notes": notes,
+    }
+def _cockpit_lite_section(workspace_root: Path) -> dict[str, Any]:
+    healthcheck_rel = Path(".cache") / "reports" / "cockpit_healthcheck.v1.json"
+    healthcheck_path = workspace_root / healthcheck_rel
+    chat_rel = Path(".cache") / "chat_console" / "chat_log.v1.jsonl"
+    chat_path = workspace_root / chat_rel
+    notes_root = workspace_root / ".cache" / "notes" / "planner"
+    notes_index_path = notes_root / "notes_index.v1.json"
+    status = "MISSING"
+    port: int | None = None
+    last_request_id = ""
+    last_chat_log_path = ""
+    notes_count = 0
+    last_note_id = ""
+    if healthcheck_path.exists():
+        try:
+            obj = _load_json(healthcheck_path)
+        except Exception:
+            status = "WARN"
+            obj = {}
+        else:
+            raw_status = obj.get("status") if isinstance(obj, dict) else ""
+            status = raw_status if raw_status in {"OK", "WARN", "FAIL", "IDLE"} else "OK"
+        if isinstance(obj, dict) and isinstance(obj.get("port"), int):
+            port = int(obj.get("port"))
+        if isinstance(obj, dict) and isinstance(obj.get("request_id"), str):
+            last_request_id = str(obj.get("request_id") or "")
+    if chat_path.exists():
+        last_chat_log_path = str(chat_rel)
+
+    if notes_index_path.exists():
+        try:
+            index_obj = _load_json(notes_index_path)
+        except Exception:
+            index_obj = {}
+        if isinstance(index_obj, dict):
+            if isinstance(index_obj.get("notes_count"), int):
+                notes_count = int(index_obj.get("notes_count") or 0)
+            notes = index_obj.get("notes") if isinstance(index_obj.get("notes"), list) else []
+            if notes:
+                last = notes[-1]
+                if isinstance(last, dict) and isinstance(last.get("note_id"), str):
+                    last_note_id = str(last.get("note_id") or "")
+    elif notes_root.exists():
+        note_files = sorted(notes_root.glob("NOTE-*.v1.json"))
+        notes_count = len(note_files)
+        if note_files:
+            last_note_id = note_files[-1].name.replace(".v1.json", "")
+
+    return {
+        "status": status,
+        "port": port,
+        "last_healthcheck_path": str(healthcheck_rel) if healthcheck_path.exists() else "",
+        "last_request_id": last_request_id,
+        "last_chat_log_path": last_chat_log_path,
+        "notes_count": notes_count,
+        "last_note_id": last_note_id,
     }
 
 
@@ -401,9 +369,40 @@ def _github_ops_section(workspace_root: Path) -> dict[str, Any] | None:
         pr_url = job.get("pr_url")
         if isinstance(pr_url, str) and pr_url:
             last_pr_open["pr_url"] = pr_url
+        pr_number = job.get("pr_number")
+        if isinstance(pr_number, int) and pr_number > 0:
+            last_pr_open["pr_number"] = pr_number
         reason = job.get("skip_reason") or job.get("error_code")
         if isinstance(reason, str) and reason:
             last_pr_open["reason"] = reason
+
+    failure_classes = [
+        "AUTH",
+        "PERMISSION",
+        "VALIDATION",
+        "NOT_FOUND",
+        "CONFLICT",
+        "RATE_LIMIT",
+        "NETWORK",
+        "POLICY_TIME_LIMIT",
+        "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+        "DEMO_PACK_CAPABILITY_INDEX_MISSING",
+        "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON",
+        "DEMO_OTHER_MARKER_2472D115C490",
+        "DEMO_QUALITY_GATE_REPORT_MISSING",
+        "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+        "OTHER",
+    ]
+    failure_counts = {cls: 0 for cls in failure_classes}
+    total_fail = 0
+    for job in jobs:
+        if str(job.get("status") or "") != "FAIL":
+            continue
+        total_fail += 1
+        cls = str(job.get("failure_class") or "OTHER")
+        if cls not in failure_counts:
+            cls = "OTHER"
+        failure_counts[cls] += 1
 
     section = {
         "status": status,
@@ -411,8 +410,18 @@ def _github_ops_section(workspace_root: Path) -> dict[str, Any] | None:
         "last_pr_open": last_pr_open,
         "notes": notes,
     }
+    if total_fail > 0:
+        section["failure_summary"] = {"total_fail": total_fail, "by_class": failure_counts}
     if report_path.exists():
         section["last_report_path"] = str(report_rel)
+    triage_rel = Path(".cache") / "reports" / "smoke_full_triage.v1.json"
+    triage_path = workspace_root / triage_rel
+    if triage_path.exists():
+        section["last_smoke_full_triage_path"] = str(triage_rel)
+    triage_fast_rel = Path(".cache") / "reports" / "smoke_fast_triage.v1.json"
+    triage_fast_path = workspace_root / triage_fast_rel
+    if triage_fast_path.exists():
+        section["last_smoke_fast_triage_path"] = str(triage_fast_rel)
     return section
 
 
@@ -786,6 +795,44 @@ def _airunner_proof_section(workspace_root: Path) -> dict[str, Any]:
         "last_proof_bundle_timestamp": timestamp,
         "notes": notes,
     }
+
+
+def _airunner_auto_run_section(workspace_root: Path) -> dict[str, Any] | None:
+    rel_path = Path(".cache") / "airunner" / "auto_run_jobs" / "index.v1.json"
+    index_path = workspace_root / rel_path
+    if not index_path.exists():
+        return None
+    try:
+        obj = _load_json(index_path)
+    except Exception:
+        return {
+            "last_job_id": "",
+            "status": "WARN",
+            "stop_at": "",
+            "timezone": "",
+            "last_poll_path": str(rel_path),
+        }
+    jobs = obj.get("jobs") if isinstance(obj, dict) else None
+    if not isinstance(jobs, list) or not jobs:
+        return None
+    candidates = [j for j in jobs if isinstance(j, dict)]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda j: (_job_time(j), str(j.get("job_id") or "")))
+    job = candidates[-1]
+    section = {
+        "last_job_id": str(job.get("job_id") or ""),
+        "status": str(job.get("status") or ""),
+        "stop_at": str(job.get("stop_at_local") or ""),
+        "timezone": str(job.get("timezone") or ""),
+    }
+    if isinstance(job.get("last_poll_at"), str):
+        section["last_poll_at"] = str(job.get("last_poll_at") or "")
+    if isinstance(job.get("last_poll_path"), str):
+        section["last_poll_path"] = str(job.get("last_poll_path") or "")
+    if isinstance(job.get("last_closeout_path"), str):
+        section["last_closeout_path"] = str(job.get("last_closeout_path") or "")
+    return section
 
 
 def _auto_loop_section(workspace_root: Path) -> dict[str, Any] | None:

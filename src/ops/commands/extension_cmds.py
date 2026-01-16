@@ -2,24 +2,70 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root, warn
+from src.ops.commands.extension_cmds_helpers_v2 import (
+    _dump_json,
+    _emit_airunner_chat,
+    _emit_airunner_proof_bundle_chat,
+    _emit_planner_show_plan_chat,
+    _load_json,
+    _now_compact,
+    _parse_csv_list,
+    _resolve_workspace_root,
+)
+from src.ops.commands.smoke_triage_cmds import cmd_smoke_fast_triage, cmd_smoke_full_triage
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
-
-def _now_compact() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-
-
-def _load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover - zoneinfo missing fallback
+    ZoneInfo = None
 
 
-def _dump_json(obj: Any) -> str:
-    return json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+def _parse_hhmm(raw: str) -> tuple[str | None, str | None]:
+    value = str(raw or "").strip()
+    if not value:
+        return None, "MISSING"
+    if not re.match(r"^[0-2][0-9]:[0-5][0-9]$", value):
+        return None, "FORMAT"
+    hour = int(value.split(":", 1)[0])
+    minute = int(value.split(":", 1)[1])
+    if hour > 23 or minute > 59:
+        return None, "RANGE"
+    return f"{hour:02d}:{minute:02d}", None
+
+
+def _now_local_hhmm(tz_name: str) -> tuple[str, str, list[str]]:
+    notes: list[str] = []
+    tz_label = tz_name or "Europe/Istanbul"
+    now_utc = datetime.now(timezone.utc)
+    if ZoneInfo is None:
+        notes.append("tz_fallback=UTC")
+        tz_label = "UTC"
+        now_local = now_utc
+    else:
+        try:
+            now_local = now_utc.astimezone(ZoneInfo(tz_label))
+        except Exception:
+            notes.append("tz_invalid_fallback=UTC")
+            tz_label = "UTC"
+            now_local = now_utc
+    return now_local.strftime("%H:%M"), tz_label, notes
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged.get(key, {}), value)
+        else:
+            merged[key] = value
+    return merged
 
 
 def cmd_extension_registry(args: argparse.Namespace) -> int:
@@ -208,6 +254,237 @@ def cmd_airunner_run(args: argparse.Namespace) -> int:
     return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
 
 
+def cmd_airunner_active_hours_set(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    end_raw = str(getattr(args, "end", "") or "").strip()
+    start_raw = str(getattr(args, "start", "") or "").strip()
+    tz_name = str(getattr(args, "tz", "") or "").strip() or "Europe/Istanbul"
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+
+    if not end_raw:
+        warn("FAIL error=END_REQUIRED")
+        return 2
+    end_val, end_err = _parse_hhmm(end_raw)
+    if end_err:
+        warn("FAIL error=END_INVALID")
+        return 2
+
+    tz_notes: list[str] = []
+    if start_raw:
+        start_val, start_err = _parse_hhmm(start_raw)
+        if start_err:
+            warn("FAIL error=START_INVALID")
+            return 2
+        start_source = "explicit"
+        tz_label = tz_name
+    else:
+        start_val, tz_label, tz_notes = _now_local_hhmm(tz_name)
+        start_source = "default_now"
+
+    core_path = repo_root() / "policies" / "policy_airunner.v1.json"
+    override_path = ws / ".cache" / "policy_overrides" / "policy_airunner.override.v1.json"
+    base: dict[str, Any] = {}
+    if core_path.exists():
+        try:
+            base = _load_json(core_path)
+        except Exception:
+            base = {}
+    override: dict[str, Any] = {}
+    if override_path.exists():
+        try:
+            override = _load_json(override_path)
+        except Exception:
+            override = {}
+    policy = _deep_merge(base if isinstance(base, dict) else {}, override if isinstance(override, dict) else {})
+
+    policy["enabled"] = True
+    schedule = policy.get("schedule") if isinstance(policy.get("schedule"), dict) else {}
+    active_hours = schedule.get("active_hours") if isinstance(schedule.get("active_hours"), dict) else {}
+    active_hours.update({"enabled": True, "tz": tz_label, "start": start_val, "end": end_val})
+    schedule["active_hours"] = active_hours
+    if "outside_hours_mode" not in schedule:
+        schedule["outside_hours_mode"] = "poll_only"
+    policy["schedule"] = schedule
+
+    notes = policy.get("notes") if isinstance(policy.get("notes"), list) else []
+    notes = [str(n) for n in notes if str(n)]
+    notes.extend(
+        [
+            "PROGRAM_LED=true",
+            "active_hours_set=true",
+            f"active_hours_start_source={start_source}",
+        ]
+    )
+    notes.extend(tz_notes)
+    policy["notes"] = sorted({n for n in notes if n})
+
+    backup_path: Path | None = None
+    if override_path.exists():
+        ts = _now_compact()
+        backup_path = override_path.parent / f"{override_path.name}.bak.{ts}"
+        backup_path.write_text(override_path.read_text(encoding="utf-8"), encoding="utf-8")
+    override_path.parent.mkdir(parents=True, exist_ok=True)
+    override_path.write_text(_dump_json(policy), encoding="utf-8")
+
+    report_path = ws / ".cache" / "reports" / "airunner_active_hours_set.v1.json"
+    report_payload = {
+        "status": "OK",
+        "override_path": str(Path(".cache") / "policy_overrides" / "policy_airunner.override.v1.json"),
+        "backup_path": str(backup_path.relative_to(ws)) if isinstance(backup_path, Path) else None,
+        "start": start_val,
+        "end": end_val,
+        "tz": tz_label,
+        "start_source": start_source,
+        "notes": ["PROGRAM_LED=true"],
+    }
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(_dump_json(report_payload), encoding="utf-8")
+
+    if chat:
+        print("PREVIEW:")
+        print("PROGRAM-LED: airrunner-active-hours-set (workspace-only)")
+        print(f"workspace_root={ws}")
+        print("RESULT:")
+        print(f"status=OK start={start_val} end={end_val} tz={tz_label}")
+        print("EVIDENCE:")
+        print(str(report_payload.get("override_path")))
+        if report_payload.get("backup_path"):
+            print(str(report_payload.get("backup_path")))
+        print(str(Path(".cache") / "reports" / "airunner_active_hours_set.v1.json"))
+        print("ACTIONS:")
+        print("airrunner-status / airrunner-run")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(report_payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def cmd_airunner_auto_run_start(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    stop_at = str(getattr(args, "stop_at", "") or "").strip()
+    timezone_name = str(getattr(args, "timezone", "") or "").strip()
+    mode = str(getattr(args, "mode", "") or "").strip()
+    job_kind = str(getattr(args, "job_kind", "") or "").strip()
+    dry_run = parse_reaper_bool(str(getattr(args, "dry_run", "false")))
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+
+    from src.prj_airunner.airunner_auto_run_job import start_auto_run
+
+    payload = start_auto_run(
+        workspace_root=ws,
+        stop_at_local=stop_at or None,
+        timezone_name=timezone_name or None,
+        mode=mode or None,
+        job_kind=job_kind or None,
+        dry_run=dry_run,
+    )
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+
+    if chat and isinstance(payload, dict):
+        print("PREVIEW:")
+        print("PROGRAM-LED: airunner-auto-run-start (no-wait)")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        print("RESULT:")
+        print(f"status={payload.get('status')} job_id={payload.get('job_id')} job_status={payload.get('job_status')}")
+        if payload.get("error_code"):
+            print(f"error_code={payload.get('error_code')}")
+        print("EVIDENCE:")
+        for p in [payload.get("job_path"), payload.get("jobs_index_path")]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        print("airunner-auto-run-poll")
+        print("system-status")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_auto_run_poll(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    job_id = str(getattr(args, "job_id", "") or "").strip()
+    max_polls = 1
+    try:
+        max_polls = int(getattr(args, "max", 1))
+    except Exception:
+        max_polls = 1
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+
+    from src.prj_airunner.airunner_auto_run_job import poll_auto_run
+
+    payload = poll_auto_run(workspace_root=ws, job_id=job_id, max_polls=max_polls)
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+
+    if chat and isinstance(payload, dict):
+        print("PREVIEW:")
+        print("PROGRAM-LED: airunner-auto-run-poll (no-wait)")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        print("RESULT:")
+        print(f"status={payload.get('status')} job_id={payload.get('job_id')} job_status={payload.get('job_status')}")
+        if payload.get("error_code"):
+            print(f"error_code={payload.get('error_code')}")
+        print("EVIDENCE:")
+        for p in [
+            payload.get("job_path"),
+            payload.get("jobs_index_path"),
+            payload.get("last_poll_path"),
+        ]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        print("airunner-auto-run-poll")
+        print("system-status")
+        print("ui-snapshot-bundle")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_airunner_auto_run_check(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+    from src.prj_airunner.airunner_auto_run_job import check_auto_run
+
+    payload = check_auto_run(workspace_root=ws)
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+
+    if chat and isinstance(payload, dict):
+        print("PREVIEW:")
+        print("PROGRAM-LED: airunner-auto-run-check (read-only)")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        print("RESULT:")
+        print(f"status={payload.get('status')} job_id={payload.get('job_id')} job_status={payload.get('job_status')}")
+        print("EVIDENCE:")
+        for p in [payload.get("jobs_index_path"), payload.get("last_poll_path"), payload.get("last_closeout_path")]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        print("airunner-auto-run-start")
+        print("airunner-auto-run-poll")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_airunner_jobs_seed(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:
@@ -253,102 +530,6 @@ def cmd_airunner_proof_bundle(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
-
-
-def _emit_airunner_chat(payload: dict[str, Any], *, title: str) -> None:
-    evidence = []
-    for key in ("report_path", "report_md_path", "heartbeat_path", "jobs_index_path", "watchdog_state_path"):
-        value = payload.get(key)
-        if isinstance(value, str) and value:
-            evidence.append(value)
-    evidence = sorted(set(evidence))
-
-    print("PREVIEW:")  # AUTOPILOT CHAT
-    print(f"- {title} program-led run")
-    print("RESULT:")
-    print(f"- status={payload.get('status')}")
-    if payload.get("error_code"):
-        print(f"- error_code={payload.get('error_code')}")
-    print("EVIDENCE:")
-    if evidence:
-        for path in evidence:
-            print(f"- {path}")
-    else:
-        print("- (none)")
-    print("ACTIONS:")
-    print("- Check work-intake + system-status if status WARN/FAIL")
-    print("NEXT:")
-    print("- Devam et / Durumu göster / Duraklat")
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-
-
-def _emit_airunner_proof_bundle_chat(payload: dict[str, Any]) -> None:
-    evidence = []
-    for key in ("report_path", "report_md_path"):
-        value = payload.get(key)
-        if isinstance(value, str) and value:
-            evidence.append(value)
-    evidence = sorted(set(evidence))
-
-    missing = payload.get("missing_inputs")
-    missing_list = sorted([str(item) for item in missing if isinstance(item, str)]) if isinstance(missing, list) else []
-
-    print("PREVIEW:")  # AUTOPILOT CHAT
-    print("- airrunner-proof-bundle program-led run")
-    print("RESULT:")
-    print(f"- status={payload.get('status')}")
-    if payload.get("error_code"):
-        print(f"- error_code={payload.get('error_code')}")
-    print("EVIDENCE:")
-    if evidence:
-        for path in evidence:
-            print(f"- {path}")
-    else:
-        print("- (none)")
-    if missing_list:
-        print("ACTIONS:")
-        print("- Missing inputs detected; run airunner-baseline, airunner-run, and seed/proof as needed")
-    else:
-        print("ACTIONS:")
-        print("- Verify proof bundle via UI snapshot if needed")
-    print("NEXT:")
-    if missing_list:
-        print("- Run seed/proof inputs / Durumu göster / Duraklat")
-    else:
-        print("- Devam et / Durumu göster / Duraklat")
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-
-
-def _emit_planner_show_plan_chat(payload: dict[str, Any]) -> None:
-    evidence = []
-    for key in ("plan_path", "summary_path", "selection_path"):
-        value = payload.get(key)
-        if isinstance(value, str) and value:
-            evidence.append(value)
-    evidence = sorted(set(evidence))
-
-    print("PREVIEW:")  # AUTOPILOT CHAT
-    print("- planner-show-plan program-led run")
-    print("RESULT:")
-    print(f"- status={payload.get('status')}")
-    if payload.get("error_code"):
-        print(f"- error_code={payload.get('error_code')}")
-    if payload.get("plan_id"):
-        print(f"- plan_id={payload.get('plan_id')}")
-    print("EVIDENCE:")
-    if evidence:
-        for path in evidence:
-            print(f"- {path}")
-    else:
-        print("- (none)")
-    print("ACTIONS:")
-    if payload.get("status") == "IDLE":
-        print("- Build a plan first or provide --plan-id")
-    else:
-        print("- Review plan steps + selection before apply")
-    print("NEXT:")
-    print("- Devam et / Durumu göster / Duraklat")
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 
 
 def cmd_airunner_tick(args: argparse.Namespace) -> int:
@@ -547,10 +728,89 @@ def cmd_github_ops_pr_open(args: argparse.Namespace) -> int:
         return 2
 
     dry_run = parse_reaper_bool(str(args.dry_run))
+    chat = parse_reaper_bool(str(args.chat))
+    draft = parse_reaper_bool(str(args.draft))
 
     from src.prj_github_ops.github_ops import start_github_ops_job
 
-    payload = start_github_ops_job(workspace_root=ws, kind="PR_OPEN", dry_run=dry_run)
+    request: dict[str, Any] = {
+        "draft": bool(draft),
+    }
+    repo_owner = str(getattr(args, "repo_owner", "") or "").strip()
+    repo_name = str(getattr(args, "repo_name", "") or "").strip()
+    base_branch = str(getattr(args, "base_branch", "") or "").strip()
+    head_branch = str(getattr(args, "head_branch", "") or "").strip()
+    title = str(getattr(args, "title", "") or "").strip()
+    body = str(getattr(args, "body", "") or "").strip()
+    labels = _parse_csv_list(getattr(args, "labels", ""))
+    reviewers = _parse_csv_list(getattr(args, "reviewers", ""))
+    assignees = _parse_csv_list(getattr(args, "assignees", ""))
+
+    if repo_owner:
+        request["repo_owner"] = repo_owner
+    if repo_name:
+        request["repo_name"] = repo_name
+    if base_branch:
+        request["base_branch"] = base_branch
+    if head_branch:
+        request["head_branch"] = head_branch
+    if title:
+        request["title"] = title
+    if body:
+        request["body"] = body
+    if labels:
+        request["labels"] = labels
+    if reviewers:
+        request["reviewers"] = reviewers
+    if assignees:
+        request["assignees"] = assignees
+
+    payload = start_github_ops_job(workspace_root=ws, kind="PR_OPEN", dry_run=dry_run, request=request)
+    if chat and isinstance(payload, dict):
+        gate = payload.get("gate_state") if isinstance(payload.get("gate_state"), dict) else {}
+        decision_needed = bool(payload.get("decision_needed", False))
+        job_id = payload.get("job_id") or ""
+        status = payload.get("status") or ""
+        reason = payload.get("error_code") or ""
+        if payload.get("decision_seed_path"):
+            reason = reason or "DECISION_SEEDED"
+        preview_lines = [
+            "PROGRAM-LED: github-ops-pr-open (no-wait)",
+            f"workspace_root={ws}",
+        ]
+        result_lines = [
+            f"job_id={job_id}",
+            f"status={status}",
+            f"reason={reason}",
+            f"decision_needed={decision_needed}",
+            "network_gate="
+            + f"net={gate.get('network_enabled', False)}"
+            + f" live={gate.get('live_enabled', False)}"
+            + f" env_flag_set={gate.get('env_flag_set', False)}"
+            + f" env_key_present={gate.get('env_key_present', False)}",
+        ]
+        evidence_lines = []
+        if payload.get("job_report_path"):
+            evidence_lines.append(str(payload.get("job_report_path")))
+        if payload.get("jobs_index_path"):
+            evidence_lines.append(str(payload.get("jobs_index_path")))
+        if payload.get("decision_seed_path"):
+            evidence_lines.append(str(payload.get("decision_seed_path")))
+        if payload.get("decision_inbox_path"):
+            evidence_lines.append(str(payload.get("decision_inbox_path")))
+        actions_lines = ["github-ops-job-poll", "decision-inbox-build"]
+        next_lines = ["Devam et", "Durumu göster", "Duraklat"]
+
+        print("PREVIEW:")
+        print("\n".join(preview_lines))
+        print("RESULT:")
+        print("\n".join(result_lines))
+        print("EVIDENCE:")
+        print("\n".join(evidence_lines))
+        print("ACTIONS:")
+        print("\n".join(actions_lines))
+        print("NEXT:")
+        print("\n".join(next_lines))
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     status = payload.get("status") if isinstance(payload, dict) else "WARN"
     return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "QUEUED", "RUNNING"} else 2
@@ -561,17 +821,77 @@ def cmd_github_ops_job_poll(args: argparse.Namespace) -> int:
     if ws is None:
         return 2
 
-    job_id = str(args.job_id or "").strip()
-    if not job_id:
-        warn("FAIL error=JOB_ID_REQUIRED")
-        return 2
+    job_id = str(getattr(args, "job_id", "") or "").strip()
+    chat = parse_reaper_bool(str(args.chat))
+    max_jobs = 1
+    try:
+        max_jobs = int(args.max)
+    except Exception:
+        max_jobs = 1
 
-    from src.prj_github_ops.github_ops import poll_github_ops_job
+    from src.prj_github_ops.github_ops import poll_github_ops_job, poll_github_ops_jobs
 
-    payload = poll_github_ops_job(workspace_root=ws, job_id=job_id)
+    if job_id:
+        payload = poll_github_ops_job(workspace_root=ws, job_id=job_id)
+        if chat and isinstance(payload, dict):
+            preview_lines = [
+                "PROGRAM-LED: github-ops-job-poll",
+                f"workspace_root={ws}",
+            ]
+            result_lines = [
+                f"job_id={payload.get('job_id')}",
+                f"status={payload.get('status')}",
+                f"job_kind={payload.get('job_kind')}",
+            ]
+            evidence_lines = [str(payload.get("job_report_path") or ""), str(payload.get("jobs_index_path") or "")]
+            actions_lines = ["github-ops-job-poll", "github-ops-check"]
+            next_lines = ["Devam et", "Durumu göster", "Duraklat"]
+
+            print("PREVIEW:")
+            print("\n".join(preview_lines))
+            print("RESULT:")
+            print("\n".join(result_lines))
+            print("EVIDENCE:")
+            print("\n".join(evidence_lines))
+            print("ACTIONS:")
+            print("\n".join(actions_lines))
+            print("NEXT:")
+            print("\n".join(next_lines))
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        status = payload.get("status") if isinstance(payload, dict) else "WARN"
+        return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "PASS", "RUNNING", "QUEUED"} else 2
+
+    payload = poll_github_ops_jobs(workspace_root=ws, max_jobs=max_jobs)
+    if chat and isinstance(payload, dict):
+        polled = payload.get("polled_jobs") if isinstance(payload.get("polled_jobs"), list) else []
+        job_ids = [str(p.get("job_id") or "") for p in polled if isinstance(p, dict)]
+        preview_lines = [
+            "PROGRAM-LED: github-ops-job-poll (multi)",
+            f"workspace_root={ws}",
+        ]
+        result_lines = [
+            f"polled_count={payload.get('polled_count')}",
+            f"job_ids={','.join([j for j in job_ids if j]) if job_ids else 'none'}",
+            f"status={payload.get('status')}",
+        ]
+        evidence_lines = [str(payload.get("jobs_index_path") or "")]
+        actions_lines = ["github-ops-job-poll", "github-ops-check"]
+        next_lines = ["Devam et", "Durumu göster", "Duraklat"]
+
+        print("PREVIEW:")
+        print("\n".join(preview_lines))
+        print("RESULT:")
+        print("\n".join(result_lines))
+        print("EVIDENCE:")
+        print("\n".join(evidence_lines))
+        print("ACTIONS:")
+        print("\n".join(actions_lines))
+        print("NEXT:")
+        print("\n".join(next_lines))
+
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     status = payload.get("status") if isinstance(payload, dict) else "WARN"
-    return 0 if status in {"OK", "WARN", "IDLE", "SKIP", "PASS", "RUNNING", "QUEUED"} else 2
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
 def cmd_github_ops_override(args: argparse.Namespace) -> int:
@@ -765,20 +1085,6 @@ def cmd_github_ops_proof(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
-def _resolve_workspace_root(args: argparse.Namespace) -> Path | None:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return None
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return None
-    return ws
-
-
 def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     ap_ext = parent.add_parser("extension-registry", help="Build extension registry (workspace, program-led).")
     ap_ext.add_argument("--workspace-root", required=True, help="Workspace root path.")
@@ -833,6 +1139,39 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
         help="true|false (default: false). Bypass active-hours gate for manual proof.",
     )
     ap_airunner_run.set_defaults(func=cmd_airunner_run)
+
+    ap_airunner_active_hours = parent.add_parser(
+        "airrunner-active-hours-set",
+        help="Set airrunner active hours (start optional, end required) and persist override.",
+    )
+    ap_airunner_active_hours.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_airunner_active_hours.add_argument("--end", required=True, help="End time HH:MM (same-day).")
+    ap_airunner_active_hours.add_argument("--start", default="", help="Optional start time HH:MM (default: now).")
+    ap_airunner_active_hours.add_argument("--tz", default="Europe/Istanbul", help="Timezone (default: Europe/Istanbul).")
+    ap_airunner_active_hours.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_airunner_active_hours.set_defaults(func=cmd_airunner_active_hours_set)
+
+    ap_auto_run_start = parent.add_parser("airunner-auto-run-start", help="Start auto-run job (program-led).")
+    ap_auto_run_start.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_auto_run_start.add_argument("--stop-at", default="", help="Stop at local time HH:MM (default: policy).")
+    ap_auto_run_start.add_argument("--timezone", default="", help="Timezone (default: UTC).")
+    ap_auto_run_start.add_argument("--mode", default="", help="Mode (default: policy auto_decision_mode).")
+    ap_auto_run_start.add_argument("--job-kind", default="", help="Optional job kind (proof hint).")
+    ap_auto_run_start.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_auto_run_start.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_auto_run_start.set_defaults(func=cmd_airunner_auto_run_start)
+
+    ap_auto_run_poll = parent.add_parser("airunner-auto-run-poll", help="Poll auto-run job (program-led).")
+    ap_auto_run_poll.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_auto_run_poll.add_argument("--job-id", default="", help="Job id (optional).")
+    ap_auto_run_poll.add_argument("--max", default="1", help="Max polls per call (default: 1).")
+    ap_auto_run_poll.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_auto_run_poll.set_defaults(func=cmd_airunner_auto_run_poll)
+
+    ap_auto_run_check = parent.add_parser("airunner-auto-run-check", help="Auto-run status (program-led).")
+    ap_auto_run_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_auto_run_check.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_auto_run_check.set_defaults(func=cmd_airunner_auto_run_check)
 
     ap_airunner_seed = parent.add_parser("airunner-jobs-seed", help="Seed airunner jobs (workspace-only).")
     ap_airunner_seed.add_argument("--workspace-root", required=True, help="Workspace root path.")
@@ -913,13 +1252,40 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
 
     ap_gh_pr_open = parent.add_parser("github-ops-pr-open", help="Open PR (program-led, live-gated).")
     ap_gh_pr_open.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_gh_pr_open.add_argument("--repo-owner", default="", help="GitHub repo owner (optional).")
+    ap_gh_pr_open.add_argument("--repo-name", default="", help="GitHub repo name (optional).")
+    ap_gh_pr_open.add_argument("--base-branch", default="", help="Base branch (default: main).")
+    ap_gh_pr_open.add_argument("--head-branch", default="", help="Head branch (default: current).")
+    ap_gh_pr_open.add_argument("--title", default="", help="PR title (optional).")
+    ap_gh_pr_open.add_argument("--body", default="", help="PR body (optional).")
+    ap_gh_pr_open.add_argument("--draft", default="true", help="true|false (default: true).")
+    ap_gh_pr_open.add_argument("--labels", default="", help="Comma-separated labels (optional).")
+    ap_gh_pr_open.add_argument("--reviewers", default="", help="Comma-separated reviewers (optional).")
+    ap_gh_pr_open.add_argument("--assignees", default="", help="Comma-separated assignees (optional).")
     ap_gh_pr_open.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_gh_pr_open.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_gh_pr_open.set_defaults(func=cmd_github_ops_pr_open)
 
     ap_gh_poll = parent.add_parser("github-ops-job-poll", help="Poll GitHub ops job (program-led).")
     ap_gh_poll.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_gh_poll.add_argument("--job-id", required=True, help="Job id.")
+    ap_gh_poll.add_argument("--job-id", default="", help="Job id (optional).")
+    ap_gh_poll.add_argument("--max", default="1", help="Max jobs to poll when job-id missing (default: 1).")
+    ap_gh_poll.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_gh_poll.set_defaults(func=cmd_github_ops_job_poll)
+
+    ap_smoke_triage = parent.add_parser("smoke-full-triage", help="Smoke full triage (program-led).")
+    ap_smoke_triage.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_smoke_triage.add_argument("--job-id", required=True, help="Job id.")
+    ap_smoke_triage.add_argument("--detail", default="false", help="true|false (default: false).")
+    ap_smoke_triage.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_smoke_triage.set_defaults(func=cmd_smoke_full_triage)
+
+    ap_smoke_fast_triage = parent.add_parser("smoke-fast-triage", help="Smoke fast triage (program-led).")
+    ap_smoke_fast_triage.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_smoke_fast_triage.add_argument("--job-id", required=True, help="Job id.")
+    ap_smoke_fast_triage.add_argument("--detail", default="false", help="true|false (default: false).")
+    ap_smoke_fast_triage.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_smoke_fast_triage.set_defaults(func=cmd_smoke_fast_triage)
 
     ap_gh_override = parent.add_parser("github-ops-override", help="Write/restore GitHub ops overrides (workspace-only).")
     ap_gh_override.add_argument("--workspace-root", required=True, help="Workspace root path.")

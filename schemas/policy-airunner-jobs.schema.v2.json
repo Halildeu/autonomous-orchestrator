@@ -81,6 +81,7 @@
             "type": "string",
             "enum": [
               "SMOKE_FULL",
+              "SMOKE_FAST",
               "RELEASE_PREPARE",
               "RELEASE_PUBLISH",
               "GITHUB_CHECKS_POLL",

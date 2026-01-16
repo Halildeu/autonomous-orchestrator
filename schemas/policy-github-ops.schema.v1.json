@@ -37,7 +37,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["PR_OPEN", "PR_POLL", "CI_POLL", "MERGE", "RELEASE_RC", "RELEASE_FINAL", "SMOKE_FULL"]
+        "enum": ["PR_OPEN", "PR_POLL", "CI_POLL", "MERGE", "RELEASE_RC", "RELEASE_FINAL", "SMOKE_FAST", "SMOKE_FULL"]
       }
     },
     "auth": {

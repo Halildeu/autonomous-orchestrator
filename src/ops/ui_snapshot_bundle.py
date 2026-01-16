@@ -69,6 +69,7 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     last_deploy_job_status: str | None = None
     last_deploy_report_path: str | None = None
     deploy_targets_summary: dict[str, Any] | None = None
+    airrunner_auto_run_summary: dict[str, Any] | None = None
     network_live_summary: dict[str, Any] | None = None
     github_ops_summary: dict[str, Any] | None = None
     github_ops_last_pr_open: dict[str, Any] | None = None
@@ -76,6 +77,13 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     doer_last_actionability_path: str | None = None
     doer_last_exec_report_path: str | None = None
     doer_last_run_path: str | None = None
+    doer_loop_summary: dict[str, Any] | None = None
+    decision_seed_pending_count: int | None = None
+    last_cockpit_healthcheck_path: str | None = None
+    cockpit_port: int | None = None
+    last_chat_log_path: str | None = None
+    cockpit_notes_count: int | None = None
+    last_note_id: str | None = None
     system_status_obj: dict[str, Any] | None = None
 
     for key, rel in paths.items():
@@ -180,6 +188,34 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                     "skipped": int(last_counts.get("skipped") or 0),
                 }
 
+        doer_loop = sections.get("doer_loop") if isinstance(sections.get("doer_loop"), dict) else {}
+        if isinstance(doer_loop.get("lock_state"), str):
+            doer_loop_summary = {
+                "lock_state": str(doer_loop.get("lock_state") or ""),
+                "owner_tag": str(doer_loop.get("owner_tag") or ""),
+                "expires_at": str(doer_loop.get("expires_at") or ""),
+            }
+
+        cockpit_section = sections.get("cockpit_lite") if isinstance(sections.get("cockpit_lite"), dict) else {}
+        if isinstance(cockpit_section.get("last_healthcheck_path"), str):
+            last_cockpit_healthcheck_path = cockpit_section.get("last_healthcheck_path")
+        if isinstance(cockpit_section.get("port"), int):
+            cockpit_port = int(cockpit_section.get("port"))
+        if isinstance(cockpit_section.get("last_chat_log_path"), str):
+            last_chat_log_path = cockpit_section.get("last_chat_log_path")
+        if isinstance(cockpit_section.get("notes_count"), int):
+            cockpit_notes_count = int(cockpit_section.get("notes_count") or 0)
+        if isinstance(cockpit_section.get("last_note_id"), str):
+            last_note_id = str(cockpit_section.get("last_note_id") or "")
+
+        extensions_section = sections.get("extensions") if isinstance(sections.get("extensions"), dict) else {}
+        if not last_cockpit_healthcheck_path and isinstance(extensions_section.get("last_cockpit_healthcheck_path"), str):
+            last_cockpit_healthcheck_path = extensions_section.get("last_cockpit_healthcheck_path")
+
+        decisions_section = sections.get("decisions") if isinstance(sections.get("decisions"), dict) else {}
+        if isinstance(decisions_section.get("seed_pending_count"), int):
+            decision_seed_pending_count = int(decisions_section.get("seed_pending_count") or 0)
+
         doc_graph = sections.get("doc_graph") if isinstance(sections.get("doc_graph"), dict) else {}
         placeholders_count = doc_graph.get("placeholder_refs_count")
         placeholders_baseline = doc_graph.get("placeholders_baseline")
@@ -258,6 +294,17 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                 "planned_intake_ids": planned_ids,
                 "limit_reached_intake_ids": limit_ids,
             }
+        auto_run = sections.get("airrunner_auto_run") if isinstance(sections.get("airrunner_auto_run"), dict) else {}
+        if isinstance(auto_run, dict):
+            job_id = auto_run.get("last_job_id")
+            status = auto_run.get("status")
+            if isinstance(job_id, str) and isinstance(status, str):
+                summary = {"status": status, "last_job_id": job_id}
+                if isinstance(auto_run.get("last_poll_path"), str):
+                    summary["last_poll_path"] = auto_run.get("last_poll_path")
+                if isinstance(auto_run.get("last_closeout_path"), str):
+                    summary["last_closeout_path"] = auto_run.get("last_closeout_path")
+                airrunner_auto_run_summary = summary
         deploy = sections.get("deploy") if isinstance(sections.get("deploy"), dict) else {}
         if isinstance(deploy.get("last_deploy_job_id"), str):
             last_deploy_job_id = deploy.get("last_deploy_job_id")
@@ -310,8 +357,11 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                 safe_pr = {"job_id": job_id, "status": status}
                 pr_url = last_pr_open.get("pr_url")
                 reason = last_pr_open.get("reason")
+                pr_number = last_pr_open.get("pr_number")
                 if isinstance(pr_url, str) and pr_url:
                     safe_pr["pr_url"] = pr_url
+                if isinstance(pr_number, int) and pr_number > 0:
+                    safe_pr["pr_number"] = pr_number
                 if isinstance(reason, str) and reason:
                     safe_pr["reason"] = reason
                 github_ops_last_pr_open = safe_pr
@@ -400,12 +450,43 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         "killed": 0,
         "skip": 0,
     }
+    failure_classes = [
+        "AUTH",
+        "PERMISSION",
+        "VALIDATION",
+        "NOT_FOUND",
+        "CONFLICT",
+        "RATE_LIMIT",
+        "NETWORK",
+        "POLICY_TIME_LIMIT",
+        "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+        "DEMO_PACK_CAPABILITY_INDEX_MISSING",
+        "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON",
+        "DEMO_OTHER_MARKER_2472D115C490",
+        "DEMO_QUALITY_GATE_REPORT_MISSING",
+        "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+        "OTHER",
+    ]
+    failure_counts = {cls: 0 for cls in failure_classes}
+    total_fail = 0
     github_ops_index_path = workspace_root / ".cache" / "github_ops" / "jobs_index.v1.json"
     if github_ops_index_path.exists():
         try:
             github_idx = _load_json(github_ops_index_path)
         except Exception:
             github_idx = {}
+        jobs = github_idx.get("jobs") if isinstance(github_idx, dict) else []
+        jobs_list = jobs if isinstance(jobs, list) else []
+        for job in jobs_list:
+            if not isinstance(job, dict):
+                continue
+            if str(job.get("status") or "").upper() != "FAIL":
+                continue
+            total_fail += 1
+            cls = str(job.get("failure_class") or "OTHER")
+            if cls not in failure_counts:
+                cls = "OTHER"
+            failure_counts[cls] += 1
         counts = github_idx.get("counts") if isinstance(github_idx, dict) else {}
         if isinstance(counts, dict):
             github_ops_counts = {
@@ -419,8 +500,6 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                 "skip": int(counts.get("skip") or 0),
             }
         else:
-            jobs = github_idx.get("jobs") if isinstance(github_idx, dict) else []
-            jobs_list = jobs if isinstance(jobs, list) else []
             for job in jobs_list:
                 if not isinstance(job, dict):
                     continue
@@ -455,6 +534,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         }
         if isinstance(github_ops_last_pr_open, dict):
             github_ops_summary["last_pr_open"] = github_ops_last_pr_open
+        if total_fail > 0:
+            github_ops_summary["failure_summary"] = {"total_fail": total_fail, "by_class": failure_counts}
     if doer_summary is None and isinstance(last_doer_counts, dict):
         doer_summary = {
             "applied": int(last_doer_counts.get("applied") or 0),
@@ -481,6 +562,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["last_auto_loop_apply_details_path"] = last_auto_loop_apply_details_path
     if isinstance(last_auto_loop_counts, dict):
         payload["last_auto_loop_counts"] = last_auto_loop_counts
+    if isinstance(airrunner_auto_run_summary, dict):
+        payload["airrunner_auto_run_summary"] = airrunner_auto_run_summary
     if isinstance(network_live_summary, dict):
         payload["network_live_summary"] = network_live_summary
     if isinstance(github_ops_summary, dict):
@@ -501,6 +584,29 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["doer_last_exec_report_path"] = doer_last_exec_report_path
     if isinstance(doer_last_run_path, str):
         payload["doer_last_run_path"] = doer_last_run_path
+    if isinstance(doer_loop_summary, dict):
+        payload["doer_loop_summary"] = doer_loop_summary
+    if isinstance(decision_seed_pending_count, int):
+        payload["decision_seed_pending_count"] = decision_seed_pending_count
+    if isinstance(last_cockpit_healthcheck_path, str) and last_cockpit_healthcheck_path:
+        payload["last_cockpit_healthcheck_path"] = last_cockpit_healthcheck_path
+        hc_path = workspace_root / last_cockpit_healthcheck_path
+        if hc_path.exists():
+            try:
+                hc_obj = _load_json(hc_path)
+            except Exception:
+                hc_obj = {}
+            if isinstance(hc_obj, dict) and isinstance(hc_obj.get("port"), int):
+                cockpit_port = int(hc_obj.get("port"))
+    if isinstance(cockpit_port, int):
+        payload["cockpit_port"] = cockpit_port
+        payload["last_cockpit_port"] = cockpit_port
+    if isinstance(last_chat_log_path, str) and last_chat_log_path:
+        payload["last_chat_log_path"] = last_chat_log_path
+    if isinstance(cockpit_notes_count, int):
+        payload["cockpit_notes_count"] = cockpit_notes_count
+    if isinstance(last_note_id, str) and last_note_id:
+        payload["last_note_id"] = last_note_id
 
     out_path = out_path or (workspace_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)

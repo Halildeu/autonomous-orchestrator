@@ -81,6 +81,22 @@ def main() -> None:
             },
             {
                 "version": "v1",
+                "job_id": "job-demo-2b",
+                "job_type": "SMOKE_FULL",
+                "kind": "SMOKE_FULL",
+                "workspace_root": str(ws),
+                "status": "FAIL",
+                "created_at": now,
+                "started_at": now,
+                "last_poll_at": now,
+                "updated_at": now,
+                "attempts": 1,
+                "evidence_paths": [".cache/reports/jobs/smoke_full_job-demo-2b.stderr.log"],
+                "notes": [],
+                "failure_class": "POLICY_TIME_LIMIT",
+            },
+            {
+                "version": "v1",
                 "job_id": "job-demo-3",
                 "job_type": "SMOKE_FULL",
                 "kind": "SMOKE_FULL",
@@ -160,11 +176,11 @@ def main() -> None:
             },
         ],
         "counts": {
-            "total": 7,
+            "total": 8,
             "queued": 0,
             "running": 0,
             "pass": 0,
-            "fail": 4,
+            "fail": 5,
             "timeout": 1,
             "killed": 0,
             "skip": 2,
@@ -187,6 +203,8 @@ def main() -> None:
         raise SystemExit("work_intake_jobstatus_contract_test failed: DEMO_PREREQ_FAIL must be TICKET")
     if buckets.get(_dedup_key("job-demo-2", "SMOKE_FULL", "OTHER")) != "TICKET":
         raise SystemExit("work_intake_jobstatus_contract_test failed: OTHER fail must be TICKET")
+    if buckets.get(_dedup_key("job-demo-2b", "SMOKE_FULL", "POLICY_TIME_LIMIT")) != "TICKET":
+        raise SystemExit("work_intake_jobstatus_contract_test failed: POLICY_TIME_LIMIT must be TICKET")
     if buckets.get(_dedup_key("job-demo-3", "SMOKE_FULL", "")) != "TICKET":
         raise SystemExit("work_intake_jobstatus_contract_test failed: TIMEOUT must be TICKET")
     if buckets.get(_dedup_key("job-demo-4", "SMOKE_FULL", "DEMO_CATALOG_PARSE")) != "TICKET":

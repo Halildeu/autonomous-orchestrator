@@ -3,6 +3,8 @@
 Bu dokuman M10.2b Eval icindeki lensleri SSOT olarak kilitler.
 Zincir: Define -> Raw -> Eval(A/B/C) -> Gap -> Cockpit -> PDCA.
 
+Reuse-first kuralı: Yeni PROJECT once bu zinciri (raw->eval->gap->pdca) calistirir; sonucunda mevcut extension/packs onerilir. Eksik kalanlar icin gap uretilir ve is (PROJECT/TICKET/ROADMAP) acilir.
+
 ## Eval-A: Trend / Best Practice
 - Kaynak: bp_catalog + trend_catalog + coverage.
 - Cikti: status + score + coverage.
@@ -27,6 +29,13 @@ Zincir: Define -> Raw -> Eval(A/B/C) -> Gap -> Cockpit -> PDCA.
 - Kaynak: script_budget, doc_nav placeholders, airunner jobs/heartbeat, pdca cursor, work-intake noise, integrity.
 - Cikti: status + score + coverage + subscores (simplicity/sustainability/continuity) + reasons[].
 - Kural: Operability WARN/FAIL gap uretilir; PDCA cooldown + regression izler.
+
+## Eval-F: Integration Coherence (Layer/Pack/Core Unlock/Schema)
+- Kaynak: layer_boundary report, pack_validation report, core_unlock compliance, validate_schemas ozeti.
+- Cikti: status + score + classification + reasons[] (subscores optional).
+- Kural: Bu lens gate degil; sadece olcer/uyarir/gap uretir.
+- FAIL reason -> INCIDENT, WARN reason -> TICKET/PROJECT (policy gap_rules).
+- PDCA, bu lens icin regression ve cooldown uygular.
 
 ## Gap Baglantisi
 - Lens status OK degilse Gap kaydi uretilir (deterministic).

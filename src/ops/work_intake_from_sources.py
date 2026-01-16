@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.work_intake_job_sources import (
+    _apply_deploy_job_cooldown,
     _apply_github_ops_cooldown,
     _apply_job_status_cooldown,
     _load_doc_nav_sources,
+    _load_deploy_job_sources,
     _load_github_ops_sources,
     _load_job_status_sources,
     _load_time_sink_sources,
@@ -85,6 +87,29 @@ def _load_policy(*, core_root: Path, workspace_root: Path) -> tuple[dict[str, An
             notes.append("policy_invalid")
     notes.append("policy_missing")
     return {}, notes
+
+
+def _load_integration_coherence_policy(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
+    ws_policy = workspace_root / "policies" / "policy_north_star_integration_coherence.v1.json"
+    core_policy = core_root / "policies" / "policy_north_star_integration_coherence.v1.json"
+    path = ws_policy if ws_policy.exists() else core_policy
+    if not path.exists():
+        return {}
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def _parse_gap_rule(rule: str) -> tuple[str, list[str]]:
+    if not isinstance(rule, str) or not rule.strip():
+        return ("", [])
+    parts = rule.strip().split(":", 1)
+    bucket = parts[0].strip()
+    tag = parts[1].strip() if len(parts) == 2 else ""
+    tags = [tag.lower()] if tag else []
+    return (bucket, tags)
 
 
 def _policy_defaults() -> dict[str, Any]:
@@ -544,6 +569,11 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
         notes.append("gap_register_empty")
         return []
     sources: list[dict[str, Any]] = []
+    core_root = _find_repo_root(Path(__file__).resolve())
+    integration_policy = _load_integration_coherence_policy(core_root=core_root, workspace_root=workspace_root)
+    integration_gap_rules = (
+        integration_policy.get("gap_rules") if isinstance(integration_policy.get("gap_rules"), dict) else {}
+    )
     for gap in sorted([g for g in gaps if isinstance(g, dict)], key=lambda g: str(g.get("id") or "")):
         gap_id = gap.get("id") if isinstance(gap.get("id"), str) else ""
         if not gap_id:
@@ -570,6 +600,25 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
         risk = gap.get("risk_class") if isinstance(gap.get("risk_class"), str) else "medium"
         severity_band = gap.get("severity") if isinstance(gap.get("severity"), str) else "medium"
         severity_level = _severity_level_from_band(severity_band)
+        override_bucket = ""
+        override_tags: list[str] = []
+        if lens_id == "operability":
+            if lens_reason in {"operability_docs_ops_md_count_gt", "operability_docs_ops_md_bytes_gt"}:
+                override_bucket = "TICKET"
+            elif lens_reason == "operability_repo_md_total_count_gt":
+                override_bucket = "PROJECT"
+            elif lens_reason == "operability_docs_unmapped_md_gt":
+                override_bucket = "PROJECT" if severity_band == "high" else "TICKET"
+        if lens_id == "integration_coherence":
+            rule = integration_gap_rules.get(lens_reason) if isinstance(lens_reason, str) else ""
+            bucket, tags = _parse_gap_rule(rule)
+            if bucket:
+                override_bucket = bucket
+                override_tags = tags
+            elif severity_band == "high":
+                override_bucket = "INCIDENT"
+            else:
+                override_bucket = "PROJECT" if lens_reason == "pack_conflicts_warn" else "TICKET"
         title = f"Gap: {gap_id}"
         if control_id:
             title = f"Control gap: {control_id}"
@@ -592,6 +641,8 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
                 "severity_level": severity_level,
                 "lens_id": lens_id,
                 "lens_reason": lens_reason,
+                "override_bucket": override_bucket,
+                "override_tags": override_tags,
                 "evidence_paths": evidence,
             }
         )
@@ -822,12 +873,14 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
     sources.extend(_load_integrity_sources(workspace_root, notes))
     sources.extend(_load_release_sources(workspace_root, notes))
     sources.extend(_load_github_ops_sources(workspace_root, notes))
+    sources.extend(_load_deploy_job_sources(workspace_root, notes))
     sources.extend(_load_job_status_sources(workspace_root, notes))
     sources.extend(_load_time_sink_sources(workspace_root, notes))
     overrides = _load_context_router_overrides(workspace_root, notes)
     sources.extend(_load_manual_request_sources(workspace_root, notes, overrides))
     sources = _apply_job_status_cooldown(sources, workspace_root, notes)
     sources = _apply_github_ops_cooldown(sources, workspace_root, notes)
+    sources = _apply_deploy_job_cooldown(sources, workspace_root, notes)
 
     owner_tenant = "CORE"
     plan_policy = str(policy.get("plan_policy") or "optional")
@@ -838,6 +891,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
         source_ref = str(source.get("source_ref") or "")
         if not source_type or not source_ref:
             continue
+        rule: dict[str, Any] = {}
         override_bucket = source.get("override_bucket")
         if isinstance(override_bucket, str) and override_bucket:
             bucket = str(override_bucket)
@@ -976,7 +1030,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
     warn_notes = [
         n
         for n in notes
-        if not str(n).startswith(("job_status_suppressed=", "github_ops_suppressed="))
+        if not str(n).startswith(("job_status_suppressed=", "github_ops_suppressed=", "deploy_job_suppressed="))
     ]
     if warn_notes and status == "OK":
         status = "WARN"

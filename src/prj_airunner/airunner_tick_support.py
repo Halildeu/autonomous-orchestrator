@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.preflight_stamp import run_preflight_stamp
+from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_iso
 from src.prj_airunner.airunner_tick_helpers import _canonical_json, _hash_text
 from src.prj_airunner.airunner_tick_utils import _dump_json, _load_json, _now_iso, _rel_to_workspace
 
@@ -110,6 +111,29 @@ def _write_tick_report(report: dict[str, Any], workspace_root: Path) -> tuple[st
     out_json = workspace_root / ".cache" / "reports" / "airunner_tick.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "airunner_tick.v1.md"
     out_json.parent.mkdir(parents=True, exist_ok=True)
+    generated_at = str(report.get("generated_at") or _now_iso())
+    report["generated_at"] = generated_at
+    tick_id = str(report.get("tick_id") or "")
+    policy_hash = str(report.get("policy_hash") or "")
+    rel_json = _rel_to_workspace(out_json, workspace_root) or str(out_json)
+    evidence_paths = report.get("evidence_paths") if isinstance(report.get("evidence_paths"), list) else []
+    if rel_json not in evidence_paths:
+        evidence_paths.append(rel_json)
+    report["evidence_paths"] = evidence_paths
+    run_id = build_run_id(
+        workspace_root=workspace_root,
+        op_name="airunner-tick",
+        inputs={"tick_id": tick_id, "policy_hash": policy_hash},
+        date_bucket=date_bucket_from_iso(generated_at),
+    )
+    report["trace_meta"] = build_trace_meta(
+        work_item_id=tick_id or run_id,
+        work_item_kind="RUN",
+        run_id=run_id,
+        policy_hash=policy_hash or None,
+        evidence_paths=evidence_paths,
+        workspace_root=workspace_root,
+    )
     out_json.write_text(_dump_json(report), encoding="utf-8")
 
     md_lines = [
@@ -128,7 +152,6 @@ def _write_tick_report(report: dict[str, Any], workspace_root: Path) -> tuple[st
         md_lines.append(f"- {p}")
     out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
 
-    rel_json = _rel_to_workspace(out_json, workspace_root) or str(out_json)
     rel_md = _rel_to_workspace(out_md, workspace_root) or str(out_md)
     return rel_json, rel_md
 

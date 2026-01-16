@@ -96,6 +96,8 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
 
     operability_status = None
     operability_reasons: list[str] = []
+    integration_status = None
+    integration_reasons: list[str] = []
     eval_path = workspace_root / ".cache" / "index" / "assessment_eval.v1.json"
     if eval_path.exists():
         try:
@@ -110,9 +112,19 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                     reasons = operability.get("reasons")
                     if isinstance(reasons, list):
                         operability_reasons = [str(r) for r in reasons if isinstance(r, str) and r.strip()]
+                integration = lenses.get("integration_coherence")
+                if isinstance(integration, dict):
+                    status = integration.get("status")
+                    if isinstance(status, str):
+                        integration_status = status
+                    reasons = integration.get("reasons")
+                    if isinstance(reasons, list):
+                        integration_reasons = [str(r) for r in reasons if isinstance(r, str) and r.strip()]
         except Exception:
             operability_status = None
             operability_reasons = []
+            integration_status = None
+            integration_reasons = []
 
     prev_operability = prev_cursor.get("operability_status") if isinstance(prev_cursor, dict) else None
     if isinstance(prev_operability, str) and isinstance(operability_status, str):
@@ -126,6 +138,43 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                     "severity": "high" if operability_status == "FAIL" else "medium",
                 }
             )
+
+    prev_integration = prev_cursor.get("integration_coherence_status") if isinstance(prev_cursor, dict) else None
+    integration_reason_seen = (
+        prev_cursor.get("integration_coherence_reason_last_seen") if isinstance(prev_cursor, dict) else {}
+    )
+    integration_reason_seen = (
+        {str(k): str(v) for k, v in integration_reason_seen.items() if isinstance(k, str) and isinstance(v, str)}
+        if isinstance(integration_reason_seen, dict)
+        else {}
+    )
+    if isinstance(prev_integration, str) and isinstance(integration_status, str):
+        rank = {"OK": 0, "WARN": 1, "FAIL": 2}
+        if rank.get(integration_status, 0) > rank.get(prev_integration, 0):
+            regressions.append(
+                {
+                    "gap_id": "INTEGRATION_COHERENCE_DRIFT",
+                    "previous_status": prev_integration,
+                    "current_status": integration_status,
+                    "severity": "high" if integration_status == "FAIL" else "medium",
+                }
+            )
+            for reason in sorted(set(integration_reasons)):
+                update_only = False
+                last_seen = _parse_iso(integration_reason_seen.get(reason))
+                if last_seen is not None:
+                    age_seconds = (datetime.now(timezone.utc) - last_seen).total_seconds()
+                    if age_seconds < 86400:
+                        update_only = True
+                entry = {
+                    "gap_id": f"INTEGRATION_COHERENCE_REASON:{reason}",
+                    "previous_status": prev_integration,
+                    "current_status": integration_status,
+                    "severity": "high" if integration_status == "FAIL" else "medium",
+                }
+                if update_only:
+                    entry["update_only"] = True
+                regressions.append(entry)
 
     integrity_status = None
     integrity_path = workspace_root / ".cache" / "reports" / "integrity_verify.v1.json"
@@ -210,7 +259,12 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         current_hashes["assessment_eval"] = _hash_bytes(eval_path.read_bytes())
 
     operability_state = f"{operability_status or 'UNKNOWN'}|{','.join(sorted(set(operability_reasons)))}"
-    lens_state_hash = _hash_bytes(operability_state.encode("utf-8"))
+    integration_state = f"{integration_status or 'UNKNOWN'}|{','.join(sorted(set(integration_reasons)))}"
+    lens_state_hash = _hash_bytes(f"{operability_state}||{integration_state}".encode("utf-8"))
+
+    now_iso = _now_iso()
+    for reason in sorted(set(integration_reasons)):
+        integration_reason_seen[reason] = now_iso
 
     report = {
         "version": "v1",
@@ -249,6 +303,9 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "history_reports": history_paths,
         "operability_status": operability_status or "UNKNOWN",
         "operability_reasons": sorted(set(operability_reasons)),
+        "integration_coherence_status": integration_status or "UNKNOWN",
+        "integration_coherence_reasons": sorted(set(integration_reasons)),
+        "integration_coherence_reason_last_seen": integration_reason_seen,
         "lens_state_hash": lens_state_hash,
     }
 

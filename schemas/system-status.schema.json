@@ -688,6 +688,22 @@
                       "FAIL"
                     ],
                     "type": "string"
+                  },
+                  "classification": {
+                    "enum": [
+                      "OK",
+                      "WARN",
+                      "FAIL"
+                    ],
+                    "type": "string"
+                  },
+                  "reasons_count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "gap_count": {
+                    "minimum": 0,
+                    "type": "integer"
                   }
                 },
                 "required": [
@@ -1265,6 +1281,9 @@
             "last_extension_help_path": {
               "type": "string"
             },
+            "last_cockpit_healthcheck_path": {
+              "type": "string"
+            },
             "last_registry_path": {
               "type": "string"
             },
@@ -1324,6 +1343,47 @@
             "isolation_summary",
             "last_extension_help_path",
             "notes"
+          ],
+          "type": "object"
+        },
+        "cockpit_lite": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "IDLE",
+                "FAIL",
+                "MISSING"
+              ],
+              "type": "string"
+            },
+            "port": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "last_healthcheck_path": {
+              "type": "string"
+            },
+            "last_request_id": {
+              "type": "string"
+            },
+            "last_chat_log_path": {
+              "type": "string"
+            },
+            "notes_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "last_note_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "last_healthcheck_path",
+            "last_request_id"
           ],
           "type": "object"
         },
@@ -1391,6 +1451,12 @@
             "last_report_path": {
               "type": "string"
             },
+            "last_smoke_full_triage_path": {
+              "type": "string"
+            },
+            "last_smoke_fast_triage_path": {
+              "type": "string"
+            },
             "last_pr_open": {
               "additionalProperties": false,
               "properties": {
@@ -1400,16 +1466,72 @@
                 "status": {
                   "type": "string"
                 },
-                "pr_url": {
-                  "type": "string"
-                },
-                "reason": {
-                  "type": "string"
-                }
+                  "pr_url": {
+                    "type": "string"
+                  },
+                  "pr_number": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
               },
               "required": [
                 "job_id",
                 "status"
+              ],
+              "type": "object"
+            },
+            "failure_summary": {
+              "additionalProperties": false,
+              "properties": {
+                "total_fail": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "by_class": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "AUTH": { "minimum": 0, "type": "integer" },
+                    "PERMISSION": { "minimum": 0, "type": "integer" },
+                    "VALIDATION": { "minimum": 0, "type": "integer" },
+                    "NOT_FOUND": { "minimum": 0, "type": "integer" },
+                    "CONFLICT": { "minimum": 0, "type": "integer" },
+                    "RATE_LIMIT": { "minimum": 0, "type": "integer" },
+                    "NETWORK": { "minimum": 0, "type": "integer" },
+                    "POLICY_TIME_LIMIT": { "minimum": 0, "type": "integer" },
+                    "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING": { "minimum": 0, "type": "integer" },
+                    "DEMO_PACK_CAPABILITY_INDEX_MISSING": { "minimum": 0, "type": "integer" },
+                    "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON": { "minimum": 0, "type": "integer" },
+                    "DEMO_OTHER_MARKER_2472D115C490": { "minimum": 0, "type": "integer" },
+                    "DEMO_QUALITY_GATE_REPORT_MISSING": { "minimum": 0, "type": "integer" },
+                    "DEMO_SESSION_CONTEXT_HASH_MISMATCH": { "minimum": 0, "type": "integer" },
+                    "OTHER": { "minimum": 0, "type": "integer" }
+                  },
+                  "required": [
+                    "AUTH",
+                    "PERMISSION",
+                    "VALIDATION",
+                    "NOT_FOUND",
+                    "CONFLICT",
+                    "RATE_LIMIT",
+                    "NETWORK",
+                    "POLICY_TIME_LIMIT",
+                    "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+                    "DEMO_PACK_CAPABILITY_INDEX_MISSING",
+                    "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON",
+                    "DEMO_OTHER_MARKER_2472D115C490",
+                    "DEMO_QUALITY_GATE_REPORT_MISSING",
+                    "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+                    "OTHER"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "total_fail",
+                "by_class"
               ],
               "type": "object"
             },
@@ -2609,6 +2731,29 @@
           ],
           "type": "object"
         },
+        "doer_loop": {
+          "additionalProperties": false,
+          "properties": {
+            "lock_state": {
+              "enum": ["MISSING", "LOCKED", "STALE_CLEARED"],
+              "type": "string"
+            },
+            "lock_path": {
+              "type": "string"
+            },
+            "owner_tag": {
+              "type": "string"
+            },
+            "expires_at": {
+              "type": "string"
+            },
+            "last_run_id": {
+              "type": "string"
+            }
+          },
+          "required": ["lock_state", "lock_path"],
+          "type": "object"
+        },
         "auto_loop": {
           "additionalProperties": false,
           "properties": {
@@ -2737,6 +2882,39 @@
           ],
           "type": "object"
         },
+        "airrunner_auto_run": {
+          "additionalProperties": false,
+          "properties": {
+            "last_job_id": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "stop_at": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "last_poll_at": {
+              "type": "string"
+            },
+            "last_poll_path": {
+              "type": "string"
+            },
+            "last_closeout_path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "last_job_id",
+            "status",
+            "stop_at",
+            "timezone"
+          ],
+          "type": "object"
+        },
         "decisions": {
           "additionalProperties": false,
           "properties": {
@@ -2761,6 +2939,10 @@
               "type": "object"
             },
             "pending_decisions_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "seed_pending_count": {
               "minimum": 0,
               "type": "integer"
             }

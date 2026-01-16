@@ -8,6 +8,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_iso
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -362,12 +363,63 @@ def _work_intake_check_payload(*, workspace_root: Path, mode: str) -> dict[str, 
 
 def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = False) -> dict[str, Any]:
     from src.ops.decision_inbox import run_decision_apply_bulk, run_decision_inbox_build, run_decision_inbox_show
+    from src.ops.doer_loop_lock import (
+        acquire_doer_loop_lock,
+        load_loop_lock_ttl_seconds,
+        owner_session_from_env,
+        owner_tag_from_env,
+        release_doer_loop_lock,
+        touch_doer_loop_lock,
+    )
     from src.ops.work_intake_autoselect import run_work_intake_autoselect
     from src.prj_airunner.airunner_run import run_airunner_baseline, run_airunner_run
     from src.ops.system_status_report import run_system_status
     from src.ops.ui_snapshot_bundle import build_ui_snapshot_bundle
 
     core_root = _repo_root()
+    lock_run_id = build_run_id(
+        workspace_root=workspace_root,
+        op_name="auto-loop-lock",
+        inputs={"budget_seconds": int(budget_seconds or 0)},
+        date_bucket=date_bucket_from_iso(_now_iso()),
+    )
+    lock_owner_tag = owner_tag_from_env()
+    lock_owner_session = owner_session_from_env()
+    lock_ttl = load_loop_lock_ttl_seconds(core_root=core_root, workspace_root=workspace_root)
+    lock_res = acquire_doer_loop_lock(
+        workspace_root=workspace_root,
+        owner_tag=lock_owner_tag,
+        owner_session=lock_owner_session,
+        run_id=lock_run_id,
+        ttl_seconds=lock_ttl,
+    )
+    if lock_res.get("status") == "LOCKED":
+        out_json = workspace_root / ".cache" / "reports" / "auto_loop.v1.json"
+        out_md = workspace_root / ".cache" / "reports" / "auto_loop.v1.md"
+        out_json.parent.mkdir(parents=True, exist_ok=True)
+        report = {
+            "version": "v1",
+            "generated_at": _now_iso(),
+            "workspace_root": str(workspace_root),
+            "status": "IDLE",
+            "error_code": "LOCKED_LOOP",
+            "counts": {
+                "decision_pending_before": 0,
+                "decision_pending_after": 0,
+                "bulk_applied_count": 0,
+                "selected_count": 0,
+                "doer_counts": {"applied": 0, "planned": 0, "skipped": 0, "skipped_by_reason": {}},
+            },
+            "lock_path": lock_res.get("lock_path"),
+            "lock_owner_tag": lock_res.get("owner_tag"),
+            "lock_owner_session": lock_res.get("owner_session"),
+            "lock_expires_at": lock_res.get("expires_at"),
+            "lock_run_id": lock_res.get("run_id"),
+            "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
+        }
+        out_json.write_text(_dump_json(report), encoding="utf-8")
+        out_md.write_text("# Auto Loop\n- status: IDLE\n- error_code: LOCKED_LOOP\n", encoding="utf-8")
+        return {"status": "IDLE", "report_path": _rel_path(workspace_root, out_json)}
     notes = ["PROGRAM_LED=true", "NO_NETWORK=true"]
     auto_loop_override, override_notes = _load_auto_loop_override(workspace_root)
     notes.extend(override_notes)
@@ -405,6 +457,8 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         mode="no_wait",
         budget_seconds=int(budget_seconds) if int(budget_seconds) > 0 else None,
     )
+    if lock_res.get("lease_id"):
+        touch_doer_loop_lock(workspace_root=workspace_root, lease_id=str(lock_res.get("lease_id") or ""))
 
     doer_counts = run_res.get("doer_processed_count") if isinstance(run_res.get("doer_processed_count"), dict) else {}
     raw_skipped = doer_counts.get("skipped_by_reason") if isinstance(doer_counts.get("skipped_by_reason"), dict) else {}
@@ -481,6 +535,17 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         "notes": notes,
     }
 
+    run_id = build_run_id(
+        workspace_root=workspace_root,
+        op_name="auto-loop",
+        inputs={
+            "budget_seconds": int(budget_seconds),
+            "decision_pending_before": pending_before,
+            "selected_count": selected_count,
+        },
+        date_bucket=date_bucket_from_iso(report["generated_at"]),
+    )
+
     out_json = workspace_root / ".cache" / "reports" / "auto_loop.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "auto_loop.v1.md"
     out_json.parent.mkdir(parents=True, exist_ok=True)
@@ -513,6 +578,23 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
     report["system_status_path"] = sys_res.get("out_json")
     report["ui_snapshot_path"] = ui_snapshot.get("report_path")
 
+    evidence_paths = report.get("evidence_paths") if isinstance(report.get("evidence_paths"), list) else []
+    report_rel = _rel_path(workspace_root, out_json)
+    if report_rel and report_rel not in evidence_paths:
+        evidence_paths.append(report_rel)
+    apply_rel = report.get("apply_details_path")
+    if isinstance(apply_rel, str) and apply_rel and apply_rel not in evidence_paths:
+        evidence_paths.append(apply_rel)
+    report["evidence_paths"] = evidence_paths
+    report["trace_meta"] = build_trace_meta(
+        work_item_id=run_id,
+        work_item_kind="RUN",
+        run_id=run_id,
+        policy_hash=None,
+        evidence_paths=evidence_paths,
+        workspace_root=workspace_root,
+    )
+
     out_json.write_text(_dump_json(report), encoding="utf-8")
     out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
 
@@ -529,4 +611,8 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
     report["bulk_apply_status"] = bulk_res.get("status")
     report["work_intake_status"] = intake_payload.get("status")
     report["airunner_status"] = run_res.get("status")
+    release_ok = False
+    if lock_res.get("lease_id"):
+        release_ok = release_doer_loop_lock(workspace_root=workspace_root, lease_id=str(lock_res.get("lease_id") or ""))
+    report["lock_release_ok"] = bool(release_ok)
     return report

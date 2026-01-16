@@ -46,6 +46,13 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Extension'a ozel policy + schema + ops entrypoint dosyalari
 
 ## Extension Index
+<a id="ext-PRJ-DEPLOY"></a>
+### PRJ-DEPLOY
+- Purpose: plan-first deploy orchestration (static FE + selfhost BE; live deploy policy-gated).
+- Single gate: deploy-check.
+- Outputs: .cache/deploy/jobs_index.v1.json, .cache/reports/deploy_plan.v1.json, .cache/reports/deploy_report.v1.json
+- Policies: policies/policy_deploy.v1.json
+
 <a id="ext-PRJ-RELEASE-AUTOMATION"></a>
 ### PRJ-RELEASE-AUTOMATION
 - Purpose: local-first release plan/prepare (publish default SKIP).
@@ -102,3 +109,10 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Single gate: airunner-status (report-only), airunner-run (tick loop, default IDLE).
 - Outputs: .cache/reports/airunner_tick.v1.json, airunner_tick.v1.md
 - Policies: policies/policy_airunner.v1.json
+
+<a id="ext-PRJ-UI-COCKPIT-LITE"></a>
+### PRJ-UI-COCKPIT-LITE
+- Purpose: zero-deps local cockpit UI + ops allowlist (read-only).
+- Single gate: cockpit-serve.
+- Outputs: .cache/reports/ui_cockpit_lite_status.v1.json
+- Policies: none (read-only).

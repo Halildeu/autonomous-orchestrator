@@ -51,6 +51,27 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return merged
 
 
+def _smoke_fast_job_gate(*, workspace_root: Path) -> tuple[str, list[str]]:
+    try:
+        from src.prj_github_ops.github_ops import start_github_ops_job, poll_github_ops_job
+    except Exception:
+        return "FAIL", ["SMOKE_JOB_IMPORT_FAIL"]
+
+    start_res = start_github_ops_job(workspace_root=workspace_root, kind="SMOKE_FAST", dry_run=False)
+    job_id = str(start_res.get("job_id") or "")
+    if not job_id:
+        return "FAIL", ["SMOKE_JOB_START_FAILED"]
+
+    poll_res = poll_github_ops_job(workspace_root=workspace_root, job_id=job_id)
+    status = str(poll_res.get("status") or "")
+    if status == "RUNNING":
+        return "FAIL", ["SMOKE_JOB_RUNNING"]
+    if status == "PASS":
+        return "PASS", []
+    reason = f"SMOKE_JOB_{status or 'UNKNOWN'}"
+    return "FAIL", [reason]
+
+
 def _load_policy(workspace_root: Path) -> tuple[dict[str, Any], str, list[str]]:
     core_root = _repo_root()
     notes: list[str] = []
@@ -157,11 +178,7 @@ def run_preflight_stamp(*, workspace_root: Path, mode: str = "write") -> dict[st
     validate_rc = subprocess.run([sys.executable, "ci/validate_schemas.py"], cwd=repo_root).returncode
     validate_status = "PASS" if validate_rc == 0 else "FAIL"
 
-    env = os.environ.copy()
-    env["SMOKE_LEVEL"] = "fast"
-    env["SMOKE_WORKSPACE_ROOT"] = str(workspace_root)
-    smoke_rc = subprocess.run([sys.executable, "smoke_test.py"], cwd=repo_root, env=env).returncode
-    smoke_status = "PASS" if smoke_rc == 0 else "FAIL"
+    smoke_status, smoke_notes = _smoke_fast_job_gate(workspace_root=workspace_root)
 
     sb_path = workspace_root / ".cache" / "script_budget" / "report.json"
     sb_path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,7 +209,7 @@ def run_preflight_stamp(*, workspace_root: Path, mode: str = "write") -> dict[st
 
     overall = "PASS" if validate_status == "PASS" and smoke_status == "PASS" and hard_exceeded == 0 else "FAIL"
 
-    notes = sorted(set(policy_notes + ["PROGRAM_LED=true", "NO_WAIT=true"]))
+    notes = sorted(set(policy_notes + ["PROGRAM_LED=true", "NO_WAIT=true"] + smoke_notes))
     stamp = {
         "version": "v1",
         "generated_at": _now_iso(),

@@ -30,6 +30,7 @@
     "smoke_full_cmd": [],
     "allowed_job_types": [
       "SMOKE_FULL",
+      "SMOKE_FAST",
       "RELEASE_PREPARE",
       "RELEASE_PUBLISH",
       "GITHUB_CHECKS_POLL",

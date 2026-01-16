@@ -1,12 +1,27 @@
 {
-  "version": "v1",
-  "enabled": true,
-  "default_mode": "locked",
   "allow_core_writes_only_when": {
-    "env_var": "CORE_UNLOCK",
-    "env_value": "1"
+    "env_value": "1",
+    "env_var": "CORE_UNLOCK"
   },
+  "blocked_write_error_code": "CORE_IMMUTABLE_WRITE_BLOCKED",
+  "core_git_required": true,
   "core_write_mode": "ssot_only_when_unlocked",
+  "default_mode": "locked",
+  "enabled": true,
+  "evidence_required_when_unlocked": true,
+  "notes": [
+    "Temporary narrowing MUST be done via workspace override, not core SSOT."
+  ],
+  "one_shot_src_window": {
+    "allow_paths": [],
+    "enabled": false,
+    "expires_at": null,
+    "opened_at": null,
+    "reason": "",
+    "restore_policy_hash": "",
+    "ttl_seconds": 0
+  },
+  "require_unlock_reason": true,
   "ssot_write_allowlist": [
     "AGENTS.md",
     "docs/LAYER-MODEL-LOCK.v1.md",
@@ -18,6 +33,7 @@
     "schemas/",
     "src/benchmark/",
     "src/extensions/",
+    "src/learning/",
     "src/ops/",
     "src/prj_airunner/",
     "src/prj_github_ops/",
@@ -31,11 +47,5 @@
     "src/prj_airunner/airrunner_jobs.py",
     "src/prj_airunner/airrunner_tick.py"
   ],
-  "require_unlock_reason": true,
-  "evidence_required_when_unlocked": true,
-  "blocked_write_error_code": "CORE_IMMUTABLE_WRITE_BLOCKED",
-  "core_git_required": true,
-  "notes": [
-    "Temporary narrowing MUST be done via workspace override, not core SSOT."
-  ]
+  "version": "v1"
 }

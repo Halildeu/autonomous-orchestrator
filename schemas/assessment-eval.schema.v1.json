@@ -51,7 +51,14 @@
     "lenses": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trend_best_practice", "integrity_compat", "ai_ops_fit", "github_ops_release", "operability"],
+      "required": [
+        "trend_best_practice",
+        "integrity_compat",
+        "integration_coherence",
+        "ai_ops_fit",
+        "github_ops_release",
+        "operability"
+      ],
       "properties": {
         "trend_best_practice": {
           "type": "object",
@@ -73,6 +80,19 @@
             "score": { "type": "number", "minimum": 0, "maximum": 1 },
             "integrity_status": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
             "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "integration_coherence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "score", "classification", "reasons"],
+          "properties": {
+            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
+            "score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "classification": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
+            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+            "subscores": { "type": "object" },
+            "reasons": { "type": "array", "items": { "type": "string" } }
           }
         },
         "ai_ops_fit": {

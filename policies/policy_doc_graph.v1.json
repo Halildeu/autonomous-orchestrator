@@ -24,6 +24,7 @@
     "policies/schemas"
   ],
   "summary_timeout_seconds": 5,
+  "strict_timeout_seconds": 180,
   "max_items": {
     "broken_refs": 1000,
     "orphan_critical": 1000

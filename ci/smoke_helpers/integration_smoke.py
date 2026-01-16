@@ -201,10 +201,32 @@ def _smoke_m3_runnable(*, repo_root: Path, ws_dry_run: Path, ws_integration: Pat
     if dry_catalog_path.exists():
         raise SystemExit("Smoke test failed: M3 dry-run must not write derived catalog: " + str(dry_catalog_path))
     catalog_path = ws_integration / ".cache" / "index" / "catalog.v1.json"
+    if not catalog_path.exists():
+        catalog_path.parent.mkdir(parents=True, exist_ok=True)
+        env = os.environ.copy()
+        env["ORCH_ROADMAP_RUNNER"] = "1"
+        env.setdefault("SMOKE_MODE", "1")
+        env["SMOKE_LEVEL"] = "fast"
+        run_cmd(
+            repo_root=repo_root,
+            argv=[
+                sys.executable,
+                "-m",
+                "src.tenant.build_catalog",
+                "--workspace-root",
+                str(ws_integration.relative_to(repo_root)),
+                "--dry-run",
+                "false",
+            ],
+            env=env,
+            fail_msg="Smoke test failed: DEMO_CATALOG_MISSING build_catalog failed: " + str(catalog_path),
+        )
+    if not catalog_path.exists():
+        raise SystemExit("Smoke test failed: DEMO_CATALOG_MISSING catalog.v1.json missing: " + str(catalog_path))
     try:
         catalog_obj = json.loads(catalog_path.read_text(encoding="utf-8"))
     except Exception as e:
-        raise SystemExit("Smoke test failed: catalog.v1.json must be valid JSON: " + str(catalog_path)) from e
+        raise SystemExit("Smoke test failed: DEMO_CATALOG_PARSE catalog.v1.json must be valid JSON: " + str(catalog_path)) from e
     packs = catalog_obj.get("packs") if isinstance(catalog_obj, dict) else None
     if not (isinstance(packs, list) and any(isinstance(p, dict) and p.get("pack_id") == "pack-demo" for p in packs)):
         raise SystemExit("Smoke test failed: catalog must include pack-demo.")

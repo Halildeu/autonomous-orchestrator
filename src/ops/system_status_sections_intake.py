@@ -116,11 +116,33 @@ def _work_intake_exec_section(workspace_root: Path) -> dict[str, Any] | None:
     return payload
 
 
+def _doer_loop_section(workspace_root: Path) -> dict[str, Any]:
+    lock_path = workspace_root / ".cache" / "doer" / "doer_loop_lock.v1.json"
+    clear_path = workspace_root / ".cache" / "reports" / "doer_loop_lock_clear_stale.v1.json"
+    rel_lock = str(Path(".cache") / "doer" / "doer_loop_lock.v1.json")
+    payload: dict[str, Any] = {"lock_state": "MISSING", "lock_path": rel_lock}
+    if lock_path.exists():
+        try:
+            obj = _load_json(lock_path)
+        except Exception:
+            obj = {}
+        payload["lock_state"] = "LOCKED"
+        if isinstance(obj, dict):
+            payload["owner_tag"] = str(obj.get("owner_tag") or "")
+            payload["expires_at"] = str(obj.get("expires_at") or "")
+            payload["last_run_id"] = str(obj.get("run_id") or "")
+        return payload
+    if clear_path.exists():
+        payload["lock_state"] = "STALE_CLEARED"
+    return payload
+
+
 def _decisions_section(workspace_root: Path) -> dict[str, Any] | None:
     inbox_path = workspace_root / ".cache" / "index" / "decision_inbox.v1.json"
     rel_path = str(Path(".cache") / "index" / "decision_inbox.v1.json")
     pending_count = 0
     pending_by_kind: dict[str, int] = {}
+    seed_pending_count = 0
     if inbox_path.exists():
         try:
             obj = _load_json(inbox_path)
@@ -133,6 +155,9 @@ def _decisions_section(workspace_root: Path) -> dict[str, Any] | None:
         if isinstance(by_kind, dict):
             pending_by_kind = {str(k): int(v) for k, v in by_kind.items() if isinstance(v, int) and v >= 0}
         pending_count = int(counts.get("total") or 0) if isinstance(counts, dict) else len(items_list)
+        for item in items_list:
+            if isinstance(item, dict) and str(item.get("why_blocked") or "") == "DECISION_SEED":
+                seed_pending_count += 1
     blocked_count = pending_count
 
     decisions_applied_path = workspace_root / ".cache" / "index" / "decisions_applied.v1.jsonl"
@@ -145,6 +170,7 @@ def _decisions_section(workspace_root: Path) -> dict[str, Any] | None:
         "blocked_count": blocked_count,
         "pending_decisions_count": pending_count,
         "pending_decisions_by_kind": {k: pending_by_kind[k] for k in sorted(pending_by_kind)},
+        "seed_pending_count": int(seed_pending_count),
     }
     if last_apply_path:
         payload["last_decision_apply_path"] = last_apply_path

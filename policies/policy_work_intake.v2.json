@@ -254,11 +254,47 @@
       "suggested_extension": "PRJ-GITHUB-OPS"
     },
     {
+      "id": "github_ops_job_demo_prereq_apply_fail",
+      "source_type": "GITHUB_OPS",
+      "when": {
+        "github_ops_job_status_in": ["FAIL"],
+        "github_ops_job_failure_class_in": ["DEMO_PREREQ_APPLY_FAIL"]
+      },
+      "bucket": "TICKET",
+      "severity": "S2",
+      "priority": "P2",
+      "suggested_extension": "PRJ-GITHUB-OPS"
+    },
+    {
       "id": "github_ops_job_demo_catalog_parse",
       "source_type": "GITHUB_OPS",
       "when": {
         "github_ops_job_status_in": ["FAIL"],
         "github_ops_job_failure_class_in": ["DEMO_CATALOG_PARSE"]
+      },
+      "bucket": "TICKET",
+      "severity": "S2",
+      "priority": "P2",
+      "suggested_extension": "PRJ-GITHUB-OPS"
+    },
+    {
+      "id": "github_ops_job_demo_catalog_missing",
+      "source_type": "GITHUB_OPS",
+      "when": {
+        "github_ops_job_status_in": ["FAIL"],
+        "github_ops_job_failure_class_in": ["DEMO_CATALOG_MISSING"]
+      },
+      "bucket": "TICKET",
+      "severity": "S2",
+      "priority": "P2",
+      "suggested_extension": "PRJ-GITHUB-OPS"
+    },
+    {
+      "id": "github_ops_job_demo_advisor_missing",
+      "source_type": "GITHUB_OPS",
+      "when": {
+        "github_ops_job_status_in": ["FAIL"],
+        "github_ops_job_failure_class_in": ["DEMO_ADVISOR_SUGGESTIONS_MISSING"]
       },
       "bucket": "TICKET",
       "severity": "S2",
@@ -275,6 +311,18 @@
       "bucket": "INCIDENT",
       "severity": "S1",
       "priority": "P1",
+      "suggested_extension": "PRJ-GITHUB-OPS"
+    },
+    {
+      "id": "github_ops_job_policy_time_limit",
+      "source_type": "GITHUB_OPS",
+      "when": {
+        "github_ops_job_status_in": ["FAIL"],
+        "github_ops_job_failure_class_in": ["POLICY_TIME_LIMIT"]
+      },
+      "bucket": "TICKET",
+      "severity": "S2",
+      "priority": "P2",
       "suggested_extension": "PRJ-GITHUB-OPS"
     },
     {

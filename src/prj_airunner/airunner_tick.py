@@ -16,16 +16,16 @@ from src.ops.commands.maintenance_cmds import (
     cmd_work_intake_exec_ticket,
 )
 from src.ops.commands.extension_cmds import (
+    cmd_deploy_job_poll,
     cmd_github_ops_job_poll,
     cmd_github_ops_job_start,
-    cmd_release_check,
 )
 from src.ops.work_intake_from_sources import _load_autopilot_policy
 from src.ops.roadmap_cli import cmd_portfolio_status
+from src.prj_airunner.airunner_auto_mode import run_auto_mode_actions
 from src.prj_airunner.airunner_jobs import load_jobs_policy, update_jobs
 from src.prj_airunner.airunner_time_sinks import build_time_sinks_report
 from src.prj_airunner.airunner_tick_utils import (
-    _active_hours_snapshot,
     _heartbeat_age_seconds,
     _load_heartbeat,
     _load_json,
@@ -51,6 +51,10 @@ from src.prj_airunner.airunner_tick_support import (
     _run_fast_gate,
     _write_tick_report,
 )
+from src.prj_airunner.airunner_tick_support_v2 import (
+    build_active_hours_context,
+    seed_network_live_decision,
+)
 from src.prj_airunner.airunner_tick_helpers import (
     _allow_repeat_tick,
     _canonical_json,
@@ -58,16 +62,15 @@ from src.prj_airunner.airunner_tick_helpers import (
     _hash_text,
     _intake_suggests_extension,
     _load_airunner_jobs_running,
+    _load_deploy_jobs_index,
     _load_github_ops_jobs_index,
     _window_bucket,
     _work_intake_hash,
 )
 from src.prj_airunner.auto_mode_dispatch import (
-    auto_mode_network_allowed,
     load_auto_mode_policy,
+    network_live_gate_status,
     plan_auto_mode_dispatch,
-    write_plan_only,
-    write_selection_file,
 )
 def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
@@ -89,31 +92,12 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
     allowed_ops = [str(x) for x in allowed_ops if isinstance(x, str)]
     if "ui-snapshot" in allowed_ops and "ui-snapshot-bundle" not in allowed_ops:
         allowed_ops.append("ui-snapshot-bundle")
-    active_snapshot = _active_hours_snapshot(schedule, now)
-    active_hours_enabled = bool(active_snapshot.get("active_hours_enabled", False))
-    outside_hours_mode_effective = str(active_snapshot.get("outside_hours_mode_effective") or "poll_only")
-    inside_hours_raw = bool(active_snapshot.get("inside_active_hours", True))
-    inside_hours_effective = inside_hours_raw
-    schedule_notes = list(active_snapshot.get("notes") or [])
-    if outside_hours_mode_effective == "ignore":
-        inside_hours_effective = True
-        schedule_notes.append("outside_hours_mode_ignore")
-    if force_active_hours:
-        inside_hours_effective = True
-        active_snapshot["inside_active_hours"] = True
-        schedule_notes.append("force_active_hours=true")
+    outside_hours, schedule_notes, active_meta = build_active_hours_context(
+        schedule=schedule,
+        now=now,
+        force_active_hours=force_active_hours,
+    )
     notes.extend(schedule_notes)
-    def _active_meta(reason: str) -> dict[str, Any]:
-        return {
-            "active_hours_enabled": bool(active_hours_enabled),
-            "active_hours_tz": str(active_snapshot.get("active_hours_tz") or ""),
-            "now_local_hhmm": str(active_snapshot.get("now_local_hhmm") or ""),
-            "inside_active_hours": bool(inside_hours_raw),
-            "inside_active_hours_effective": bool(inside_hours_effective),
-            "outside_hours_mode_effective": str(outside_hours_mode_effective),
-            "gate_reason": reason,
-        }
-    outside_hours = bool(active_hours_enabled) and not inside_hours_effective and outside_hours_mode_effective != "ignore"
     if not enabled:
         return _emit_idle_tick(
             workspace_root=workspace_root,
@@ -122,7 +106,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             notes=notes,
             error_code="POLICY_DISABLED",
             tick_id_seed={"enabled": False, "policy_hash": policy_hash},
-            active_meta=_active_meta("POLICY_DISABLED"),
+            active_meta=active_meta("POLICY_DISABLED"),
         )
     if schedule_mode == "OFF":
         return _emit_idle_tick(
@@ -132,7 +116,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             notes=notes,
             error_code="SCHEDULE_OFF",
             tick_id_seed={"schedule": schedule_mode, "policy_hash": policy_hash},
-            active_meta=_active_meta("SCHEDULE_OFF"),
+            active_meta=active_meta("SCHEDULE_OFF"),
         )
     missing_ops = [op for op in required_ops if op not in allowed_ops]
     if missing_ops and not outside_hours:
@@ -143,7 +127,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             notes=notes,
             error_code="ALLOWED_OPS_MISSING",
             tick_id_seed={"missing_ops": missing_ops, "policy_hash": policy_hash},
-            active_meta=_active_meta("ALLOWED_OPS_MISSING"),
+            active_meta=active_meta("ALLOWED_OPS_MISSING"),
             extra_notes=[f"missing_op={op}" for op in missing_ops],
         )
     runtime_day, runtime_notes = _runtime_day(schedule, now)
@@ -168,7 +152,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             "evidence_paths": [],
             "notes": notes + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false"],
         }
-        report.update(_active_meta("RUNTIME_BUDGET_EXCEEDED"))
+        report.update(active_meta("RUNTIME_BUDGET_EXCEEDED"))
         rel_json, rel_md = _write_tick_report(report, workspace_root)
         return {
             "status": "WARN",
@@ -241,7 +225,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                 "evidence_paths": [str(Path(".cache") / "airunner" / "airunner_lock.v1.json")],
                 "notes": notes + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false"],
             }
-            report.update(_active_meta("LOCKED"))
+            report.update(active_meta("LOCKED"))
             rel_json, rel_md = _write_tick_report(report, workspace_root)
             return {
                 "status": "IDLE",
@@ -295,7 +279,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             "evidence_paths": [heartbeat_rel],
             "notes": notes + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false"],
         }
-        report.update(_active_meta("NOOP_SAME_TICK"))
+        report.update(active_meta("NOOP_SAME_TICK"))
         rel_json, rel_md = _write_tick_report(report, workspace_root)
         _release_lock(lock_path)
         return {
@@ -418,7 +402,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             }
             report.update(preflight_meta)
             report.update(
-                _active_meta(
+                active_meta(
                     "OUTSIDE_ACTIVE_HOURS_POLL_ONLY" if outside_hours else "POLL_ONLY"
                 )
             )
@@ -449,6 +433,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
         github_running_before = len([j for j in github_jobs if str(j.get("status") or "") == "RUNNING"])
         can_poll_github = "github-ops-job-poll" in allowed_ops
         can_start_github = "github-ops-job-start" in allowed_ops
+        can_start_deploy = "deploy-job-start" in allowed_ops
         if can_poll_github and github_running:
             for job in github_running[:max_poll]:
                 poll_payload = _run_cmd_json_with_perf(
@@ -533,7 +518,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                     ],
                 }
                 report.update(preflight_meta)
-                report.update(_active_meta("GITHUB_POLL_ONLY"))
+                report.update(active_meta("GITHUB_POLL_ONLY"))
                 rel_json, rel_md = _write_tick_report(report, workspace_root)
                 return {
                     "status": "OK",
@@ -549,6 +534,117 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                     "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
                 }
             notes.append("GITHUB_POLL_CLEARED")
+        deploy_jobs = _load_deploy_jobs_index(workspace_root)
+        deploy_running = [
+            j
+            for j in deploy_jobs
+            if str(j.get("status") or "") in {"QUEUED", "RUNNING"} and str(j.get("job_id") or "")
+        ]
+        deploy_queued_before = len([j for j in deploy_jobs if str(j.get("status") or "") == "QUEUED"])
+        deploy_running_before = len([j for j in deploy_jobs if str(j.get("status") or "") == "RUNNING"])
+        can_poll_deploy = "deploy-job-poll" in allowed_ops
+        if can_poll_deploy and deploy_running:
+            for job in deploy_running[:max_poll]:
+                poll_payload = _run_cmd_json_with_perf(
+                    op_name="deploy-job-poll",
+                    func=cmd_deploy_job_poll,
+                    args=argparse.Namespace(workspace_root=str(workspace_root), job_id=str(job.get("job_id"))),
+                    workspace_root=workspace_root,
+                    perf_cfg=perf_cfg,
+                )
+                ops_called.append("deploy-job-poll")
+                report_path = poll_payload.get("job_report_path") if isinstance(poll_payload, dict) else None
+                if isinstance(report_path, str) and report_path:
+                    evidence_paths.append(report_path)
+                index_path = poll_payload.get("jobs_index_path") if isinstance(poll_payload, dict) else None
+                if isinstance(index_path, str) and index_path:
+                    evidence_paths.append(index_path)
+            deploy_after = _load_deploy_jobs_index(workspace_root)
+            deploy_queued_after = len([j for j in deploy_after if str(j.get("status") or "") == "QUEUED"])
+            deploy_running_after = len([j for j in deploy_after if str(j.get("status") or "") == "RUNNING"])
+            if (deploy_queued_after + deploy_running_after) > 0:
+                ui_payload = _run_cmd_json_with_perf(
+                    op_name="ui-snapshot-bundle",
+                    func=cmd_ui_snapshot,
+                    args=argparse.Namespace(
+                        workspace_root=str(workspace_root),
+                        out=".cache/reports/ui_snapshot_bundle.v1.json",
+                    ),
+                    workspace_root=workspace_root,
+                    perf_cfg=perf_cfg,
+                )
+                ui_report = ui_payload.get("report_path") if isinstance(ui_payload, dict) else None
+                if isinstance(ui_report, str) and ui_report:
+                    evidence_paths.append(ui_report)
+                heartbeat_rel = _write_heartbeat(
+                    heartbeat_path,
+                    workspace_root=workspace_root,
+                    tick_id=tick_id,
+                    status="OK",
+                    error_code=None,
+                    window_bucket=window_bucket,
+                    policy_hash=policy_hash,
+                    notes=notes + ["PROGRAM_LED=true", "NETWORK=false", "POLL_ONLY=true", "DEPLOY_POLL=true"],
+                )
+                evidence_paths.append(heartbeat_rel)
+                report = {
+                    "version": "v1",
+                    "generated_at": _now_iso(),
+                    "status": "OK",
+                    "error_code": None,
+                    "tick_id": tick_id,
+                    "workspace_root": str(workspace_root),
+                    "policy_source": policy_source,
+                    "policy_hash": policy_hash,
+                    "fast_gate": fast_gate,
+                    "jobs_started": int(job_stats.get("started", 0)),
+                    "jobs_polled": int(job_stats.get("polled", 0)) + 1,
+                    "jobs_running": int(job_stats.get("running", 0)),
+                    "jobs_failed": int(job_stats.get("failed", 0)),
+                    "jobs_passed": int(job_stats.get("passed", 0)),
+                    "jobs_archived_delta": int(job_stats.get("archived", 0)),
+                    "jobs_skipped_delta": int(job_stats.get("skipped", 0)),
+                    "poll_first_enforced": False,
+                    "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
+                    "queued_before": queued_before,
+                    "running_before": running_before,
+                    "queued_after": queued_after,
+                    "running_after": running_after,
+                    "github_queued_before": github_queued_before,
+                    "github_running_before": github_running_before,
+                    "deploy_queued_before": deploy_queued_before,
+                    "deploy_running_before": deploy_running_before,
+                    "deploy_queued_after": deploy_queued_after,
+                    "deploy_running_after": deploy_running_after,
+                    "ops_called": ["deploy-job-poll", "ui-snapshot-bundle"],
+                    "actions": {"applied": 0, "planned": 0, "idle": 0},
+                    "evidence_paths": sorted({str(p) for p in evidence_paths if isinstance(p, str) and p}),
+                    "notes": notes
+                    + [
+                        "PROGRAM_LED=true",
+                        "STRICT_ISOLATED=true",
+                        "NETWORK=false",
+                        "POLL_ONLY=true",
+                        "DEPLOY_POLL=true",
+                    ],
+                }
+                report.update(preflight_meta)
+                report.update(active_meta("DEPLOY_POLL_ONLY"))
+                rel_json, rel_md = _write_tick_report(report, workspace_root)
+                return {
+                    "status": "OK",
+                    "policy_source": policy_source,
+                    "policy_hash": policy_hash,
+                    "report_path": rel_json,
+                    "report_md_path": rel_md,
+                    "jobs_started": int(job_stats.get("started", 0)),
+                    "jobs_polled": int(job_stats.get("polled", 0)) + 1,
+                    "jobs_running": int(job_stats.get("running", 0)),
+                    "jobs_failed": int(job_stats.get("failed", 0)),
+                    "jobs_passed": int(job_stats.get("passed", 0)),
+                    "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
+                }
+            notes.append("DEPLOY_POLL_CLEARED")
         if outside_hours and not force_active_hours:
             heartbeat_rel = _write_heartbeat(
                 heartbeat_path,
@@ -594,7 +690,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                 "notes": notes + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false"],
             }
             report.update(preflight_meta)
-            report.update(_active_meta("OUTSIDE_ACTIVE_HOURS_IDLE"))
+            report.update(active_meta("OUTSIDE_ACTIVE_HOURS_IDLE"))
             rel_json, rel_md = _write_tick_report(report, workspace_root)
             _release_lock(lock_path)
             return {
@@ -652,7 +748,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                     "notes": notes + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false"],
                 }
                 report.update(preflight_meta)
-                report.update(_active_meta("ALLOWED_OPS_MISSING"))
+                report.update(active_meta("ALLOWED_OPS_MISSING"))
                 rel_json, rel_md = _write_tick_report(report, workspace_root)
                 _release_lock(lock_path)
                 return {
@@ -704,101 +800,35 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                 policy=auto_mode_policy,
                 workspace_root=workspace_root,
             )
-            dispatched_extensions = list(dispatch_plan.get("dispatched_extensions") or [])
-            selected_ids = list(dispatch_plan.get("selected_ids") or [])
-            if selected_ids:
-                selection_path = write_selection_file(
-                    workspace_root=workspace_root,
-                    selected_ids=selected_ids,
-                    notes=["PROGRAM_LED=true", "AUTO_MODE=true"],
-                )
-                evidence_paths.append(selection_path)
-                work_intake_payload = _run_cmd_json_with_perf(
-                    op_name="work-intake-check",
-                    func=cmd_work_intake_check,
-                    args=argparse.Namespace(
-                        workspace_root=str(workspace_root),
-                        mode="strict",
-                        chat="false",
-                        detail="false",
-                    ),
-                    workspace_root=workspace_root,
-                    perf_cfg=perf_cfg,
-                )
-                ops_called.append("work-intake-check")
-                work_intake_path = work_intake_payload.get("work_intake_path") if isinstance(work_intake_payload, dict) else work_intake_path
-                if isinstance(work_intake_path, str) and work_intake_path:
-                    evidence_paths.append(work_intake_path)
-            job_candidates = dispatch_plan.get("job_candidates") if isinstance(dispatch_plan.get("job_candidates"), list) else []
-            for job in job_candidates[: max(0, int(max_dispatch_jobs))]:
-                if not can_start_github:
-                    dispatch_idle_reason = "OP_NOT_ALLOWED"
-                    break
-                extension_id = str(job.get("extension_id") or "")
-                job_kind = str(job.get("job_kind") or "")
-                allow_network, net_reason = auto_mode_network_allowed(
-                    workspace_root=workspace_root, policy=auto_mode_policy, extension_id=extension_id
-                )
-                dry_run = "false" if allow_network else "true"
-                start_payload = _run_cmd_json_with_perf(
-                    op_name="github-ops-job-start",
-                    func=cmd_github_ops_job_start,
-                    args=argparse.Namespace(
-                        workspace_root=str(workspace_root),
-                        kind=job_kind,
-                        dry_run=dry_run,
-                    ),
-                    workspace_root=workspace_root,
-                    perf_cfg=perf_cfg,
-                )
-                ops_called.append("github-ops-job-start")
-                dispatch_jobs_started += 1
-                report_path = start_payload.get("job_report_path") if isinstance(start_payload, dict) else None
-                if isinstance(report_path, str) and report_path:
-                    evidence_paths.append(report_path)
-                index_path = start_payload.get("jobs_index_path") if isinstance(start_payload, dict) else None
-                if isinstance(index_path, str) and index_path:
-                    evidence_paths.append(index_path)
-                if not allow_network:
-                    notes.append(f"auto_mode_network_gate={net_reason}")
-            release_candidates = (
-                dispatch_plan.get("release_candidates") if isinstance(dispatch_plan.get("release_candidates"), list) else []
+            dispatch_res = run_auto_mode_actions(
+                workspace_root=workspace_root,
+                dispatch_plan=dispatch_plan,
+                auto_mode_policy=auto_mode_policy,
+                allowed_ops=allowed_ops,
+                can_start_github=can_start_github,
+                can_start_deploy=can_start_deploy,
+                max_dispatch_jobs=max_dispatch_jobs,
+                max_dispatch_actions=max_dispatch_actions,
+                perf_cfg=perf_cfg,
+                work_intake_path=work_intake_path,
+                evidence_paths=evidence_paths,
+                ops_called=ops_called,
+                notes=notes,
             )
-            if release_candidates and "release-check" in allowed_ops:
-                release_payload = _run_cmd_json_with_perf(
-                    op_name="release-check",
-                    func=cmd_release_check,
-                    args=argparse.Namespace(workspace_root=str(workspace_root), channel="", chat="false"),
-                    workspace_root=workspace_root,
-                    perf_cfg=perf_cfg,
-                )
-                ops_called.append("release-check")
-                report_path = release_payload.get("report_path") if isinstance(release_payload, dict) else None
-                if isinstance(report_path, str) and report_path:
-                    evidence_paths.append(report_path)
-            if "work-intake-exec-ticket" in allowed_ops:
-                limit = max(1, int(max_dispatch_actions))
-                exec_payload = _run_cmd_json_with_perf(
-                    op_name="work-intake-exec-ticket",
-                    func=cmd_work_intake_exec_ticket,
-                    args=argparse.Namespace(workspace_root=str(workspace_root), limit=limit, chat="false"),
-                    workspace_root=workspace_root,
-                    perf_cfg=perf_cfg,
-                )
-                ops_called.append("work-intake-exec-ticket")
-                exec_path = exec_payload.get("work_intake_exec_path") if isinstance(exec_payload, dict) else None
-                if isinstance(exec_path, str) and exec_path:
-                    evidence_paths.append(exec_path)
+            dispatch_plan_path = str(dispatch_res.get("dispatch_plan_path") or "")
+            dispatched_extensions = list(dispatch_res.get("dispatched_extensions") or [])
+            dispatch_jobs_started = int(dispatch_res.get("dispatch_jobs_started") or 0)
+            dispatch_idle_reason = str(dispatch_res.get("dispatch_idle_reason") or "")
+            exec_payload = dispatch_res.get("exec_payload") if isinstance(dispatch_res.get("exec_payload"), dict) else None
+            exec_path = str(dispatch_res.get("exec_path") or "")
+            work_intake_path = (
+                dispatch_res.get("work_intake_path")
+                if isinstance(dispatch_res.get("work_intake_path"), str)
+                else work_intake_path
+            )
             plan_candidates = (
                 dispatch_plan.get("plan_candidates") if isinstance(dispatch_plan.get("plan_candidates"), list) else []
             )
-            dispatch_plan_path = write_plan_only(
-                workspace_root=workspace_root,
-                plan_candidates=plan_candidates,
-                reason="AUTO_MODE_PLAN_ONLY",
-            )
-            if dispatch_plan_path:
-                evidence_paths.append(dispatch_plan_path)
             applied = int(exec_payload.get("applied_count") or 0) if isinstance(exec_payload, dict) else 0
             planned = int(exec_payload.get("planned_count") or 0) if isinstance(exec_payload, dict) else 0
             idle = int(exec_payload.get("idle_count") or 0) if isinstance(exec_payload, dict) else 0
@@ -869,86 +899,99 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
             and can_start_github
             and _intake_suggests_extension(workspace_root, work_intake_path, "PRJ-GITHUB-OPS")
         ):
-            start_payload = _run_cmd_json_with_perf(
-                op_name="github-ops-job-start",
-                func=cmd_github_ops_job_start,
-                args=argparse.Namespace(workspace_root=str(workspace_root), kind="SMOKE_FULL", dry_run="false"),
-                workspace_root=workspace_root,
-                perf_cfg=perf_cfg,
-            )
-            ops_called.append("github-ops-job-start")
-            report_path = start_payload.get("job_report_path") if isinstance(start_payload, dict) else None
-            if isinstance(report_path, str) and report_path:
-                evidence_paths.append(report_path)
-            index_path = start_payload.get("jobs_index_path") if isinstance(start_payload, dict) else None
-            if isinstance(index_path, str) and index_path:
-                evidence_paths.append(index_path)
-            ui_payload = _run_cmd_json_with_perf(
-                op_name="ui-snapshot-bundle",
-                func=cmd_ui_snapshot,
-                args=argparse.Namespace(
-                    workspace_root=str(workspace_root),
-                    out=".cache/reports/ui_snapshot_bundle.v1.json",
-                ),
-                workspace_root=workspace_root,
-                perf_cfg=perf_cfg,
-            )
-            ui_report = ui_payload.get("report_path") if isinstance(ui_payload, dict) else None
-            if isinstance(ui_report, str) and ui_report:
-                evidence_paths.append(ui_report)
-            heartbeat_rel = _write_heartbeat(
-                heartbeat_path,
-                workspace_root=workspace_root,
-                tick_id=tick_id,
-                status="OK",
-                error_code=None,
-                window_bucket=window_bucket,
-                policy_hash=policy_hash,
-                notes=notes + ["PROGRAM_LED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"],
-            )
-            evidence_paths.append(heartbeat_rel)
-            report = {
-                "version": "v1",
-                "generated_at": _now_iso(),
-                "status": "OK",
-                "error_code": None,
-                "tick_id": tick_id,
-                "workspace_root": str(workspace_root),
-                "policy_source": policy_source,
-                "policy_hash": policy_hash,
-                "fast_gate": fast_gate,
-                "jobs_started": int(job_stats.get("started", 0)) + 1,
-                "jobs_polled": int(job_stats.get("polled", 0)),
-                "jobs_running": int(job_stats.get("running", 0)),
-                "jobs_failed": int(job_stats.get("failed", 0)),
-                "jobs_passed": int(job_stats.get("passed", 0)),
-                "queued_before": queued_before,
-                "running_before": running_before,
-                "queued_after": queued_after,
-                "running_after": running_after,
-                "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
-                "ops_called": ["work-intake-check", "github-ops-job-start", "ui-snapshot-bundle"],
-                "actions": {"applied": 0, "planned": 0, "idle": 0},
-                "evidence_paths": sorted({str(p) for p in evidence_paths if isinstance(p, str) and p}),
-                "notes": notes
-                + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"],
-            }
-            report.update(preflight_meta)
-            report.update(_active_meta("START_ONLY"))
-            rel_json, rel_md = _write_tick_report(report, workspace_root)
-            return {
-                "status": "OK",
-                "policy_source": policy_source,
-                "policy_hash": policy_hash,
-                "report_path": rel_json,
-                "report_md_path": rel_md,
-                "jobs_started": int(job_stats.get("started", 0)) + 1,
-                "jobs_polled": int(job_stats.get("polled", 0)),
-                "jobs_running": int(job_stats.get("running", 0)),
-                "jobs_failed": int(job_stats.get("failed", 0)),
-                "jobs_passed": int(job_stats.get("passed", 0)),
-                "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
-            }
+            live_allowed, live_reason = network_live_gate_status(workspace_root=workspace_root)
+            if not live_allowed:
+                status = "IDLE"
+                error_code = "BLOCKED_BY_DECISION"
+                notes.append(f"network_live_gate={live_reason}")
+                seed_network_live_decision(
+                    workspace_root=workspace_root,
+                    evidence_paths=evidence_paths,
+                    ops_called=ops_called,
+                    notes=notes,
+                    reason=live_reason,
+                )
+            else:
+                start_payload = _run_cmd_json_with_perf(
+                    op_name="github-ops-job-start",
+                    func=cmd_github_ops_job_start,
+                    args=argparse.Namespace(workspace_root=str(workspace_root), kind="SMOKE_FULL", dry_run="false"),
+                    workspace_root=workspace_root,
+                    perf_cfg=perf_cfg,
+                )
+                ops_called.append("github-ops-job-start")
+                report_path = start_payload.get("job_report_path") if isinstance(start_payload, dict) else None
+                if isinstance(report_path, str) and report_path:
+                    evidence_paths.append(report_path)
+                index_path = start_payload.get("jobs_index_path") if isinstance(start_payload, dict) else None
+                if isinstance(index_path, str) and index_path:
+                    evidence_paths.append(index_path)
+                ui_payload = _run_cmd_json_with_perf(
+                    op_name="ui-snapshot-bundle",
+                    func=cmd_ui_snapshot,
+                    args=argparse.Namespace(
+                        workspace_root=str(workspace_root),
+                        out=".cache/reports/ui_snapshot_bundle.v1.json",
+                    ),
+                    workspace_root=workspace_root,
+                    perf_cfg=perf_cfg,
+                )
+                ui_report = ui_payload.get("report_path") if isinstance(ui_payload, dict) else None
+                if isinstance(ui_report, str) and ui_report:
+                    evidence_paths.append(ui_report)
+                heartbeat_rel = _write_heartbeat(
+                    heartbeat_path,
+                    workspace_root=workspace_root,
+                    tick_id=tick_id,
+                    status="OK",
+                    error_code=None,
+                    window_bucket=window_bucket,
+                    policy_hash=policy_hash,
+                    notes=notes + ["PROGRAM_LED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"],
+                )
+                evidence_paths.append(heartbeat_rel)
+                report = {
+                    "version": "v1",
+                    "generated_at": _now_iso(),
+                    "status": "OK",
+                    "error_code": None,
+                    "tick_id": tick_id,
+                    "workspace_root": str(workspace_root),
+                    "policy_source": policy_source,
+                    "policy_hash": policy_hash,
+                    "fast_gate": fast_gate,
+                    "jobs_started": int(job_stats.get("started", 0)) + 1,
+                    "jobs_polled": int(job_stats.get("polled", 0)),
+                    "jobs_running": int(job_stats.get("running", 0)),
+                    "jobs_failed": int(job_stats.get("failed", 0)),
+                    "jobs_passed": int(job_stats.get("passed", 0)),
+                    "queued_before": queued_before,
+                    "running_before": running_before,
+                    "queued_after": queued_after,
+                    "running_after": running_after,
+                    "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
+                    "ops_called": ["work-intake-check", "github-ops-job-start", "ui-snapshot-bundle"],
+                    "actions": {"applied": 0, "planned": 0, "idle": 0},
+                    "evidence_paths": sorted({str(p) for p in evidence_paths if isinstance(p, str) and p}),
+                    "notes": notes
+                    + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"],
+                }
+                report.update(preflight_meta)
+                report.update(active_meta("START_ONLY"))
+                rel_json, rel_md = _write_tick_report(report, workspace_root)
+                return {
+                    "status": "OK",
+                    "policy_source": policy_source,
+                    "policy_hash": policy_hash,
+                    "report_path": rel_json,
+                    "report_md_path": rel_md,
+                    "jobs_started": int(job_stats.get("started", 0)) + 1,
+                    "jobs_polled": int(job_stats.get("polled", 0)),
+                    "jobs_running": int(job_stats.get("running", 0)),
+                    "jobs_failed": int(job_stats.get("failed", 0)),
+                    "jobs_passed": int(job_stats.get("passed", 0)),
+                    "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
+                }
         if exec_payload is None and allow_apply:
             limit = max(1, int(max_actions))
             exec_payload = _run_cmd_json_with_perf(
@@ -1113,7 +1156,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
         if dispatch_summary:
             report["dispatch_summary"] = dispatch_summary
         report.update(preflight_meta)
-        report.update(_active_meta("NORMAL_FLOW"))
+        report.update(active_meta("NORMAL_FLOW"))
         rel_json, rel_md = _write_tick_report(report, workspace_root)
         return {
             "status": status,

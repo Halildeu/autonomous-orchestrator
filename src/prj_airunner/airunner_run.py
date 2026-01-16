@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_iso
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -501,10 +502,40 @@ def run_airunner_run(
                 doer_counts["skipped"], doer_counts["skipped_by_reason"]
             )
 
+    run_generated_at = _now_iso()
+    policy_hash = None
+    if isinstance(tick1.get("policy_hash"), str) and tick1.get("policy_hash"):
+        policy_hash = str(tick1.get("policy_hash"))
+    elif isinstance(tick2.get("policy_hash"), str) and tick2.get("policy_hash"):
+        policy_hash = str(tick2.get("policy_hash"))
+    run_id = build_run_id(
+        workspace_root=workspace_root,
+        op_name="airunner-run",
+        inputs={
+            "ticks": ticks,
+            "mode": mode,
+            "budget_seconds": budget_seconds,
+            "force_active_hours": force_active_hours,
+        },
+        date_bucket=date_bucket_from_iso(run_generated_at),
+    )
+
+    run_rel = Path(".cache") / "reports" / "airunner_run.v1.json"
+    run_md_rel = Path(".cache") / "reports" / "airunner_run.v1.md"
+    run_evidence_paths = [
+        str(run_rel),
+        str(deltas_rel),
+        str(baseline_res.get("report_path") or ""),
+    ]
+    for idx in range(1, ticks_run + 1):
+        run_evidence_paths.append(str(Path(".cache") / "reports" / f"airunner_tick_{idx}.v1.json"))
+    run_evidence_paths = sorted({p for p in run_evidence_paths if p})
+
     run_report = {
         "version": "v1",
-        "generated_at": _now_iso(),
+        "generated_at": run_generated_at,
         "workspace_root": str(workspace_root),
+        "policy_hash": policy_hash,
         "ticks_run": ticks_run,
         "jobs_started": jobs_started_delta,
         "jobs_polled": jobs_polled_delta,
@@ -516,14 +547,21 @@ def run_airunner_run(
         "stop_reason": stop_reason or None,
         "doer_processed_count": doer_processed_count,
         "doer_counts": doer_counts,
+        "evidence_paths": run_evidence_paths,
         "notes": ["PROGRAM_LED=true", "NETWORK=false"],
     }
     if doer_actionability_path:
         run_report["doer_actionability_path"] = doer_actionability_path
     if doer_actionability_md_path:
         run_report["doer_actionability_md_path"] = doer_actionability_md_path
-    run_rel = Path(".cache") / "reports" / "airunner_run.v1.json"
-    run_md_rel = Path(".cache") / "reports" / "airunner_run.v1.md"
+    run_report["trace_meta"] = build_trace_meta(
+        work_item_id=run_id,
+        work_item_kind="RUN",
+        run_id=run_id,
+        policy_hash=policy_hash,
+        evidence_paths=run_evidence_paths,
+        workspace_root=workspace_root,
+    )
     _write_json(workspace_root / run_rel, run_report)
     run_md_lines = [
         "# Airunner Run",

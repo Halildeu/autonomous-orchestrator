@@ -11,6 +11,21 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _parse_iso(value: str | None) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    raw = value
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except Exception:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
 def _dump_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
@@ -49,19 +64,65 @@ def _seed_dir(workspace_root: Path) -> Path:
     return workspace_root / ".cache" / "index" / "decision_seeds"
 
 
+def _seed_ingest_path(workspace_root: Path) -> Path:
+    return workspace_root / ".cache" / "index" / "decision_seeds_ingested.v1.jsonl"
+
+
+def _canonical_hash(obj: dict[str, Any]) -> str:
+    return _hash_text(json.dumps(obj, ensure_ascii=False, sort_keys=True))
+
+
+def _normalize_seed(obj: dict[str, Any], seed_path: Path, source: str) -> dict[str, Any]:
+    seed_id = str(obj.get("seed_id") or "")
+    if not seed_id:
+        seed_id = _hash_text(f"{seed_path}:{_canonical_hash(obj)}")
+    decision_kind = str(obj.get("decision_kind") or obj.get("kind") or "UNKNOWN")
+    target = str(obj.get("target") or obj.get("source_ref") or "")
+    payload: dict[str, Any] = {
+        "version": str(obj.get("version") or "v1"),
+        "seed_id": seed_id,
+        "decision_kind": decision_kind,
+        "target": target,
+    }
+    if isinstance(obj.get("question"), str):
+        payload["question"] = str(obj.get("question") or "")
+    if isinstance(obj.get("options"), list):
+        payload["options"] = obj.get("options")
+    if isinstance(obj.get("default_option_id"), str):
+        payload["default_option_id"] = str(obj.get("default_option_id") or "")
+    if isinstance(obj.get("recommended_option_id"), str) and "default_option_id" not in payload:
+        payload["default_option_id"] = str(obj.get("recommended_option_id") or "")
+    if isinstance(obj.get("evidence_paths"), list):
+        payload["evidence_paths"] = [str(p) for p in obj.get("evidence_paths") if isinstance(p, str)]
+    if isinstance(obj.get("notes"), list):
+        payload["notes"] = [str(n) for n in obj.get("notes") if isinstance(n, str)]
+    payload["_seed_path"] = str(seed_path)
+    payload["_seed_source"] = source
+    return payload
+
+
 def _load_decision_seeds(workspace_root: Path) -> list[dict[str, Any]]:
-    seeds_dir = _seed_dir(workspace_root)
-    if not seeds_dir.exists():
-        return []
     seeds: list[dict[str, Any]] = []
-    for path in sorted(seeds_dir.glob("SEED-*.v1.json")):
-        try:
-            obj = _load_json(path)
-        except Exception:
-            continue
-        if isinstance(obj, dict):
-            obj["_seed_path"] = str(path)
-            seeds.append(obj)
+    seeds_dir = _seed_dir(workspace_root)
+    if seeds_dir.exists():
+        for path in sorted(seeds_dir.glob("SEED-*.v1.json")):
+            try:
+                obj = _load_json(path)
+            except Exception:
+                continue
+            if isinstance(obj, dict):
+                seeds.append(_normalize_seed(obj, path, "canonical"))
+    legacy_dir = workspace_root / ".cache" / "index"
+    if legacy_dir.exists():
+        legacy_paths = sorted(legacy_dir.glob("decision_seed_*.v1.json"))
+        legacy_paths += sorted(legacy_dir.glob("decision_seed_*.json"))
+        for path in legacy_paths:
+            try:
+                obj = _load_json(path)
+            except Exception:
+                continue
+            if isinstance(obj, dict):
+                seeds.append(_normalize_seed(obj, path, "legacy"))
     return seeds
 
 
@@ -113,6 +174,33 @@ def _load_decisions_applied(path: Path) -> list[dict[str, Any]]:
     return items
 
 
+def _load_seed_ingested_index(path: Path) -> dict[str, datetime]:
+    if not path.exists():
+        return {}
+    latest: dict[str, datetime] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except Exception:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        seed_id = str(obj.get("seed_id") or "")
+        ingested_at = _parse_iso(str(obj.get("ingested_at") or ""))
+        if seed_id and ingested_at is not None:
+            latest[seed_id] = ingested_at
+    return latest
+
+
+def _append_seed_ingested(path: Path, record: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line)
+
+
 def _load_work_intake_index(workspace_root: Path) -> dict[str, dict[str, Any]]:
     path = workspace_root / ".cache" / "index" / "work_intake.v1.json"
     if not path.exists():
@@ -154,9 +242,11 @@ def _decision_kind_for(reason: str, mapping: dict[str, Any]) -> str:
 
 
 _ALLOWED_DECISION_KINDS = {
+    "DOC_NAV_TIMEOUT_POLICY",
     "ROUTE_OVERRIDE",
     "AUTO_APPLY_ALLOW",
     "NETWORK_ENABLE",
+    "NETWORK_LIVE_ENABLE",
     "SCOPE_CONFIRM",
     "UNKNOWN",
 }
@@ -186,6 +276,14 @@ def _options_for(kind: str) -> tuple[list[dict[str, Any]], str]:
             [
                 _option("A", "Keep network disabled"),
                 _option("B", "Enable network for this extension"),
+            ],
+            "A",
+        )
+    if kind == "NETWORK_LIVE_ENABLE":
+        return (
+            [
+                _option("A", "Keep network live disabled"),
+                _option("B", "Enable network live (scoped)"),
             ],
             "A",
         )
@@ -270,29 +368,64 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
         )
 
     seed_items = _load_decision_seeds(workspace_root)
+    seed_ingest_path = _seed_ingest_path(workspace_root)
+    seed_ingested = _load_seed_ingested_index(seed_ingest_path)
+    dedup_hours = int(policy.get("limits", {}).get("dedup_window_hours", 24) or 24)
+    dedup_cutoff = _now_iso()
+    dedup_floor = _parse_iso(dedup_cutoff) - timedelta(hours=dedup_hours) if _parse_iso(dedup_cutoff) else None
+    seed_ingest_records: list[dict[str, Any]] = []
     for seed in seed_items:
-        decision_kind = _normalize_decision_kind(str(seed.get("decision_kind") or seed.get("kind") or "UNKNOWN"))
+        decision_kind = _normalize_decision_kind(str(seed.get("decision_kind") or "UNKNOWN"))
         target = str(seed.get("target") or "")
         seed_id = str(seed.get("seed_id") or _hash_text(f"{workspace_root}:{decision_kind}:{target}"))
+        ingested_at = seed_ingested.get(seed_id)
+        if dedup_floor is not None and ingested_at is not None and ingested_at >= dedup_floor:
+            continue
         source_intake_id = str(seed.get("source_intake_id") or f"SEED:{target or seed_id}")
         bucket = str(seed.get("bucket") or "PROJECT")
-        options, default_option_id = _options_for(decision_kind)
+        seed_options = seed.get("options") if isinstance(seed.get("options"), list) else []
+        options: list[dict[str, Any]] = []
+        for opt in seed_options:
+            if not isinstance(opt, dict):
+                continue
+            option_id = str(opt.get("option_id") or "").strip()
+            if not option_id:
+                continue
+            title = str(opt.get("title") or opt.get("name") or option_id)
+            changes_ref = str(opt.get("changes_ref") or opt.get("details") or "")
+            options.append(_option(option_id, title, changes_ref))
+        default_option_id = str(seed.get("default_option_id") or "").strip()
+        if not options:
+            options, default_option_id = _options_for(decision_kind)
+        if not default_option_id and options:
+            default_option_id = str(options[0].get("option_id") or "")
         evidence_paths = []
         seed_path = seed.get("_seed_path")
         if isinstance(seed_path, str) and seed_path:
             evidence_paths.append(_rel_path(workspace_root, Path(seed_path)))
+        seed_evidence = seed.get("evidence_paths") if isinstance(seed.get("evidence_paths"), list) else []
+        evidence_paths.extend([str(p) for p in seed_evidence if isinstance(p, str)])
+        question = str(seed.get("question") or f"Decision seed for {target or source_intake_id}")
         decisions.append(
             {
                 "decision_id": seed_id,
                 "source_intake_id": source_intake_id,
                 "bucket": bucket,
                 "decision_kind": decision_kind,
-                "question": f"Decision seed for {target or source_intake_id}",
+                "question": question,
                 "options": options,
                 "default_option_id": default_option_id,
                 "why_blocked": "DECISION_SEED",
                 "evidence_paths": sorted({p for p in evidence_paths if p}),
                 "expires_at": None,
+            }
+        )
+        seed_ingest_records.append(
+            {
+                "seed_id": seed_id,
+                "seed_path": str(seed_path or ""),
+                "decision_kind": decision_kind,
+                "ingested_at": _now_iso(),
             }
         )
 
@@ -327,6 +460,15 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
             str(d.get("decision_id") or ""),
         ),
     )[: max(0, limit)]
+    seed_ids_in_inbox = {
+        str(d.get("decision_id") or "")
+        for d in decisions
+        if isinstance(d, dict) and str(d.get("why_blocked") or "") == "DECISION_SEED"
+    }
+    if seed_ingest_records and seed_ids_in_inbox:
+        for record in seed_ingest_records:
+            if str(record.get("seed_id") or "") in seed_ids_in_inbox:
+                _append_seed_ingested(seed_ingest_path, record)
     counts_by_kind: dict[str, int] = {}
     for item in decisions:
         kind = str(item.get("decision_kind") or "UNKNOWN")
@@ -427,6 +569,56 @@ def _write_policy_override(*, workspace_root: Path, overrides_dir: Path) -> str:
         "version": "v1",
         "network_enabled": True,
         "live_gate": {"enabled": True},
+    }
+    override_path.write_text(_dump_json(payload), encoding="utf-8")
+    return str(override_path.relative_to(workspace_root))
+
+
+def _network_live_counts(override_path: Path) -> tuple[int, int]:
+    allow_domains_count = 0
+    allow_actions_count = 0
+    if not override_path.exists():
+        return allow_domains_count, allow_actions_count
+    try:
+        obj = _load_json(override_path)
+    except Exception:
+        return allow_domains_count, allow_actions_count
+    if not isinstance(obj, dict):
+        return allow_domains_count, allow_actions_count
+    if isinstance(obj.get("allow_domains_count"), int):
+        allow_domains_count = int(obj.get("allow_domains_count") or 0)
+    elif isinstance(obj.get("allow_domains"), list):
+        allow_domains = obj.get("allow_domains") if isinstance(obj.get("allow_domains"), list) else []
+        allow_domains_count = len({str(x) for x in allow_domains if isinstance(x, str) and x.strip()})
+    if isinstance(obj.get("allow_actions_count"), int):
+        allow_actions_count = int(obj.get("allow_actions_count") or 0)
+    elif isinstance(obj.get("allow_actions"), list):
+        allow_actions = obj.get("allow_actions") if isinstance(obj.get("allow_actions"), list) else []
+        allow_actions_count = len({str(x) for x in allow_actions if isinstance(x, str) and x.strip()})
+    return allow_domains_count, allow_actions_count
+
+
+def _write_network_live_override(
+    *,
+    workspace_root: Path,
+    overrides_dir: Path,
+    enabled: bool,
+    decision_id: str,
+    option_id: str,
+) -> str:
+    overrides_dir.mkdir(parents=True, exist_ok=True)
+    override_path = overrides_dir / "policy_network_live.override.v1.json"
+    domains_count, actions_count = _network_live_counts(override_path)
+    payload = {
+        "version": "v1",
+        "generated_at": _now_iso(),
+        "enabled": bool(enabled),
+        "enabled_by_decision": bool(enabled),
+        "allow_domains_count": int(domains_count),
+        "allow_actions_count": int(actions_count),
+        "decision_id": decision_id,
+        "decision_option_id": option_id,
+        "notes": ["PROGRAM_LED=true", "DECISION_APPLY=true"],
     }
     override_path.write_text(_dump_json(payload), encoding="utf-8")
     return str(override_path.relative_to(workspace_root))
@@ -553,6 +745,7 @@ def run_decision_apply_bulk(
 
     safe_defaults = {
         "NETWORK_ENABLE": {"default_title": "Keep network disabled", "require_doc_only": False},
+        "NETWORK_LIVE_ENABLE": {"default_title": "Keep network live disabled", "require_doc_only": False},
         "ROUTE_OVERRIDE": {"default_title": "Keep current routing", "require_doc_only": False},
         "AUTO_APPLY_ALLOW": {"default_title": "Keep blocked", "require_doc_only": True},
     }
@@ -730,6 +923,15 @@ def run_decision_apply(*, workspace_root: Path, decision_id: str, option_id: str
         policy_override_written = _write_policy_override(
             workspace_root=workspace_root,
             overrides_dir=workspace_root / overrides_dir,
+        )
+    if decision_kind == "NETWORK_LIVE_ENABLE":
+        enable_live = option_id not in {"A", "KEEP"}
+        policy_override_written = _write_network_live_override(
+            workspace_root=workspace_root,
+            overrides_dir=workspace_root / overrides_dir,
+            enabled=enable_live,
+            decision_id=decision_id,
+            option_id=option_id,
         )
 
     return {

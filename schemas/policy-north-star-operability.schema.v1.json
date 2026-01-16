@@ -16,6 +16,14 @@
         "soft_warn",
         "placeholders_warn",
         "placeholders_fail",
+        "docs_ops_md_count_warn",
+        "docs_ops_md_count_fail",
+        "docs_ops_md_bytes_warn",
+        "docs_ops_md_bytes_fail",
+        "repo_md_total_count_warn",
+        "repo_md_total_count_fail",
+        "docs_unmapped_md_warn",
+        "docs_unmapped_md_fail",
         "jobs_stuck_warn",
         "jobs_stuck_fail",
         "jobs_fail_warn",
@@ -34,6 +42,14 @@
         "soft_warn": { "type": "integer", "minimum": 0 },
         "placeholders_warn": { "type": "integer", "minimum": 0 },
         "placeholders_fail": { "type": "integer", "minimum": 0 },
+        "docs_ops_md_count_warn": { "type": "integer", "minimum": 0 },
+        "docs_ops_md_count_fail": { "type": "integer", "minimum": 0 },
+        "docs_ops_md_bytes_warn": { "type": "integer", "minimum": 0 },
+        "docs_ops_md_bytes_fail": { "type": "integer", "minimum": 0 },
+        "repo_md_total_count_warn": { "type": "integer", "minimum": 0 },
+        "repo_md_total_count_fail": { "type": "integer", "minimum": 0 },
+        "docs_unmapped_md_warn": { "type": "integer", "minimum": 0 },
+        "docs_unmapped_md_fail": { "type": "integer", "minimum": 0 },
         "jobs_stuck_warn": { "type": "integer", "minimum": 0 },
         "jobs_stuck_fail": { "type": "integer", "minimum": 0 },
         "jobs_fail_warn": { "type": "integer", "minimum": 0 },
@@ -53,6 +69,8 @@
       "required": [
         "script_budget",
         "doc_nav_placeholders",
+        "docs_hygiene",
+        "docs_drift",
         "airunner_jobs",
         "pdca_cursor",
         "airunner_heartbeat",
@@ -62,11 +80,36 @@
       "properties": {
         "script_budget": { "type": "boolean" },
         "doc_nav_placeholders": { "type": "boolean" },
+        "docs_hygiene": { "type": "boolean" },
+        "docs_drift": { "type": "boolean" },
         "airunner_jobs": { "type": "boolean" },
         "pdca_cursor": { "type": "boolean" },
         "airunner_heartbeat": { "type": "boolean" },
         "work_intake_noise": { "type": "boolean" },
         "integrity_pass_required": { "type": "boolean" }
+      }
+    },
+    "docs_drift_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "include_extension_manifest_refs",
+        "view_doc_allowlist_globs",
+        "exclude_legacy_redirect_stubs",
+        "exclude_archive_only_banners",
+        "root_readme_mode",
+        "root_changelog_mode"
+      ],
+      "properties": {
+        "include_extension_manifest_refs": { "type": "boolean" },
+        "view_doc_allowlist_globs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exclude_legacy_redirect_stubs": { "type": "boolean" },
+        "exclude_archive_only_banners": { "type": "boolean" },
+        "root_readme_mode": { "type": "string", "enum": ["mapped", "unmapped"] },
+        "root_changelog_mode": { "type": "string", "enum": ["mapped", "unmapped"] }
       }
     },
     "classification": {
@@ -90,6 +133,11 @@
         "pdca_cursor_stale_hours_gt",
         "heartbeat_stale_seconds_gt",
         "placeholders_gt",
+        "docs_ops_md_count_gt",
+        "docs_ops_md_bytes_gt",
+        "repo_md_total_count_gt",
+        "docs_unmapped_md_gt_warn",
+        "docs_unmapped_md_gt_fail",
         "intake_new_items_per_day_gt",
         "suppressed_per_day_gt"
       ],
@@ -102,6 +150,11 @@
         "pdca_cursor_stale_hours_gt": { "type": "string", "minLength": 1 },
         "heartbeat_stale_seconds_gt": { "type": "string", "minLength": 1 },
         "placeholders_gt": { "type": "string", "minLength": 1 },
+        "docs_ops_md_count_gt": { "type": "string", "minLength": 1 },
+        "docs_ops_md_bytes_gt": { "type": "string", "minLength": 1 },
+        "repo_md_total_count_gt": { "type": "string", "minLength": 1 },
+        "docs_unmapped_md_gt_warn": { "type": "string", "minLength": 1 },
+        "docs_unmapped_md_gt_fail": { "type": "string", "minLength": 1 },
         "intake_new_items_per_day_gt": { "type": "string", "minLength": 1 },
         "suppressed_per_day_gt": { "type": "string", "minLength": 1 }
       }
@@ -120,6 +173,10 @@
         "pdca_cursor_stale_hours_gt": { "type": ["string", "integer"] },
         "heartbeat_stale_seconds_gt": { "type": ["string", "integer"] },
         "placeholders_gt": { "type": ["string", "integer"] },
+        "docs_ops_md_count_gt": { "type": ["string", "integer"] },
+        "docs_ops_md_bytes_gt": { "type": ["string", "integer"] },
+        "repo_md_total_count_gt": { "type": ["string", "integer"] },
+        "docs_unmapped_md_gt": { "type": ["string", "integer"] },
         "intake_new_items_per_day_gt": { "type": ["string", "integer"] },
         "suppressed_per_day_gt": { "type": ["string", "integer"] }
       }

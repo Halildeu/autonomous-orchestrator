@@ -60,11 +60,14 @@ def main() -> None:
     )
 
     original_run = stamp_mod.subprocess.run
+    original_smoke = stamp_mod._smoke_fast_job_gate
     stamp_mod.subprocess.run = _stub_run
+    stamp_mod._smoke_fast_job_gate = lambda workspace_root: ("PASS", [])
     try:
         res_write = stamp_mod.run_preflight_stamp(workspace_root=ws, mode="write")
     finally:
         stamp_mod.subprocess.run = original_run
+        stamp_mod._smoke_fast_job_gate = original_smoke
 
     report_path = ws / ".cache" / "reports" / "preflight_stamp.v1.json"
     if not report_path.exists():

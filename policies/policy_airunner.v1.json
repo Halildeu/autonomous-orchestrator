@@ -40,6 +40,8 @@
       "github-ops-check",
       "github-ops-job-poll",
       "github-ops-job-start",
+      "deploy-job-poll",
+      "deploy-job-start",
       "portfolio-status",
       "system-status",
       "work-intake-check",

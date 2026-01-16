@@ -1,7 +1,7 @@
 from __future__ import annotations
-
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -9,178 +9,46 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
-
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _dump_json(obj: Any) -> str:
-    return json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-
-
-def _canonical_json(obj: Any) -> str:
-    return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _hash_text(text: str) -> str:
-    return sha256(text.encode("utf-8")).hexdigest()
-
-
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        if value.endswith("Z"):
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _job_time(job: dict[str, Any]) -> datetime:
-    for key in ("started_at", "updated_at", "created_at"):
-        ts = _parse_iso(str(job.get(key) or ""))
-        if ts:
-            return ts
-    return datetime.fromtimestamp(0, tz=timezone.utc)
-
-
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    merged: dict[str, Any] = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged.get(key, {}), value)
-        else:
-            merged[key] = value
-    return merged
-
-
-def _policy_defaults() -> dict[str, Any]:
-    return {
-        "version": "v1",
-        "network_enabled": False,
-        "live_gate": {
-            "enabled": False,
-            "require_env_key_present": True,
-            "env_flag": "KERNEL_API_GITHUB_LIVE",
-            "env_key": "GITHUB_TOKEN",
-        },
-        "allowed_actions": ["PR_OPEN", "PR_POLL", "CI_POLL", "MERGE", "RELEASE_RC", "RELEASE_FINAL"],
-        "allowed_ops": ["pr_list", "pr_open", "pr_update", "merge", "deploy_trigger", "status_poll"],
-        "auth": {"mode": "bearer", "token_env": "GITHUB_TOKEN"},
-        "retry_count": 0,
-        "rate_limit": {"cooldown_seconds": 300, "max_per_tick": 1},
-        "job": {"keep_last_n": 50, "ttl_seconds": 604800, "poll_interval_seconds": 300, "cooldown_seconds": 3600},
-        "notes": ["network_default_off"],
-    }
-
-
-def _load_policy(workspace_root: Path) -> tuple[dict[str, Any], str, str, list[str]]:
-    notes: list[str] = []
-    policy = _policy_defaults()
-    policy_source = "core"
-
-    core_path = _repo_root() / "policies" / "policy_github_ops.v1.json"
-    ws_path = workspace_root / "policies" / "policy_github_ops.v1.json"
-    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_github_ops.override.v1.json"
-
-    for path, source_label in [(core_path, "core"), (ws_path, "workspace"), (override_path, "workspace_override")]:
-        if not path.exists():
-            continue
-        try:
-            obj = _load_json(path)
-        except Exception:
-            notes.append(f"policy_invalid:{source_label}")
-            continue
-        if isinstance(obj, dict):
-            policy = _deep_merge(policy, obj)
-            if source_label != "core":
-                policy_source = "core+workspace_override"
-
-    policy_hash = _hash_text(_canonical_json(policy))
-    return policy, policy_source, policy_hash, notes
-
-
-def _env_truthy(value: str | None) -> bool:
-    if not value:
-        return False
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _allowed_actions(policy: dict[str, Any]) -> list[str]:
-    actions = policy.get("allowed_actions") if isinstance(policy.get("allowed_actions"), list) else []
-    actions = [str(x) for x in actions if isinstance(x, str) and x.strip()]
-    if actions:
-        return sorted(set(actions))
-    allowed_ops = policy.get("allowed_ops") if isinstance(policy.get("allowed_ops"), list) else []
-    mapped = []
-    for op in allowed_ops:
-        op_raw = str(op).strip().lower()
-        if not op_raw:
-            continue
-        mapped.append(
-            {
-                "pr_list": "PR_LIST",
-                "pr_open": "PR_OPEN",
-                "pr_update": "PR_UPDATE",
-                "merge": "MERGE",
-                "deploy_trigger": "DEPLOY_TRIGGER",
-                "status_poll": "STATUS_POLL",
-            }.get(op_raw, op_raw.upper())
-        )
-    return sorted(set(mapped))
-
-
-def _normalize_kind(kind: str, *, policy: dict[str, Any]) -> str:
-    raw = str(kind or "").strip()
-    if not raw:
-        return ""
-    upper = raw.upper()
-    lower = raw.lower()
-    allowed_actions = set(_allowed_actions(policy))
-    allowed_ops = {
-        str(x).strip().lower()
-        for x in (policy.get("allowed_ops") if isinstance(policy.get("allowed_ops"), list) else [])
-        if isinstance(x, str)
-    }
-    aliases = {
-        "pr_list": "PR_LIST",
-        "pr_open": "PR_OPEN",
-        "pr_update": "PR_UPDATE",
-        "merge": "MERGE",
-        "deploy_trigger": "DEPLOY_TRIGGER",
-        "status_poll": "STATUS_POLL",
-    }
-    if upper in allowed_actions:
-        return upper
-    if lower in allowed_ops:
-        return aliases.get(lower, upper)
-    if upper in {
-        "PR_LIST",
-        "PR_OPEN",
-        "PR_UPDATE",
-        "PR_POLL",
-        "CI_POLL",
-        "MERGE",
-        "RELEASE_RC",
-        "RELEASE_FINAL",
-        "SMOKE_FULL",
-        "DEPLOY_TRIGGER",
-        "STATUS_POLL",
-    }:
-        return upper
-    return upper
-
-
+from .github_ops_support_v2 import (
+    _allowed_actions,
+    _canonical_json,
+    _clean_str,
+    _deep_merge,
+    _default_jobs_index,
+    _dump_json,
+    _env_truthy,
+    _git_ahead_behind,
+    _git_available,
+    _git_branch,
+    _git_dir,
+    _git_dirty_tree,
+    _git_remote_url,
+    _git_state,
+    _hash_text,
+    _infer_repo_from_git,
+    _job_output_paths,
+    _job_report_path,
+    _job_store_dir,
+    _job_time,
+    _jobs_index_path,
+    _load_jobs_index,
+    _load_json,
+    _load_network_live_summary,
+    _load_policy,
+    _normalize_kind,
+    _normalize_pr_open_request,
+    _normalize_str_list,
+    _now_iso,
+    _parse_github_remote,
+    _parse_iso,
+    _policy_defaults,
+    _rel_from_workspace,
+    _repo_root,
+    _save_jobs_index,
+    _write_job_report,
+)
+from src.prj_github_ops.failure_classifier import classify_github_ops_failure, _signature_hash_from_stderr
+from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_iso
 def _gate_details(policy: dict[str, Any]) -> dict[str, Any]:
     live = policy.get("live_gate") if isinstance(policy.get("live_gate"), dict) else {}
     enabled = bool(live.get("enabled", False))
@@ -199,242 +67,362 @@ def _gate_details(policy: dict[str, Any]) -> dict[str, Any]:
         "env_flag_set": env_flag_set,
         "env_key_present": env_key_present,
     }
-
-
+def _write_pr_open_request(workspace_root: Path, job_id: str, request_payload: dict[str, Any]) -> tuple[Path, str]:
+    path = _job_store_dir(workspace_root, job_id) / "request.v1.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_dump_json(request_payload), encoding="utf-8")
+    return path, _rel_from_workspace(path, workspace_root)
+def _load_last_pr_open_request(workspace_root: Path, jobs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    candidates = [j for j in jobs if isinstance(j, dict) and str(j.get("kind") or "") == "PR_OPEN"]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda j: (_job_time(j), str(j.get("job_id") or "")), reverse=True)
+    for job in candidates:
+        job_id = str(job.get("job_id") or "")
+        if not job_id:
+            continue
+        req_path = _job_store_dir(workspace_root, job_id) / "request.v1.json"
+        if not req_path.exists():
+            continue
+        try:
+            obj = _load_json(req_path)
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return None
+def _redact_message(message: str) -> tuple[str, str]:
+    raw = str(message or "").strip()
+    if not raw:
+        return "", ""
+    message_hash = _hash_text(raw)
+    redacted = raw
+    redacted = re.sub(r"(?i)(token|bearer)\\s+[-_a-z0-9\\.]+", r"\\1 [REDACTED]", redacted)
+    redacted = re.sub(r"(?i)ghp_[a-z0-9]{10,}", "ghp_[REDACTED]", redacted)
+    redacted = re.sub(r"(?i)github_pat_[a-z0-9_]{10,}", "github_pat_[REDACTED]", redacted)
+    redacted = re.sub(r"[A-Za-z0-9_\\-]{20,}", "[REDACTED]", redacted)
+    redacted = redacted[:200]
+    return redacted, message_hash
+def _job_workspace_root_from_record(job: dict[str, Any], repo_root: Path) -> Path | None:
+    raw = job.get("workspace_root")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    path = Path(raw)
+    if not path.is_absolute():
+        path = (repo_root / raw).resolve()
+    else:
+        path = path.resolve()
+    return path
+def _advisor_expected_path(job_workspace_root: Path) -> Path:
+    return job_workspace_root / ".cache" / "learning" / "advisor_suggestions.v1.json"
+def _advisor_job_artifact_path(job_workspace_root: Path, job_id: str) -> Path:
+    return (
+        job_workspace_root
+        / ".cache"
+        / "reports"
+        / "jobs"
+        / f"smoke_full_{job_id}"
+        / "advisor_suggestions.v1.json"
+    )
+def _json_valid(path: Path) -> bool:
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return False
+    return isinstance(obj, dict)
+def _maybe_override_advisor_missing(*, target: dict[str, Any], stderr_text: str) -> None:
+    if str(target.get("kind") or "") != "SMOKE_FULL":
+        return
+    if str(target.get("failure_class") or "") != "DEMO_ADVISOR_SUGGESTIONS_MISSING":
+        return
+    job_id = str(target.get("job_id") or "")
+    if not job_id:
+        return
+    repo_root = _repo_root()
+    job_ws_root = _job_workspace_root_from_record(target, repo_root)
+    if job_ws_root is None:
+        return
+    expected_path = _advisor_expected_path(job_ws_root)
+    artifact_path = _advisor_job_artifact_path(job_ws_root, job_id)
+    expected_ok = expected_path.exists() and _json_valid(expected_path)
+    artifact_ok = artifact_path.exists() and _json_valid(artifact_path)
+    if not (expected_ok or artifact_ok):
+        return
+    target["failure_class"] = "OTHER"
+    target["signature_hash"] = _signature_hash_from_stderr(failure_class="OTHER", stderr_text=stderr_text)
+    if target.get("error_code") == "DEMO_ADVISOR_SUGGESTIONS_MISSING":
+        target["error_code"] = "SMOKE_FULL_FAIL"
+    notes = target.get("notes") if isinstance(target.get("notes"), list) else []
+    notes.append("advisor_pin_override"); target["notes"] = sorted({str(n) for n in notes if isinstance(n, str) and n.strip()})
+def _resolve_smoke_workspace_root() -> Path:
+    repo_root = _repo_root()
+    raw = str(os.environ.get("SMOKE_WORKSPACE_ROOT") or "").strip()
+    if raw:
+        ws = Path(raw)
+        ws = (repo_root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+        try:
+            ws.relative_to(repo_root.resolve())
+        except Exception:
+            return repo_root / ".cache" / "ws_integration_demo"
+        if ws.exists() and ws.is_dir():
+            return ws
+    return repo_root / ".cache" / "ws_integration_demo"
+def _map_failure_class(http_status: int | None, error_code: str, message: str) -> str:
+    status = int(http_status or 0)
+    if status == 401:
+        return "AUTH"
+    if status == 403:
+        return "PERMISSION"
+    if status == 404:
+        return "NOT_FOUND"
+    if status == 409:
+        return "CONFLICT"
+    if status == 422:
+        return "VALIDATION"
+    if status == 429:
+        return "RATE_LIMIT"
+    if status >= 500:
+        return "NETWORK"
+    if "rate limit" in message.lower():
+        return "RATE_LIMIT"
+    if error_code in {"REQUEST_FAILED", "HTTP_ERROR", "HTTP_STATUS"}:
+        return "NETWORK"
+    return "OTHER"
+def _extract_failure_fields_from_rc(rc_obj: dict[str, Any]) -> dict[str, Any]:
+    failure: dict[str, Any] = {}
+    http_status = rc_obj.get("http_status")
+    if isinstance(http_status, int) and http_status > 0:
+        failure["http_status"] = http_status
+    gh_error_code = rc_obj.get("gh_error_code")
+    if isinstance(gh_error_code, str) and gh_error_code:
+        failure["gh_error_code"] = gh_error_code
+    gh_request_id = rc_obj.get("gh_request_id")
+    if isinstance(gh_request_id, str) and gh_request_id:
+        failure["gh_request_id"] = gh_request_id
+    endpoint = rc_obj.get("endpoint")
+    if isinstance(endpoint, str) and endpoint:
+        failure["endpoint"] = endpoint
+    retry_after = rc_obj.get("retry_after_seconds")
+    if isinstance(retry_after, int) and retry_after >= 0:
+        failure["retry_after_seconds"] = retry_after
+    message_redacted = rc_obj.get("message_redacted")
+    message_hash = rc_obj.get("message_hash")
+    if not isinstance(message_redacted, str) or not message_redacted:
+        raw_message = rc_obj.get("message") or rc_obj.get("error_message") or ""
+        message_redacted, message_hash = _redact_message(str(raw_message))
+    if isinstance(message_redacted, str) and message_redacted:
+        failure["message_redacted"] = message_redacted
+    if isinstance(message_hash, str) and message_hash:
+        failure["message_hash"] = message_hash
+    failure_class = rc_obj.get("failure_class")
+    if not isinstance(failure_class, str) or not failure_class:
+        failure_class = _map_failure_class(failure.get("http_status"), str(rc_obj.get("error_code") or ""), message_redacted)
+    failure["failure_class"] = failure_class
+    return failure
+def _extract_pr_metadata(payload: dict[str, Any]) -> dict[str, Any]:
+    meta: dict[str, Any] = {}
+    pr_url = payload.get("pr_url")
+    if isinstance(pr_url, str) and pr_url:
+        meta["pr_url"] = pr_url
+    html_url = payload.get("html_url") or payload.get("pr_html_url")
+    if isinstance(html_url, str) and html_url:
+        if "pr_url" not in meta:
+            meta["pr_url"] = html_url
+        meta["pr_html_url"] = html_url
+    pr_number = payload.get("pr_number")
+    if not isinstance(pr_number, int):
+        pr_number = payload.get("number") if isinstance(payload.get("number"), int) else None
+    if isinstance(pr_number, int) and pr_number > 0:
+        meta["pr_number"] = pr_number
+    pr_state = payload.get("pr_state")
+    if not isinstance(pr_state, str):
+        pr_state = payload.get("state") if isinstance(payload.get("state"), str) else None
+    if isinstance(pr_state, str) and pr_state:
+        meta["pr_state"] = pr_state
+    base_ref = None
+    base = payload.get("base")
+    if isinstance(base, dict):
+        base_ref = base.get("ref")
+    if isinstance(base_ref, str) and base_ref:
+        meta["pr_base"] = base_ref
+    head_ref = None
+    head = payload.get("head")
+    if isinstance(head, dict):
+        head_ref = head.get("ref")
+    if isinstance(head_ref, str) and head_ref:
+        meta["pr_head"] = head_ref
+    return meta
+def _extract_pr_metadata_from_rc(rc_obj: dict[str, Any]) -> dict[str, Any]:
+    meta = _extract_pr_metadata(rc_obj)
+    for key in ("payload", "response", "data", "result"):
+        nested = rc_obj.get(key)
+        if isinstance(nested, dict):
+            for meta_key, meta_value in _extract_pr_metadata(nested).items():
+                if meta_key not in meta:
+                    meta[meta_key] = meta_value
+    return meta
+def _run_pr_open_job(
+    rc_path: str,
+    request_path: str,
+    token_env: str,
+    auth_mode: str,
+    fingerprint: str,
+) -> None:
+    import json as _json
+    import urllib.error as _urllib_error
+    import urllib.request as _urllib_request
+    from pathlib import Path as _Path
+    def _write(payload: dict[str, Any]) -> None:
+        _Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
+        _Path(rc_path).write_text(_dump_json(payload), encoding="utf-8")
+    payload: dict[str, Any] = {"rc": 1, "fingerprint": fingerprint}
+    try:
+        req_obj = _json.loads(_Path(request_path).read_text(encoding="utf-8"))
+    except Exception:
+        payload["error_code"] = "REQUEST_LOAD_FAIL"
+        _write(payload)
+        return
+    owner = _clean_str(req_obj.get("repo_owner"))
+    repo = _clean_str(req_obj.get("repo_name"))
+    base_branch = _clean_str(req_obj.get("base_branch"))
+    head_branch = _clean_str(req_obj.get("head_branch"))
+    title = _clean_str(req_obj.get("title"))
+    body = _clean_str(req_obj.get("body"))
+    draft = req_obj.get("draft")
+    if not isinstance(draft, bool):
+        draft = True
+    missing = [key for key, value in [
+        ("repo_owner", owner),
+        ("repo_name", repo),
+        ("base_branch", base_branch),
+        ("head_branch", head_branch),
+        ("title", title),
+    ] if not value]
+    if missing:
+        payload["error_code"] = "REQUEST_INVALID"
+        payload["missing"] = missing
+        _write(payload)
+        return
+    token = os.getenv(token_env, "")
+    if not token:
+        payload["error_code"] = "AUTH_MISSING"
+        _write(payload)
+        return
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+    request_body: dict[str, Any] = {
+        "title": title,
+        "head": head_branch,
+        "base": base_branch,
+        "draft": bool(draft),
+    }
+    if body:
+        request_body["body"] = body
+    auth_value = token
+    mode = _clean_str(auth_mode).lower()
+    if mode == "token":
+        auth_header = f"token {auth_value}"
+    else:
+        auth_header = f"Bearer {auth_value}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "Authorization": auth_header,
+        "User-Agent": "autonomous-orchestrator",
+    }
+    data = _json.dumps(request_body).encode("utf-8")
+    req = _urllib_request.Request(api_url, data=data, headers=headers, method="POST")
+    try:
+        with _urllib_request.urlopen(req, timeout=30) as resp:
+            status_code = resp.getcode()
+            body_bytes = resp.read()
+            headers = resp.headers
+    except _urllib_error.HTTPError as exc:
+        status_code = int(getattr(exc, "code", 0) or 0)
+        headers = getattr(exc, "headers", {}) or {}
+        try:
+            body_bytes = exc.read()
+        except Exception:
+            body_bytes = b""
+        message = ""
+        gh_error_code = ""
+        try:
+            err_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+        except Exception:
+            err_obj = {}
+        if isinstance(err_obj, dict):
+            message = _clean_str(err_obj.get("message"))
+            errors = err_obj.get("errors") if isinstance(err_obj.get("errors"), list) else []
+            if errors:
+                first = errors[0] if isinstance(errors[0], dict) else {}
+                gh_error_code = _clean_str(first.get("code"))
+                if not message:
+                    message = _clean_str(first.get("message"))
+        if not message:
+            message = _clean_str(getattr(exc, "reason", "")) or "HTTP_ERROR"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_ERROR",
+                "http_status": int(status_code or 0),
+                "gh_error_code": gh_error_code or None,
+                "gh_request_id": _clean_str(headers.get("X-GitHub-Request-Id") if hasattr(headers, "get") else ""),
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "retry_after_seconds": int(headers.get("Retry-After") or 0) if hasattr(headers, "get") and str(headers.get("Retry-After") or "").isdigit() else None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
+        _write(payload)
+        return
+    except Exception as exc:
+        message = _clean_str(str(exc)) or "REQUEST_FAILED"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "REQUEST_FAILED",
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+        _write(payload)
+        return
+    payload["http_status"] = int(status_code or 0)
+    if int(status_code or 0) not in {200, 201}:
+        message = "HTTP_STATUS"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_STATUS",
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+        _write(payload)
+        return
+    try:
+        response_obj = _json.loads(body_bytes.decode("utf-8"))
+    except Exception:
+        response_obj = {}
+    payload["rc"] = 0
+    payload.update(_extract_pr_metadata(response_obj))
+    _write(payload)
 def _live_gate(policy: dict[str, Any]) -> dict[str, Any]:
     details = _gate_details(policy)
     allowed_ops = policy.get("allowed_ops") if isinstance(policy.get("allowed_ops"), list) else []
     allowed_ops = sorted({str(x) for x in allowed_ops if isinstance(x, str) and x})
-
     return {
         "enabled": bool(details.get("enabled", False)),
         "network_enabled": bool(details.get("network_enabled", False)),
         "env_flag": str(details.get("env_flag") or ""),
+        "env_flag_set": bool(details.get("env_flag_set", False)),
         "env_key_present": bool(details.get("env_key_present", False)),
         "allowed_ops": allowed_ops,
     }
-
-
-def _git_available(root: Path) -> bool:
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception:
-        return False
-    return proc.returncode == 0 and proc.stdout.strip() == "true"
-
-
-def _git_dir(root: Path) -> Path | None:
-    if not _git_available(root):
-        return None
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--git-dir"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception:
-        return None
-    if proc.returncode != 0:
-        return None
-    raw = proc.stdout.strip()
-    if not raw:
-        return None
-    path = Path(raw)
-    if not path.is_absolute():
-        path = root / path
-    return path
-
-
-def _git_branch(root: Path) -> str:
-    if not _git_available(root):
-        return ""
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception:
-        return ""
-    if proc.returncode != 0:
-        return ""
-    return proc.stdout.strip()
-
-
-def _git_dirty_tree(root: Path) -> bool:
-    if not _git_available(root):
-        return False
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception:
-        return False
-    if proc.returncode != 0:
-        return False
-    return bool(proc.stdout.strip())
-
-
-def _git_ahead_behind(root: Path) -> tuple[int, int]:
-    if not _git_available(root):
-        return (0, 0)
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception:
-        return (0, 0)
-    if proc.returncode != 0 or not proc.stdout.strip():
-        return (0, 0)
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "rev-list", "--left-right", "--count", "@{u}...HEAD"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception:
-        return (0, 0)
-    if proc.returncode != 0:
-        return (0, 0)
-    parts = proc.stdout.strip().split()
-    if len(parts) != 2:
-        return (0, 0)
-    try:
-        behind, ahead = int(parts[0]), int(parts[1])
-    except Exception:
-        return (0, 0)
-    return (ahead, behind)
-
-
-def _git_state(root: Path) -> dict[str, Any]:
-    ahead, behind = _git_ahead_behind(root)
-    git_dir = _git_dir(root)
-    index_lock = bool(git_dir and (git_dir / "index.lock").exists())
-    return {
-        "dirty_tree": _git_dirty_tree(root),
-        "branch": _git_branch(root),
-        "ahead": max(ahead, 0),
-        "behind": max(behind, 0),
-        "index_lock": index_lock,
-    }
-
-
-def _jobs_index_path(workspace_root: Path) -> Path:
-    return workspace_root / ".cache" / "github_ops" / "jobs_index.v1.json"
-
-
-def _default_jobs_index(workspace_root: Path) -> dict[str, Any]:
-    return {
-        "version": "v1",
-        "generated_at": _now_iso(),
-        "workspace_root": str(workspace_root),
-        "status": "IDLE",
-        "jobs": [],
-        "counts": {"total": 0, "queued": 0, "running": 0, "pass": 0, "fail": 0, "timeout": 0, "killed": 0, "skip": 0},
-        "notes": [],
-    }
-
-
-def _load_jobs_index(workspace_root: Path) -> tuple[dict[str, Any], list[str]]:
-    path = _jobs_index_path(workspace_root)
-    if not path.exists():
-        return _default_jobs_index(workspace_root), ["jobs_index_missing"]
-    try:
-        obj = _load_json(path)
-    except Exception:
-        return _default_jobs_index(workspace_root), ["jobs_index_invalid"]
-    if not isinstance(obj, dict):
-        return _default_jobs_index(workspace_root), ["jobs_index_invalid"]
-    if not isinstance(obj.get("jobs"), list):
-        obj["jobs"] = []
-    return obj, []
-
-
-def _save_jobs_index(workspace_root: Path, index: dict[str, Any]) -> str:
-    jobs = index.get("jobs") if isinstance(index.get("jobs"), list) else []
-    jobs = [j for j in jobs if isinstance(j, dict)]
-    jobs.sort(key=lambda j: (str(j.get("created_at") or ""), str(j.get("job_id") or "")))
-
-    counts = {"total": 0, "queued": 0, "running": 0, "pass": 0, "fail": 0, "timeout": 0, "killed": 0, "skip": 0}
-    for job in jobs:
-        status = str(job.get("status") or "").upper()
-        counts["total"] += 1
-        if status == "QUEUED":
-            counts["queued"] += 1
-        elif status == "RUNNING":
-            counts["running"] += 1
-        elif status == "PASS":
-            counts["pass"] += 1
-        elif status == "FAIL":
-            counts["fail"] += 1
-        elif status == "TIMEOUT":
-            counts["timeout"] += 1
-        elif status == "KILLED":
-            counts["killed"] += 1
-        elif status == "SKIP":
-            counts["skip"] += 1
-
-    index["jobs"] = jobs
-    index["counts"] = counts
-    status = "IDLE"
-    if counts["total"] > 0:
-        status = "OK"
-    if counts["fail"] > 0 or counts["timeout"] > 0 or counts["killed"] > 0:
-        status = "WARN"
-    elif counts["running"] > 0 or counts["queued"] > 0:
-        status = "WARN"
-    index["status"] = status
-    index["generated_at"] = _now_iso()
-    index.setdefault("version", "v1")
-    index.setdefault("workspace_root", str(workspace_root))
-
-    path = _jobs_index_path(workspace_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(index), encoding="utf-8")
-    rel = Path(".cache") / "github_ops" / path.name
-    return rel.as_posix()
-
-
-def _job_report_path(workspace_root: Path, job_id: str) -> Path:
-    return workspace_root / ".cache" / "reports" / "github_ops_jobs" / f"github_ops_job_{job_id}.v1.json"
-
-
-def _write_job_report(workspace_root: Path, job: dict[str, Any]) -> str:
-    path = _job_report_path(workspace_root, str(job.get("job_id") or "unknown"))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(job), encoding="utf-8")
-    return (Path(".cache") / "reports" / "github_ops_jobs" / path.name).as_posix()
-
-
-def _job_store_dir(workspace_root: Path, job_id: str) -> Path:
-    return workspace_root / ".cache" / "github_ops" / "jobs" / job_id
-
-
-def _job_output_paths(workspace_root: Path, job_id: str) -> tuple[Path, Path, Path]:
-    base = _job_store_dir(workspace_root, job_id)
-    return (base / "stdout.log", base / "stderr.log", base / "rc.json")
-
-
-def _rel_from_workspace(path: Path, workspace_root: Path) -> str:
-    try:
-        return path.resolve().relative_to(workspace_root.resolve()).as_posix()
-    except Exception:
-        return path.as_posix()
-
 def _job_signature(job: dict[str, Any]) -> str:
     payload = {
         "kind": job.get("kind"),
@@ -443,8 +431,34 @@ def _job_signature(job: dict[str, Any]) -> str:
         "failure_class": job.get("failure_class"),
     }
     return _hash_text(_canonical_json(payload))
-
-
+def _job_report_rel(job_id: str) -> str:
+    return (Path(".cache") / "reports" / "github_ops_jobs" / f"github_ops_job_{job_id}.v1.json").as_posix()
+def _ensure_job_trace_meta(job: dict[str, Any], *, workspace_root: Path, policy_hash: str) -> None:
+    if isinstance(job.get("trace_meta"), dict):
+        return
+    job_id = str(job.get("job_id") or "")
+    if not job_id:
+        return
+    created_at = str(job.get("created_at") or _now_iso())
+    run_id = build_run_id(
+        workspace_root=workspace_root,
+        op_name="github-ops-job",
+        inputs={"job_id": job_id, "kind": job.get("kind"), "policy_hash": policy_hash},
+        date_bucket=date_bucket_from_iso(created_at),
+    )
+    evidence_paths = job.get("evidence_paths") if isinstance(job.get("evidence_paths"), list) else []
+    report_rel = _job_report_rel(job_id)
+    if report_rel not in evidence_paths:
+        evidence_paths.append(report_rel)
+    job["evidence_paths"] = evidence_paths
+    job["trace_meta"] = build_trace_meta(
+        work_item_id=job_id,
+        work_item_kind="JOB",
+        run_id=run_id,
+        policy_hash=policy_hash,
+        evidence_paths=evidence_paths,
+        workspace_root=workspace_root,
+    )
 def _gate_error(policy: dict[str, Any]) -> str:
     details = _gate_details(policy)
     if not details.get("network_enabled", False):
@@ -456,8 +470,6 @@ def _gate_error(policy: dict[str, Any]) -> str:
     if not details.get("env_key_present", False):
         return "AUTH_MISSING"
     return ""
-
-
 def _cooldown_active(jobs: list[dict[str, Any]], *, kind: str, cooldown_seconds: int) -> tuple[bool, str]:
     if cooldown_seconds <= 0:
         return False, ""
@@ -472,29 +484,55 @@ def _cooldown_active(jobs: list[dict[str, Any]], *, kind: str, cooldown_seconds:
             return True, recent_id
         break
     return False, recent_id
-
-
 def _spawn_job_process(
     workspace_root: Path,
     job_id: str,
     *,
     command_fingerprint: str,
     kind: str,
+    request_path: Path | None = None,
+    auth_mode: str = "bearer",
+    token_env: str = "GITHUB_TOKEN",
 ) -> tuple[int | None, list[str]]:
     stdout_path, stderr_path, rc_path = _job_output_paths(workspace_root, job_id)
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     stderr_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if kind == "SMOKE_FULL":
+    if kind in {"SMOKE_FULL", "SMOKE_FAST"}:
+        repo_root = _repo_root()
+        venv_py = repo_root / ".venv" / "bin" / "python"
+        python_bin = str(venv_py) if venv_py.exists() else sys.executable
+        job_ws_root = _resolve_smoke_workspace_root()
+        level = "full" if kind == "SMOKE_FULL" else "fast"
+        cmd = [
+            python_bin,
+            "-m",
+            "src.prj_airunner.smoke_full_job",
+            "--workspace-root",
+            str(job_ws_root),
+            "--rc-path",
+            str(rc_path),
+            "--level",
+            level,
+            "--fingerprint",
+            command_fingerprint,
+        ]
+    elif kind == "PR_OPEN":
+        request_arg = str(request_path) if isinstance(request_path, Path) else ""
         stub = (
-            "import json,os,subprocess,sys;"
-            "env=os.environ.copy();"
-            "env['SMOKE_LEVEL']='full';"
-            "env['SMOKE_FULL_ASYNC_JOB']='1';"
-            "rc=subprocess.call([sys.executable,'smoke_test.py'], env=env, cwd=os.getcwd());"
-            "json.dump({'rc':rc,'fingerprint':sys.argv[2]}, open(sys.argv[1],'w'));"
+            "import sys;"
+            "from src.prj_github_ops.github_ops import _run_pr_open_job;"
+            "_run_pr_open_job(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5]);"
         )
-        cmd = [sys.executable, "-c", stub, str(rc_path), command_fingerprint]
+        cmd = [
+            sys.executable,
+            "-c",
+            stub,
+            str(rc_path),
+            request_arg,
+            token_env,
+            auth_mode,
+            command_fingerprint,
+        ]
     else:
         stub = (
             "import json,sys,time;"
@@ -507,7 +545,6 @@ def _spawn_job_process(
         stderr_f = stderr_path.open("w", encoding="utf-8")
     except Exception:
         return None, []
-
     try:
         proc = subprocess.Popen(
             cmd,
@@ -527,38 +564,12 @@ def _spawn_job_process(
             stderr_f.close()
         except Exception:
             pass
-
     rel_paths = [
         _rel_from_workspace(stdout_path, workspace_root),
         _rel_from_workspace(stderr_path, workspace_root),
         _rel_from_workspace(rc_path, workspace_root),
     ]
     return proc.pid, rel_paths
-
-
-def classify_github_ops_failure(stderr_text: str) -> tuple[str, str]:
-    lowered = stderr_text.lower()
-    if "ws_integration_demo" in lowered and "prerequisite apply failed" in lowered:
-        failure_class = "DEMO_PREREQ_FAIL"
-    elif "ws_integration_demo" in lowered and "catalog" in lowered and "parse" in lowered:
-        failure_class = "DEMO_CATALOG_PARSE"
-    elif "schema validation" in lowered or "integrity verify" in lowered:
-        failure_class = "CORE_BREAK"
-    else:
-        failure_class = "OTHER"
-
-    lines: list[str] = []
-    for line in stderr_text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        lines.append(line[:200])
-        if len(lines) >= 10:
-            break
-    signature_hash = _hash_text(f"{failure_class}|" + "|".join(lines))
-    return failure_class, signature_hash
-
-
 def _apply_job_retention(jobs: list[dict[str, Any]], *, policy: dict[str, Any]) -> list[dict[str, Any]]:
     job_cfg = policy.get("job") if isinstance(policy.get("job"), dict) else {}
     keep_last_n = int(job_cfg.get("keep_last_n", 0) or 0)
@@ -572,20 +583,61 @@ def _apply_job_retention(jobs: list[dict[str, Any]], *, policy: dict[str, Any]) 
         if keep_last_n and len(kept) >= keep_last_n:
             break
     return sorted(kept, key=lambda j: (str(j.get("created_at") or ""), str(j.get("job_id") or "")))
-
-
+def _failure_summary(jobs: list[dict[str, Any]]) -> dict[str, Any]:
+    classes = [
+        "AUTH",
+        "PERMISSION",
+        "VALIDATION",
+        "NOT_FOUND",
+        "CONFLICT",
+        "RATE_LIMIT",
+        "NETWORK",
+        "POLICY_TIME_LIMIT",
+        "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+        "DEMO_PACK_CAPABILITY_INDEX_MISSING",
+        "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON",
+        "DEMO_OTHER_MARKER_2472D115C490",
+        "DEMO_QUALITY_GATE_REPORT_MISSING",
+        "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+        "OTHER",
+    ]
+    counts = {cls: 0 for cls in classes}
+    total_fail = 0
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        if str(job.get("status") or "") != "FAIL":
+            continue
+        total_fail += 1
+        failure_class = str(job.get("failure_class") or "OTHER")
+        if failure_class not in counts:
+            failure_class = "OTHER"
+        counts[failure_class] += 1
+    return {"total_fail": total_fail, "by_class": counts}
 def build_github_ops_report(*, workspace_root: Path) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
     live_gate = _live_gate(policy)
     git_state = _git_state(_repo_root())
-
     jobs_index, job_notes = _load_jobs_index(workspace_root)
     notes.extend(job_notes)
-
     jobs_index_rel = _save_jobs_index(workspace_root, jobs_index)
     jobs = jobs_index.get("jobs") if isinstance(jobs_index.get("jobs"), list) else []
     counts = jobs_index.get("counts") if isinstance(jobs_index.get("counts"), dict) else {}
-
+    last_pr_open: dict[str, Any] | None = None
+    pr_jobs = [j for j in jobs if str(j.get("kind") or "") == "PR_OPEN"]
+    if pr_jobs:
+        pr_jobs.sort(key=lambda j: (_job_time(j), str(j.get("job_id") or "")), reverse=True)
+        job = pr_jobs[0]
+        last_pr_open = {
+            "job_id": str(job.get("job_id") or ""),
+            "status": str(job.get("status") or ""),
+        }
+        pr_url = job.get("pr_url")
+        if isinstance(pr_url, str) and pr_url:
+            last_pr_open["pr_url"] = pr_url
+        pr_number = job.get("pr_number")
+        if isinstance(pr_number, int) and pr_number > 0:
+            last_pr_open["pr_number"] = pr_number
     signals: list[str] = []
     if git_state.get("dirty_tree"):
         signals.append("dirty_tree")
@@ -596,13 +648,12 @@ def build_github_ops_report(*, workspace_root: Path) -> dict[str, Any]:
     if not live_gate.get("enabled", False):
         signals.append("live_gate_disabled")
     signals = sorted({str(s) for s in signals if isinstance(s, str) and s})
-
+    failure_summary = _failure_summary(jobs)
     status = "OK"
     if signals:
         status = "WARN"
     if int(counts.get("fail", 0)) > 0:
         status = "WARN"
-
     report = {
         "version": "v1",
         "generated_at": _now_iso(),
@@ -610,7 +661,9 @@ def build_github_ops_report(*, workspace_root: Path) -> dict[str, Any]:
         "status": status,
         "live_gate": {
             "enabled": bool(live_gate.get("enabled", False)),
+            "network_enabled": bool(live_gate.get("network_enabled", False)),
             "env_flag": str(live_gate.get("env_flag") or ""),
+            "env_flag_set": bool(live_gate.get("env_flag_set", False)),
             "env_key_present": bool(live_gate.get("env_key_present", False)),
             "allowed_ops": live_gate.get("allowed_ops") or [],
         },
@@ -629,24 +682,23 @@ def build_github_ops_report(*, workspace_root: Path) -> dict[str, Any]:
             },
         },
         "jobs_index_path": jobs_index_rel,
+        "network_live": _load_network_live_summary(workspace_root),
+        "failure_summary": failure_summary,
         "notes": notes,
     }
+    if last_pr_open is not None:
+        report["last_pr_open"] = last_pr_open
     if jobs:
         report["jobs"] = sorted(jobs, key=lambda j: str(j.get("job_id") or ""))
-
     report_path = workspace_root / ".cache" / "reports" / "github_ops_report.v1.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(_dump_json(report), encoding="utf-8")
     return report
-
-
 def run_github_ops_check(*, workspace_root: Path, chat: bool = True) -> dict[str, Any]:
     report = build_github_ops_report(workspace_root=workspace_root)
     report_path = str(Path(".cache") / "reports" / "github_ops_report.v1.json")
-
     signals = report.get("signals") if isinstance(report.get("signals"), list) else []
     status = report.get("status", "WARN")
-
     preview_lines = [
         "PROGRAM-LED: github-ops-check; user_command=false",
         f"workspace_root={workspace_root}",
@@ -656,11 +708,19 @@ def run_github_ops_check(*, workspace_root: Path, chat: bool = True) -> dict[str
         f"signals={','.join(str(s) for s in signals) if signals else 'none'}",
         f"dirty_tree={report.get('git_state', {}).get('dirty_tree', False)}",
         f"behind={report.get('git_state', {}).get('behind', 0)}",
+        "live_gate="
+        + f"net={report.get('live_gate', {}).get('network_enabled', False)}"
+        + f" live={report.get('live_gate', {}).get('enabled', False)}"
+        + f" env_flag_set={report.get('live_gate', {}).get('env_flag_set', False)}"
+        + f" env_key_present={report.get('live_gate', {}).get('env_key_present', False)}",
+        "network_live="
+        + f"enabled_by_decision={report.get('network_live', {}).get('enabled_by_decision', False)}"
+        + f" allow_domains_count={report.get('network_live', {}).get('allow_domains_count', 0)}"
+        + f" allow_actions_count={report.get('network_live', {}).get('allow_actions_count', 0)}",
     ]
     evidence_lines = [f"github_ops_report={report_path}"]
     actions_lines = ["github-ops-job-start", "github-ops-job-poll"]
     next_lines = ["Devam et", "Durumu goster", "Duraklat"]
-
     final_json = {
         "status": status,
         "report_path": report_path,
@@ -669,9 +729,14 @@ def run_github_ops_check(*, workspace_root: Path, chat: bool = True) -> dict[str
         "behind": report.get("git_state", {}).get("behind", 0),
         "index_lock": report.get("git_state", {}).get("index_lock", False),
         "live_gate_enabled": report.get("live_gate", {}).get("enabled", False),
+        "live_gate_network_enabled": report.get("live_gate", {}).get("network_enabled", False),
+        "env_flag_set": report.get("live_gate", {}).get("env_flag_set", False),
+        "env_key_present": report.get("live_gate", {}).get("env_key_present", False),
+        "network_live_enabled_by_decision": report.get("network_live", {}).get("enabled_by_decision", False),
+        "allow_domains_count": report.get("network_live", {}).get("allow_domains_count", 0),
+        "allow_actions_count": report.get("network_live", {}).get("allow_actions_count", 0),
         "jobs_index_path": report.get("jobs_index_path"),
     }
-
     if chat:
         print("PREVIEW:")
         print("\n".join(preview_lines))
@@ -686,35 +751,26 @@ def run_github_ops_check(*, workspace_root: Path, chat: bool = True) -> dict[str
         print(json.dumps(final_json, ensure_ascii=False, sort_keys=True))
     else:
         print(json.dumps(final_json, ensure_ascii=False, sort_keys=True))
-
     return final_json
-
-
-def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> dict[str, Any]:
+def start_github_ops_job(
+    *,
+    workspace_root: Path,
+    kind: str,
+    dry_run: bool,
+    request: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
     live_gate = _live_gate(policy)
+    gate_details = _gate_details(policy)
     now = _now_iso()
-
     jobs_index, job_notes = _load_jobs_index(workspace_root)
     notes.extend(job_notes)
     jobs = jobs_index.get("jobs") if isinstance(jobs_index.get("jobs"), list) else []
-
     normalized_kind = _normalize_kind(kind, policy=policy)
-    local_only = normalized_kind == "SMOKE_FULL"
+    local_only = normalized_kind in {"SMOKE_FULL", "SMOKE_FAST"}
     allowed_actions = set(_allowed_actions(policy))
-    allowed_ops = {
-        str(x).strip().lower()
-        for x in (policy.get("allowed_ops") if isinstance(policy.get("allowed_ops"), list) else [])
-        if isinstance(x, str)
-    }
-    allowed_aliases = {
-        "pr_list": "PR_LIST",
-        "pr_open": "PR_OPEN",
-        "pr_update": "PR_UPDATE",
-        "merge": "MERGE",
-        "deploy_trigger": "DEPLOY_TRIGGER",
-        "status_poll": "STATUS_POLL",
-    }
+    allowed_ops = {str(x).strip().lower() for x in (policy.get("allowed_ops") if isinstance(policy.get("allowed_ops"), list) else []) if isinstance(x, str)}
+    allowed_aliases = {"pr_list": "PR_LIST", "pr_open": "PR_OPEN", "pr_update": "PR_UPDATE", "merge": "MERGE", "deploy_trigger": "DEPLOY_TRIGGER", "status_poll": "STATUS_POLL"}
     allowed_kinds = allowed_actions | {allowed_aliases.get(op, op.upper()) for op in allowed_ops}
     if normalized_kind not in allowed_kinds:
         return {
@@ -725,8 +781,41 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
             "cooldown_hit": False,
             "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
             "policy_source": policy_source,
+            "decision_needed": False,
+            "decision_seed_path": None,
+            "decision_inbox_path": None,
+            "gate_state": {
+                "network_enabled": bool(gate_details.get("network_enabled", False)),
+                "live_enabled": bool(gate_details.get("live_enabled", False)),
+                "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                "env_key_present": bool(gate_details.get("env_key_present", False)),
+            },
         }
-
+    gate_error = _gate_error(policy)
+    pr_request_payload: dict[str, Any] | None = None
+    pr_request_missing: list[str] = []
+    if normalized_kind == "PR_OPEN":
+        pr_request_payload, pr_request_missing = _normalize_pr_open_request(request, repo_root=_repo_root())
+        if pr_request_missing:
+            last_request = _load_last_pr_open_request(workspace_root, jobs)
+            if isinstance(last_request, dict):
+                pr_request_payload, pr_request_missing = _normalize_pr_open_request(last_request, repo_root=_repo_root())
+    decision_seed_path = ""
+    decision_inbox_path = ""
+    decision_needed = False
+    if normalized_kind == "PR_OPEN" and not dry_run and gate_error and not local_only:
+        decision_needed = True
+        decision_inbox_path = str(Path(".cache") / "index" / "decision_inbox.v1.json")
+        try:
+            from src.ops.decision_inbox import run_decision_seed
+            seed = run_decision_seed(
+                workspace_root=workspace_root,
+                decision_kind="NETWORK_LIVE_ENABLE",
+                target="github_ops:PR_OPEN",
+            )
+            decision_seed_path = str(seed.get("seed_path") or "")
+        except Exception:
+            notes.append("decision_seed_failed")
     if not local_only:
         rate_cfg = policy.get("rate_limit") if isinstance(policy.get("rate_limit"), dict) else {}
         rate_cooldown = int(rate_cfg.get("cooldown_seconds", 0) or 0)
@@ -743,8 +832,17 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
                     "cooldown_hit": True,
                     "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
                     "policy_source": policy_source,
+                    "decision_needed": bool(decision_needed),
+                    "decision_seed_path": decision_seed_path or None,
+                    "decision_inbox_path": decision_inbox_path or None,
+                    "request_missing": pr_request_missing if pr_request_missing else None,
+                    "gate_state": {
+                        "network_enabled": bool(gate_details.get("network_enabled", False)),
+                        "live_enabled": bool(gate_details.get("live_enabled", False)),
+                        "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                        "env_key_present": bool(gate_details.get("env_key_present", False)),
+                    },
                 }
-
     if not local_only:
         cooldown_seconds = int(
             (policy.get("job") or {}).get("cooldown_seconds", 0) if isinstance(policy.get("job"), dict) else 0
@@ -759,8 +857,17 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
                 "cooldown_hit": True,
                 "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
                 "policy_source": policy_source,
+                "decision_needed": bool(decision_needed),
+                "decision_seed_path": decision_seed_path or None,
+                "decision_inbox_path": decision_inbox_path or None,
+                "request_missing": pr_request_missing if pr_request_missing else None,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
             }
-
     for job in jobs:
         if str(job.get("kind") or "") == normalized_kind and str(job.get("status") or "") in {"QUEUED", "RUNNING"}:
             return {
@@ -771,18 +878,24 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
                 "cooldown_hit": False,
                 "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
                 "policy_source": policy_source,
+                "decision_needed": bool(decision_needed),
+                "decision_seed_path": decision_seed_path or None,
+                "decision_inbox_path": decision_inbox_path or None,
+                "request_missing": pr_request_missing if pr_request_missing else None,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
             }
-
     job_id = _hash_text(_canonical_json({"kind": normalized_kind, "policy_hash": policy_hash, "dry_run": dry_run}))
-    gate_error = _gate_error(policy)
-
     status = "RUNNING"
     skip_reason = ""
     error_code = ""
     return_status = "RUNNING"
     pid: int | None = None
     result_paths: list[str] = []
-
     if dry_run:
         status = "SKIP"
         skip_reason = "DRY_RUN"
@@ -795,21 +908,57 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
             skip_reason = "NO_NETWORK"
         error_code = gate_error or "LIVE_GATE_DISABLED"
         return_status = "IDLE"
+        if normalized_kind == "PR_OPEN" and gate_error:
+            decision_needed = True
     else:
+        if normalized_kind == "PR_OPEN" and pr_request_missing and not local_only:
+            return {
+                "status": "IDLE",
+                "error_code": "PR_OPEN_MISSING_INPUTS",
+                "job_id": "",
+                "job_kind": normalized_kind,
+                "cooldown_hit": False,
+                "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
+                "policy_source": policy_source,
+                "decision_needed": bool(decision_needed),
+                "decision_seed_path": decision_seed_path or None,
+                "decision_inbox_path": decision_inbox_path or None,
+                "request_missing": pr_request_missing,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
+            }
+        request_path = None
+        request_rel = ""
+        if normalized_kind == "PR_OPEN" and pr_request_payload and not local_only:
+            request_path, request_rel = _write_pr_open_request(workspace_root, job_id, pr_request_payload)
+        auth_cfg = policy.get("auth") if isinstance(policy.get("auth"), dict) else {}
+        auth_mode = _clean_str(auth_cfg.get("mode") or "bearer") or "bearer"
+        token_env = _clean_str(auth_cfg.get("token_env") or "GITHUB_TOKEN") or "GITHUB_TOKEN"
         command_fingerprint = _hash_text(_canonical_json({"kind": normalized_kind, "policy_hash": policy_hash}))
         pid, result_paths = _spawn_job_process(
             workspace_root,
             job_id,
             command_fingerprint=command_fingerprint,
             kind=normalized_kind,
+            request_path=request_path,
+            auth_mode=auth_mode,
+            token_env=token_env,
         )
+        if request_rel:
+            result_paths.append(request_rel)
         if pid is None:
             status = "FAIL"
             error_code = "SPAWN_FAILED"
             return_status = "WARN"
         else:
             status = "RUNNING"
-
+    job_workspace_root = workspace_root
+    if normalized_kind == "SMOKE_FULL":
+        job_workspace_root = _resolve_smoke_workspace_root()
     job = {
         "version": "v1",
         "job_id": job_id,
@@ -817,7 +966,7 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
         "status": status,
         "created_at": now,
         "updated_at": now,
-        "workspace_root": str(workspace_root),
+        "workspace_root": str(job_workspace_root),
         "dry_run": bool(dry_run),
         "live_gate": bool(live_gate.get("enabled", False)),
         "attempts": 1 if status in {"RUNNING", "PASS", "FAIL"} else 0,
@@ -836,17 +985,14 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
         job["failure_class"] = "OTHER"
     elif status == "TIMEOUT":
         job["failure_class"] = "TIMEOUT"
-
+    _ensure_job_trace_meta(job, workspace_root=workspace_root, policy_hash=policy_hash)
     job["signature_hash"] = _job_signature(job)
-
     job_report = _write_job_report(workspace_root, job)
     job["evidence_paths"].append(job_report)
-
     jobs = [j for j in jobs if str(j.get("job_id") or "") != job_id]
     jobs.append(job)
     jobs_index["jobs"] = _apply_job_retention(jobs, policy=policy)
     jobs_index_path = _save_jobs_index(workspace_root, jobs_index)
-
     return {
         "status": return_status,
         "job_id": job_id,
@@ -856,31 +1002,34 @@ def start_github_ops_job(*, workspace_root: Path, kind: str, dry_run: bool) -> d
         "policy_source": policy_source,
         "error_code": error_code or None,
         "cooldown_hit": False,
+        "decision_needed": bool(decision_needed),
+        "decision_seed_path": decision_seed_path or None,
+        "decision_inbox_path": decision_inbox_path or None,
+        "gate_state": {
+            "network_enabled": bool(gate_details.get("network_enabled", False)),
+            "live_enabled": bool(gate_details.get("live_enabled", False)),
+            "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+            "env_key_present": bool(gate_details.get("env_key_present", False)),
+        },
     }
-
-
 def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
     _ = policy_hash
     jobs_index, job_notes = _load_jobs_index(workspace_root)
     notes.extend(job_notes)
-
     jobs = jobs_index.get("jobs") if isinstance(jobs_index.get("jobs"), list) else []
     target: dict[str, Any] | None = None
     for job in jobs:
         if str(job.get("job_id") or "") == job_id:
             target = job
             break
-
     if target is None:
         return {"status": "FAIL", "error_code": "JOB_NOT_FOUND", "job_id": job_id}
-
     status = str(target.get("status") or "")
     now = datetime.now(timezone.utc)
     timeout_seconds = int(
         (policy.get("job") or {}).get("ttl_seconds", 0) if isinstance(policy.get("job"), dict) else 0
     )
-
     if status in {"QUEUED", "RUNNING"}:
         pid = target.get("pid")
         job_time = _job_time(target)
@@ -924,39 +1073,81 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
                     target["status"] = "FAIL"
                     target["error_code"] = "RC_NONZERO"
                     target["rc"] = rc
-
                 if rc_obj is not None:
-                    pr_url = rc_obj.get("pr_url")
-                    pr_number = rc_obj.get("pr_number")
-                    if isinstance(pr_url, str) and pr_url:
-                        target["pr_url"] = pr_url
-                    if isinstance(pr_number, int) and pr_number > 0:
-                        target["pr_number"] = pr_number
-
+                    pr_meta = _extract_pr_metadata_from_rc(rc_obj)
+                    for meta_key, meta_value in pr_meta.items():
+                        target[meta_key] = meta_value
+                    if target.get("status") == "FAIL":
+                        has_error = bool(rc_obj.get("error_code")) or int(rc_obj.get("rc") or 0) != 0
+                        http_status = rc_obj.get("http_status")
+                        if isinstance(http_status, int) and http_status >= 400:
+                            has_error = True
+                        if has_error:
+                            failure_fields = _extract_failure_fields_from_rc(rc_obj)
+                            for key, value in failure_fields.items():
+                                target[key] = value
                 if target.get("status") == "FAIL":
                     stderr_path = _job_output_paths(workspace_root, job_id)[1]
                     try:
                         stderr_text = stderr_path.read_text(encoding="utf-8")
                     except Exception:
                         stderr_text = ""
-                    failure_class, signature_hash = classify_github_ops_failure(stderr_text)
-                    target["failure_class"] = failure_class
-                    target["signature_hash"] = signature_hash
-
+                    if not target.get("failure_class") or target.get("failure_class") == "OTHER":
+                        failure_class, signature_hash = classify_github_ops_failure(stderr_text)
+                        target["failure_class"] = failure_class
+                        target["signature_hash"] = signature_hash
+                        if failure_class in {
+                            "DEMO_ADVISOR_SUGGESTIONS_MISSING",
+                            "DEMO_CATALOG_MISSING",
+                            "DEMO_CATALOG_PARSE",
+                            "DEMO_PREREQ_APPLY_FAIL",
+                            "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+                            "DEMO_QUALITY_GATE_REPORT_MISSING",
+                            "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+                            "DEMO_SESSION_CONTEXT_MISSING",
+                        }:
+                            if target.get("error_code") in {None, "", "RC_NONZERO"}:
+                                target["error_code"] = failure_class
+    if str(target.get("status") or "") == "FAIL":
+        if not target.get("failure_class") or target.get("failure_class") == "OTHER":
+            stderr_path = _job_output_paths(workspace_root, job_id)[1]
+            try:
+                stderr_text = stderr_path.read_text(encoding="utf-8")
+            except Exception:
+                stderr_text = ""
+            failure_class, signature_hash = classify_github_ops_failure(stderr_text)
+            target["failure_class"] = failure_class
+            target["signature_hash"] = signature_hash
+            if failure_class in {
+                "DEMO_ADVISOR_SUGGESTIONS_MISSING",
+                "DEMO_CATALOG_MISSING",
+                "DEMO_CATALOG_PARSE",
+                "DEMO_PREREQ_APPLY_FAIL",
+                "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+                "DEMO_QUALITY_GATE_REPORT_MISSING",
+                "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+                "DEMO_SESSION_CONTEXT_MISSING",
+            }:
+                if target.get("error_code") in {None, "", "RC_NONZERO"}:
+                    target["error_code"] = failure_class
+        stderr_path = _job_output_paths(workspace_root, job_id)[1]
+        try:
+            stderr_text = stderr_path.read_text(encoding="utf-8")
+        except Exception:
+            stderr_text = ""
+        _maybe_override_advisor_missing(target=target, stderr_text=stderr_text)
     target["updated_at"] = _now_iso()
     target["last_poll_at"] = _now_iso()
+    _ensure_job_trace_meta(target, workspace_root=workspace_root, policy_hash=policy_hash)
     if not target.get("signature_hash"):
         target["signature_hash"] = _job_signature(target)
-
     job_report = _write_job_report(workspace_root, target)
     evidence = target.get("evidence_paths") if isinstance(target.get("evidence_paths"), list) else []
     if job_report not in evidence:
         evidence.append(job_report)
     target["evidence_paths"] = evidence
-
     jobs_index["jobs"] = _apply_job_retention(jobs, policy=policy)
     jobs_index_path = _save_jobs_index(workspace_root, jobs_index)
-
     return {
         "status": str(target.get("status") or ""),
         "job_id": job_id,
@@ -966,4 +1157,31 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
         "job_report_path": job_report,
         "jobs_index_path": jobs_index_path,
         "policy_source": policy_source,
+    }
+def poll_github_ops_jobs(*, workspace_root: Path, max_jobs: int = 1) -> dict[str, Any]:
+    max_jobs = max(0, int(max_jobs))
+    jobs_index, notes = _load_jobs_index(workspace_root)
+    jobs = jobs_index.get("jobs") if isinstance(jobs_index.get("jobs"), list) else []
+    candidates = [
+        j
+        for j in jobs
+        if isinstance(j, dict) and str(j.get("status") or "") in {"QUEUED", "RUNNING"}
+    ]
+    candidates.sort(key=lambda j: (_job_time(j), str(j.get("job_id") or "")))
+    polled: list[dict[str, Any]] = []
+    for job in candidates[:max_jobs]:
+        job_id = str(job.get("job_id") or "")
+        if not job_id:
+            continue
+        polled.append(poll_github_ops_job(workspace_root=workspace_root, job_id=job_id))
+    status = "OK" if polled else "IDLE"
+    jobs_index_path = str(Path(".cache") / "github_ops" / "jobs_index.v1.json")
+    if polled:
+        jobs_index_path = str(polled[-1].get("jobs_index_path") or jobs_index_path)
+    return {
+        "status": status,
+        "polled_count": len(polled),
+        "polled_jobs": polled,
+        "jobs_index_path": jobs_index_path,
+        "notes": notes,
     }

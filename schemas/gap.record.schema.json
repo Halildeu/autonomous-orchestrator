@@ -32,7 +32,8 @@
         "source_eval_hash": { "type": "string" },
         "source_raw_hash": { "type": "string" },
         "evidence_pointers": { "type": "array", "items": { "type": "string" } },
-        "report_only": { "type": "boolean" }
+        "report_only": { "type": "boolean" },
+        "update_only": { "type": "boolean" }
       }
     }
   }

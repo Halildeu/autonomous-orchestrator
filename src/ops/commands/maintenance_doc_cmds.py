@@ -86,6 +86,28 @@ def _load_doc_nav_summary_timeout(core_root: Path, ws_path: Path) -> int:
     return 5
 
 
+def _load_doc_nav_strict_timeout(core_root: Path, ws_path: Path) -> int:
+    candidates = [
+        ws_path / "policies" / "policy_doc_graph.v1.json",
+        core_root / "policies" / "policy_doc_graph.v1.json",
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        try:
+            timeout = int(obj.get("strict_timeout_seconds", 180))
+        except Exception:
+            timeout = 180
+        return max(0, min(600, timeout))
+    return 180
+
+
 def _load_json_if_exists(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -169,8 +191,35 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
     doc_out = ws_path / ".cache" / "reports" / doc_out_name
     summary_timeout_fallback = False
     summary_error_code = None
+    strict_timeout_fallback = False
+    strict_error_code = None
     if strict:
-        doc_report = run_doc_graph(repo_root=root, workspace_root=ws_path, out_json=doc_out, mode=mode)
+        doc_report = {}
+        timeout_seconds = _load_doc_nav_strict_timeout(root, ws_path)
+        if timeout_seconds == 0:
+            strict_timeout_fallback = True
+            strict_error_code = "STRICT_TIMEOUT_FALLBACK"
+        else:
+            try:
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        run_doc_graph, repo_root=root, workspace_root=ws_path, out_json=doc_out, mode=mode
+                    )
+                    doc_report = future.result(timeout=timeout_seconds)
+            except FuturesTimeoutError:
+                strict_timeout_fallback = True
+                strict_error_code = "STRICT_TIMEOUT_FALLBACK"
+            except Exception:
+                doc_report = {}
+        if strict_timeout_fallback:
+            fallback_report = _load_json_if_exists(doc_out)
+            if fallback_report is None:
+                fallback_report = _build_min_doc_graph_report(repo_root=root, ws_path=ws_path)
+            notes = fallback_report.get("notes") if isinstance(fallback_report.get("notes"), list) else []
+            notes = [*notes, "strict_timeout_fallback=true"]
+            fallback_report["notes"] = notes
+            _write_doc_graph_report(report=fallback_report, out_json=doc_out)
+            doc_report = fallback_report
     else:
         doc_report = _load_json_if_exists(doc_out)
         if doc_report is None:
@@ -261,7 +310,7 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
         status = "FAIL"
     elif doc_status == "WARN" or str(sys_obj.get("overall_status", "")) in {"WARN", "NOT_READY"}:
         status = "WARN"
-    if summary_timeout_fallback:
+    if summary_timeout_fallback or strict_timeout_fallback:
         if doc_status == "FAIL":
             doc_status = "WARN"
         if status == "FAIL":
@@ -280,6 +329,8 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
     notes = ["PROGRAM_LED=true", f"detail={str(detail).lower()}", f"strict={str(strict).lower()}"]
     if summary_timeout_fallback:
         notes.append("summary_timeout_fallback_to_strict=true")
+    if strict_timeout_fallback:
+        notes.append("strict_timeout_fallback=true")
     if strict:
         notes.append(f"strict_report_path={str(Path('.cache') / 'reports' / doc_out_name)}")
 
@@ -314,8 +365,8 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
         ],
         "notes": notes,
     }
-    if summary_error_code:
-        payload["error_code"] = summary_error_code
+    if strict_error_code or summary_error_code:
+        payload["error_code"] = strict_error_code or summary_error_code
 
     if chat:
         print("PREVIEW:")

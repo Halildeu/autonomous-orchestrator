@@ -462,6 +462,7 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
     top_next_actions: list[dict[str, str]] = []
     eval_lenses: dict[str, dict[str, Any]] = {}
     lens_coverages: dict[str, float] = {}
+    lens_reasons_count: dict[str, int] = {}
     lenses_summary: list[dict[str, Any]] = []
     lens_gaps_count = 0
     lens_gaps_top: list[str] = []
@@ -502,10 +503,18 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
                     status_val = lens.get("status")
                     score_val = lens.get("score")
                     if isinstance(status_val, str):
-                        eval_lenses[lens_id] = {
+                        entry = {
                             "status": status_val,
                             "score": float(score_val) if isinstance(score_val, (int, float)) else 0.0,
                         }
+                        classification_val = lens.get("classification")
+                        if isinstance(classification_val, str) and classification_val:
+                            entry["classification"] = classification_val
+                        reasons_val = lens.get("reasons")
+                        if isinstance(reasons_val, list):
+                            lens_reasons_count[lens_id] = len([r for r in reasons_val if isinstance(r, str)])
+                            entry["reasons_count"] = lens_reasons_count.get(lens_id, 0)
+                        eval_lenses[lens_id] = entry
                         coverage_val = lens.get("coverage")
                         if isinstance(coverage_val, (int, float)):
                             lens_coverages[lens_id] = float(coverage_val)
@@ -595,6 +604,10 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
         gap_ids = sorted(set(lens_gap_map.get(lens_id, [])))
         lens_gaps.extend(gap_ids)
         lens_info = eval_lenses.get(lens_id, {})
+        if lens_id in eval_lenses:
+            eval_lenses[lens_id]["gap_count"] = len(gap_ids)
+        else:
+            eval_lenses[lens_id] = {"status": "WARN", "score": 0.0, "gap_count": len(gap_ids)}
         coverage_val = lens_coverages.get(lens_id, 0.0)
         lenses_summary.append(
             {

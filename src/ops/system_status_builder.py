@@ -14,7 +14,9 @@ from jsonschema import Draft202012Validator
 
 from .system_status_context_router import build_context_router_section, context_router_md_lines
 from .system_status_sections_extensions import (
+    _airunner_auto_run_section,
     _auto_loop_section,
+    _cockpit_lite_section,
     _deploy_section,
     _github_ops_section,
     _network_live_section,
@@ -53,6 +55,7 @@ from .system_status_sections import (
     _work_intake_exec_section,
     _work_intake_section,
 )
+from .system_status_sections_intake import _doer_loop_section
 from .system_status_sections_catalog import _catalog_status, _iso_core_status
 
 
@@ -216,6 +219,7 @@ def build_system_status(
     work_intake_exec_section = _work_intake_exec_section(workspace_root)
     doer_section = _doer_section(workspace_root)
     auto_loop_section = _auto_loop_section(workspace_root)
+    airunner_auto_run_section = _airunner_auto_run_section(workspace_root)
     deploy_section = _deploy_section(workspace_root)
     decisions_section = _decisions_section(workspace_root)
     context_router_section = build_context_router_section(workspace_root)
@@ -234,6 +238,7 @@ def build_system_status(
         actions_count=int(act_count),
     )
     extensions_section = _extensions_section(workspace_root)
+    cockpit_lite_section = _cockpit_lite_section(workspace_root)
     network_live_section = _network_live_section(workspace_root)
     github_ops_section = _github_ops_section(workspace_root)
     airunner_section = _airunner_section(workspace_root)
@@ -333,6 +338,7 @@ def build_system_status(
             "project_boundary": project_boundary,
             "projects": projects_section,
             "extensions": extensions_section,
+            "cockpit_lite": cockpit_lite_section,
             "network_live": network_live_section,
             "airunner": airunner_section,
             "airunner_proof": airunner_proof_section,
@@ -442,8 +448,13 @@ def build_system_status(
         report["sections"]["work_intake_exec"] = work_intake_exec_section
     if isinstance(doer_section, dict):
         report["sections"]["doer"] = doer_section
+    doer_loop_section = _doer_loop_section(workspace_root)
+    if isinstance(doer_loop_section, dict):
+        report["sections"]["doer_loop"] = doer_loop_section
     if isinstance(auto_loop_section, dict):
         report["sections"]["auto_loop"] = auto_loop_section
+    if isinstance(airunner_auto_run_section, dict):
+        report["sections"]["airrunner_auto_run"] = airunner_auto_run_section
     if isinstance(github_ops_section, dict):
         report["sections"]["github_ops"] = github_ops_section
     if isinstance(deploy_section, dict):

@@ -108,7 +108,25 @@
           "properties": {
             "stale_seconds": { "type": "integer", "minimum": 0 },
             "lock_state": { "type": "string" },
-            "heartbeat_path": { "type": "string" }
+            "heartbeat_path": { "type": "string" },
+            "stale_source_key": { "type": "string" },
+            "stale_source_value": { "type": "string" }
+          }
+        },
+        "airrunner_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled_effective",
+            "auto_mode_enabled_effective",
+            "active_hours_enabled",
+            "heartbeat_stale_seconds"
+          ],
+          "properties": {
+            "enabled_effective": { "type": "boolean" },
+            "auto_mode_enabled_effective": { "type": "boolean" },
+            "active_hours_enabled": { "type": "boolean" },
+            "heartbeat_stale_seconds": { "type": "integer", "minimum": 0 }
           }
         },
         "work_intake_noise": {
@@ -127,7 +145,60 @@
           "properties": {
             "status": { "type": "string", "enum": ["PASS", "WARN", "FAIL", "UNKNOWN"] }
           }
+        },
+        "docs_hygiene": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["docs_ops_md_count", "docs_ops_md_bytes", "repo_md_total_count"],
+          "properties": {
+            "docs_ops_md_count": { "type": "integer", "minimum": 0 },
+            "docs_ops_md_bytes": { "type": "integer", "minimum": 0 },
+            "repo_md_total_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "docs_drift": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unmapped_md_count", "unmapped_md_sample", "mapped_sources"],
+          "properties": {
+            "unmapped_md_count": { "type": "integer", "minimum": 0 },
+            "unmapped_md_sample": { "type": "array", "items": { "type": "string" } },
+            "mapped_sources": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ssot_router_count",
+                "extension_manifest_ref_count",
+                "view_doc_allowlist_count",
+                "excluded_legacy_count",
+                "excluded_archive_count"
+              ],
+              "properties": {
+                "ssot_router_count": { "type": "integer", "minimum": 0 },
+                "extension_manifest_ref_count": { "type": "integer", "minimum": 0 },
+                "view_doc_allowlist_count": { "type": "integer", "minimum": 0 },
+                "excluded_legacy_count": { "type": "integer", "minimum": 0 },
+                "excluded_archive_count": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
         }
+      }
+    },
+    "integration_coherence_signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layer_boundary_violations_count",
+        "pack_conflict_count",
+        "core_unlock_scope_widen_count",
+        "schema_fail_count"
+      ],
+      "properties": {
+        "layer_boundary_violations_count": { "type": "integer", "minimum": 0 },
+        "pack_conflict_count": { "type": "integer", "minimum": 0 },
+        "core_unlock_scope_widen_count": { "type": "integer", "minimum": 0 },
+        "schema_fail_count": { "type": "integer", "minimum": 0 }
       }
     },
     "notes": { "type": "array", "items": { "type": "string" } }

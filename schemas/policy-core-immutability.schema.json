@@ -31,6 +31,28 @@
     },
     "core_write_mode": { "type": "string", "enum": ["locked", "ssot_only_when_unlocked"] },
     "ssot_write_allowlist": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "one_shot_src_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "allow_paths",
+        "ttl_seconds",
+        "opened_at",
+        "expires_at",
+        "reason",
+        "restore_policy_hash"
+      ],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "allow_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "ttl_seconds": { "type": "integer", "minimum": 0 },
+        "opened_at": { "type": ["string", "null"], "format": "date-time" },
+        "expires_at": { "type": ["string", "null"], "format": "date-time" },
+        "reason": { "type": "string" },
+        "restore_policy_hash": { "type": "string" }
+      }
+    },
     "require_unlock_reason": { "type": "boolean" },
     "evidence_required_when_unlocked": { "type": "boolean" },
     "blocked_write_error_code": { "type": "string", "minLength": 1 },

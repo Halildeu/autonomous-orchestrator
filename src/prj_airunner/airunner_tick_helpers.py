@@ -62,6 +62,20 @@ def _load_github_ops_jobs_index(workspace_root: Path) -> list[dict[str, Any]]:
     return [j for j in jobs if isinstance(j, dict)]
 
 
+def _load_deploy_jobs_index(workspace_root: Path) -> list[dict[str, Any]]:
+    path = workspace_root / ".cache" / "deploy" / "jobs_index.v1.json"
+    if not path.exists():
+        return []
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return []
+    jobs = obj.get("jobs") if isinstance(obj, dict) else None
+    if not isinstance(jobs, list):
+        return []
+    return [j for j in jobs if isinstance(j, dict)]
+
+
 def _load_airunner_jobs_running(workspace_root: Path) -> list[dict[str, Any]]:
     path = workspace_root / ".cache" / "airunner" / "jobs_index.v1.json"
     if not path.exists():

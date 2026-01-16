@@ -41,7 +41,12 @@
       "minLength": 1
     },
     "params": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "github_ops_pr_open": {
+          "$ref": "https://example.com/schemas/github-ops-pr-open.schema.v1.json"
+        }
+      }
     },
     "env_mode": {
       "type": "string",

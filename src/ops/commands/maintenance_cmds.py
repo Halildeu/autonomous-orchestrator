@@ -13,11 +13,45 @@ from typing import Any
 from src.ops.commands.common import repo_root, run_step, warn
 from src.ops.commands.context_cmds import register_context_subcommands
 from src.ops.commands.maintenance_doc_cmds import cmd_doc_graph, cmd_doc_nav_check
+from src.ops.commands.maintenance_lease_cmds import (
+    cmd_doer_loop_lock_clear,
+    cmd_doer_loop_lock_seed,
+    cmd_doer_loop_lock_status,
+    cmd_work_item_lease_seed,
+)
+from src.ops.commands.maintenance_cmds_doer import cmd_doer_actionability, cmd_work_intake_autoselect
+from src.ops.commands.maintenance_cmds_planner import register_planner_and_intake_subcommands
+from src.ops.commands.intake_link_report_cmds import cmd_intake_link_report
 from src.ops.commands.maintenance_policy_cmds import cmd_evidence_export, cmd_policy_check, cmd_reaper
 from src.ops.commands.work_intake_select_cmds import cmd_work_intake_select
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
 
+def _parse_notes_tags(raw: str) -> list[str]:
+    if not isinstance(raw, str):
+        return []
+    parts = raw.replace("\n", ",").split(",")
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _parse_notes_links(raw: str) -> list[dict[str, Any]] | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return []
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(payload, list):
+        return None
+    out = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        kind = item.get("kind")
+        target = item.get("id_or_path")
+        if isinstance(kind, str) and isinstance(target, str) and kind.strip() and target.strip():
+            out.append({"kind": kind.strip(), "id_or_path": target.strip()})
+    return out
 def cmd_script_budget(args: argparse.Namespace) -> int:
     root = repo_root()
 
@@ -57,8 +91,6 @@ def cmd_script_budget(args: argparse.Namespace) -> int:
     print(f"SCRIPT_BUDGET status={status} hard_exceeded={hard_exceeded} soft_exceeded={soft_exceeded} report={out_display}")
 
     return 0 if int(rc) == 0 and status in {"OK", "WARN"} else 2
-
-
 def cmd_smoke(args: argparse.Namespace) -> int:
     root = repo_root()
     level = str(args.level).strip().lower()
@@ -72,8 +104,6 @@ def cmd_smoke(args: argparse.Namespace) -> int:
     status = "OK" if proc.returncode == 0 else "FAIL"
     print(json.dumps({"status": status, "level": level}, ensure_ascii=False, sort_keys=True))
     return 0 if status == "OK" else 2
-
-
 def cmd_system_status(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -98,8 +128,6 @@ def cmd_system_status(args: argparse.Namespace) -> int:
     res = run_system_status(workspace_root=ws, core_root=root, dry_run=bool(dry_run))
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WOULD_WRITE", "WARN"} else 2
-
-
 def cmd_ui_snapshot(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -120,7 +148,110 @@ def cmd_ui_snapshot(args: argparse.Namespace) -> int:
     payload = run_ui_snapshot_bundle(workspace_root=ws, out=out or None)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+def cmd_cockpit_serve(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
 
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    host = str(args.host or "127.0.0.1")
+    try:
+        port = int(args.port)
+    except Exception:
+        port = 8787
+
+    server_path = root / "extensions" / "PRJ-UI-COCKPIT-LITE" / "server.py"
+    if not server_path.exists():
+        warn("FAIL error=COCKPIT_SERVER_MISSING")
+        return 2
+
+    cmd = [sys.executable, str(server_path), "--workspace-root", str(ws), "--port", str(port), "--host", host]
+    return int(subprocess.call(cmd, cwd=root))
+
+def cmd_cockpit_healthcheck(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    try:
+        port = int(str(args.port or "8787"))
+    except Exception:
+        port = 8787
+
+    from src.ops.cockpit_healthcheck import run_cockpit_healthcheck
+
+    res = run_cockpit_healthcheck(workspace_root=ws, port=port)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN"} else 2
+
+
+def cmd_planner_notes_create(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    title = str(args.title or "")
+    body = str(args.body or "")
+    tags = _parse_notes_tags(str(args.tags or ""))
+    links_raw = str(getattr(args, "links_json", "") or "")
+    links = _parse_notes_links(links_raw)
+    if links is None:
+        warn("FAIL error=LINKS_JSON_INVALID")
+        return 2
+
+    from src.ops.planner_notes import run_planner_notes_create
+
+    res = run_planner_notes_create(workspace_root=ws, title=title, body=body, tags=tags, links=links)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "IDLE", "WARN"} else 2
+
+
+def cmd_planner_notes_delete(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    note_id = str(args.note_id or "").strip()
+    if not note_id:
+        warn("FAIL error=NOTE_ID_REQUIRED")
+        return 2
+
+    from src.ops.planner_notes import run_planner_notes_delete
+
+    res = run_planner_notes_delete(workspace_root=ws, note_id=note_id)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "IDLE", "WARN"} else 2
 
 def cmd_preflight_stamp(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -146,7 +277,6 @@ def cmd_preflight_stamp(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     status = payload.get("status") if isinstance(payload, dict) else None
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
 
 def cmd_integrity_verify(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -175,7 +305,6 @@ def cmd_integrity_verify(args: argparse.Namespace) -> int:
         return 2
     return 0 if res.get("status") in {"OK", "SKIPPED"} else 2
 
-
 def cmd_work_intake_build(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -195,7 +324,6 @@ def cmd_work_intake_build(args: argparse.Namespace) -> int:
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     status = res.get("status") if isinstance(res, dict) else None
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
 
 def cmd_work_intake_check(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -318,7 +446,6 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
-
 def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -401,93 +528,6 @@ def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
-
-def cmd_work_intake_autoselect(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    try:
-        limit = int(args.limit)
-    except Exception:
-        warn("FAIL error=INVALID_LIMIT")
-        return 2
-
-    mode = str(getattr(args, "mode", "policy") or "policy").strip().lower()
-    scope = str(getattr(args, "scope", "") or "").strip().lower()
-    if scope:
-        if scope in {"safe_only", "safe-first", "safe_first"}:
-            mode = "safe_first"
-        elif scope == "policy":
-            mode = "policy"
-        else:
-            warn("FAIL error=INVALID_SCOPE")
-            return 2
-    if mode not in {"policy", "safe_first"}:
-        warn("FAIL error=INVALID_MODE")
-        return 2
-
-    from src.ops.work_intake_autoselect import run_work_intake_autoselect
-
-    res = run_work_intake_autoselect(workspace_root=ws, limit=limit, mode=mode)
-    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
-    status = res.get("status") if isinstance(res, dict) else None
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
-
-def cmd_doer_actionability(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    out = str(getattr(args, "out", "auto") or "auto")
-    chat = parse_reaper_bool(str(getattr(args, "chat", "true")))
-
-    from src.ops.doer_actionability import run_doer_actionability
-
-    payload = run_doer_actionability(workspace_root=ws, out=out)
-    status = payload.get("status") if isinstance(payload, dict) else "WARN"
-
-    if chat and isinstance(payload, dict):
-        counts = payload.get("counts") if isinstance(payload.get("counts"), dict) else {}
-        print("PREVIEW:")
-        print("PROGRAM-LED: doer-actionability (read-only)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(f"status={payload.get('status')} candidates={counts.get('candidate_total', 0)}")
-        if payload.get("error_code"):
-            print(f"error_code={payload.get('error_code')}")
-        print("EVIDENCE:")
-        for p in [payload.get("report_path"), payload.get("report_md_path")]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        print("work-intake-autoselect")
-        print("airrunner-run")
-        print("system-status")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
-
 def cmd_auto_loop(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -567,7 +607,6 @@ def cmd_auto_loop(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
-
 def cmd_decision_inbox_build(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -618,7 +657,6 @@ def cmd_decision_inbox_build(args: argparse.Namespace) -> int:
 
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
 
 def cmd_decision_inbox_show(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -682,7 +720,6 @@ def cmd_decision_inbox_show(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
-
 def cmd_decision_apply(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -743,7 +780,6 @@ def cmd_decision_apply(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
-
 def cmd_decision_apply_bulk(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -769,7 +805,6 @@ def cmd_decision_apply_bulk(args: argparse.Namespace) -> int:
     status = payload.get("status") if isinstance(payload, dict) else "WARN"
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
-
 
 def cmd_decision_seed(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -824,7 +859,6 @@ def cmd_decision_seed(args: argparse.Namespace) -> int:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
-
 def cmd_layer_boundary_check(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -868,7 +902,6 @@ def cmd_layer_boundary_check(args: argparse.Namespace) -> int:
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WARN"} else 2
 
-
 def cmd_promotion_bundle(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -901,7 +934,6 @@ def cmd_promotion_bundle(args: argparse.Namespace) -> int:
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WOULD_WRITE", "WARN"} else 2
 
-
 def cmd_repo_hygiene(args: argparse.Namespace) -> int:
     root = repo_root()
     mode = str(args.mode).strip().lower()
@@ -930,20 +962,17 @@ def cmd_repo_hygiene(args: argparse.Namespace) -> int:
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WARN"} else 2
 
-
 def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     ap_reaper = parent.add_parser("reaper", help="Run retention reaper (dry-run supported).")
     ap_reaper.add_argument("--dry-run", default="true", help="true|false")
     ap_reaper.add_argument("--now", help="ISO8601 timestamp (optional).")
     ap_reaper.add_argument("--out", help="Optional report JSON output path.")
     ap_reaper.set_defaults(func=cmd_reaper)
-
     ap_export = parent.add_parser("evidence-export", help="Export one evidence run as a zip (integrity-checked).")
     ap_export.add_argument("--run", required=True, help="Run id or path to evidence/<run_id> directory.")
     ap_export.add_argument("--out", required=True, help="Output zip path.")
     ap_export.add_argument("--force", default="false", help="true|false (default: false).")
     ap_export.set_defaults(func=cmd_evidence_export)
-
     ap_pc = parent.add_parser("policy-check", help="Validate + simulate policy impact (safe local workflow).")
     ap_pc.add_argument("--source", choices=["fixtures", "evidence", "both"], default="fixtures")
     ap_pc.add_argument("--baseline", default="HEAD~1", help="Git ref for baseline (default: HEAD~1).")
@@ -951,20 +980,16 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_pc.add_argument("--evidence", default="evidence")
     ap_pc.add_argument("--outdir", default=".cache/policy_check")
     ap_pc.set_defaults(func=cmd_policy_check)
-
     ap_sb = parent.add_parser("script-budget", help="Run Script Budget guardrails (soft=warn, hard=fail).")
     ap_sb.add_argument("--out", default=".cache/script_budget/report.json", help="Report JSON output path.")
     ap_sb.set_defaults(func=cmd_script_budget)
-
     ap_smoke = parent.add_parser("smoke", help="Run smoke_test.py with SMOKE_LEVEL (fast|full).")
     ap_smoke.add_argument("--level", default="fast", help="fast|full (default: fast).")
     ap_smoke.set_defaults(func=cmd_smoke)
-
     ap_sys = parent.add_parser("system-status", help="Generate unified system status report (JSON + MD).")
     ap_sys.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_sys.add_argument("--dry-run", default="false", help="true|false (default: false).")
     ap_sys.set_defaults(func=cmd_system_status)
-
     ap_ui = parent.add_parser("ui-snapshot", help="Build UI snapshot bundle (read-only).")
     ap_ui.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_ui.add_argument("--out", default=".cache/reports/ui_snapshot_bundle.v1.json", help="Output JSON path.")
@@ -974,10 +999,30 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_ui_bundle.add_argument("--out", default=".cache/reports/ui_snapshot_bundle.v1.json", help="Output JSON path.")
     ap_ui_bundle.set_defaults(func=cmd_ui_snapshot)
 
-    ap_preflight = parent.add_parser("preflight-stamp", help="Write or read preflight stamp (no-wait safe gate).")
-    ap_preflight.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_preflight.add_argument("--mode", default="write", help="write|read (default: write).")
-    ap_preflight.set_defaults(func=cmd_preflight_stamp)
+    ap_cockpit = parent.add_parser("cockpit-serve", help="Serve cockpit lite UI (local, no network).")
+    ap_cockpit.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_cockpit.add_argument("--port", default="8787", help="Port (default: 8787).")
+    ap_cockpit.add_argument("--host", default="127.0.0.1", help="Host (default: 127.0.0.1).")
+    ap_cockpit.set_defaults(func=cmd_cockpit_serve)
+
+    ap_cockpit_hc = parent.add_parser("cockpit-healthcheck", help="Run cockpit lite healthcheck (local, no network).")
+    ap_cockpit_hc.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_cockpit_hc.add_argument("--port", default="8787", help="Port (default: 8787).")
+    ap_cockpit_hc.set_defaults(func=cmd_cockpit_healthcheck)
+
+    register_planner_and_intake_subcommands(
+        parent,
+        cmd_planner_notes_create=cmd_planner_notes_create,
+        cmd_planner_notes_delete=cmd_planner_notes_delete,
+        cmd_preflight_stamp=cmd_preflight_stamp,
+        cmd_work_item_lease_seed=cmd_work_item_lease_seed,
+        cmd_doer_loop_lock_seed=cmd_doer_loop_lock_seed,
+        cmd_doer_loop_lock_status=cmd_doer_loop_lock_status,
+        cmd_doer_loop_lock_clear=cmd_doer_loop_lock_clear,
+        cmd_work_intake_select=cmd_work_intake_select,
+        cmd_work_intake_autoselect=cmd_work_intake_autoselect,
+        cmd_doer_actionability=cmd_doer_actionability,
+    )
 
     from src.ops.commands.extension_cmds import register_extension_subcommands as _register_extension
 
@@ -1004,33 +1049,6 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_intake_exec.add_argument("--limit", default="3", help="Max items to execute (default: 3).")
     ap_intake_exec.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_intake_exec.set_defaults(func=cmd_work_intake_exec_ticket)
-
-    ap_intake_select = parent.add_parser("work-intake-select", help="Select intake items for autopilot apply.")
-    ap_intake_select.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_intake_select.add_argument("--mode", default="select", help="select|clear (default: select).")
-    ap_intake_select.add_argument("--backup", default="false", help="true|false (default: false).")
-    ap_intake_select.add_argument("--intake-id", required=False, help="Intake id to select/deselect.")
-    ap_intake_select.add_argument("--selected", default="true", help="true|false (default: true).")
-    ap_intake_select.set_defaults(func=cmd_work_intake_select)
-
-    ap_intake_autoselect = parent.add_parser(
-        "work-intake-autoselect",
-        help="Auto-select eligible intake items for autopilot apply (deterministic).",
-    )
-    ap_intake_autoselect.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_intake_autoselect.add_argument("--limit", default="3", help="Max items to select (default: 3).")
-    ap_intake_autoselect.add_argument("--mode", default="policy", help="policy|safe_first (default: policy).")
-    ap_intake_autoselect.add_argument("--scope", default="", help="policy|safe_only (alias for --mode).")
-    ap_intake_autoselect.set_defaults(func=cmd_work_intake_autoselect)
-
-    ap_doer_actionability = parent.add_parser(
-        "doer-actionability",
-        help="Summarize doer actionability (program-led, workspace-only).",
-    )
-    ap_doer_actionability.add_argument("--workspace-root", required=True, help="Workspace root path.")
-    ap_doer_actionability.add_argument("--out", default="auto", help="Report JSON output path (default: auto).")
-    ap_doer_actionability.add_argument("--chat", default="true", help="true|false (default: true).")
-    ap_doer_actionability.set_defaults(func=cmd_doer_actionability)
 
     ap_auto_loop = parent.add_parser(
         "auto-loop",
@@ -1086,8 +1104,17 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_decision_seed.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_decision_seed.set_defaults(func=cmd_decision_seed)
 
-    register_context_subcommands(parent)
+    ap_intake_link = parent.add_parser(
+        "intake-link-report",
+        help="Link REQ to intake items (workspace-only report + plan-only CHG).",
+    )
+    ap_intake_link.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_link.add_argument("--req-id", required=True, help="REQ id to match (e.g., REQ-YYYYMMDD-...).")
+    ap_intake_link.add_argument("--write-plan", default="false", help="true|false (default: false).")
+    ap_intake_link.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_intake_link.set_defaults(func=cmd_intake_link_report)
 
+    register_context_subcommands(parent)
     ap_layer = parent.add_parser("layer-boundary-check", help="Check layer boundary constraints (report|strict).")
     ap_layer.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_layer.add_argument("--mode", default="report", help="report|strict (default: report).")

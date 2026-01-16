@@ -247,12 +247,14 @@ def _write_heartbeat(
     policy_hash: str,
     notes: list[str],
 ) -> str:
+    now = _now_iso()
     payload = {
         "version": "v1",
-        "generated_at": _now_iso(),
+        "generated_at": now,
         "workspace_root": str(workspace_root),
         "last_tick_id": tick_id,
-        "last_tick_at": _now_iso(),
+        "last_tick_at": now,
+        "ended_at": now,
         "last_status": status,
         "last_error_code": error_code,
         "last_tick_window": window_bucket,

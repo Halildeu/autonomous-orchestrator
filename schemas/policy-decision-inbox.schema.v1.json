@@ -50,7 +50,7 @@
   "$defs": {
     "decision_kind": {
       "type": "string",
-      "enum": ["ROUTE_OVERRIDE", "AUTO_APPLY_ALLOW", "NETWORK_ENABLE", "SCOPE_CONFIRM", "UNKNOWN"]
+      "enum": ["ROUTE_OVERRIDE", "AUTO_APPLY_ALLOW", "NETWORK_ENABLE", "NETWORK_LIVE_ENABLE", "SCOPE_CONFIRM", "UNKNOWN"]
     }
   }
 }

@@ -9,6 +9,7 @@
     "eval_lenses_enabled",
     "trend_best_practice",
     "integrity_compat",
+    "integration_coherence",
     "ai_ops_fit",
     "github_ops_release",
     "operability"
@@ -19,7 +20,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["trend", "integrity_compat", "ai_ops_fit", "github_ops_release", "operability"]
+        "enum": ["trend", "integrity_compat", "integration_coherence", "ai_ops_fit", "github_ops_release", "operability"]
       }
     },
     "trend_best_practice": {
@@ -38,6 +39,15 @@
       "properties": {
         "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
         "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "integration_coherence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weight", "required_signals"],
+      "properties": {
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "required_signals": { "type": "array", "items": { "type": "string", "minLength": 1 } }
       }
     },
     "ai_ops_fit": {

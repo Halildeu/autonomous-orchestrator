@@ -7,6 +7,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.ops.trace_meta import (
+    build_inputs_hash,
+    build_run_fingerprint,
+    build_run_id,
+    build_trace_meta,
+    date_bucket_from_iso,
+)
+from src.ops.work_item_leases import acquire_lease, release_lease
+from src.ops.work_item_state import (
+    STATE_APPLIED,
+    STATE_IN_PROGRESS,
+    STATE_NOOP,
+    STATE_PLANNED,
+    get_state_entry,
+    record_run,
+    should_skip_due_to_fingerprint,
+    update_state,
+)
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -34,6 +52,24 @@ def _sha8(value: str) -> str:
 def _policy_hash(policy: dict[str, Any]) -> str:
     payload = json.dumps(policy, ensure_ascii=True, sort_keys=True, indent=None, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _plan_hash(plan_path: str) -> str:
+    if not plan_path:
+        return ""
+    return hashlib.sha256(plan_path.encode("utf-8")).hexdigest()
+
+
+def _inputs_hash_for_item(*, item: dict[str, Any], action_kind: str, plan_only: bool, policy_hash: str) -> str:
+    payload = {
+        "intake_id": str(item.get("intake_id") or ""),
+        "source_type": str(item.get("source_type") or ""),
+        "source_ref": str(item.get("source_ref") or ""),
+        "action_kind": str(action_kind or ""),
+        "plan_only": bool(plan_only),
+        "policy_hash": str(policy_hash or ""),
+    }
+    return build_inputs_hash(payload)
 
 
 def _priority_rank(value: str) -> int:
@@ -458,11 +494,35 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
     )
     selected = [i for i in ticket_items if bool(i.get("autopilot_selected", False))]
     selected_count = len(selected)
+    generated_at = _now_iso()
+    exec_report_rel = str(Path(".cache") / "reports" / "work_intake_exec_ticket.v1.json")
+    state_rel = str(Path(".cache") / "index" / "work_item_state.v1.json")
+    runs_rel = str(Path(".cache") / "index" / "work_item_runs.v1.jsonl")
+    run_id = build_run_id(
+        workspace_root=workspace_root,
+        op_name="work-intake-exec-ticket",
+        inputs={"policy_hash": policy_hash, "limit": int(limit)},
+        date_bucket=date_bucket_from_iso(generated_at),
+    )
+
+    def _attach_trace_meta(entry: dict[str, Any], work_item_id: str) -> None:
+        evidence = entry.get("evidence_paths") if isinstance(entry.get("evidence_paths"), list) else []
+        evidence_paths = list(evidence)
+        if exec_report_rel not in evidence_paths:
+            evidence_paths.append(exec_report_rel)
+        entry["trace_meta"] = build_trace_meta(
+            work_item_id=work_item_id or run_id,
+            work_item_kind="INTAKE",
+            run_id=run_id,
+            policy_hash=policy_hash,
+            evidence_paths=evidence_paths,
+            workspace_root=workspace_root,
+        )
 
     if selected_count == 0:
         report = {
             "version": "v1",
-            "generated_at": _now_iso(),
+            "generated_at": generated_at,
             "workspace_root": str(workspace_root),
             "status": "IDLE",
             "error_code": "NO_SELECTED_AUTOPILOT_ITEMS",
@@ -477,7 +537,17 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             "ignored_by_reason": {},
             "entries": [],
             "notes": ["CORE_LOCK=ENABLED", "SAFE_ONLY_REQUESTED=true", "WORKSPACE_ONLY=true"],
+            "work_item_state_path": state_rel,
+            "work_item_runs_path": runs_rel,
         }
+        report["trace_meta"] = build_trace_meta(
+            work_item_id=run_id,
+            work_item_kind="RUN",
+            run_id=run_id,
+            policy_hash=policy_hash,
+            evidence_paths=[exec_report_rel],
+            workspace_root=workspace_root,
+        )
 
         out_json = workspace_root / ".cache" / "reports" / "work_intake_exec_ticket.v1.json"
         out_md = workspace_root / ".cache" / "reports" / "work_intake_exec_ticket.v1.md"
@@ -530,8 +600,11 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
     decision_needed = 0
     skipped_by_reason: dict[str, int] = {}
     apply_slots = max(0, int(limit))
+    lease_ttl_seconds = 3600
+    stale_clears: list[dict[str, Any]] = []
 
     for item in ticket_items:
+        lease_acquired = False
         intake_id = str(item.get("intake_id") or "")
         source_type = str(item.get("source_type") or "")
         source_ref = str(item.get("source_ref") or "")
@@ -630,11 +703,29 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         if autopilot_reason:
             entry["autopilot_reason"] = autopilot_reason
 
+        inputs_hash = _inputs_hash_for_item(
+            item=item, action_kind=action_kind, plan_only=plan_only, policy_hash=policy_hash
+        )
+        plan_hash = build_inputs_hash(
+            {"action_kind": action_kind, "plan_only": bool(plan_only), "source_ref": source_ref}
+        )
+        run_fingerprint = build_run_fingerprint(
+            work_item_id=intake_id,
+            plan_hash=plan_hash,
+            inputs_hash=inputs_hash,
+            policy_hash=policy_hash,
+            tool_versions_hash="",
+        )
+        entry["inputs_hash"] = inputs_hash
+        entry["plan_hash"] = plan_hash
+        entry["run_fingerprint"] = run_fingerprint
+
         if not autopilot_selected:
             entry["status"] = "IGNORED"
             entry["ignored_reason"] = "NOT_SELECTED"
             ignored += 1
             ignored_by_reason["NOT_SELECTED"] = ignored_by_reason.get("NOT_SELECTED", 0) + 1
+            _attach_trace_meta(entry, intake_id)
             entries.append(entry)
             continue
         if not effective_allowed:
@@ -650,6 +741,7 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             skipped_by_reason[reason] = skipped_by_reason.get(reason, 0) + 1
             if reason == "DECISION_NEEDED":
                 decision_needed += 1
+            _attach_trace_meta(entry, intake_id)
             entries.append(entry)
             continue
         if apply_slots == 0:
@@ -657,8 +749,94 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             entry["skip_reason"] = "LIMIT_REACHED"
             skipped += 1
             skipped_by_reason["LIMIT_REACHED"] = skipped_by_reason.get("LIMIT_REACHED", 0) + 1
+            _attach_trace_meta(entry, intake_id)
             entries.append(entry)
             continue
+
+        item_status = str(item.get("status") or "").upper()
+        if item_status in {"DONE", "CLOSED", "APPLIED"}:
+            entry["status"] = "SKIPPED"
+            entry["skip_reason"] = "ALREADY_DONE"
+            skipped += 1
+            skipped_by_reason["ALREADY_DONE"] = skipped_by_reason.get("ALREADY_DONE", 0) + 1
+            _attach_trace_meta(entry, intake_id)
+            entries.append(entry)
+            continue
+
+        lease_result = acquire_lease(
+            workspace_root=workspace_root,
+            work_item_id=intake_id,
+            run_id=run_id,
+            owner="work-intake-exec-ticket",
+            ttl_seconds=lease_ttl_seconds,
+        )
+        lease_acquired = lease_result.get("status") == "ACQUIRED"
+        if lease_result.get("status") == "LOCKED":
+            entry["status"] = "SKIPPED"
+            entry["skip_reason"] = "LOCKED_ITEM"
+            skipped += 1
+            skipped_by_reason["LOCKED_ITEM"] = skipped_by_reason.get("LOCKED_ITEM", 0) + 1
+            _attach_trace_meta(entry, intake_id)
+            entries.append(entry)
+            continue
+        stale_cleared = lease_result.get("stale_cleared")
+        if isinstance(stale_cleared, dict):
+            stale_clears.append(
+                {
+                    "work_item_id": str(stale_cleared.get("work_item_id") or intake_id),
+                    "lease_id": str(stale_cleared.get("lease_id") or ""),
+                    "run_id": str(stale_cleared.get("run_id") or ""),
+                    "expires_at": str(stale_cleared.get("expires_at") or ""),
+                    "cleared_at": _now_iso(),
+                }
+            )
+
+        state_entry = get_state_entry(workspace_root, intake_id)
+        if should_skip_due_to_fingerprint(state_entry, run_fingerprint):
+            entry["status"] = "SKIPPED"
+            entry["skip_reason"] = "ALREADY_DONE"
+            entry["work_item_state"] = str(state_entry.get("state") or STATE_NOOP) if isinstance(state_entry, dict) else STATE_NOOP
+            skipped += 1
+            skipped_by_reason["ALREADY_DONE"] = skipped_by_reason.get("ALREADY_DONE", 0) + 1
+            _attach_trace_meta(entry, intake_id)
+            record_run(
+                workspace_root=workspace_root,
+                run_id=run_id,
+                work_item_id=intake_id,
+                fingerprint=run_fingerprint,
+                state=entry["work_item_state"],
+                result="ALREADY_DONE",
+                evidence_paths=[exec_report_rel],
+            )
+            if lease_acquired:
+                release_lease(
+                    workspace_root=workspace_root,
+                    work_item_id=intake_id,
+                    run_id=run_id,
+                    owner="work-intake-exec-ticket",
+                )
+                lease_acquired = False
+            entries.append(entry)
+            continue
+
+        update_state(
+            workspace_root=workspace_root,
+            work_item_id=intake_id,
+            state=STATE_IN_PROGRESS,
+            run_id=run_id,
+            fingerprint=run_fingerprint,
+            evidence_paths=[exec_report_rel],
+            note="work_intake_exec_ticket",
+        )
+        record_run(
+            workspace_root=workspace_root,
+            run_id=run_id,
+            work_item_id=intake_id,
+            fingerprint=run_fingerprint,
+            state=STATE_IN_PROGRESS,
+            result="STARTED",
+            evidence_paths=[exec_report_rel],
+        )
 
         if action_kind == "WRITE_DOC_NOTE" and not plan_only:
             if source_type == "MANUAL_REQUEST" and manual_kind in {"doc-fix", "doc-link-fix", "doc-metadata", "note"}:
@@ -769,7 +947,47 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             planned += 1
             apply_slots = max(0, apply_slots - 1)
 
+        final_state = ""
+        if entry.get("status") == "APPLIED":
+            final_state = STATE_APPLIED
+        elif entry.get("status") == "PLANNED":
+            final_state = STATE_PLANNED
+        elif entry.get("status") == "IDLE":
+            final_state = STATE_NOOP
+        elif entry.get("status") == "SKIPPED" and entry.get("skip_reason") == "ALREADY_DONE":
+            final_state = STATE_NOOP
+
+        if final_state:
+            entry["work_item_state"] = final_state
+            update_state(
+                workspace_root=workspace_root,
+                work_item_id=intake_id,
+                state=final_state,
+                run_id=run_id,
+                fingerprint=run_fingerprint,
+                evidence_paths=[exec_report_rel],
+                note="work_intake_exec_ticket",
+            )
+            record_run(
+                workspace_root=workspace_root,
+                run_id=run_id,
+                work_item_id=intake_id,
+                fingerprint=run_fingerprint,
+                state=final_state,
+                result=str(entry.get("status") or ""),
+                evidence_paths=[exec_report_rel],
+            )
+
+        _attach_trace_meta(entry, intake_id)
         entries.append(entry)
+        if lease_acquired:
+            release_lease(
+                workspace_root=workspace_root,
+                work_item_id=intake_id,
+                run_id=run_id,
+                owner="work-intake-exec-ticket",
+            )
+            lease_acquired = False
 
     normalized_skipped: dict[str, int] = {
         str(k): int(v) for k, v in skipped_by_reason.items() if isinstance(k, str) and isinstance(v, int) and v >= 0
@@ -783,9 +1001,23 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         elif skipped_total > skipped:
             normalized_skipped = {"UNKNOWN": skipped}
 
+    stale_clear_path = ""
+    if stale_clears:
+        out_path = workspace_root / ".cache" / "reports" / "work_item_lease_stale_clear.v1.json"
+        _ensure_inside_workspace(workspace_root, out_path)
+        payload = {
+            "version": "v1",
+            "generated_at": _now_iso(),
+            "workspace_root": str(workspace_root),
+            "cleared": stale_clears,
+            "notes": ["lease_stale_clear", "workspace-only"],
+        }
+        _write_json(out_path, payload)
+        stale_clear_path = str(Path(".cache") / "reports" / "work_item_lease_stale_clear.v1.json")
+
     report = {
         "version": "v1",
-        "generated_at": _now_iso(),
+        "generated_at": generated_at,
         "workspace_root": str(workspace_root),
         "selection_rule": "bucket=TICKET selected_only sort by priority,severity,intake_id",
         "policy_source": policy_source,
@@ -800,8 +1032,20 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         "skipped_by_reason": {k: normalized_skipped[k] for k in sorted(normalized_skipped)},
         "decision_needed_count": decision_needed,
         "entries": entries,
+        "work_item_state_path": state_rel,
+        "work_item_runs_path": runs_rel,
         "notes": ["CORE_LOCK=ENABLED", "SAFE_ONLY_REQUESTED=true", "WORKSPACE_ONLY=true"],
     }
+    report["trace_meta"] = build_trace_meta(
+        work_item_id=run_id,
+        work_item_kind="RUN",
+        run_id=run_id,
+        policy_hash=policy_hash,
+        evidence_paths=[exec_report_rel],
+        workspace_root=workspace_root,
+    )
+    if stale_clear_path:
+        report["lease_stale_clear_path"] = stale_clear_path
     if decision_needed > 0:
         report["decision_inbox_path"] = str(Path(".cache") / "index" / "decision_inbox.v1.json")
 

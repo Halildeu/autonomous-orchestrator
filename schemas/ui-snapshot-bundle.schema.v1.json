@@ -50,6 +50,26 @@
       ],
       "type": "object"
     },
+    "doer_loop_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "lock_state": {
+          "type": "string"
+        },
+        "owner_tag": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lock_state",
+        "owner_tag",
+        "expires_at"
+      ],
+      "type": "object"
+    },
     "generated_at": {
       "format": "date-time",
       "type": "string"
@@ -106,6 +126,28 @@
         "skipped",
         "limit_reached",
         "limit_reached_intake_ids"
+      ],
+      "type": "object"
+    },
+    "airrunner_auto_run_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "last_job_id": {
+          "type": "string"
+        },
+        "last_poll_path": {
+          "type": "string"
+        },
+        "last_closeout_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "last_job_id"
       ],
       "type": "object"
     },
@@ -215,16 +257,69 @@
             "status": {
               "type": "string"
             },
-            "pr_url": {
-              "type": "string"
-            },
-            "reason": {
-              "type": "string"
-            }
+        "pr_url": {
+          "type": "string"
+        },
+        "pr_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "type": "string"
+        }
           },
           "required": [
             "job_id",
             "status"
+          ],
+          "type": "object"
+        },
+        "failure_summary": {
+          "additionalProperties": false,
+          "properties": {
+            "total_fail": { "minimum": 0, "type": "integer" },
+            "by_class": {
+              "additionalProperties": false,
+              "properties": {
+                "AUTH": { "minimum": 0, "type": "integer" },
+                "PERMISSION": { "minimum": 0, "type": "integer" },
+                "VALIDATION": { "minimum": 0, "type": "integer" },
+                "NOT_FOUND": { "minimum": 0, "type": "integer" },
+                "CONFLICT": { "minimum": 0, "type": "integer" },
+                "RATE_LIMIT": { "minimum": 0, "type": "integer" },
+                "NETWORK": { "minimum": 0, "type": "integer" },
+                "POLICY_TIME_LIMIT": { "minimum": 0, "type": "integer" },
+                "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING": { "minimum": 0, "type": "integer" },
+                "DEMO_PACK_CAPABILITY_INDEX_MISSING": { "minimum": 0, "type": "integer" },
+                "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON": { "minimum": 0, "type": "integer" },
+                "DEMO_OTHER_MARKER_2472D115C490": { "minimum": 0, "type": "integer" },
+                "DEMO_QUALITY_GATE_REPORT_MISSING": { "minimum": 0, "type": "integer" },
+                "DEMO_SESSION_CONTEXT_HASH_MISMATCH": { "minimum": 0, "type": "integer" },
+                "OTHER": { "minimum": 0, "type": "integer" }
+              },
+              "required": [
+                "AUTH",
+                "PERMISSION",
+                "VALIDATION",
+                "NOT_FOUND",
+                "CONFLICT",
+                "RATE_LIMIT",
+                "NETWORK",
+                "POLICY_TIME_LIMIT",
+                "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+                "DEMO_PACK_CAPABILITY_INDEX_MISSING",
+                "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON",
+                "DEMO_OTHER_MARKER_2472D115C490",
+                "DEMO_QUALITY_GATE_REPORT_MISSING",
+                "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+                "OTHER"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "total_fail",
+            "by_class"
           ],
           "type": "object"
         }
@@ -255,6 +350,31 @@
       },
       "required": ["total", "by_kind"],
       "type": "object"
+    },
+    "decision_seed_pending_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "last_cockpit_healthcheck_path": {
+      "type": "string"
+    },
+    "cockpit_port": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "last_cockpit_port": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "last_chat_log_path": {
+      "type": "string"
+    },
+    "cockpit_notes_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "last_note_id": {
+      "type": "string"
     },
     "last_airunner_proof_bundle_path": {
       "type": "string"

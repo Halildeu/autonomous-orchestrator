@@ -20,6 +20,8 @@ def _suggested_extensions(source: dict[str, Any], bucket: str) -> list[str]:
     source_type = str(source.get("source_type") or "")
     if source_type == "GITHUB_OPS":
         return ["PRJ-GITHUB-OPS"]
+    if source_type == "DEPLOY_JOB":
+        return ["PRJ-DEPLOY"]
     if bucket == "PROJECT" and source_type == "RELEASE":
         return ["PRJ-RELEASE-AUTOMATION"]
     if source_type == "JOB_STATUS":
@@ -33,6 +35,13 @@ def _suggested_extensions(source: dict[str, Any], bucket: str) -> list[str]:
         lens_id = str(source.get("lens_id") or "")
         lens_reason = str(source.get("lens_reason") or "")
         if lens_id == "operability":
+            if lens_reason in {
+                "operability_docs_ops_md_count_gt",
+                "operability_docs_ops_md_bytes_gt",
+                "operability_repo_md_total_count_gt",
+                "operability_docs_unmapped_md_gt",
+            }:
+                return []
             if lens_reason in {"soft_exceeded_gt", "hard_exceeded_gt"}:
                 return ["PRJ-M0-MAINTAINABILITY"]
             if lens_reason in {
@@ -44,6 +53,12 @@ def _suggested_extensions(source: dict[str, Any], bucket: str) -> list[str]:
                 "suppressed_per_day_gt",
             }:
                 return ["PRJ-AIRUNNER"]
+        if lens_id == "integration_coherence":
+            if lens_reason in {"core_unlock_scope_widen_warn", "core_unlock_scope_widen_fail"}:
+                return ["PRJ-PLANNER"]
+            if lens_reason in {"schema_fail_warn", "schema_fail_fail"}:
+                return ["PRJ-M0-MAINTAINABILITY"]
+            return []
     if bucket != "TICKET":
         return []
     if source_type == "TIME_SINK":

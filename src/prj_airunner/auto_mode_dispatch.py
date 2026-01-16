@@ -181,6 +181,30 @@ def _infer_job_kind(item: dict[str, Any]) -> str:
     return "PR_POLL"
 
 
+def _infer_deploy_job_kind(item: dict[str, Any]) -> str:
+    source_ref = str(item.get("source_ref") or "")
+    title = str(item.get("title") or "")
+    for text in [source_ref, title]:
+        if not text:
+            continue
+        if text.startswith("deploy_job_sig:"):
+            tail = text.split("deploy_job_sig:", 1)[1]
+            kind = tail.split("|", 1)[0].strip()
+            if kind:
+                return kind
+        if text.startswith("deploy_job:"):
+            tail = text.split("deploy_job:", 1)[1]
+            if ":" in tail:
+                kind = tail.split(":", 1)[0].strip()
+                if kind:
+                    return kind
+        tokens = text.replace("|", " ").replace(":", " ").replace(",", " ").split()
+        for token in tokens:
+            if token.startswith("DEPLOY_"):
+                return token
+    return "DEPLOY_STATIC_FE"
+
+
 def plan_auto_mode_dispatch(
     *,
     items: list[dict[str, Any]],
@@ -266,6 +290,16 @@ def plan_auto_mode_dispatch(
                     "intake_id": str(item.get("intake_id") or ""),
                     "extension_id": extension_id,
                     "job_kind": _infer_job_kind(item),
+                    "selection_reason": str(item.get("selection_reason") or ""),
+                }
+            )
+            continue
+        if extension_id == "PRJ-DEPLOY":
+            job_candidates.append(
+                {
+                    "intake_id": str(item.get("intake_id") or ""),
+                    "extension_id": extension_id,
+                    "job_kind": _infer_deploy_job_kind(item),
                     "selection_reason": str(item.get("selection_reason") or ""),
                 }
             )
@@ -390,4 +424,34 @@ def auto_mode_network_allowed(*, workspace_root: Path, policy: dict[str, Any], e
                 if isinstance(publish, bool) and publish:
                     return True, "NETWORK_ALLOWED"
         return False, "NETWORK_DISABLED"
+    if extension_id == "PRJ-DEPLOY":
+        try:
+            from src.extensions.prj_deploy.deploy_jobs import _load_policy as _load_deploy_policy
+        except Exception:
+            return False, "DEPLOY_POLICY_LOAD_FAIL"
+        deploy_policy, _, _, _ = _load_deploy_policy(workspace_root)
+        mode = str(deploy_policy.get("mode") or "")
+        network_enabled = bool(deploy_policy.get("network_enabled", False))
+        if network_enabled and mode != "dry_run_only":
+            return True, "NETWORK_ALLOWED"
+        return False, "NETWORK_DISABLED"
     return False, "NETWORK_DISABLED"
+
+
+def network_live_gate_status(*, workspace_root: Path) -> tuple[bool, str]:
+    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_network_live.override.v1.json"
+    if not override_path.exists():
+        return False, "NETWORK_LIVE_OVERRIDE_MISSING"
+    try:
+        obj = _load_json(override_path)
+    except Exception:
+        return False, "NETWORK_LIVE_OVERRIDE_INVALID"
+    if not isinstance(obj, dict):
+        return False, "NETWORK_LIVE_OVERRIDE_INVALID"
+    enabled = bool(obj.get("enabled", False))
+    enabled_by_decision = bool(obj.get("enabled_by_decision", False))
+    if enabled and enabled_by_decision:
+        return True, "NETWORK_LIVE_ENABLED"
+    if enabled and not enabled_by_decision:
+        return False, "DECISION_REQUIRED"
+    return False, "NETWORK_LIVE_DISABLED"

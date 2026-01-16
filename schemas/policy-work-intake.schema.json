@@ -211,7 +211,22 @@
     },
     "job_failure_class": {
       "type": "string",
-      "enum": ["DEMO_PREREQ_FAIL", "DEMO_CATALOG_PARSE", "CORE_BREAK", "OTHER", "TIMEOUT", "PASS"]
+      "enum": [
+        "DEMO_PREREQ_FAIL",
+        "DEMO_PREREQ_APPLY_FAIL",
+        "DEMO_ADVISOR_SUGGESTIONS_MISSING",
+        "DEMO_CATALOG_MISSING",
+        "DEMO_CATALOG_PARSE",
+        "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING",
+        "DEMO_QUALITY_GATE_REPORT_MISSING",
+        "DEMO_SESSION_CONTEXT_HASH_MISMATCH",
+        "DEMO_SESSION_CONTEXT_MISSING",
+        "CORE_BREAK",
+        "POLICY_TIME_LIMIT",
+        "OTHER",
+        "TIMEOUT",
+        "PASS"
+      ]
     },
     "rule": {
       "type": "object",
@@ -221,7 +236,7 @@
         "id": { "type": "string", "minLength": 1 },
         "source_type": {
           "type": "string",
-          "enum": ["GAP", "LENS_GAP", "PDCA_REGRESSION", "SCRIPT_BUDGET", "DOC_NAV", "USER_REQUEST", "ROADMAP_ITEM", "INTEGRITY", "MANUAL_REQUEST", "RELEASE", "JOB_STATUS", "TIME_SINK", "GITHUB_OPS"]
+          "enum": ["GAP", "LENS_GAP", "PDCA_REGRESSION", "SCRIPT_BUDGET", "DOC_NAV", "USER_REQUEST", "ROADMAP_ITEM", "INTEGRITY", "MANUAL_REQUEST", "RELEASE", "JOB_STATUS", "TIME_SINK", "GITHUB_OPS", "DEPLOY_JOB"]
         },
         "when": {
           "type": "object",

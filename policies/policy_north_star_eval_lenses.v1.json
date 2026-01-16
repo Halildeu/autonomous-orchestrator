@@ -3,6 +3,7 @@
   "eval_lenses_enabled": [
     "trend",
     "integrity_compat",
+    "integration_coherence",
     "ai_ops_fit",
     "github_ops_release",
     "operability"
@@ -14,6 +15,15 @@
   "integrity_compat": {
     "min_score_ok": 1.0,
     "min_score_warn": 0.5
+  },
+  "integration_coherence": {
+    "weight": 0.2,
+    "required_signals": [
+      "layer_boundary_report",
+      "pack_validation_report",
+      "core_unlock_compliance",
+      "schema_validation_summary"
+    ]
   },
   "ai_ops_fit": {
     "required_fields": [

@@ -3,15 +3,38 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from src.benchmark.assessment_signals import _load_integration_coherence_signals, _load_pdca_cursor_signal
 from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import build_gap_register, build_gap_summary_md
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
+
+
+DOCS_DRIFT_DEFAULT_VIEW_ALLOWLIST = [
+    "docs/ARCHITECTURE/**/*.md",
+    "docs/DECISIONS/**/*.md",
+    "docs/OPERATIONS/**/*.md",
+    "fixtures/**/*.md",
+    "modules/**/README.md",
+    "roadmaps/PROJECTS/**/*.md",
+    "templates/**/*.md",
+]
+DOCS_DRIFT_DEFAULT_MAPPING = {
+    "include_extension_manifest_refs": True,
+    "view_doc_allowlist_globs": DOCS_DRIFT_DEFAULT_VIEW_ALLOWLIST,
+    "exclude_legacy_redirect_stubs": True,
+    "exclude_archive_only_banners": True,
+    "root_readme_mode": "mapped",
+    "root_changelog_mode": "mapped",
+}
+DOCS_DRIFT_EXCLUDE_DIRS = {".cache", "evidence", ".codex", ".venv", ".git"}
+DOCS_DRIFT_LEGACY_MARKERS = ("Legacy Redirect", "ARCHIVE ONLY")
 
 
 def _now_iso() -> str:
@@ -160,6 +183,245 @@ def _load_doc_nav_signal(*, workspace_root: Path) -> dict[str, Any]:
     }
 
 
+def _iter_md_paths(root: Path, *, exclude_dirs: set[str]) -> list[Path]:
+    if not root.exists():
+        return []
+    paths: list[Path] = []
+    for path in root.rglob("*.md"):
+        if not path.is_file():
+            continue
+        if any(part in exclude_dirs for part in path.parts):
+            continue
+        paths.append(path)
+    return sorted(paths)
+
+
+def _load_docs_hygiene_signal(*, core_root: Path) -> dict[str, Any]:
+    repo_root = core_root
+    ops_root = repo_root / "docs" / "OPERATIONS"
+    ops_files = _iter_md_paths(ops_root, exclude_dirs=set())
+    docs_ops_md_count = len(ops_files)
+    docs_ops_md_bytes = sum(p.stat().st_size for p in ops_files)
+    repo_files = _iter_md_paths(repo_root, exclude_dirs={".git", ".cache", ".venv"})
+    repo_md_total_count = len(repo_files)
+    return {
+        "docs_ops_md_count": int(docs_ops_md_count),
+        "docs_ops_md_bytes": int(docs_ops_md_bytes),
+        "repo_md_total_count": int(repo_md_total_count),
+    }
+
+def _load_operability_policy(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
+    ws_policy = workspace_root / "policies" / "policy_north_star_operability.v1.json"
+    core_policy = core_root / "policies" / "policy_north_star_operability.v1.json"
+    path = ws_policy if ws_policy.exists() else core_policy
+    if not path.exists():
+        return {}
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def _load_docs_drift_mapping(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
+    mapping = dict(DOCS_DRIFT_DEFAULT_MAPPING)
+    mapping["view_doc_allowlist_globs"] = list(DOCS_DRIFT_DEFAULT_VIEW_ALLOWLIST)
+    policy = _load_operability_policy(core_root=core_root, workspace_root=workspace_root)
+    raw = policy.get("docs_drift_mapping") if isinstance(policy, dict) else None
+    if not isinstance(raw, dict):
+        return mapping
+    if isinstance(raw.get("include_extension_manifest_refs"), bool):
+        mapping["include_extension_manifest_refs"] = raw.get("include_extension_manifest_refs")
+    if isinstance(raw.get("exclude_legacy_redirect_stubs"), bool):
+        mapping["exclude_legacy_redirect_stubs"] = raw.get("exclude_legacy_redirect_stubs")
+    if isinstance(raw.get("exclude_archive_only_banners"), bool):
+        mapping["exclude_archive_only_banners"] = raw.get("exclude_archive_only_banners")
+    globs = raw.get("view_doc_allowlist_globs")
+    if isinstance(globs, list):
+        cleaned = sorted({str(x) for x in globs if isinstance(x, str) and x.strip()})
+        if cleaned:
+            mapping["view_doc_allowlist_globs"] = cleaned
+    for key in ("root_readme_mode", "root_changelog_mode"):
+        value = raw.get(key)
+        if value in ("mapped", "unmapped"):
+            mapping[key] = value
+    return mapping
+
+
+def _collect_extension_manifest_paths(core_root: Path) -> list[Path]:
+    ext_root = core_root / "extensions"
+    if not ext_root.exists():
+        return []
+    return sorted(ext_root.rglob("extension.manifest*.json"))
+
+
+def _extract_md_links(*, text: str, core_root: Path) -> set[str]:
+    md_pattern = re.compile(r"([A-Za-z0-9_./-]+\.md)")
+    hits: set[str] = set()
+    core_root = core_root.resolve()
+    for match in md_pattern.findall(text or ""):
+        token = match.strip()
+        if token.startswith("./"):
+            token = token[2:]
+        if token.startswith("/"):
+            token = token[1:]
+        if not token:
+            continue
+        rel = Path(token).as_posix()
+        candidate = (core_root / rel).resolve()
+        try:
+            candidate.relative_to(core_root)
+        except Exception:
+            continue
+        if candidate.exists() and candidate.is_file():
+            hits.add(candidate.relative_to(core_root).as_posix())
+    return hits
+
+
+def _resolve_manifest_ref(*, core_root: Path, manifest_path: Path, ref: str) -> str | None:
+    if not isinstance(ref, str) or not ref.strip():
+        return None
+    ref_path = Path(ref)
+    candidates: list[Path] = []
+    if ref_path.is_absolute():
+        candidates.append(ref_path)
+    else:
+        candidates.append((core_root / ref_path).resolve())
+        candidates.append((manifest_path.parent / ref_path).resolve())
+    core_root = core_root.resolve()
+    for candidate in candidates:
+        try:
+            candidate.relative_to(core_root)
+        except Exception:
+            continue
+        if candidate.exists() and candidate.is_file() and candidate.suffix.lower() == ".md":
+            return candidate.relative_to(core_root).as_posix()
+    return None
+
+
+def _collect_extension_manifest_refs(*, core_root: Path, manifest_paths: list[Path]) -> set[str]:
+    refs: set[str] = set()
+    for manifest_path in manifest_paths:
+        try:
+            obj = _load_json(manifest_path)
+        except Exception:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        doc_ref = obj.get("docs_ref")
+        if isinstance(doc_ref, str):
+            resolved = _resolve_manifest_ref(core_root=core_root, manifest_path=manifest_path, ref=doc_ref)
+            if resolved:
+                refs.add(resolved)
+        ai_refs = obj.get("ai_context_refs")
+        if isinstance(ai_refs, list):
+            for item in ai_refs:
+                if isinstance(item, str):
+                    resolved = _resolve_manifest_ref(core_root=core_root, manifest_path=manifest_path, ref=item)
+                    if resolved:
+                        refs.add(resolved)
+    return refs
+
+
+def _collect_view_allowlist(*, core_root: Path, globs: list[str]) -> set[str]:
+    allowlist: set[str] = set()
+    core_root = core_root.resolve()
+    for pattern in globs:
+        for path in core_root.glob(pattern):
+            if not path.is_file() or path.suffix.lower() != ".md":
+                continue
+            if any(part in DOCS_DRIFT_EXCLUDE_DIRS for part in path.parts):
+                continue
+            try:
+                rel = path.relative_to(core_root).as_posix()
+            except Exception:
+                continue
+            allowlist.add(rel)
+    return allowlist
+
+
+def _is_legacy_excluded(
+    *, path: Path, exclude_legacy_redirect: bool, exclude_archive_only: bool, max_lines: int = 30
+) -> bool:
+    if not exclude_legacy_redirect and not exclude_archive_only:
+        return False
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()[:max_lines]
+    except Exception:
+        return False
+    head = "\n".join(lines)
+    if exclude_legacy_redirect and DOCS_DRIFT_LEGACY_MARKERS[0] in head:
+        return True
+    if exclude_archive_only and DOCS_DRIFT_LEGACY_MARKERS[1] in head:
+        return True
+    return False
+
+
+def compute_docs_drift_signal(*, core_root: Path, mapping: dict[str, Any]) -> dict[str, Any]:
+    all_md_paths = _iter_md_paths(core_root, exclude_dirs=DOCS_DRIFT_EXCLUDE_DIRS)
+    all_md = {p.relative_to(core_root).as_posix() for p in all_md_paths}
+    archive_md = {p for p in all_md if p.startswith("docs/ARCHIVE/")}
+
+    ssot_linked: set[str] = set()
+    ssot_map_path = core_root / "docs" / "OPERATIONS" / "SSOT-MAP.md"
+    agents_path = core_root / "AGENTS.md"
+    if ssot_map_path.exists():
+        ssot_linked |= _extract_md_links(text=ssot_map_path.read_text(encoding="utf-8"), core_root=core_root)
+    if agents_path.exists():
+        ssot_linked |= _extract_md_links(text=agents_path.read_text(encoding="utf-8"), core_root=core_root)
+
+    view_globs = mapping.get("view_doc_allowlist_globs")
+    view_globs = view_globs if isinstance(view_globs, list) else []
+    view_allowlist = _collect_view_allowlist(core_root=core_root, globs=view_globs)
+
+    manifest_paths = _collect_extension_manifest_paths(core_root)
+    if mapping.get("include_extension_manifest_refs", True):
+        manifest_refs = _collect_extension_manifest_refs(core_root=core_root, manifest_paths=manifest_paths)
+    else:
+        manifest_refs = set()
+
+    root_mapped: set[str] = set()
+    if mapping.get("root_readme_mode") == "mapped" and (core_root / "README.md").exists():
+        root_mapped.add("README.md")
+    if mapping.get("root_changelog_mode") == "mapped" and (core_root / "CHANGELOG.md").exists():
+        root_mapped.add("CHANGELOG.md")
+
+    mapped = ssot_linked | view_allowlist | manifest_refs | root_mapped
+
+    legacy_excluded: set[str] = set()
+    exclude_legacy = bool(mapping.get("exclude_legacy_redirect_stubs", True))
+    exclude_archive_only = bool(mapping.get("exclude_archive_only_banners", True))
+    if exclude_legacy or exclude_archive_only:
+        for rel in sorted(all_md - archive_md):
+            path = core_root / rel
+            if _is_legacy_excluded(
+                path=path,
+                exclude_legacy_redirect=exclude_legacy,
+                exclude_archive_only=exclude_archive_only,
+            ):
+                legacy_excluded.add(rel)
+
+    unmapped = sorted(all_md - mapped - archive_md - legacy_excluded)
+    return {
+        "unmapped_md_count": len(unmapped),
+        "unmapped_md_sample": unmapped[:20],
+        "mapped_sources": {
+            "ssot_router_count": len(ssot_linked),
+            "extension_manifest_ref_count": len(manifest_refs),
+            "view_doc_allowlist_count": len(view_allowlist),
+            "excluded_legacy_count": len(legacy_excluded),
+            "excluded_archive_count": len(archive_md),
+        },
+    }
+
+
+def _load_docs_drift_signal(
+    *, core_root: Path, workspace_root: Path, mapping: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    docs_mapping = mapping or _load_docs_drift_mapping(core_root=core_root, workspace_root=workspace_root)
+    return compute_docs_drift_signal(core_root=core_root, mapping=docs_mapping)
+
+
 def _load_jobs_signal(*, workspace_root: Path) -> dict[str, Any]:
     jobs_path = workspace_root / ".cache" / "airunner" / "jobs_index.v1.json"
     if not jobs_path.exists():
@@ -220,31 +482,6 @@ def _load_jobs_signal(*, workspace_root: Path) -> dict[str, Any]:
     }
 
 
-def _load_pdca_cursor_signal(*, workspace_root: Path) -> dict[str, Any]:
-    cursor_path = workspace_root / ".cache" / "index" / "pdca_cursor.v1.json"
-    if not cursor_path.exists():
-        return {"stale_hours": 0.0, "cursor_hash": "", "last_updated": ""}
-    try:
-        obj = _load_json(cursor_path)
-    except Exception:
-        return {"stale_hours": 0.0, "cursor_hash": "", "last_updated": ""}
-    last_run_at = obj.get("last_run_at") if isinstance(obj, dict) else None
-    last_dt = _parse_iso(last_run_at) if isinstance(last_run_at, str) else None
-    stale_hours = 0.0
-    if last_dt is not None:
-        stale_hours = max(0.0, (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600.0)
-    cursor_hash = ""
-    if isinstance(obj, dict):
-        hashes = obj.get("hashes")
-        if isinstance(hashes, dict):
-            cursor_hash = str(hashes.get("gap_register") or "")
-    return {
-        "stale_hours": round(float(stale_hours), 4),
-        "cursor_hash": cursor_hash,
-        "last_updated": str(last_run_at or ""),
-    }
-
-
 def _load_heartbeat_signal(*, workspace_root: Path) -> dict[str, Any]:
     hb_path = workspace_root / ".cache" / "airunner" / "airunner_heartbeat.v1.json"
     if not hb_path.exists():
@@ -254,9 +491,51 @@ def _load_heartbeat_signal(*, workspace_root: Path) -> dict[str, Any]:
     except Exception:
         return {"stale_seconds": 0, "lock_state": "UNKNOWN", "heartbeat_path": str(hb_path)}
     last_tick_at = obj.get("last_tick_at") if isinstance(obj, dict) else None
-    stale_seconds = _seconds_since(last_tick_at if isinstance(last_tick_at, str) else None)
+    ended_at = obj.get("ended_at") if isinstance(obj, dict) else None
+    source_key = "ended_at" if isinstance(ended_at, str) and ended_at else "last_tick_at"
+    source_value = ended_at if source_key == "ended_at" else last_tick_at
+    stale_seconds = _seconds_since(source_value if isinstance(source_value, str) else None)
     lock_state = str(obj.get("last_status") or "UNKNOWN") if isinstance(obj, dict) else "UNKNOWN"
-    return {"stale_seconds": int(stale_seconds), "lock_state": lock_state, "heartbeat_path": str(hb_path)}
+    return {
+        "stale_seconds": int(stale_seconds),
+        "stale_source_key": source_key,
+        "stale_source_value": source_value if isinstance(source_value, str) else "",
+        "lock_state": lock_state,
+        "heartbeat_path": str(hb_path),
+    }
+
+
+def _load_airrunner_state(*, workspace_root: Path, heartbeat_stale_seconds: int) -> dict[str, Any]:
+    enabled_effective = False
+    auto_mode_enabled = False
+    active_hours_enabled = False
+
+    try:
+        from src.prj_airunner.airunner_tick_support import _load_policy as _load_airunner_policy
+
+        airunner_policy, _, _, _ = _load_airunner_policy(workspace_root)
+        enabled_effective = bool(airunner_policy.get("enabled", False))
+        schedule = airunner_policy.get("schedule") if isinstance(airunner_policy.get("schedule"), dict) else {}
+        active_hours = schedule.get("active_hours") if isinstance(schedule.get("active_hours"), dict) else {}
+        active_hours_enabled = bool(active_hours.get("enabled", False))
+    except Exception:
+        enabled_effective = False
+        active_hours_enabled = False
+
+    try:
+        from src.prj_airunner.auto_mode_dispatch import load_auto_mode_policy
+
+        auto_mode_policy, _, _, _ = load_auto_mode_policy(workspace_root=workspace_root)
+        auto_mode_enabled = bool(auto_mode_policy.get("enabled", False))
+    except Exception:
+        auto_mode_enabled = False
+
+    return {
+        "enabled_effective": bool(enabled_effective),
+        "auto_mode_enabled_effective": bool(auto_mode_enabled),
+        "active_hours_enabled": bool(active_hours_enabled),
+        "heartbeat_stale_seconds": int(heartbeat_stale_seconds),
+    }
 
 
 def _load_intake_noise_signal(*, workspace_root: Path) -> dict[str, Any]:
@@ -500,6 +779,7 @@ def _draft_gap_chgs(*, workspace_root: Path, gap_register: dict[str, Any]) -> li
 
 def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     core_root = _repo_root()
+    docs_drift_mapping = _load_docs_drift_mapping(core_root=core_root, workspace_root=workspace_root)
     policy = _load_policy(core_root=core_root, workspace_root=workspace_root)
     if not isinstance(policy, dict) or not policy.get("enabled", True):
         return {"status": "SKIPPED", "reason": "policy_disabled"}
@@ -534,6 +814,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     metrics: list[dict[str, Any]] = []
     warnings: list[str] = []
     input_files: list[Path] = []
+    input_files.append(Path(__file__).resolve())
 
     for pack in packs:
         manifest_path = pack.get("manifest_path")
@@ -567,6 +848,10 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     for candidate in policy_candidates:
         if candidate.exists():
             input_files.append(candidate)
+
+    if docs_drift_mapping.get("include_extension_manifest_refs", True):
+        input_files.extend(_collect_extension_manifest_paths(core_root))
+    input_files.extend(_iter_md_paths(core_root, exclude_dirs=DOCS_DRIFT_EXCLUDE_DIRS))
 
     controls = sorted(controls, key=lambda x: str(x.get("id") or ""))
     metrics = sorted(metrics, key=lambda x: str(x.get("id") or ""))
@@ -657,8 +942,17 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     jobs_signal = _load_jobs_signal(workspace_root=workspace_root)
     pdca_cursor_signal = _load_pdca_cursor_signal(workspace_root=workspace_root)
     heartbeat_signal = _load_heartbeat_signal(workspace_root=workspace_root)
+    airrunner_state_signal = _load_airrunner_state(
+        workspace_root=workspace_root,
+        heartbeat_stale_seconds=int(heartbeat_signal.get("stale_seconds", 0) or 0),
+    )
     intake_noise_signal = _load_intake_noise_signal(workspace_root=workspace_root)
     integrity_signal = {"status": str(integrity_result or "UNKNOWN")}
+    docs_hygiene_signal = _load_docs_hygiene_signal(core_root=core_root)
+    docs_drift_signal = _load_docs_drift_signal(
+        core_root=core_root, workspace_root=workspace_root, mapping=docs_drift_mapping
+    )
+    integration_coherence_signals = _load_integration_coherence_signals(workspace_root=workspace_root)
 
     assessment_raw = {
         "version": "v1",
@@ -679,9 +973,13 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "airunner_jobs": jobs_signal,
             "pdca_cursor": pdca_cursor_signal,
             "airunner_heartbeat": heartbeat_signal,
+            "airrunner_state": airrunner_state_signal,
             "work_intake_noise": intake_noise_signal,
             "integrity": integrity_signal,
+            "docs_hygiene": docs_hygiene_signal,
+            "docs_drift": docs_drift_signal,
         },
+        "integration_coherence_signals": integration_coherence_signals,
         "notes": [],
     }
 
@@ -814,6 +1112,13 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             lens_signals.sort(key=lambda item: str(item.get("lens_id") or ""))
 
     report_only = eval_report_only or integrity_result == "FAIL"
+    previous_gap_register = None
+    previous_gap_path = workspace_root / ".cache" / "index" / "gap_register.v1.json"
+    if previous_gap_path.exists():
+        try:
+            previous_gap_register = _load_json(previous_gap_path)
+        except Exception:
+            previous_gap_register = None
     gap_register = build_gap_register(
         controls=controls,
         metrics=metrics,
@@ -823,6 +1128,8 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         source_raw_hash=source_raw_hash,
         evidence_pointers=evidence_pointers,
         report_only=report_only,
+        previous_gap_register=previous_gap_register,
+        cooldown_seconds=86400,
     )
     gap_summary_md = build_gap_summary_md(gap_register=gap_register)
 
