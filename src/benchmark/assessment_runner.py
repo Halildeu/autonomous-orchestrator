@@ -206,7 +206,7 @@ def _load_docs_hygiene_signal(*, core_root: Path) -> dict[str, Any]:
     ops_files = _iter_md_paths(ops_root, exclude_dirs=set())
     docs_ops_md_count = len(ops_files)
     docs_ops_md_bytes = sum(p.stat().st_size for p in ops_files)
-    repo_files = _iter_md_paths(repo_root, exclude_dirs={".git", ".cache", ".venv"})
+    repo_files = _iter_md_paths(repo_root, exclude_dirs=DOCS_DRIFT_EXCLUDE_DIRS)
     repo_md_total_count = len(repo_files)
     return {
         "docs_ops_md_count": int(docs_ops_md_count),
@@ -225,6 +225,51 @@ def _load_operability_policy(*, core_root: Path, workspace_root: Path) -> dict[s
     except Exception:
         return {}
     return obj if isinstance(obj, dict) else {}
+
+
+def _maybe_auto_pdca_recheck(
+    *, core_root: Path, workspace_root: Path, script_budget_signal: dict[str, Any], dry_run: bool
+) -> None:
+    if dry_run:
+        return
+    report_path = str(script_budget_signal.get("report_path") or "")
+    if not report_path:
+        return
+    hard_exceeded = int(script_budget_signal.get("hard_exceeded", 0) or 0)
+    if hard_exceeded > 0:
+        return
+
+    operability_policy = _load_operability_policy(core_root=core_root, workspace_root=workspace_root)
+    thresholds = (
+        operability_policy.get("thresholds")
+        if isinstance(operability_policy.get("thresholds"), dict)
+        else {}
+    )
+    try:
+        stale_warn = float(thresholds.get("pdca_cursor_stale_hours_warn", 0) or 0)
+    except Exception:
+        stale_warn = 0.0
+    if stale_warn <= 0:
+        return
+
+    cursor_signal = _load_pdca_cursor_signal(workspace_root=workspace_root)
+    try:
+        stale_hours = float(cursor_signal.get("stale_hours", 0.0) or 0.0)
+    except Exception:
+        stale_hours = 0.0
+    if stale_hours <= stale_warn:
+        return
+
+    gap_path = workspace_root / ".cache" / "index" / "gap_register.v1.json"
+    if not gap_path.exists():
+        return
+
+    try:
+        from src.benchmark.pdca_runner import run_pdca
+
+        run_pdca(workspace_root=workspace_root, dry_run=False)
+    except Exception:
+        return
 
 
 def _load_docs_drift_mapping(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
@@ -574,7 +619,12 @@ def _load_intake_noise_signal(*, workspace_root: Path) -> dict[str, Any]:
                     last_seen = entry.get("last_seen")
                     seen_dt = _parse_iso(last_seen if isinstance(last_seen, str) else None)
                     if seen_dt and (now - seen_dt).total_seconds() <= 86400:
-                        suppressed_24h += int(entry.get("suppressed_count", 0) or 0)
+                        try:
+                            suppressed_count = int(entry.get("suppressed_count", 0) or 0)
+                        except Exception:
+                            suppressed_count = 0
+                        if suppressed_count > 0:
+                            suppressed_24h += 1
         except Exception:
             suppressed_24h = 0
     return {"new_items_24h": int(new_items_24h), "suppressed_24h": int(suppressed_24h)}
@@ -1030,6 +1080,12 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     script_budget_signal = _load_script_budget_signal(core_root=core_root, workspace_root=workspace_root)
     doc_nav_signal = _load_doc_nav_signal(workspace_root=workspace_root)
     jobs_signal = _load_jobs_signal(workspace_root=workspace_root)
+    _maybe_auto_pdca_recheck(
+        core_root=core_root,
+        workspace_root=workspace_root,
+        script_budget_signal=script_budget_signal,
+        dry_run=dry_run,
+    )
     pdca_cursor_signal = _load_pdca_cursor_signal(workspace_root=workspace_root)
     heartbeat_signal = _load_heartbeat_signal(workspace_root=workspace_root)
     airrunner_state_signal = _load_airrunner_state(
