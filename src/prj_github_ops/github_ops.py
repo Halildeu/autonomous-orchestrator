@@ -484,6 +484,39 @@ def _run_pr_open_job(
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
     }
+    # Idempotency: if an open PR already exists for (head_branch -> base_branch), treat as NOOP.
+    # This makes repeated "one-button" flows safe without creating duplicate PRs.
+    head_query = head_branch
+    if ":" not in head_query:
+        head_query = f"{owner}:{head_query}"
+    list_url = (
+        f"https://api.github.com/repos/{owner}/{repo}/pulls"
+        f"?state=open&base={base_branch}&head={head_query}&per_page=1"
+    )
+    try:
+        list_req = _urllib_request.Request(list_url, headers=headers, method="GET")
+        list_status, list_body, _headers_list, ssl_selected, ssl_tried = _urlopen_read_with_ssl_fallback(
+            list_req,
+            workspace_root=_Path(workspace_root),
+            timeout_seconds=30,
+        )
+        payload.setdefault("ssl_context_selected", ssl_selected)
+        payload.setdefault("ssl_context_tried", ssl_tried)
+        if int(list_status or 0) == 200:
+            try:
+                arr = _json.loads(list_body.decode("utf-8")) if list_body else []
+            except Exception:
+                arr = []
+            if isinstance(arr, list) and arr:
+                first = arr[0] if isinstance(arr[0], dict) else {}
+                payload["rc"] = 0
+                payload["noop"] = True
+                payload.update(_extract_pr_metadata(first))
+                _write(payload)
+                return
+    except Exception:
+        # Best-effort idempotency: ignore errors here and proceed to POST.
+        pass
     data = _json.dumps(request_body).encode("utf-8")
     req = _urllib_request.Request(api_url, data=data, headers=headers, method="POST")
     try:

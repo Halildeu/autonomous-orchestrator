@@ -928,6 +928,8 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         if seed_path.exists():
             input_files.append(seed_path)
 
+    input_files.append(workspace_root / ".cache" / "airunner" / "airunner_heartbeat.v1.json")
+
     controls = sorted(controls, key=lambda x: str(x.get("id") or ""))
     metrics = sorted(metrics, key=lambda x: str(x.get("id") or ""))
 

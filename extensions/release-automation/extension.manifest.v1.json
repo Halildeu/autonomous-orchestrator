@@ -24,6 +24,7 @@
     "kernel_api_actions": [],
     "ops": [
       "release-check",
+      "release-final-e2e",
       "release-plan",
       "release-prepare",
       "release-publish"
