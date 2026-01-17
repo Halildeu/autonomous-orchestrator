@@ -4,177 +4,28 @@ import argparse
 import json
 import os
 import subprocess
-import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.ops.reaper import parse_bool as parse_reaper_bool
-
-
-def repo_root() -> Path:
-    # src/ops/roadmap_cli.py -> ops -> src -> repo root
-    return Path(__file__).resolve().parents[2]
-
-
-def warn(msg: str) -> None:
-    print(msg, file=sys.stderr)
-
-
-def _resolve_under_root(root: Path, p: Path) -> Path:
-    return (root / p).resolve() if not p.is_absolute() else p.resolve()
-
-
-def _parse_bool_flag(value: str, *, flag_name: str) -> bool:
-    try:
-        return bool(parse_reaper_bool(str(value)))
-    except Exception as e:
-        raise ValueError(f"INVALID_{flag_name.upper()}: expected true|false") from e
-
-
-def _load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _now_iso8601() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def _extract_milestone_preview(roadmap_path: Path, *, milestone_id: str | None) -> dict[str, Any]:
-    if milestone_id is None:
-        return {"next_milestone": None}
-    try:
-        obj = _load_json(roadmap_path)
-    except Exception:
-        return {"next_milestone": milestone_id, "title": None, "deliverables_count": None, "gates_count": None}
-
-    milestones = obj.get("milestones") if isinstance(obj, dict) else None
-    if not isinstance(milestones, list):
-        return {"next_milestone": milestone_id, "title": None, "deliverables_count": None, "gates_count": None}
-
-    for ms in milestones:
-        if not isinstance(ms, dict):
-            continue
-        if ms.get("id") != milestone_id:
-            continue
-        deliverables = ms.get("steps") if isinstance(ms.get("steps"), list) else ms.get("deliverables")
-        if not isinstance(deliverables, list):
-            deliverables = []
-        gates = ms.get("gates") if isinstance(ms.get("gates"), list) else []
-        return {
-            "next_milestone": milestone_id,
-            "title": ms.get("title"),
-            "deliverables_count": len(deliverables),
-            "gates_count": len(gates),
-        }
-
-    return {"next_milestone": milestone_id, "title": None, "deliverables_count": None, "gates_count": None}
-
-
-def _read_actions_top(workspace_root: Path, *, limit: int = 3) -> tuple[int, list[dict[str, Any]]]:
-    path = workspace_root / ".cache" / "roadmap_actions.v1.json"
-    if not path.exists():
-        return (0, [])
-    try:
-        obj = _load_json(path)
-    except Exception:
-        return (0, [])
-    actions = obj.get("actions") if isinstance(obj, dict) else None
-    if not isinstance(actions, list):
-        return (0, [])
-    cleaned: list[dict[str, Any]] = []
-    for a in actions:
-        if not isinstance(a, dict):
-            continue
-        cleaned.append(
-            {
-                "action_id": a.get("action_id"),
-                "severity": a.get("severity"),
-                "kind": a.get("kind"),
-                "milestone_hint": a.get("milestone_hint"),
-                "message": (str(a.get("message"))[:200] if a.get("message") is not None else None),
-            }
-        )
-    cleaned.sort(key=lambda x: str(x.get("action_id") or ""))
-    return (len(cleaned), cleaned[: max(0, int(limit))])
-
-
-def _read_system_status_summary(workspace_root: Path) -> tuple[str | None, str | None]:
-    status_path = workspace_root / ".cache" / "reports" / "system_status.v1.json"
-    if not status_path.exists():
-        return (None, None)
-    try:
-        obj = _load_json(status_path)
-    except Exception:
-        return (None, str(status_path))
-    overall = obj.get("overall_status") if isinstance(obj, dict) else None
-    return (overall if isinstance(overall, str) else None, str(status_path))
-
-
-def _read_last_finish_evidence(workspace_root: Path) -> str | None:
-    path = workspace_root / ".cache" / "last_finish_evidence.v1.txt"
-    if not path.exists():
-        return None
-    try:
-        return path.read_text(encoding="utf-8").strip()
-    except Exception:
-        return None
-
-
-def _load_project_manifests(core_root: Path) -> list[dict[str, Any]]:
-    projects_root = core_root / "roadmaps" / "PROJECTS"
-    if not projects_root.exists():
-        return []
-    manifests = sorted(projects_root.rglob("project.manifest.v1.json"))
-    results: list[dict[str, Any]] = []
-    for path in manifests:
-        rel = path.relative_to(core_root).as_posix()
-        data: dict[str, Any] = {}
-        try:
-            obj = _load_json(path)
-            if isinstance(obj, dict):
-                data = obj
-        except Exception:
-            data = {}
-        project_id = data.get("project_id")
-        if not isinstance(project_id, str) or not project_id.strip():
-            project_id = path.parent.name
-        results.append(
-            {
-                "project_id": str(project_id),
-                "title": data.get("title"),
-                "version": data.get("version"),
-                "manifest_path": rel,
-            }
-        )
-    results.sort(key=lambda x: str(x.get("project_id") or ""))
-    return results
-
-
-def _portfolio_next_focus(bench_status: str | None, actions_top: list[dict[str, Any]]) -> str:
-    if bench_status and bench_status != "OK":
-        return "M10_CLOSEOUT"
-    for a in actions_top:
-        if isinstance(a, dict) and str(a.get("kind") or "") == "SCRIPT_BUDGET":
-            return "PRJ-M0-MAINTAINABILITY"
-    return "PRJ-KERNEL-API"
-
-
-def _print_chat_block(*, preview: str, result: str, evidence: str, actions: str, next_steps: str, final_json: dict[str, Any]) -> None:
-    # Human-readable block (no secrets, no shell commands for the user).
-    print("PREVIEW:")
-    print(preview.rstrip() + ("\n" if preview and not preview.endswith("\n") else ""))
-    print("RESULT:")
-    print(result.rstrip() + ("\n" if result and not result.endswith("\n") else ""))
-    print("EVIDENCE:")
-    print(evidence.rstrip() + ("\n" if evidence and not evidence.endswith("\n") else ""))
-    print("ACTIONS:")
-    print(actions.rstrip() + ("\n" if actions and not actions.endswith("\n") else ""))
-    print("NEXT:")
-    print(next_steps.rstrip() + ("\n" if next_steps and not next_steps.endswith("\n") else ""))
-
-    # Machine-readable final line (single-line JSON).
-    print(json.dumps(final_json, ensure_ascii=False, sort_keys=True))
+from src.ops.roadmap_cli_helpers import (
+    _extract_milestone_preview,
+    _load_json,
+    _load_project_manifests,
+    _manual_request_counts,
+    _now_iso8601,
+    _parse_bool_flag,
+    _portfolio_next_focus,
+    _print_chat_block,
+    _read_actions_top,
+    _read_extension_registry,
+    _read_last_finish_evidence,
+    _read_system_status_summary,
+    _read_work_intake_focus,
+    _resolve_under_root,
+    repo_root,
+    warn,
+)
+from src.ops.portfolio_release import read_release_summary
 
 
 def cmd_roadmap_plan(args: argparse.Namespace) -> int:
@@ -245,7 +96,7 @@ def cmd_roadmap_apply(args: argparse.Namespace) -> int:
     workspace_root = _resolve_under_root(root, Path(str(getattr(args, "workspace_root", ".") or ".")))
 
     try:
-        dry_run = parse_reaper_bool(str(args.dry_run))
+        dry_run = _parse_bool_flag(str(args.dry_run), flag_name="dry_run")
     except ValueError:
         warn("ERROR: invalid --dry-run (expected true|false)")
         return 2
@@ -398,7 +249,11 @@ def cmd_project_status(args: argparse.Namespace) -> int:
     allow_obj = core_policy.get("allow_core_writes_only_when", {}) if isinstance(core_policy.get("allow_core_writes_only_when"), dict) else {}
     core_env_var = str(allow_obj.get("env_var", "CORE_UNLOCK"))
     core_env_value = str(allow_obj.get("env_value", "1"))
+    require_unlock_reason = bool(core_policy.get("require_unlock_reason", False))
+    core_unlock_reason_present = bool(str(os.environ.get("CORE_UNLOCK_REASON", "")).strip())
     core_unlock_requested = str(os.environ.get(core_env_var, "")).strip() == core_env_value
+    if require_unlock_reason and not core_unlock_reason_present:
+        core_unlock_requested = False
     core_lock = "ENABLED" if core_enabled and core_mode == "locked" else "DISABLED"
 
     project_root = workspace_root / "project" / "default"
@@ -424,7 +279,8 @@ def cmd_project_status(args: argparse.Namespace) -> int:
     result_line = (
         f"status={result_status} overall={overall_status or 'unknown'} "
         f"backoff_seconds={backoff_seconds} quarantine_until={quarantine_until} "
-        f"core_lock={core_lock} core_unlock_requested={core_unlock_requested}"
+        f"core_lock={core_lock} core_unlock_requested={core_unlock_requested} "
+        f"core_unlock_reason_present={core_unlock_reason_present}"
     )
     evidence_parts: list[str] = []
     if last_finish:
@@ -483,13 +339,41 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
     workspace_root = _resolve_under_root(root, Path(str(args.workspace_root)))
     mode = str(getattr(args, "mode", "autopilot_chat") or "autopilot_chat").strip()
 
-    projects = _load_project_manifests(root)
-    active_projects = [p.get("project_id") for p in projects if isinstance(p.get("project_id"), str)]
-    active_projects = [str(x) for x in active_projects if x]
-    active_projects.sort()
+    registry_entries, registry_path, registry_status = _read_extension_registry(workspace_root)
+    if registry_entries:
+        projects = []
+        for entry in registry_entries:
+            extension_id = entry.get("extension_id") if isinstance(entry.get("extension_id"), str) else None
+            if not extension_id:
+                continue
+            projects.append(
+                {
+                    "project_id": str(extension_id),
+                    "title": entry.get("title"),
+                    "version": entry.get("semver"),
+                    "manifest_path": entry.get("manifest_path"),
+                }
+            )
+        projects.sort(key=lambda x: str(x.get("project_id") or ""))
+        active_projects = [p.get("project_id") for p in projects if isinstance(p.get("project_id"), str)]
+        active_projects = [str(x) for x in active_projects if x]
+        active_projects.sort()
+    else:
+        projects = _load_project_manifests(root)
+        active_projects = [p.get("project_id") for p in projects if isinstance(p.get("project_id"), str)]
+        active_projects = [str(x) for x in active_projects if x]
+        active_projects.sort()
 
     actions_count, actions_top = _read_actions_top(workspace_root, limit=5)
     bench_status = None
+    pm_suite_summary: dict[str, Any] = {
+        "status": "IDLE",
+        "extension_id": "PRJ-PM-SUITE",
+        "manifest_path": "extensions/PRJ-PM-SUITE/extension.manifest.v1.json",
+        "schema_paths": [],
+        "policy_paths": [],
+        "notes": ["pm_suite_missing"],
+    }
     sys_path = workspace_root / ".cache" / "reports" / "system_status.v1.json"
     if sys_path.exists():
         try:
@@ -501,19 +385,37 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
             bench = sections.get("benchmark") if isinstance(sections, dict) else None
             if isinstance(bench, dict) and isinstance(bench.get("status"), str):
                 bench_status = bench.get("status")
+            pm_suite = sections.get("pm_suite") if isinstance(sections, dict) else None
+            if isinstance(pm_suite, dict):
+                pm_suite_summary = pm_suite
 
-    next_focus = _portfolio_next_focus(str(bench_status or "WARN"), actions_top)
+    next_focus = _portfolio_next_focus(str(bench_status or "WARN"), actions_top, active_projects)
+    intake_focus, intake_path = _read_work_intake_focus(workspace_root)
+    intake_focus_value = intake_focus or "NONE"
+    manual_request_count, manual_request_by_bucket = _manual_request_counts(workspace_root)
+    release_summary = read_release_summary(workspace_root)
     status = "OK" if active_projects and actions_count == 0 else "WARN"
 
     report = {
         "version": "v1",
         "generated_at": _now_iso8601(),
         "workspace_root": str(workspace_root),
+        "extensions": {
+            "registry_status": registry_status,
+            "registry_path": registry_path or "",
+            "count_total": len(active_projects),
+            "extension_ids": active_projects,
+        },
         "projects_count": len(active_projects),
         "active_projects": active_projects,
         "projects": projects,
         "top_project_debts": actions_top,
         "next_project_focus": next_focus,
+        "next_intake_focus": intake_focus_value,
+        "manual_request_count": int(manual_request_count),
+        "manual_requests_by_bucket": manual_request_by_bucket,
+        "release": release_summary,
+        "pm_suite": pm_suite_summary,
         "notes": [],
     }
 
@@ -527,6 +429,12 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         "active_projects": active_projects,
         "top_project_debts": actions_top,
         "next_project_focus": next_focus,
+        "next_intake_focus": intake_focus_value,
+        "manual_request_count": int(manual_request_count),
+        "release_status": release_summary.get("status"),
+        "release_version": release_summary.get("release_version"),
+        "extensions_registry_status": registry_status,
+        "extensions_registry_path": registry_path or "",
         "report_path": str(out_path.relative_to(workspace_root)) if out_path.is_relative_to(workspace_root) else str(out_path),
     }
 
@@ -534,12 +442,20 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         preview_lines = [
             f"projects_count={len(active_projects)}",
             f"next_project_focus={next_focus}",
+            f"next_intake_focus={intake_focus_value}",
+            f"manual_request_count={manual_request_count}",
+            f"extensions_count={len(active_projects)}",
+            f"release_status={release_summary.get('status')}",
         ]
         result_lines = [
             f"status={status}",
             f"bench_status={bench_status or 'unknown'}",
         ]
         evidence_lines = [f"portfolio_status={final_json.get('report_path')}"]
+        if intake_path:
+            evidence_lines.append(f"work_intake={intake_path}")
+        if registry_path:
+            evidence_lines.append(f"extension_registry={registry_path}")
         actions_lines = []
         for a in actions_top:
             actions_lines.append(

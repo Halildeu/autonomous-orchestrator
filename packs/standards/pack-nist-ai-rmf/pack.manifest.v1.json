@@ -12,9 +12,9 @@
   "provides": {
     "intents": [],
     "workflows": [],
-    "formats": ["FORMAT-AUTOPILOT-CHAT"],
+    "formats": [],
     "capability_refs": ["capabilities/CAP_NIST_AI_RMF_BASE.v1.json"],
-    "format_refs": ["formats/format-autopilot-chat.v1.json"]
+    "format_refs": []
   },
   "namespace_prefix": "CAP_NIST",
   "conflict_policy": {

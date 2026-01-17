@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-pm-suite.schema.v1.json",
+  "title": "PM Suite Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "enabled",
+    "default_workflow",
+    "default_priority",
+    "default_severity",
+    "notes"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "enabled": { "type": "boolean" },
+    "default_workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statuses"],
+      "properties": {
+        "statuses": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "default_priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3", "P4"] },
+    "default_severity": { "type": "string", "enum": ["S0", "S1", "S2", "S3", "S4"] },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

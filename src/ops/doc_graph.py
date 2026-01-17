@@ -41,6 +41,10 @@ class DocGraphPolicy:
     max_broken_refs: int
     max_orphan_critical: int
     placeholder_warn_threshold: int
+    placeholders_baseline_enabled: bool
+    placeholders_warn_mode: str
+    placeholders_warn_delta: int
+    placeholders_fail: int
     strict_fail_on_broken: bool
     strict_fail_on_critical_nav_gaps: bool
     orphan_target: int
@@ -65,6 +69,10 @@ def _load_policy(core_root: Path, workspace_root: Path) -> DocGraphPolicy:
         max_broken_refs=1000,
         max_orphan_critical=1000,
         placeholder_warn_threshold=25,
+        placeholders_baseline_enabled=False,
+        placeholders_warn_mode="threshold",
+        placeholders_warn_delta=0,
+        placeholders_fail=200,
         strict_fail_on_broken=True,
         strict_fail_on_critical_nav_gaps=True,
         orphan_target=0,
@@ -120,6 +128,18 @@ def _load_policy(core_root: Path, workspace_root: Path) -> DocGraphPolicy:
         placeholder_warn_threshold = int(obj.get("placeholder_warn_threshold", defaults.placeholder_warn_threshold))
     except Exception:
         placeholder_warn_threshold = defaults.placeholder_warn_threshold
+    placeholders_baseline_enabled = bool(obj.get("placeholders_baseline_enabled", defaults.placeholders_baseline_enabled))
+    placeholders_warn_mode = str(obj.get("placeholders_warn_mode", defaults.placeholders_warn_mode))
+    if placeholders_warn_mode not in {"delta", "threshold"}:
+        placeholders_warn_mode = defaults.placeholders_warn_mode
+    try:
+        placeholders_warn_delta = int(obj.get("placeholders_warn_delta", defaults.placeholders_warn_delta))
+    except Exception:
+        placeholders_warn_delta = defaults.placeholders_warn_delta
+    try:
+        placeholders_fail = int(obj.get("placeholders_fail", defaults.placeholders_fail))
+    except Exception:
+        placeholders_fail = defaults.placeholders_fail
 
     strict_fail_on_broken = obj.get("strict_fail_on_broken", defaults.strict_fail_on_broken)
     strict_fail_on_critical_nav_gaps = obj.get(
@@ -144,6 +164,10 @@ def _load_policy(core_root: Path, workspace_root: Path) -> DocGraphPolicy:
         max_broken_refs=max(0, max_broken),
         max_orphan_critical=max(0, max_orphan),
         placeholder_warn_threshold=max(0, placeholder_warn_threshold),
+        placeholders_baseline_enabled=placeholders_baseline_enabled,
+        placeholders_warn_mode=placeholders_warn_mode,
+        placeholders_warn_delta=max(0, placeholders_warn_delta),
+        placeholders_fail=max(0, placeholders_fail),
         strict_fail_on_broken=strict_fail_on_broken,
         strict_fail_on_critical_nav_gaps=strict_fail_on_critical_nav_gaps,
         orphan_target=max(0, orphan_target),
@@ -170,6 +194,22 @@ def _normalize_ref(ref: str) -> str:
     if ref.startswith("./"):
         ref = ref[2:]
     return ref
+
+
+def _load_placeholders_baseline(workspace_root: Path) -> int | None:
+    path = workspace_root / ".cache" / "index" / "placeholders_baseline.v1.json"
+    if not path.exists():
+        return None
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    baseline = obj.get("placeholders_baseline")
+    if isinstance(baseline, int) and baseline >= 0:
+        return baseline
+    return None
 
 
 def _is_external_ref(ref: str) -> bool:
@@ -527,8 +567,34 @@ def generate_doc_graph_report(
     ambiguities = _roadmap_ambiguities(repo_root)
     critical_nav_missing = _critical_nav_gaps(repo_root=repo_root, refs_by_source=refs_by_source)
 
+    placeholders_count = ref_summary["plan_only_placeholder"]
+    placeholders_baseline = None
+    placeholders_delta = 0
+    placeholders_warn_mode = policy.placeholders_warn_mode
+    if policy.placeholders_baseline_enabled:
+        placeholders_baseline = _load_placeholders_baseline(workspace_root)
+        if placeholders_baseline is None:
+            placeholders_baseline = placeholders_count
+            report_note = "placeholders_baseline_missing=true"
+        else:
+            report_note = None
+        placeholders_delta = max(0, placeholders_count - placeholders_baseline)
+    else:
+        placeholders_baseline = placeholders_count
+        placeholders_delta = 0
+        placeholders_warn_mode = "threshold"
+        report_note = None
+
+    warn_on_placeholders = False
+    if policy.placeholders_baseline_enabled and placeholders_warn_mode == "delta":
+        warn_on_placeholders = placeholders_delta > policy.placeholders_warn_delta
+    else:
+        warn_on_placeholders = placeholders_count > policy.placeholder_warn_threshold
+
     status = "OK"
     if critical_nav_missing and policy.strict_fail_on_critical_nav_gaps:
+        status = "FAIL"
+    elif placeholders_count > policy.placeholders_fail:
         status = "FAIL"
     elif policy.mode == "strict" and policy.strict_fail_on_broken and broken_core > 0 and policy.broken_core == "fail":
         status = "FAIL"
@@ -538,8 +604,12 @@ def generate_doc_graph_report(
         status = "WARN"
     elif len(orphan_critical) > policy.orphan_target:
         status = "WARN"
-    elif ref_summary["plan_only_placeholder"] > policy.placeholder_warn_threshold:
+    elif warn_on_placeholders:
         status = "WARN"
+
+    notes = [f"critical_nav_missing:{path}" for path in critical_nav_missing]
+    if report_note:
+        notes.append(report_note)
 
     report = {
         "version": "v1",
@@ -560,13 +630,19 @@ def generate_doc_graph_report(
             "placeholder_refs_count": ref_summary["plan_only_placeholder"],
             "archive_refs_count": ref_summary["archive_ref"],
         },
+        "placeholders_baseline_enabled": policy.placeholders_baseline_enabled,
+        "placeholders_baseline": placeholders_baseline,
+        "placeholders_delta": placeholders_delta,
+        "placeholders_warn_mode": placeholders_warn_mode,
+        "placeholders_warn_delta": policy.placeholders_warn_delta,
+        "placeholders_fail": policy.placeholders_fail,
         "ref_summary": ref_summary,
         "broken_refs": broken_refs,
         "top_placeholders": placeholder_items,
         "orphan_critical": orphan_critical,
         "ambiguities": ambiguities,
         "entrypoints": entrypoints_present,
-        "notes": [f"critical_nav_missing:{path}" for path in critical_nav_missing],
+        "notes": notes,
     }
     return report
 
@@ -601,6 +677,10 @@ def write_doc_graph_report(
     lines.append(f"Workspace-bound refs: {counts.get('workspace_bound_refs_count', 0)}")
     lines.append(f"External pointers: {counts.get('external_pointer_refs_count', 0)}")
     lines.append(f"Plan-only placeholders: {counts.get('placeholder_refs_count', 0)}")
+    if "placeholders_baseline" in report:
+        lines.append(f"Placeholders baseline: {report.get('placeholders_baseline', 0)}")
+        lines.append(f"Placeholders delta: {report.get('placeholders_delta', 0)}")
+        lines.append(f"Placeholders warn mode: {report.get('placeholders_warn_mode', '')}")
     lines.append("")
 
     ref_summary = report.get("ref_summary") if isinstance(report.get("ref_summary"), dict) else {}
@@ -670,6 +750,10 @@ def run_doc_graph(
             max_broken_refs=policy.max_broken_refs,
             max_orphan_critical=policy.max_orphan_critical,
             placeholder_warn_threshold=policy.placeholder_warn_threshold,
+            placeholders_baseline_enabled=policy.placeholders_baseline_enabled,
+            placeholders_warn_mode=policy.placeholders_warn_mode,
+            placeholders_warn_delta=policy.placeholders_warn_delta,
+            placeholders_fail=policy.placeholders_fail,
             strict_fail_on_broken=policy.strict_fail_on_broken,
             strict_fail_on_critical_nav_gaps=policy.strict_fail_on_critical_nav_gaps,
             orphan_target=policy.orphan_target,

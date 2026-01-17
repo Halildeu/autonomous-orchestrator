@@ -19,6 +19,12 @@ def _now_iso8601() -> str:
 def _dump_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
+def _atomic_write_text(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(payload, encoding="utf-8")
+    os.replace(tmp_path, path)
+
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -428,59 +434,103 @@ def _validate_bundle(core_root: Path, bundle: dict[str, Any]) -> list[str]:
     return msgs
 
 
+def _fallback_bundle(*, workspace_root: Path, reason: str) -> dict[str, Any]:
+    return {
+        "version": "v1",
+        "generated_at": _now_iso8601(),
+        "workspace_root": str(workspace_root),
+        "inputs_summary": {
+            "public_candidates_present": False,
+            "run_index_present": False,
+            "dlq_index_present": False,
+            "actions_present": False,
+            "counts": {"candidates": 0, "runs": 0, "dlq": 0, "actions": 0},
+        },
+        "suggestions": [],
+        "safety": {"status": "WARN", "notes": [str(reason)]},
+    }
+
+
 def run_advisor_for_workspace(*, workspace_root: Path, core_root: Path | None = None, dry_run: bool) -> dict[str, Any]:
     core_root = core_root or _repo_root()
     policy = _load_policy(core_root, workspace_root)
-    if not policy.enabled:
-        return {"status": "OK", "note": "POLICY_DISABLED"}
+    policy_disabled = not policy.enabled
 
     out_path = _resolve_workspace_path(workspace_root, policy.output_path)
     if out_path is None:
         return {"status": "FAIL", "error_code": "OUTSIDE_WORKSPACE_ROOT"}
 
-    bundle, forbid_hits = build_advisor_bundle(workspace_root=workspace_root, core_root=core_root)
-    suggestions = bundle.get("suggestions") if isinstance(bundle, dict) else None
-    suggestions_count = len(suggestions) if isinstance(suggestions, list) else 0
+    try:
+        bundle, forbid_hits = build_advisor_bundle(workspace_root=workspace_root, core_root=core_root)
+        suggestions = bundle.get("suggestions") if isinstance(bundle, dict) else None
+        suggestions_count = len(suggestions) if isinstance(suggestions, list) else 0
+        if policy_disabled and isinstance(bundle, dict):
+            safety = bundle.get("safety")
+            if isinstance(safety, dict):
+                notes = safety.get("notes") if isinstance(safety.get("notes"), list) else []
+                notes.append("POLICY_DISABLED")
+                safety["notes"] = sorted(set(str(x) for x in notes if isinstance(x, str) and x))
+                if safety.get("status") == "OK":
+                    safety["status"] = "WARN"
 
-    errors = _validate_bundle(core_root, bundle)
-    if errors:
+        errors = _validate_bundle(core_root, bundle)
+        if errors:
+            fallback = _fallback_bundle(workspace_root=workspace_root, reason="SCHEMA_INVALID")
+            if not dry_run:
+                _atomic_write_text(out_path, _dump_json(fallback))
+            return {
+                "status": "FAIL",
+                "error_code": "SCHEMA_INVALID",
+                "errors": errors[:10],
+                "suggestions": int(suggestions_count),
+                "out": str(out_path),
+                "on_fail": policy.on_fail,
+            }
+
+        if forbid_hits:
+            fallback = _fallback_bundle(workspace_root=workspace_root, reason="FORBIDDEN_KIND")
+            if not dry_run:
+                _atomic_write_text(out_path, _dump_json(fallback))
+            return {
+                "status": "FAIL",
+                "error_code": "FORBIDDEN_KIND",
+                "forbidden_kinds": sorted(set(forbid_hits)),
+                "suggestions": int(suggestions_count),
+                "out": str(out_path),
+                "on_fail": policy.on_fail,
+            }
+
+        if dry_run:
+            payload = _dump_json(bundle)
+            return {
+                "status": "WOULD_WRITE",
+                "suggestions": int(suggestions_count),
+                "bytes_estimate": len(payload.encode("utf-8")),
+                "out": str(out_path),
+                "on_fail": policy.on_fail,
+            }
+
+        _atomic_write_text(out_path, _dump_json(bundle))
+        result = {
+            "status": "OK",
+            "suggestions": int(suggestions_count),
+            "out": str(out_path),
+            "on_fail": policy.on_fail,
+        }
+        if policy_disabled:
+            result["note"] = "POLICY_DISABLED"
+        return result
+    except Exception as e:
+        fallback = _fallback_bundle(workspace_root=workspace_root, reason="EXCEPTION")
+        if not dry_run:
+            _atomic_write_text(out_path, _dump_json(fallback))
         return {
             "status": "FAIL",
-            "error_code": "SCHEMA_INVALID",
-            "errors": errors[:10],
-            "suggestions": int(suggestions_count),
+            "error_code": "ADVISOR_EXCEPTION",
+            "message": str(e)[:300],
             "out": str(out_path),
             "on_fail": policy.on_fail,
         }
-
-    if forbid_hits:
-        return {
-            "status": "FAIL",
-            "error_code": "FORBIDDEN_KIND",
-            "forbidden_kinds": sorted(set(forbid_hits)),
-            "suggestions": int(suggestions_count),
-            "out": str(out_path),
-            "on_fail": policy.on_fail,
-        }
-
-    if dry_run:
-        payload = _dump_json(bundle)
-        return {
-            "status": "WOULD_WRITE",
-            "suggestions": int(suggestions_count),
-            "bytes_estimate": len(payload.encode("utf-8")),
-            "out": str(out_path),
-            "on_fail": policy.on_fail,
-        }
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(bundle), encoding="utf-8")
-    return {
-        "status": "OK",
-        "suggestions": int(suggestions_count),
-        "out": str(out_path),
-        "on_fail": policy.on_fail,
-    }
 
 
 def action_from_advisor_result(result: dict[str, Any]) -> dict[str, Any] | None:

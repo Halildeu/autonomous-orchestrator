@@ -32,6 +32,7 @@ class PythonFileLimits:
 @dataclass(frozen=True)
 class GrandfatheredFile:
     path: str
+    mode: str
     current_lines: int
     max_allowed_lines: int
     expires_on: str | None
@@ -246,10 +247,13 @@ def _parse_config(obj: Any) -> ScriptBudgetConfig:
         if not isinstance(item, dict):
             raise ValueError("CONFIG_INVALID: grandfathered_files entries must be objects")
         path = item.get("path")
+        mode = item.get("mode") if isinstance(item.get("mode"), str) else "baseline_ref"
         current_lines = item.get("current_lines")
         max_allowed = item.get("max_allowed_lines")
         if not isinstance(path, str) or not path.strip():
             raise ValueError("CONFIG_INVALID: grandfathered_files.path must be non-empty string")
+        if mode not in {"baseline_ref", "no_growth_only"}:
+            raise ValueError("CONFIG_INVALID: grandfathered_files.mode must be baseline_ref|no_growth_only")
         if not isinstance(current_lines, int) or current_lines < 0:
             raise ValueError("CONFIG_INVALID: grandfathered_files.current_lines must be a non-negative integer")
         if not isinstance(max_allowed, int) or max_allowed < 0:
@@ -267,6 +271,7 @@ def _parse_config(obj: Any) -> ScriptBudgetConfig:
 
         grandfathered[path] = GrandfatheredFile(
             path=path,
+            mode=mode,
             current_lines=int(current_lines),
             max_allowed_lines=int(max_allowed),
             expires_on=str(expires_on) if isinstance(expires_on, str) else None,
@@ -517,50 +522,77 @@ def main() -> int:
             gf = grandfathered.get(rel)
             if gf is not None:
                 baseline_lines: int | None = None
+                baseline_ref_label = baseline_ref
                 growth_status = "SKIPPED_NO_GIT"
-                if baseline_ok:
-                    baseline_bytes = _git_show_bytes(repo_root, baseline_ref, rel)
-                    baseline_lines = _count_lines_from_bytes(baseline_bytes) if baseline_bytes is not None else lines
-                    growth_status = "OK"
-                    if baseline_lines is not None and lines > baseline_lines:
-                        growth_status = "GROWN"
+                delta_lines: int | None = None
+                if gf.mode == "no_growth_only":
+                    baseline_lines = gf.current_lines
+                    baseline_ref_label = "PINNED"
+                    delta_lines = int(lines) - int(baseline_lines)
+                    growth_status = "OK" if delta_lines == 0 else "GROWN"
+                    if delta_lines != 0:
                         exceeded_hard.append(
                             {
                                 "path": rel,
                                 "lines": lines,
                                 "soft": soft,
                                 "hard": hard,
-                                "error_code": "PY_FILE_GROWTH_FORBIDDEN",
-                                "baseline_ref": baseline_ref,
+                                "error_code": "PY_FILE_NO_GROWTH",
+                                "baseline_ref": "PINNED",
                                 "baseline_lines": baseline_lines,
+                                "delta_lines": delta_lines,
                             }
                         )
+                        python_fail += 1
+                    else:
+                        python_ok += 1
+                else:
+                    if baseline_ok:
+                        baseline_bytes = _git_show_bytes(repo_root, baseline_ref, rel)
+                        baseline_lines = _count_lines_from_bytes(baseline_bytes) if baseline_bytes is not None else lines
+                        growth_status = "OK"
+                        if baseline_lines is not None and lines > baseline_lines:
+                            growth_status = "GROWN"
+                            exceeded_hard.append(
+                                {
+                                    "path": rel,
+                                    "lines": lines,
+                                    "soft": soft,
+                                    "hard": hard,
+                                    "error_code": "PY_FILE_GROWTH_FORBIDDEN",
+                                    "baseline_ref": baseline_ref,
+                                    "baseline_lines": baseline_lines,
+                                }
+                            )
 
-                elif in_git and dirty:
-                    growth_status = "SKIPPED_DIRTY_WORKTREE"
-                elif in_git and not _git_ref_exists(repo_root, baseline_ref):
-                    growth_status = "SKIPPED_BASELINE_REF_MISSING"
+                    elif in_git and dirty:
+                        growth_status = "SKIPPED_DIRTY_WORKTREE"
+                    elif in_git and not _git_ref_exists(repo_root, baseline_ref):
+                        growth_status = "SKIPPED_BASELINE_REF_MISSING"
 
                 grandfathered_growth_check.append(
                     {
                         "path": rel,
+                        "mode": gf.mode,
                         "current_lines": lines,
-                        "baseline_ref": baseline_ref,
+                        "baseline_ref": baseline_ref_label,
                         "baseline_lines": baseline_lines,
+                        "delta_lines": delta_lines,
                         "status": growth_status,
                         "max_allowed_lines": gf.max_allowed_lines,
                     }
                 )
 
-                if growth_status == "GROWN":
-                    python_fail += 1
-                else:
-                    # Oversized but allowed (no-growth enforced via baseline check).
-                    if lines > hard:
-                        python_warn += 1
-                        exceeded_soft.append({"path": rel, "lines": lines, "soft": soft, "hard": hard, "error": "GRANDFATHERED"})
+                if gf.mode != "no_growth_only":
+                    if growth_status == "GROWN":
+                        python_fail += 1
                     else:
-                        python_ok += 1
+                        # Oversized but allowed (no-growth enforced via baseline check).
+                        if lines > hard:
+                            python_warn += 1
+                            exceeded_soft.append({"path": rel, "lines": lines, "soft": soft, "hard": hard, "error": "GRANDFATHERED"})
+                        else:
+                            python_ok += 1
                 continue
 
             # Normal Python file budgets.

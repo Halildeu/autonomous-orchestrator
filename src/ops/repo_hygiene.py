@@ -136,14 +136,6 @@ def _make_findings(
             continue
         if _match_any(name, generated_files):
             if _match_any(name, report_patterns):
-                findings.append(
-                    {
-                        "kind": "ROOT_REPORT_FILE",
-                        "path": name,
-                        "severity": "WARN",
-                        "hint": "Move to .cache/reports via CHG suggestion (manual).",
-                    }
-                )
                 suggestions.append(
                     {
                         "change_id": sha256(f"MOVE:{name}".encode("utf-8")).hexdigest()[:16],
@@ -292,7 +284,8 @@ def run_repo_hygiene(
                 if any(p == d.name or p.startswith(d.name + "/") for p in untracked):
                     untracked_generated_dirs += 1
 
-    status = "WARN" if findings else "OK"
+    severities = {str(f.get("severity") or "").upper() for f in findings}
+    status = "WARN" if ("WARN" in severities or "FAIL" in severities) else "OK"
 
     report = {
         "version": "v1",

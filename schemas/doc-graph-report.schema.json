@@ -24,6 +24,12 @@
     "repo_root": { "type": "string", "minLength": 1 },
     "workspace_root": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
+    "placeholders_baseline": { "type": "integer", "minimum": 0 },
+    "placeholders_baseline_enabled": { "type": "boolean" },
+    "placeholders_delta": { "type": "integer" },
+    "placeholders_fail": { "type": "integer", "minimum": 0 },
+    "placeholders_warn_delta": { "type": "integer", "minimum": 0 },
+    "placeholders_warn_mode": { "type": "string", "enum": ["delta", "threshold"] },
     "counts": {
       "type": "object",
       "additionalProperties": false,

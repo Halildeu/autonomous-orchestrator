@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "metrics": [
+    {
+      "id": "REL-RELEASE_RC_TO_FINAL_RATIO",
+      "title": "Release rc to final ratio",
+      "target": ">=0.5",
+      "unit": "ratio",
+      "category": "release"
+    },
+    {
+      "id": "REL-RELEASE_PREPARE_LATENCY_P95",
+      "title": "Release prepare latency p95",
+      "target": "<=300000",
+      "unit": "ms",
+      "category": "latency"
+    }
+  ]
+}

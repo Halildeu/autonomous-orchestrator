@@ -45,6 +45,8 @@
       "items": { "type": "string", "minLength": 1 },
       "minItems": 0
     },
+    "summary_timeout_seconds": { "type": "integer", "minimum": 1 },
+    "strict_timeout_seconds": { "type": "integer", "minimum": 1 },
     "max_items": {
       "type": "object",
       "additionalProperties": false,
@@ -54,7 +56,11 @@
         "orphan_critical": { "type": "integer", "minimum": 0 }
       }
     },
+    "placeholders_baseline_enabled": { "type": "boolean" },
+    "placeholders_warn_mode": { "type": "string", "enum": ["delta", "threshold"] },
+    "placeholders_warn_delta": { "type": "integer", "minimum": 0 },
     "placeholder_warn_threshold": { "type": "integer", "minimum": 0 },
+    "placeholders_fail": { "type": "integer", "minimum": 0 },
     "strict_fail_on_broken": { "type": "boolean" },
     "strict_fail_on_critical_nav_gaps": { "type": "boolean" },
     "orphan_target": { "type": "integer", "minimum": 0 }
