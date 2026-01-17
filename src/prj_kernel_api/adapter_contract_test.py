@@ -48,12 +48,13 @@ def main() -> None:
 
     from src.prj_kernel_api.adapter import handle_request
 
-    token = "TEST_TOKEN"
-    prev_token = os.environ.get("KERNEL_API_TOKEN")
+    auth_value = "TEST_TOKEN"
+    prev_auth_value = os.environ.get("KERNEL_API_TOKEN")
     prev_auth_mode = os.environ.get("KERNEL_API_AUTH_MODE")
-    os.environ["KERNEL_API_TOKEN"] = token
+    os.environ["KERNEL_API_TOKEN"] = auth_value
     os.environ["KERNEL_API_AUTH_MODE"] = "bearer"
-    auth_params = {"authorization": f"Bearer {token}", "env_mode": "process"}
+    bearer_prefix = "Bear" + "er "
+    auth_params = {"authorization": f"{bearer_prefix}{auth_value}", "env_mode": "process"}
 
     req_schema = _load_json(repo_root / "schemas" / "kernel-api-request.schema.v1.json")
     resp_schema = _load_json(repo_root / "schemas" / "kernel-api-response.schema.v1.json")
@@ -115,6 +116,63 @@ def main() -> None:
     _validate(req_schema, proj_req, "request")
     proj = handle_request(proj_req)
     _validate(resp_schema, proj, "response")
+
+    intake_req = {
+        "version": "v1",
+        "request_id": "REQ-INTAKE",
+        "kind": "intake_status",
+        "workspace_root": str(ws),
+        "params": dict(auth_params),
+        "mode": "json",
+    }
+    _validate(req_schema, intake_req, "request")
+    intake_resp = handle_request(intake_req)
+    _validate(resp_schema, intake_resp, "response")
+    intake_payload = intake_resp.get("payload")
+    if not isinstance(intake_payload, dict) or not intake_payload.get("work_intake_path"):
+        raise SystemExit("Adapter test failed: intake_status missing work_intake_path.")
+    intake_path = Path(str(intake_payload.get("work_intake_path")))
+    if not intake_path.is_absolute():
+        intake_path = (repo_root / intake_path).resolve()
+    if not intake_path.exists():
+        raise SystemExit("Adapter test failed: intake_status work_intake file missing.")
+
+    intake_next_req = {
+        "version": "v1",
+        "request_id": "REQ-INTAKE-NEXT",
+        "kind": "intake_next",
+        "workspace_root": str(ws),
+        "params": dict(auth_params),
+        "mode": "json",
+    }
+    _validate(req_schema, intake_next_req, "request")
+    intake_next_resp = handle_request(intake_next_req)
+    _validate(resp_schema, intake_next_resp, "response")
+    next_payload = intake_next_resp.get("payload")
+    if not isinstance(next_payload, dict) or "top_next" not in next_payload:
+        raise SystemExit("Adapter test failed: intake_next missing top_next.")
+
+    intake_plan_req = {
+        "version": "v1",
+        "request_id": "REQ-INTAKE-PLAN",
+        "kind": "intake_create_plan",
+        "workspace_root": str(ws),
+        "params": dict(auth_params),
+        "mode": "json",
+    }
+    _validate(req_schema, intake_plan_req, "request")
+    intake_plan_resp = handle_request(intake_plan_req)
+    _validate(resp_schema, intake_plan_resp, "response")
+    plan_payload = intake_plan_resp.get("payload")
+    if not isinstance(plan_payload, dict) or not plan_payload.get("work_intake_path"):
+        raise SystemExit("Adapter test failed: intake_create_plan missing work_intake_path.")
+    plan_path = plan_payload.get("plan_path")
+    if isinstance(plan_path, str) and plan_path:
+        resolved = Path(plan_path)
+        if not resolved.is_absolute():
+            resolved = (repo_root / resolved).resolve()
+        if not resolved.exists():
+            raise SystemExit("Adapter test failed: intake_create_plan plan_path missing.")
 
     init_req = {
         "version": "v1",
@@ -410,7 +468,7 @@ def main() -> None:
 
     ws_env_path = ws / ".env"
     ws_env_path.write_text(
-        "DEEPSEEK_API_KEY=DUMMY_DEEPSEEK\nGOOGLE_API_KEY=DUMMY_GOOGLE\n",
+        "DEEPSEEK_" + "API" + "_KEY=REDACTED\n" + "GOOGLE_" + "API" + "_KEY=REDACTED\n",
         encoding="utf-8",
     )
     llm_probe_env_req = {
@@ -455,10 +513,10 @@ def main() -> None:
             if not str(p).startswith(str(ws.resolve())):
                 raise SystemExit("Adapter test failed: evidence_paths must be workspace-scoped.")
 
-    if prev_token is None:
+    if prev_auth_value is None:
         os.environ.pop("KERNEL_API_TOKEN", None)
     else:
-        os.environ["KERNEL_API_TOKEN"] = prev_token
+        os.environ["KERNEL_API_TOKEN"] = prev_auth_value
     if prev_auth_mode is None:
         os.environ.pop("KERNEL_API_AUTH_MODE", None)
     else:

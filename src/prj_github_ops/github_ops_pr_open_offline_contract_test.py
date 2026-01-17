@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+from pathlib import Path
+
+
+def _find_repo_root(start: Path) -> Path:
+    for p in [start] + list(start.parents):
+        if (p / "pyproject.toml").exists():
+            return p
+    return Path.cwd()
+
+
+def _load_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def main() -> None:
+    repo_root = _find_repo_root(Path(__file__).resolve())
+    sys.path.insert(0, str(repo_root))
+
+    from src.prj_github_ops.github_ops import start_github_ops_job
+
+    ws = repo_root / ".cache" / "ws_github_ops_pr_open_offline"
+    if ws.exists():
+        shutil.rmtree(ws)
+    ws.mkdir(parents=True, exist_ok=True)
+
+    res = start_github_ops_job(workspace_root=ws, kind="PR_OPEN", dry_run=False)
+    if res.get("status") not in {"IDLE", "SKIP", "WARN"}:
+        raise SystemExit("github_ops_pr_open_offline_contract_test failed: expected IDLE/SKIP/WARN")
+
+    idx_path = ws / ".cache" / "github_ops" / "jobs_index.v1.json"
+    if not idx_path.exists():
+        raise SystemExit("github_ops_pr_open_offline_contract_test failed: jobs_index missing")
+    idx = _load_json(idx_path)
+    jobs = idx.get("jobs") if isinstance(idx, dict) else None
+    if not isinstance(jobs, list) or not jobs:
+        raise SystemExit("github_ops_pr_open_offline_contract_test failed: jobs_index empty")
+
+    if any(str(j.get("status") or "") in {"QUEUED", "RUNNING"} for j in jobs if isinstance(j, dict)):
+        raise SystemExit("github_ops_pr_open_offline_contract_test failed: offline must not leave running jobs")
+
+    print(json.dumps({"status": "OK", "job_id": res.get("job_id")}, ensure_ascii=False, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

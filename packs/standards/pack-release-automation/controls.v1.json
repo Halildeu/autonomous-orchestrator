@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "controls": [
+    {
+      "id": "REL-RELEASE_MANIFEST_REQUIRED",
+      "title": "Release manifest required",
+      "domain": "release_automation",
+      "severity": "high",
+      "description": "Release runs must emit release_manifest and release_notes evidence."
+    },
+    {
+      "id": "REL-NO_WAIT_JOB_PIPELINE",
+      "title": "No-wait release pipeline",
+      "domain": "release_automation",
+      "severity": "medium",
+      "description": "Release operations run as job+poll without blocking ticks."
+    },
+    {
+      "id": "REL-NETWORK_POLICY_DEFAULT_OFF",
+      "title": "Publish policy default OFF",
+      "domain": "release_automation",
+      "severity": "medium",
+      "description": "Publish remains disabled unless policy explicitly enables it."
+    }
+  ]
+}

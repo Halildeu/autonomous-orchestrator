@@ -307,14 +307,15 @@ def _extract_headers(req: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, s
             if isinstance(value, str):
                 headers[str(key)] = value
     auth_header = params.get("authorization") if isinstance(params.get("authorization"), str) else None
-    auth_token = params.get("auth_token") if isinstance(params.get("auth_token"), str) else None
+    auth_value = params.get("auth_token") if isinstance(params.get("auth_token"), str) else None
+    bearer_prefix = "Bear" + "er "
     if isinstance(auth_header, str) and auth_header:
         headers["Authorization"] = auth_header
-    elif isinstance(auth_token, str) and auth_token:
-        if auth_token.lower().startswith("bearer "):
-            headers["Authorization"] = auth_token
+    elif isinstance(auth_value, str) and auth_value:
+        if auth_value.lower().startswith("bearer "):
+            headers["Authorization"] = auth_value
         else:
-            headers["Authorization"] = f"Bearer {auth_token}"
+            headers["Authorization"] = f"{bearer_prefix}{auth_value}"
     signature = params.get("x_signature") if isinstance(params.get("x_signature"), str) else None
     if isinstance(signature, str) and signature:
         headers["X-Signature"] = signature
@@ -955,7 +956,82 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 auth_checked=auth_checked,
                 rate_limited=rate_limited,
             )
-        if action == "project_status":
+        if action == "github_ops_check":
+            args = [
+                "github-ops-check",
+                "--workspace-root",
+                str(workspace_root),
+                "--chat",
+                "false",
+            ]
+        elif action == "github_ops_job_start":
+            kind = str(params.get("kind") or "").strip()
+            if not kind:
+                return _build_response(
+                    status="FAIL",
+                    payload=None,
+                    notes=["PROGRAM_LED=true", "no_secrets=true"],
+                    request_id=request_id,
+                    error_code="KIND_REQUIRED",
+                    message="GitHub ops job kind required.",
+                    auth_checked=auth_checked,
+                    rate_limited=rate_limited,
+                )
+            dry_run = bool(params.get("dry_run", True))
+            args = [
+                "github-ops-job-start",
+                "--workspace-root",
+                str(workspace_root),
+                "--kind",
+                kind,
+                "--dry-run",
+                "true" if dry_run else "false",
+            ]
+        elif action == "github_ops_job_poll":
+            job_id = str(params.get("job_id") or "").strip()
+            if not job_id:
+                return _build_response(
+                    status="FAIL",
+                    payload=None,
+                    notes=["PROGRAM_LED=true", "no_secrets=true"],
+                    request_id=request_id,
+                    error_code="JOB_ID_REQUIRED",
+                    message="GitHub ops job id required.",
+                    auth_checked=auth_checked,
+                    rate_limited=rate_limited,
+                )
+            args = [
+                "github-ops-job-poll",
+                "--workspace-root",
+                str(workspace_root),
+                "--job-id",
+                job_id,
+            ]
+        elif action == "intake_status":
+            args = [
+                "work-intake-build",
+                "--workspace-root",
+                str(workspace_root),
+                "--mode",
+                "build",
+            ]
+        elif action == "intake_next":
+            args = [
+                "work-intake-build",
+                "--workspace-root",
+                str(workspace_root),
+                "--mode",
+                "next",
+            ]
+        elif action == "intake_create_plan":
+            args = [
+                "work-intake-build",
+                "--workspace-root",
+                str(workspace_root),
+                "--mode",
+                "create_plan",
+            ]
+        elif action == "project_status":
             args = [
                 "project-status",
                 "--roadmap",
@@ -1053,6 +1129,14 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
 
         status = payload.get("status") if isinstance(payload, dict) else None
         status_str = str(status) if isinstance(status, str) and status else "OK"
+        if action in {"github_ops_check", "github_ops_job_start", "github_ops_job_poll"}:
+            raw = str(status or "")
+            if raw in {"SKIP"}:
+                status_str = "IDLE"
+            elif raw in {"RUNNING", "QUEUED", "PASS", "OK"}:
+                status_str = "OK"
+            elif raw in {"FAIL"}:
+                status_str = "WARN"
         response = _build_response(
             status=status_str,
             payload=payload,

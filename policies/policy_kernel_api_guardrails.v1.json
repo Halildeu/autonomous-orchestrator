@@ -21,10 +21,16 @@
       "codex_home_init",
       "codex_env_check",
       "m0_plan_ensure",
+      "intake_status",
+      "intake_next",
+      "intake_create_plan",
       "llm_providers_init",
       "llm_list_providers",
       "llm_call",
-      "llm_live_probe"
+      "llm_live_probe",
+      "github_ops_check",
+      "github_ops_job_start",
+      "github_ops_job_poll"
     ],
     "llm_call_live_allowed": false
   },

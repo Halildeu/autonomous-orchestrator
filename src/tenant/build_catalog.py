@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,18 @@ def _load_json(path: Path) -> Any:
 
 def _dump_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+
+
+def _atomic_write_text(path: Path, payload: str) -> None:
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    with tmp_path.open("w", encoding="utf-8") as handle:
+        handle.write(payload)
+        handle.flush()
+        try:
+            os.fsync(handle.fileno())
+        except Exception:
+            pass
+    tmp_path.replace(path)
 
 
 def _build_catalog(*, workspace_root: Path) -> tuple[dict[str, Any], list[str], bool]:
@@ -151,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(payload, encoding="utf-8")
+        _atomic_write_text(out_path, payload)
     except Exception as e:
         print(
             json.dumps(
@@ -184,4 +197,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

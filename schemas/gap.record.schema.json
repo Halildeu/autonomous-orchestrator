@@ -27,7 +27,13 @@
         "status": { "type": "string", "enum": ["open", "closed"] },
         "risk_class": { "type": "string", "enum": ["low", "medium", "high"] },
         "effort": { "type": "string", "enum": ["low", "medium", "high"] },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "integrity_snapshot_ref": { "type": "string" },
+        "source_eval_hash": { "type": "string" },
+        "source_raw_hash": { "type": "string" },
+        "evidence_pointers": { "type": "array", "items": { "type": "string" } },
+        "report_only": { "type": "boolean" },
+        "update_only": { "type": "boolean" }
       }
     }
   }

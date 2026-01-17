@@ -1,0 +1,36 @@
+{
+  "version": "v1",
+  "routing": {
+    "buckets": ["INCIDENT", "TICKET", "PROJECT", "ROADMAP"],
+    "default_bucket": "TICKET",
+    "incident_rules": [
+      {"if": "doc_nav.critical_nav_gaps>0", "then": "INCIDENT"},
+      {"if": "integrity.status==FAIL", "then": "INCIDENT"},
+      {"if": "script_budget.hard_exceeded>0", "then": "INCIDENT"},
+      {"if": "pdca.regression_count>0", "then": "INCIDENT"}
+    ],
+    "ticket_rules": [
+      {"if": "manual_request.kind in ['support','question','minor_fix']", "then": "TICKET"},
+      {"if": "gap.severity in ['LOW'] and gap.effort in ['S']", "then": "TICKET"},
+      {"if": "script_budget.soft_only and target_path in ['docs/','ci/']", "then": "TICKET"}
+    ],
+    "project_rules": [
+      {"if": "manual_request.kind in ['feature','refactor','new_project','context-router']", "then": "PROJECT"},
+      {"if": "gap.severity in ['MEDIUM','HIGH']", "then": "PROJECT"},
+      {"if": "script_budget.soft_only and target_path in ['src/ops/','src/orchestrator/']", "then": "PROJECT"}
+    ],
+    "roadmap_rules": [
+      {"if": "manual_request.kind in ['strategy','multi-quarter']", "then": "ROADMAP"}
+    ]
+  },
+  "context_pack": {
+    "max_bytes_preview": 4096,
+    "pointer_only": true,
+    "include_sections": ["define", "measure_raw", "integrity", "eval", "gap", "pdca", "guardrails", "routing"],
+    "redaction": {
+      "enabled": true,
+      "deny_patterns": ["API_KEY", "PASSWORD", "SECRET"],
+      "max_preview_chars": 800
+    }
+  }
+}

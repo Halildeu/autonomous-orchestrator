@@ -124,6 +124,9 @@ Controls + Metrics + Maturity (0–5) deterministik kriterlerle (pointer + schem
 **C2 — Assessment (O(delta))**  
 system_status + pack index + quality + repo hygiene + harvest sinyallerini okur.
 
+**C2b — Eval Lenses (Trend / Integrity & Compatibility / AI‑Ops Fit)**  
+M10.2b eval çıktısında üç lens deterministik sinyal üretir; gap ve intake’e pointer‑only bağlanır.
+
 **C3 — Gap register + Closure map**  
 safe‑only → incubator taslak/uygula; plan‑only → draft.
 

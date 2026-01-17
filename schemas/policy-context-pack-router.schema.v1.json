@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-context-pack-router.schema.v1.json",
+  "title": "policy-context-pack-router",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "routing", "context_pack"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buckets",
+        "default_bucket",
+        "incident_rules",
+        "ticket_rules",
+        "project_rules",
+        "roadmap_rules"
+      ],
+      "properties": {
+        "buckets": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["INCIDENT", "TICKET", "PROJECT", "ROADMAP"] }
+        },
+        "default_bucket": { "type": "string", "enum": ["INCIDENT", "TICKET", "PROJECT", "ROADMAP"] },
+        "incident_rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+        "ticket_rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+        "project_rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+        "roadmap_rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } }
+      }
+    },
+    "context_pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_bytes_preview", "pointer_only", "include_sections", "redaction"],
+      "properties": {
+        "max_bytes_preview": { "type": "integer", "minimum": 0 },
+        "pointer_only": { "type": "boolean" },
+        "include_sections": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "define",
+              "measure_raw",
+              "integrity",
+              "eval",
+              "gap",
+              "pdca",
+              "guardrails",
+              "routing"
+            ]
+          }
+        },
+        "redaction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "deny_patterns", "max_preview_chars"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "deny_patterns": { "type": "array", "items": { "type": "string" } },
+            "max_preview_chars": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["if", "then"],
+      "properties": {
+        "if": { "type": "string", "minLength": 1 },
+        "then": { "type": "string", "enum": ["INCIDENT", "TICKET", "PROJECT", "ROADMAP"] }
+      }
+    }
+  }
+}

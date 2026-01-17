@@ -46,6 +46,7 @@
       "required": ["path", "current_lines", "max_allowed_lines"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
+        "mode": { "type": "string", "enum": ["baseline_ref", "no_growth_only"] },
         "current_lines": { "type": "integer", "minimum": 0 },
         "max_allowed_lines": { "type": "integer", "minimum": 0 },
         "expires_on": { "type": ["string", "null"], "minLength": 1 },

@@ -1,0 +1,9 @@
+{
+  "html_url": "https://github.com/example/acme/pull/42",
+  "number": 42,
+  "state": "open",
+  "base": { "ref": "main" },
+  "head": { "ref": "feature/real-pr-open" },
+  "title": "feat: add real PR open",
+  "draft": true
+}
