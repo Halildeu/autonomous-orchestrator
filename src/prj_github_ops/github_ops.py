@@ -946,9 +946,67 @@ def _run_pr_merge_job(
         _write(payload)
         return
     if bool(pr_obj.get("draft", False)) is True:
-        payload["error_code"] = "PR_DRAFT"
-        _write(payload)
-        return
+        ready_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/ready_for_review"
+        payload["pr_was_draft"] = True
+        try:
+            status_code, body_bytes, _headers2 = _http_json("POST", ready_url)
+        except _SSLVerifyFailed as exc:
+            redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+            payload.update(
+                {
+                    "error_code": "SSL_CERT_VERIFY_FAILED",
+                    "endpoint": ready_url,
+                    "message_redacted": redacted or None,
+                    "message_hash": message_hash or None,
+                    "ssl_context_tried": getattr(exc, "tried", None),
+                }
+            )
+            payload["failure_class"] = "NETWORK"
+            _write(payload)
+            return
+        except _urllib_error.HTTPError as exc:
+            _write_http_error(exc, endpoint=ready_url)
+            return
+        except Exception as exc:
+            message = _clean_str(str(exc)) or "REQUEST_FAILED"
+            redacted, message_hash = _redact_message(message)
+            payload.update(
+                {
+                    "error_code": "REQUEST_FAILED",
+                    "endpoint": ready_url,
+                    "message_redacted": redacted or None,
+                    "message_hash": message_hash or None,
+                }
+            )
+            payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+            _write(payload)
+            return
+        payload["http_status"] = int(status_code or 0)
+        if status_code != 200:
+            message = "HTTP_STATUS"
+            redacted, message_hash = _redact_message(message)
+            payload.update(
+                {
+                    "error_code": "HTTP_STATUS",
+                    "endpoint": ready_url,
+                    "message_redacted": redacted or None,
+                    "message_hash": message_hash or None,
+                }
+            )
+            payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+            _write(payload)
+            return
+        try:
+            pr_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+        except Exception:
+            pr_obj = {}
+        if isinstance(pr_obj, dict):
+            payload.update(_extract_pr_metadata(pr_obj))
+        payload["pr_marked_ready_for_review"] = True
+        if bool(pr_obj.get("draft", False)) is True:
+            payload["error_code"] = "PR_DRAFT"
+            _write(payload)
+            return
 
     head_sha = ""
     if isinstance(pr_obj.get("head"), dict):
