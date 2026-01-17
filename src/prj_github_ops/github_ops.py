@@ -49,14 +49,33 @@ from .github_ops_support_v2 import (
 )
 from src.prj_github_ops.failure_classifier import classify_github_ops_failure, _signature_hash_from_stderr
 from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_iso
-def _gate_details(policy: dict[str, Any]) -> dict[str, Any]:
+def _dotenv_env_presence(key_name: str, *, workspace_root: Path) -> bool:
+    try:
+        from src.prj_kernel_api.dotenv_loader import resolve_env_presence
+        present, _source = resolve_env_presence(key_name, str(workspace_root), env_mode="dotenv")
+        return bool(present)
+    except Exception:
+        return False
+def _dotenv_env_value(key_name: str, *, workspace_root: Path) -> str:
+    try:
+        from src.prj_kernel_api.dotenv_loader import resolve_env_value
+        present, value = resolve_env_value(key_name, str(workspace_root), env_mode="dotenv")
+        return str(value or "") if present and value else ""
+    except Exception:
+        return ""
+def _gate_details(policy: dict[str, Any], *, workspace_root: Path) -> dict[str, Any]:
     live = policy.get("live_gate") if isinstance(policy.get("live_gate"), dict) else {}
     enabled = bool(live.get("enabled", False))
     env_flag = str(live.get("env_flag") or "")
     env_key = str(live.get("env_key") or "")
     require_key = bool(live.get("require_env_key_present", True))
-    env_flag_set = _env_truthy(os.getenv(env_flag)) if env_flag else False
-    env_key_present = bool(os.getenv(env_key)) if require_key and env_key else True
+    env_flag_value = os.getenv(env_flag, "") if env_flag else ""
+    if not env_flag_value and env_flag:
+        env_flag_value = _dotenv_env_value(env_flag, workspace_root=workspace_root)
+    env_flag_set = _env_truthy(env_flag_value) if env_flag else True
+    env_key_present = True
+    if require_key and env_key:
+        env_key_present = bool(os.getenv(env_key, "")) or _dotenv_env_presence(env_key, workspace_root=workspace_root)
     network_enabled = bool(policy.get("network_enabled", False))
     effective = network_enabled and enabled and env_flag_set and env_key_present
     return {
@@ -261,14 +280,48 @@ def _extract_pr_metadata_from_rc(rc_obj: dict[str, Any]) -> dict[str, Any]:
                 if meta_key not in meta:
                     meta[meta_key] = meta_value
     return meta
+def _extract_release_metadata(payload: dict[str, Any]) -> dict[str, Any]:
+    meta: dict[str, Any] = {}
+    release_url = payload.get("release_url")
+    if not isinstance(release_url, str) or not release_url:
+        release_url = payload.get("html_url") if isinstance(payload.get("html_url"), str) else ""
+    if isinstance(release_url, str) and release_url:
+        meta["release_url"] = release_url
+    release_id = payload.get("release_id")
+    if not isinstance(release_id, int):
+        release_id = payload.get("id") if isinstance(payload.get("id"), int) else None
+    if isinstance(release_id, int) and release_id > 0:
+        meta["release_id"] = release_id
+    release_tag = payload.get("release_tag")
+    if not isinstance(release_tag, str) or not release_tag:
+        release_tag = payload.get("tag_name") if isinstance(payload.get("tag_name"), str) else ""
+    if isinstance(release_tag, str) and release_tag:
+        meta["release_tag"] = release_tag
+    release_name = payload.get("release_name")
+    if not isinstance(release_name, str) or not release_name:
+        release_name = payload.get("name") if isinstance(payload.get("name"), str) else ""
+    if isinstance(release_name, str) and release_name:
+        meta["release_name"] = release_name
+    return meta
+def _extract_release_metadata_from_rc(rc_obj: dict[str, Any]) -> dict[str, Any]:
+    meta = _extract_release_metadata(rc_obj)
+    for key in ("payload", "response", "data", "result"):
+        nested = rc_obj.get(key)
+        if isinstance(nested, dict):
+            for meta_key, meta_value in _extract_release_metadata(nested).items():
+                if meta_key not in meta:
+                    meta[meta_key] = meta_value
+    return meta
 def _run_pr_open_job(
     rc_path: str,
     request_path: str,
     token_env: str,
     auth_mode: str,
     fingerprint: str,
+    workspace_root: str,
 ) -> None:
     import json as _json
+    import ssl as _ssl
     import urllib.error as _urllib_error
     import urllib.request as _urllib_request
     from pathlib import Path as _Path
@@ -303,7 +356,7 @@ def _run_pr_open_job(
         payload["missing"] = missing
         _write(payload)
         return
-    token = os.getenv(token_env, "")
+    token = os.getenv(token_env, "") or _dotenv_env_value(token_env, workspace_root=_Path(workspace_root))
     if not token:
         payload["error_code"] = "AUTH_MISSING"
         _write(payload)
@@ -329,10 +382,12 @@ def _run_pr_open_job(
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
     }
+    cafile = _Path("/etc/ssl/cert.pem")
+    ssl_ctx = _ssl.create_default_context(cafile=str(cafile)) if cafile.exists() else _ssl.create_default_context()
     data = _json.dumps(request_body).encode("utf-8")
     req = _urllib_request.Request(api_url, data=data, headers=headers, method="POST")
     try:
-        with _urllib_request.urlopen(req, timeout=30) as resp:
+        with _urllib_request.urlopen(req, timeout=30, context=ssl_ctx) as resp:
             status_code = resp.getcode()
             body_bytes = resp.read()
             headers = resp.headers
@@ -411,8 +466,257 @@ def _run_pr_open_job(
     payload["rc"] = 0
     payload.update(_extract_pr_metadata(response_obj))
     _write(payload)
-def _live_gate(policy: dict[str, Any]) -> dict[str, Any]:
-    details = _gate_details(policy)
+def _run_release_create_job(
+    rc_path: str,
+    kind: str,
+    token_env: str,
+    auth_mode: str,
+    fingerprint: str,
+    workspace_root: str,
+) -> None:
+    import json as _json
+    import ssl as _ssl
+    import subprocess as _subprocess
+    import urllib.error as _urllib_error
+    import urllib.request as _urllib_request
+    from pathlib import Path as _Path
+    def _write(payload: dict[str, Any]) -> None:
+        _Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
+        _Path(rc_path).write_text(_dump_json(payload), encoding="utf-8")
+    payload: dict[str, Any] = {"rc": 1, "fingerprint": fingerprint, "kind": str(kind or "")}
+    ws = _Path(workspace_root)
+    manifest_path = ws / ".cache" / "reports" / "release_manifest.v1.json"
+    notes_path = ws / ".cache" / "reports" / "release_notes.v1.md"
+    if not manifest_path.exists():
+        payload["error_code"] = "RELEASE_MANIFEST_MISSING"
+        _write(payload)
+        return
+    try:
+        manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        payload["error_code"] = "RELEASE_MANIFEST_INVALID_JSON"
+        _write(payload)
+        return
+    release_version = str(manifest.get("release_version") or "") if isinstance(manifest, dict) else ""
+    if not release_version:
+        payload["error_code"] = "RELEASE_VERSION_MISSING"
+        _write(payload)
+        return
+    tag_name = release_version if release_version.startswith("v") else f"v{release_version}"
+    owner, repo = _infer_repo_from_git(_repo_root())
+    if not owner or not repo:
+        payload["error_code"] = "REPO_INFER_FAIL"
+        _write(payload)
+        return
+    prerelease = bool(str(kind or "") == "RELEASE_RC")
+    name = tag_name if not prerelease else f"{tag_name} (rc)"
+    body = ""
+    try:
+        if notes_path.exists():
+            body = notes_path.read_text(encoding="utf-8")
+    except Exception:
+        body = ""
+    body = body[:200000]
+    commitish = ""
+    try:
+        proc = _subprocess.run(
+            ["git", "-C", str(_repo_root()), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0:
+            commitish = proc.stdout.strip()
+    except Exception:
+        commitish = ""
+    token = os.getenv(token_env, "") or _dotenv_env_value(token_env, workspace_root=ws)
+    if not token:
+        payload["error_code"] = "AUTH_MISSING"
+        _write(payload)
+        return
+    mode = _clean_str(auth_mode).lower()
+    if mode == "token":
+        auth_header = f"token {token}"
+    else:
+        auth_header = f"Bearer {token}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "Authorization": auth_header,
+        "User-Agent": "autonomous-orchestrator",
+    }
+    cafile = _Path("/etc/ssl/cert.pem")
+    ssl_ctx = _ssl.create_default_context(cafile=str(cafile)) if cafile.exists() else _ssl.create_default_context()
+    # idempotency: if release for this tag already exists, NOOP -> PASS
+    get_url = f"https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag_name}"
+    get_req = _urllib_request.Request(get_url, headers=headers, method="GET")
+    try:
+        with _urllib_request.urlopen(get_req, timeout=30, context=ssl_ctx) as resp:
+            status_code = resp.getcode()
+            body_bytes = resp.read()
+        if int(status_code or 0) == 200:
+            try:
+                response_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except Exception:
+                response_obj = {}
+            payload["rc"] = 0
+            payload["noop"] = True
+            payload.update(_extract_release_metadata(response_obj))
+            _write(payload)
+            return
+    except _urllib_error.HTTPError as exc:
+        status_code = int(getattr(exc, "code", 0) or 0)
+        if status_code != 404:
+            headers2 = getattr(exc, "headers", {}) or {}
+            try:
+                body_bytes = exc.read()
+            except Exception:
+                body_bytes = b""
+            message = ""
+            gh_error_code = ""
+            try:
+                err_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except Exception:
+                err_obj = {}
+            if isinstance(err_obj, dict):
+                message = _clean_str(err_obj.get("message"))
+                errors = err_obj.get("errors") if isinstance(err_obj.get("errors"), list) else []
+                if errors:
+                    first = errors[0] if isinstance(errors[0], dict) else {}
+                    gh_error_code = _clean_str(first.get("code"))
+                    if not message:
+                        message = _clean_str(first.get("message"))
+            if not message:
+                message = _clean_str(getattr(exc, "reason", "")) or "HTTP_ERROR"
+            redacted, message_hash = _redact_message(message)
+            payload.update(
+                {
+                    "error_code": "HTTP_ERROR",
+                    "http_status": int(status_code or 0),
+                    "gh_error_code": gh_error_code or None,
+                    "gh_request_id": _clean_str(headers2.get("X-GitHub-Request-Id") if hasattr(headers2, "get") else ""),
+                    "endpoint": get_url,
+                    "message_redacted": redacted or None,
+                    "message_hash": message_hash or None,
+                    "retry_after_seconds": int(headers2.get("Retry-After") or 0)
+                    if hasattr(headers2, "get") and str(headers2.get("Retry-After") or "").isdigit()
+                    else None,
+                }
+            )
+            payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
+            _write(payload)
+            return
+    except Exception as exc:
+        message = _clean_str(str(exc)) or "REQUEST_FAILED"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "REQUEST_FAILED",
+                "endpoint": get_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+        _write(payload)
+        return
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/releases"
+    request_body: dict[str, Any] = {
+        "tag_name": tag_name,
+        "name": name,
+        "draft": False,
+        "prerelease": bool(prerelease),
+    }
+    if commitish:
+        request_body["target_commitish"] = commitish
+    if body:
+        request_body["body"] = body
+    data = _json.dumps(request_body).encode("utf-8")
+    req = _urllib_request.Request(api_url, data=data, headers=headers, method="POST")
+    try:
+        with _urllib_request.urlopen(req, timeout=30, context=ssl_ctx) as resp:
+            status_code = resp.getcode()
+            body_bytes = resp.read()
+            headers2 = resp.headers
+    except _urllib_error.HTTPError as exc:
+        status_code = int(getattr(exc, "code", 0) or 0)
+        headers2 = getattr(exc, "headers", {}) or {}
+        try:
+            body_bytes = exc.read()
+        except Exception:
+            body_bytes = b""
+        message = ""
+        gh_error_code = ""
+        try:
+            err_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+        except Exception:
+            err_obj = {}
+        if isinstance(err_obj, dict):
+            message = _clean_str(err_obj.get("message"))
+            errors = err_obj.get("errors") if isinstance(err_obj.get("errors"), list) else []
+            if errors:
+                first = errors[0] if isinstance(errors[0], dict) else {}
+                gh_error_code = _clean_str(first.get("code"))
+                if not message:
+                    message = _clean_str(first.get("message"))
+        if not message:
+            message = _clean_str(getattr(exc, "reason", "")) or "HTTP_ERROR"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_ERROR",
+                "http_status": int(status_code or 0),
+                "gh_error_code": gh_error_code or None,
+                "gh_request_id": _clean_str(headers2.get("X-GitHub-Request-Id") if hasattr(headers2, "get") else ""),
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "retry_after_seconds": int(headers2.get("Retry-After") or 0)
+                if hasattr(headers2, "get") and str(headers2.get("Retry-After") or "").isdigit()
+                else None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
+        _write(payload)
+        return
+    except Exception as exc:
+        message = _clean_str(str(exc)) or "REQUEST_FAILED"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "REQUEST_FAILED",
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+        _write(payload)
+        return
+    payload["http_status"] = int(status_code or 0)
+    if int(status_code or 0) not in {200, 201}:
+        message = "HTTP_STATUS"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_STATUS",
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+        _write(payload)
+        return
+    try:
+        response_obj = _json.loads(body_bytes.decode("utf-8"))
+    except Exception:
+        response_obj = {}
+    payload["rc"] = 0
+    payload.update(_extract_release_metadata(response_obj))
+    _write(payload)
+def _live_gate(policy: dict[str, Any], *, workspace_root: Path) -> dict[str, Any]:
+    details = _gate_details(policy, workspace_root=workspace_root)
     allowed_ops = policy.get("allowed_ops") if isinstance(policy.get("allowed_ops"), list) else []
     allowed_ops = sorted({str(x) for x in allowed_ops if isinstance(x, str) and x})
     return {
@@ -459,8 +763,8 @@ def _ensure_job_trace_meta(job: dict[str, Any], *, workspace_root: Path, policy_
         evidence_paths=evidence_paths,
         workspace_root=workspace_root,
     )
-def _gate_error(policy: dict[str, Any]) -> str:
-    details = _gate_details(policy)
+def _gate_error(policy: dict[str, Any], *, workspace_root: Path) -> str:
+    details = _gate_details(policy, workspace_root=workspace_root)
     if not details.get("network_enabled", False):
         return "NETWORK_DISABLED"
     if not details.get("live_enabled", False):
@@ -521,7 +825,7 @@ def _spawn_job_process(
         stub = (
             "import sys;"
             "from src.prj_github_ops.github_ops import _run_pr_open_job;"
-            "_run_pr_open_job(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5]);"
+            "_run_pr_open_job(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6]);"
         )
         cmd = [
             sys.executable,
@@ -532,6 +836,24 @@ def _spawn_job_process(
             token_env,
             auth_mode,
             command_fingerprint,
+            str(workspace_root),
+        ]
+    elif kind in {"RELEASE_RC", "RELEASE_FINAL"}:
+        stub = (
+            "import sys;"
+            "from src.prj_github_ops.github_ops import _run_release_create_job;"
+            "_run_release_create_job(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6]);"
+        )
+        cmd = [
+            sys.executable,
+            "-c",
+            stub,
+            str(rc_path),
+            str(kind),
+            token_env,
+            auth_mode,
+            command_fingerprint,
+            str(workspace_root),
         ]
     else:
         stub = (
@@ -616,7 +938,7 @@ def _failure_summary(jobs: list[dict[str, Any]]) -> dict[str, Any]:
     return {"total_fail": total_fail, "by_class": counts}
 def build_github_ops_report(*, workspace_root: Path) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
-    live_gate = _live_gate(policy)
+    live_gate = _live_gate(policy, workspace_root=workspace_root)
     git_state = _git_state(_repo_root())
     jobs_index, job_notes = _load_jobs_index(workspace_root)
     notes.extend(job_notes)
@@ -760,8 +1082,8 @@ def start_github_ops_job(
     request: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
-    live_gate = _live_gate(policy)
-    gate_details = _gate_details(policy)
+    live_gate = _live_gate(policy, workspace_root=workspace_root)
+    gate_details = _gate_details(policy, workspace_root=workspace_root)
     now = _now_iso()
     jobs_index, job_notes = _load_jobs_index(workspace_root)
     notes.extend(job_notes)
@@ -791,7 +1113,7 @@ def start_github_ops_job(
                 "env_key_present": bool(gate_details.get("env_key_present", False)),
             },
         }
-    gate_error = _gate_error(policy)
+    gate_error = _gate_error(policy, workspace_root=workspace_root)
     pr_request_payload: dict[str, Any] | None = None
     pr_request_missing: list[str] = []
     if normalized_kind == "PR_OPEN":
@@ -1076,6 +1398,9 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
                 if rc_obj is not None:
                     pr_meta = _extract_pr_metadata_from_rc(rc_obj)
                     for meta_key, meta_value in pr_meta.items():
+                        target[meta_key] = meta_value
+                    release_meta = _extract_release_metadata_from_rc(rc_obj)
+                    for meta_key, meta_value in release_meta.items():
                         target[meta_key] = meta_value
                     if target.get("status") == "FAIL":
                         has_error = bool(rc_obj.get("error_code")) or int(rc_obj.get("rc") or 0) != 0
