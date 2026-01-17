@@ -148,6 +148,49 @@ def cmd_release_final_e2e(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
+def cmd_pr_merge_e2e(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    base_branch = str(getattr(args, "base_branch", "") or "").strip() or "main"
+    allow_network = parse_reaper_bool(str(getattr(args, "allow_network", "true")))
+    dry_run = parse_reaper_bool(str(getattr(args, "dry_run", "false")))
+    chat = parse_reaper_bool(str(getattr(args, "chat", "true")))
+
+    from src.prj_release_automation.pr_merge_e2e import run_pr_merge_e2e
+
+    payload = run_pr_merge_e2e(
+        workspace_root=ws,
+        base_branch=base_branch,
+        allow_network=bool(allow_network),
+        dry_run=bool(dry_run),
+    )
+
+    if chat and isinstance(payload, dict):
+        print("PREVIEW:")
+        print("PROGRAM-LED: pr-merge-e2e (PR open -> merge, no release)")
+        print(f"workspace_root={ws}")
+        print("RESULT:")
+        print(f"status={payload.get('status')}")
+        if payload.get("error_code"):
+            print(f"error_code={payload.get('error_code')}")
+        print("EVIDENCE:")
+        report_path = payload.get("report_path") or ""
+        if report_path:
+            print(str(report_path))
+        print("ACTIONS:")
+        print("github-ops-check")
+        print("work-intake-build")
+        print("work-intake-check")
+        print("NEXT:")
+        print("Devam et / Durumu goster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_deploy_check(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:
@@ -758,6 +801,21 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_release_final_e2e.add_argument("--dry-run", default="false", help="true|false (default: false).")
     ap_release_final_e2e.add_argument("--chat", default="true", help="true|false (default: true).")
     ap_release_final_e2e.set_defaults(func=cmd_release_final_e2e)
+
+    ap_pr_merge_e2e = parent.add_parser(
+        "pr-merge-e2e",
+        help="One-button: PR open -> merge (no release) (policy-gated, program-led).",
+    )
+    ap_pr_merge_e2e.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_pr_merge_e2e.add_argument("--base-branch", default="main", help="Base branch (default: main).")
+    ap_pr_merge_e2e.add_argument(
+        "--allow-network",
+        default="true",
+        help="true|false (default: true). Policy gate still applies.",
+    )
+    ap_pr_merge_e2e.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_pr_merge_e2e.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_pr_merge_e2e.set_defaults(func=cmd_pr_merge_e2e)
 
     ap_deploy_check = parent.add_parser("deploy-check", help="Deploy check (program-led, local).")
     ap_deploy_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
