@@ -299,7 +299,7 @@ def run_release_final_e2e(
         report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
         return report
 
-    pr_poll = _poll_job(workspace_root=ws, job_id=pr_job_id, max_polls=20, sleep_seconds=0.5)
+    pr_poll = _poll_job(workspace_root=ws, job_id=pr_job_id, max_polls=60, sleep_seconds=1.0)
     report["jobs"]["pr_open"]["poll"] = pr_poll
     if pr_poll.get("status") != "PASS":
         report["status"] = "FAIL"
