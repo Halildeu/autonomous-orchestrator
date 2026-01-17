@@ -10,7 +10,11 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from src.benchmark.assessment_signals import _load_integration_coherence_signals, _load_pdca_cursor_signal
+from src.benchmark.assessment_signals import (
+    _load_control_statuses,
+    _load_integration_coherence_signals,
+    _load_pdca_cursor_signal,
+)
 from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import build_gap_register, build_gap_summary_md
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
@@ -927,6 +931,19 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     controls = sorted(controls, key=lambda x: str(x.get("id") or ""))
     metrics = sorted(metrics, key=lambda x: str(x.get("id") or ""))
 
+    control_statuses = _load_control_statuses(core_root=core_root, workspace_root=workspace_root)
+    filtered_control_ids: list[str] = []
+    controls_for_gaps = controls
+    if control_statuses:
+        controls_for_gaps = []
+        for control in controls:
+            cid = control.get("id") if isinstance(control, dict) else None
+            if isinstance(cid, str) and control_statuses.get(cid):
+                filtered_control_ids.append(cid)
+                continue
+            controls_for_gaps.append(control)
+        filtered_control_ids = sorted(set(filtered_control_ids))
+
     inputs_sha = _inputs_sha256(input_files, core_root=core_root, workspace_root=workspace_root)
     cursor_obj = None
     if out_cursor.exists():
@@ -1051,7 +1068,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "docs_drift": docs_drift_signal,
         },
         "integration_coherence_signals": integration_coherence_signals,
-        "notes": [],
+        "notes": (
+            [f"controls_satisfied_by_policy:{','.join(filtered_control_ids)}"] if filtered_control_ids else []
+        ),
     }
 
     raw_schema_path = core_root / "schemas" / "assessment-raw.schema.v1.json"
@@ -1193,7 +1212,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         except Exception:
             previous_gap_register = None
     gap_register = build_gap_register(
-        controls=controls,
+        controls=controls_for_gaps,
         metrics=metrics,
         lens_signals=lens_signals,
         integrity_snapshot_ref=integrity_ref,

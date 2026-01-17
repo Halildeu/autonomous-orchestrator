@@ -92,3 +92,30 @@ def _load_integration_coherence_signals(*, workspace_root: Path) -> dict[str, An
         "core_unlock_scope_widen_count": int(core_unlock_scope_widen),
         "schema_fail_count": int(schema_fail_count),
     }
+
+
+def _load_control_statuses(*, core_root: Path, workspace_root: Path) -> dict[str, bool]:
+    def _load_policy(path: Path) -> dict[str, Any] | None:
+        if not path.exists():
+            return None
+        try:
+            obj = _load_json(path)
+        except Exception:
+            return None
+        return obj if isinstance(obj, dict) else None
+
+    statuses: dict[str, bool] = {}
+
+    gh_policy = _load_policy(workspace_root / "policies" / "policy_github_ops.v1.json")
+    if gh_policy is None:
+        gh_policy = _load_policy(core_root / "policies" / "policy_github_ops.v1.json")
+    if gh_policy is not None and gh_policy.get("network_enabled") is False:
+        statuses["GHOPS-NETWORK_POLICY_DEFAULT_OFF"] = True
+
+    rel_policy = _load_policy(workspace_root / "policies" / "policy_release_automation.v1.json")
+    if rel_policy is None:
+        rel_policy = _load_policy(core_root / "policies" / "policy_release_automation.v1.json")
+    if rel_policy is not None and rel_policy.get("network_publish_enabled") is False:
+        statuses["REL-NETWORK_POLICY_DEFAULT_OFF"] = True
+
+    return statuses
