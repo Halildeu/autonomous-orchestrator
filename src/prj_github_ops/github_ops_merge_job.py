@@ -52,6 +52,43 @@ def _run_pr_merge_job_impl(
     merge_method_override = _clean_str(req_obj.get("merge_method"))
     expected_head_sha = _clean_str(req_obj.get("expected_head_sha") or req_obj.get("head_sha"))
 
+    if pr_number is None:
+        # Best-effort inference: if no request payload is provided, use the most recent PR_OPEN
+        # job result that still reports pr_state=open. This makes `github-ops-job-start --kind MERGE`
+        # usable without an explicit request file.
+        jobs_index_path = ws / ".cache" / "github_ops" / "jobs_index.v1.json"
+        try:
+            if jobs_index_path.exists():
+                jobs_index = _json.loads(jobs_index_path.read_text(encoding="utf-8"))
+            else:
+                jobs_index = {}
+        except Exception:
+            jobs_index = {}
+
+        jobs = jobs_index.get("jobs") if isinstance(jobs_index, dict) else None
+        candidates: list[dict[str, Any]] = []
+        if isinstance(jobs, list):
+            for job in jobs:
+                if not isinstance(job, dict):
+                    continue
+                if str(job.get("kind") or "") != "PR_OPEN":
+                    continue
+                pn = job.get("pr_number")
+                if not isinstance(pn, int) or pn <= 0:
+                    continue
+                pr_state = str(job.get("pr_state") or "").strip().lower()
+                if pr_state and pr_state != "open":
+                    continue
+                candidates.append(job)
+
+        if candidates:
+            candidates.sort(key=lambda j: (str(j.get("created_at") or ""), str(j.get("job_id") or "")), reverse=True)
+            chosen = candidates[0]
+            pr_number = int(chosen.get("pr_number"))
+            payload["pr_number_inferred"] = pr_number
+            payload["pr_number_inferred_from_job_id"] = str(chosen.get("job_id") or "")
+            payload["pr_number_inferred_source"] = str(jobs_index_path)
+
     owner, repo = _infer_repo_from_git(_repo_root())
     if not owner or not repo:
         payload["error_code"] = "REPO_INFER_FAIL"
@@ -522,4 +559,3 @@ def _run_pr_merge_job_impl(
             payload["merge_message_redacted"] = redacted or None
             payload["merge_message_hash"] = message_hash or None
     _write(payload)
-
