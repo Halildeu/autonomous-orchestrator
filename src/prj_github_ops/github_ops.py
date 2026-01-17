@@ -948,6 +948,7 @@ def _run_pr_merge_job(
     if bool(pr_obj.get("draft", False)) is True:
         ready_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/ready_for_review"
         payload["pr_was_draft"] = True
+        ready_http_status: int | None = None
         try:
             status_code, body_bytes, _headers2 = _http_json("POST", ready_url)
         except _SSLVerifyFailed as exc:
@@ -965,8 +966,11 @@ def _run_pr_merge_job(
             _write(payload)
             return
         except _urllib_error.HTTPError as exc:
-            _write_http_error(exc, endpoint=ready_url)
-            return
+            ready_http_status = int(getattr(exc, "code", 0) or 0)
+            if ready_http_status != 404:
+                _write_http_error(exc, endpoint=ready_url)
+                return
+            status_code, body_bytes = 0, b""
         except Exception as exc:
             message = _clean_str(str(exc)) or "REQUEST_FAILED"
             redacted, message_hash = _redact_message(message)
@@ -981,32 +985,122 @@ def _run_pr_merge_job(
             payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
             _write(payload)
             return
-        payload["http_status"] = int(status_code or 0)
-        if status_code != 200:
-            message = "HTTP_STATUS"
-            redacted, message_hash = _redact_message(message)
-            payload.update(
-                {
-                    "error_code": "HTTP_STATUS",
-                    "endpoint": ready_url,
-                    "message_redacted": redacted or None,
-                    "message_hash": message_hash or None,
-                }
-            )
-            payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
-            _write(payload)
-            return
-        try:
-            pr_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
-        except Exception:
-            pr_obj = {}
-        if isinstance(pr_obj, dict):
-            payload.update(_extract_pr_metadata(pr_obj))
-        payload["pr_marked_ready_for_review"] = True
-        if bool(pr_obj.get("draft", False)) is True:
-            payload["error_code"] = "PR_DRAFT"
-            _write(payload)
-            return
+        if ready_http_status == 404:
+            node_id = _clean_str(pr_obj.get("node_id"))
+            if not node_id:
+                payload["error_code"] = "PR_NODE_ID_MISSING"
+                _write(payload)
+                return
+            graphql_url = "https://api.github.com/graphql"
+            graphql_body = {
+                "query": (
+                    "mutation($id:ID!){"
+                    "markPullRequestReadyForReview(input:{pullRequestId:$id}){"
+                    "pullRequest{ id isDraft number }"
+                    "}"
+                    "}"
+                ),
+                "variables": {"id": node_id},
+            }
+            try:
+                status_code, body_bytes, _headers2 = _http_json("POST", graphql_url, graphql_body)
+            except _SSLVerifyFailed as exc:
+                redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+                payload.update(
+                    {
+                        "error_code": "SSL_CERT_VERIFY_FAILED",
+                        "endpoint": graphql_url,
+                        "message_redacted": redacted or None,
+                        "message_hash": message_hash or None,
+                        "ssl_context_tried": getattr(exc, "tried", None),
+                    }
+                )
+                payload["failure_class"] = "NETWORK"
+                _write(payload)
+                return
+            except _urllib_error.HTTPError as exc:
+                _write_http_error(exc, endpoint=graphql_url)
+                return
+            except Exception as exc:
+                message = _clean_str(str(exc)) or "REQUEST_FAILED"
+                redacted, message_hash = _redact_message(message)
+                payload.update(
+                    {
+                        "error_code": "REQUEST_FAILED",
+                        "endpoint": graphql_url,
+                        "message_redacted": redacted or None,
+                        "message_hash": message_hash or None,
+                    }
+                )
+                payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+                _write(payload)
+                return
+            payload["http_status"] = int(status_code or 0)
+            if status_code != 200:
+                message = "HTTP_STATUS"
+                redacted, message_hash = _redact_message(message)
+                payload.update(
+                    {
+                        "error_code": "HTTP_STATUS",
+                        "endpoint": graphql_url,
+                        "message_redacted": redacted or None,
+                        "message_hash": message_hash or None,
+                    }
+                )
+                payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+                _write(payload)
+                return
+            try:
+                gql_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except Exception:
+                gql_obj = {}
+            if isinstance(gql_obj, dict) and isinstance(gql_obj.get("errors"), list) and gql_obj.get("errors"):
+                payload["error_code"] = "GRAPHQL_ERROR"
+                payload["failure_class"] = "OTHER"
+                _write(payload)
+                return
+            is_draft = None
+            try:
+                pr_data = (((gql_obj or {}).get("data") or {}).get("markPullRequestReadyForReview") or {}).get("pullRequest") or {}
+                is_draft = pr_data.get("isDraft")
+            except Exception:
+                pr_data = {}
+            if is_draft is True:
+                payload["error_code"] = "PR_DRAFT"
+                _write(payload)
+                return
+            payload["pr_marked_ready_for_review"] = True
+            payload["pr_marked_ready_method"] = "graphql"
+            if isinstance(pr_obj, dict):
+                pr_obj["draft"] = False
+        else:
+            payload["http_status"] = int(status_code or 0)
+            if status_code != 200:
+                message = "HTTP_STATUS"
+                redacted, message_hash = _redact_message(message)
+                payload.update(
+                    {
+                        "error_code": "HTTP_STATUS",
+                        "endpoint": ready_url,
+                        "message_redacted": redacted or None,
+                        "message_hash": message_hash or None,
+                    }
+                )
+                payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+                _write(payload)
+                return
+            try:
+                pr_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except Exception:
+                pr_obj = {}
+            if isinstance(pr_obj, dict):
+                payload.update(_extract_pr_metadata(pr_obj))
+            payload["pr_marked_ready_for_review"] = True
+            payload["pr_marked_ready_method"] = "rest"
+            if bool(pr_obj.get("draft", False)) is True:
+                payload["error_code"] = "PR_DRAFT"
+                _write(payload)
+                return
 
     head_sha = ""
     if isinstance(pr_obj.get("head"), dict):
