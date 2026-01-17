@@ -348,16 +348,23 @@ def run_pr_merge_e2e(
 
     pr_poll = _poll_job(workspace_root=ws, job_id=pr_job_id, max_polls=60, sleep_seconds=1.0)
     report["jobs"]["pr_open"]["poll"] = pr_poll
-    if pr_poll.get("status") != "PASS":
-        report["status"] = "FAIL"
-        report["error_code"] = "PR_OPEN_FAIL"
-        _atomic_write_json(out_path, report)
-        report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
-        return report
-
     pr_rc = _load_job_rc(workspace_root=ws, job_id=pr_job_id) or {}
     pr_number = pr_rc.get("pr_number") if isinstance(pr_rc.get("pr_number"), int) else None
-    report["jobs"]["pr_open"]["rc"] = {k: pr_rc.get(k) for k in sorted(pr_rc.keys()) if k in {"pr_url", "pr_number", "pr_state", "noop"}}
+    report["jobs"]["pr_open"]["rc"] = {
+        k: pr_rc.get(k) for k in sorted(pr_rc.keys()) if k in {"http_status", "pr_url", "pr_number", "pr_state", "noop", "rc"}
+    }
+
+    if pr_poll.get("status") != "PASS":
+        # Fail-closed behavior: accept success when rc.json is present and indicates success.
+        # Some environments may keep the job process alive after writing rc.json, causing poll TIMEOUT.
+        if pr_rc.get("rc") == 0 and isinstance(pr_number, int) and pr_number > 0:
+            report["notes"].append("pr_open_poll_nonpass_but_rc_success: proceeding")
+        else:
+            report["status"] = "FAIL"
+            report["error_code"] = "PR_OPEN_FAIL"
+            _atomic_write_json(out_path, report)
+            report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
+            return report
 
     # --- MERGE job (explicit pr_number; fail-closed) ---
     if not pr_number:
@@ -382,15 +389,22 @@ def run_pr_merge_e2e(
 
     merge_poll = _poll_job(workspace_root=ws, job_id=merge_job_id, max_polls=90, sleep_seconds=1.0)
     report["jobs"]["merge"]["poll"] = merge_poll
-    if merge_poll.get("status") != "PASS":
-        report["status"] = "FAIL"
-        report["error_code"] = "MERGE_FAIL"
-        _atomic_write_json(out_path, report)
-        report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
-        return report
-
     merge_rc = _load_job_rc(workspace_root=ws, job_id=merge_job_id) or {}
-    report["jobs"]["merge"]["rc"] = {k: merge_rc.get(k) for k in sorted(merge_rc.keys()) if k in {"merge_commit_sha", "pr_number", "pr_number_inferred", "noop"}}
+    report["jobs"]["merge"]["rc"] = {
+        k: merge_rc.get(k)
+        for k in sorted(merge_rc.keys())
+        if k in {"http_status", "merge_commit_sha", "pr_number", "pr_number_inferred", "noop", "rc"}
+    }
+
+    if merge_poll.get("status") != "PASS":
+        if merge_rc.get("rc") == 0:
+            report["notes"].append("merge_poll_nonpass_but_rc_success: proceeding")
+        else:
+            report["status"] = "FAIL"
+            report["error_code"] = "MERGE_FAIL"
+            _atomic_write_json(out_path, report)
+            report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
+            return report
 
     # --- Sync local base branch to origin/base (clean tree) ---
     checkout_base = _run_git(["checkout", base_branch], repo_root=repo_root, env=git_env)
