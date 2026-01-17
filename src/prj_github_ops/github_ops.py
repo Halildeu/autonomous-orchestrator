@@ -1084,6 +1084,7 @@ def start_github_ops_job(
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
     live_gate = _live_gate(policy, workspace_root=workspace_root)
     gate_details = _gate_details(policy, workspace_root=workspace_root)
+    git_state = _git_state(_repo_root())
     now = _now_iso()
     jobs_index, job_notes = _load_jobs_index(workspace_root)
     notes.extend(job_notes)
@@ -1113,6 +1114,86 @@ def start_github_ops_job(
                 "env_key_present": bool(gate_details.get("env_key_present", False)),
             },
         }
+
+    if normalized_kind in {"RELEASE_RC", "RELEASE_FINAL"} and not dry_run:
+        ahead = int(git_state.get("ahead") or 0)
+        behind = int(git_state.get("behind") or 0)
+        if git_state.get("dirty_tree"):
+            return {
+                "status": "IDLE",
+                "error_code": "DIRTY_TREE",
+                "job_id": "",
+                "job_kind": normalized_kind,
+                "cooldown_hit": False,
+                "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
+                "policy_source": policy_source,
+                "decision_needed": False,
+                "decision_seed_path": None,
+                "decision_inbox_path": None,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
+            }
+        if ahead > 0:
+            return {
+                "status": "IDLE",
+                "error_code": "AHEAD_REMOTE",
+                "job_id": "",
+                "job_kind": normalized_kind,
+                "cooldown_hit": False,
+                "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
+                "policy_source": policy_source,
+                "decision_needed": False,
+                "decision_seed_path": None,
+                "decision_inbox_path": None,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
+            }
+        if behind > 0:
+            return {
+                "status": "IDLE",
+                "error_code": "BEHIND_REMOTE",
+                "job_id": "",
+                "job_kind": normalized_kind,
+                "cooldown_hit": False,
+                "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
+                "policy_source": policy_source,
+                "decision_needed": False,
+                "decision_seed_path": None,
+                "decision_inbox_path": None,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
+            }
+        if git_state.get("index_lock"):
+            return {
+                "status": "IDLE",
+                "error_code": "INDEX_LOCK",
+                "job_id": "",
+                "job_kind": normalized_kind,
+                "cooldown_hit": False,
+                "jobs_index_path": str(Path(".cache") / "github_ops" / "jobs_index.v1.json"),
+                "policy_source": policy_source,
+                "decision_needed": False,
+                "decision_seed_path": None,
+                "decision_inbox_path": None,
+                "gate_state": {
+                    "network_enabled": bool(gate_details.get("network_enabled", False)),
+                    "live_enabled": bool(gate_details.get("live_enabled", False)),
+                    "env_flag_set": bool(gate_details.get("env_flag_set", False)),
+                    "env_key_present": bool(gate_details.get("env_key_present", False)),
+                },
+            }
     gate_error = _gate_error(policy, workspace_root=workspace_root)
     pr_request_payload: dict[str, Any] | None = None
     pr_request_missing: list[str] = []
@@ -1211,7 +1292,21 @@ def start_github_ops_job(
                     "env_key_present": bool(gate_details.get("env_key_present", False)),
                 },
             }
-    job_id = _hash_text(_canonical_json({"kind": normalized_kind, "policy_hash": policy_hash, "dry_run": dry_run}))
+    job_id_payload: dict[str, Any] = {"kind": normalized_kind, "policy_hash": policy_hash, "dry_run": dry_run}
+    if normalized_kind in {"RELEASE_RC", "RELEASE_FINAL"} and not dry_run:
+        manifest_path = workspace_root / ".cache" / "reports" / "release_manifest.v1.json"
+        try:
+            manifest = _load_json(manifest_path) if manifest_path.exists() else None
+        except Exception:
+            manifest = None
+        if isinstance(manifest, dict):
+            release_version = manifest.get("release_version")
+            if isinstance(release_version, str) and release_version.strip():
+                job_id_payload["release_version"] = release_version.strip()
+            channel = manifest.get("channel")
+            if isinstance(channel, str) and channel.strip():
+                job_id_payload["channel"] = channel.strip()
+    job_id = _hash_text(_canonical_json(job_id_payload))
     status = "RUNNING"
     skip_reason = ""
     error_code = ""

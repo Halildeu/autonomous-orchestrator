@@ -168,6 +168,50 @@ def _git_status_paths(root: Path) -> list[str] | None:
     return sorted(set(paths))
 
 
+def _git_tag_ref(version: str) -> str:
+    raw = str(version or "").strip()
+    if not raw:
+        return ""
+    return raw if raw.startswith("v") else f"v{raw}"
+
+
+def _git_ref_exists(root: Path, ref: str) -> bool:
+    if not ref or not _git_available(root):
+        return False
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--verify", f"{ref}^{{commit}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        return False
+    return proc.returncode == 0 and bool(proc.stdout.strip())
+
+
+def _git_diff_name_only(root: Path, *, base_ref: str, head_ref: str = "HEAD") -> list[str] | None:
+    if not base_ref or not _git_available(root):
+        return None
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "diff", "--name-only", f"{base_ref}..{head_ref}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        return None
+    if proc.returncode != 0:
+        return None
+    paths: list[str] = []
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if line:
+            paths.append(line)
+    return sorted(set(paths))
+
+
 def _path_matches_prefix(path: str, prefix: str) -> bool:
     if prefix.endswith("/"):
         return path.startswith(prefix)
@@ -268,10 +312,31 @@ def build_release_plan(
     if channel_value not in {"rc", "final"}:
         channel_value = "rc"
 
-    changed_paths = override_changed_paths if override_changed_paths is not None else _git_status_paths(core_root)
-    component_hashes: dict[str, str] = {}
-    change_detector = "git_status" if changed_paths is not None else "hash_fallback"
     notes: list[str] = []
+    uncommitted_paths = _git_status_paths(core_root)
+    dirty_tree = bool(uncommitted_paths) if uncommitted_paths is not None else False
+
+    baseline_tag = _git_tag_ref(policy.current_version)
+    if baseline_tag:
+        notes.append(f"baseline_tag:{baseline_tag}")
+
+    if override_changed_paths is not None:
+        changed_paths = sorted(set(override_changed_paths))
+        change_detector = "git_status"
+        notes.append("override_changed_paths")
+    else:
+        if baseline_tag and _git_ref_exists(core_root, baseline_tag):
+            changed_paths = _git_diff_name_only(core_root, base_ref=baseline_tag)
+            change_detector = "git_diff_tag" if changed_paths is not None else "git_status"
+            if change_detector == "git_status":
+                notes.append("baseline_diff_failed_fallback_git_status")
+        else:
+            if baseline_tag:
+                notes.append("baseline_tag_missing_fallback_git_status")
+            changed_paths = uncommitted_paths
+            change_detector = "git_status" if changed_paths is not None else "hash_fallback"
+
+    component_hashes: dict[str, str] = {}
 
     previous_hashes: dict[str, str] = {}
     if changed_paths is None:
@@ -288,7 +353,6 @@ def build_release_plan(
             notes.append("hash_baseline_missing")
 
     changed_paths = sorted(set(changed_paths))
-    dirty_tree = bool(changed_paths) if change_detector == "git_status" else bool(component_hashes)
 
     components: list[dict[str, Any]] = []
     changed_components: list[str] = []
@@ -404,7 +468,9 @@ def prepare_release(
         channel_value = "rc"
 
     version_plan = plan_obj.get("version_plan") if isinstance(plan_obj, dict) else {}
-    release_version = str(version_plan.get("channel_version", "0.0.0"))
+    rc_version = str(version_plan.get("rc_version") or version_plan.get("channel_version") or "0.0.0")
+    final_version = str(version_plan.get("final_version") or version_plan.get("channel_version") or "0.0.0")
+    release_version = rc_version if channel_value == "rc" else final_version
     dirty_tree = bool(plan_obj.get("dirty_tree", False))
 
     components = plan_obj.get("components") if isinstance(plan_obj, dict) else []
