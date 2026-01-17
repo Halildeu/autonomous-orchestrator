@@ -66,6 +66,22 @@ const state = {
     jobs: { key: "created_at", dir: "desc" },
     notes: { key: "updated_at", dir: "desc" },
   },
+  filters: {
+    intake: {
+      bucket: [],
+      status: [],
+      source: [],
+      extension: [],
+    },
+  },
+  filterOptions: {
+    intake: {
+      bucket: [],
+      status: [],
+      source: [],
+      extension: [],
+    },
+  },
 };
 
 function unwrap(payload) {
@@ -111,6 +127,134 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function formatTimestamp(value) {
+  if (!value) return "";
+  let ts = value;
+  if (typeof ts === "string" && /^\d+$/.test(ts)) {
+    ts = Number(ts);
+  }
+  if (typeof ts === "number") {
+    ts = ts < 1e12 ? ts * 1000 : ts;
+    const date = new Date(ts);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().replace("T", " ").replace("Z", "");
+  }
+  if (typeof ts === "string") {
+    const date = new Date(ts);
+    if (Number.isNaN(date.getTime())) return ts;
+    return date.toISOString().replace("T", " ").replace("Z", "");
+  }
+  return "";
+}
+
+function pickTimestamp(item, keys) {
+  for (const key of keys) {
+    const value = item ? item[key] : null;
+    if (value) return value;
+  }
+  return "";
+}
+
+function normalizeKey(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeValue(value) {
+  return String(value || "").trim();
+}
+
+function encodeTag(value) {
+  return encodeURIComponent(String(value || ""));
+}
+
+function decodeTag(value) {
+  return decodeURIComponent(value || "");
+}
+
+function updateIntakeFilterOptions(items) {
+  const buckets = new Map();
+  const statuses = new Map();
+  const sources = new Map();
+  const extensions = new Map();
+
+  const addOption = (map, value) => {
+    const raw = normalizeValue(value);
+    if (!raw) return;
+    const key = normalizeKey(raw);
+    if (!map.has(key)) map.set(key, raw);
+  };
+
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    addOption(buckets, item.bucket);
+    addOption(statuses, item.status);
+    addOption(sources, item.source_type);
+    const ext = item.suggested_extension;
+    if (Array.isArray(ext)) {
+      ext.forEach((value) => addOption(extensions, value));
+    } else {
+      addOption(extensions, ext);
+    }
+  });
+
+  state.filterOptions.intake.bucket = Array.from(buckets.values()).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.intake.status = Array.from(statuses.values()).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.intake.source = Array.from(sources.values()).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.intake.extension = Array.from(extensions.values()).sort((a, b) => a.localeCompare(b));
+
+  ["bucket", "status", "source", "extension"].forEach((field) => renderTagSelect(field));
+}
+
+function renderTagSelect(field) {
+  const wrap = $(`#filter-${field}`);
+  const tagsEl = $(`#filter-${field}-tags`);
+  const input = $(`#filter-${field}-input`);
+  const optionsEl = $(`#filter-${field}-options`);
+  if (!wrap || !tagsEl || !input || !optionsEl) return;
+
+  const selected = state.filters.intake[field] || [];
+  const selectedKeys = new Set(selected.map((val) => normalizeKey(val)));
+  const query = input.value.trim().toLowerCase();
+  const options = (state.filterOptions.intake[field] || [])
+    .filter((opt) => !selectedKeys.has(normalizeKey(opt)))
+    .filter((opt) => (query ? opt.toLowerCase().includes(query) : true))
+    .sort((a, b) => a.localeCompare(b));
+
+  tagsEl.innerHTML = selected
+    .map((value) => {
+      const encoded = encodeTag(value);
+      return `<span class="tag">${escapeHtml(value)}<button data-remove="${encoded}" aria-label="Remove tag">x</button></span>`;
+    })
+    .join("");
+
+  optionsEl.innerHTML = options.length
+    ? options
+        .map((value) => {
+          const encoded = encodeTag(value);
+          return `<div class="tag-option" data-value="${encoded}">${escapeHtml(value)}</div>`;
+        })
+        .join("")
+    : `<div class="tag-option subtle">No items</div>`;
+}
+
+function addTag(field, value) {
+  const list = state.filters.intake[field] || [];
+  const key = normalizeKey(value);
+  if (!key) return;
+  const exists = list.some((item) => normalizeKey(item) === key);
+  if (exists) return;
+  list.push(normalizeValue(value));
+  list.sort((a, b) => a.localeCompare(b));
+  state.filters.intake[field] = list;
+  renderTagSelect(field);
+}
+
+function removeTag(field, value) {
+  const list = state.filters.intake[field] || [];
+  const key = normalizeKey(value);
+  state.filters.intake[field] = list.filter((item) => normalizeKey(item) !== key);
+  renderTagSelect(field);
 }
 
 function stableSort(items, compareFn) {
@@ -404,21 +548,38 @@ function renderStaticTable(containerId, items, columns) {
 
 function renderIntakeTable(items) {
   const search = $("#intake-search").value.trim();
-  const bucket = $("#filter-bucket").value.trim().toUpperCase();
-  const status = $("#filter-status").value.trim().toUpperCase();
-  const source = $("#filter-source").value.trim().toUpperCase();
-  const ext = $("#filter-extension").value.trim().toUpperCase();
+  const bucket = state.filters.intake.bucket || [];
+  const status = state.filters.intake.status || [];
+  const source = state.filters.intake.source || [];
+  const ext = state.filters.intake.extension || [];
+  const hideDone = $("#filter-hide-done") ? $("#filter-hide-done").checked : false;
 
   let filtered = Array.isArray(items) ? items : [];
-  if (bucket) filtered = filtered.filter((item) => String(item.bucket || "").toUpperCase() === bucket);
-  if (status) filtered = filtered.filter((item) => String(item.status || "").toUpperCase() === status);
-  if (source) filtered = filtered.filter((item) => String(item.source_type || "").toUpperCase() === source);
-  if (ext) {
+  if (bucket.length) {
+    const bucketKeys = new Set(bucket.map((val) => normalizeKey(val)));
+    filtered = filtered.filter((item) => bucketKeys.has(normalizeKey(item.bucket)));
+  }
+  if (status.length) {
+    const statusKeys = new Set(status.map((val) => normalizeKey(val)));
+    filtered = filtered.filter((item) => statusKeys.has(normalizeKey(item.status)));
+  }
+  if (source.length) {
+    const sourceKeys = new Set(source.map((val) => normalizeKey(val)));
+    filtered = filtered.filter((item) => sourceKeys.has(normalizeKey(item.source_type)));
+  }
+  if (ext.length) {
+    const extKeys = new Set(ext.map((val) => normalizeKey(val)));
     filtered = filtered.filter((item) => {
       const val = item.suggested_extension || [];
-      const joined = Array.isArray(val) ? val.join(",") : String(val || "");
-      return joined.toUpperCase().includes(ext);
+      if (Array.isArray(val)) {
+        return val.some((entry) => extKeys.has(normalizeKey(entry)));
+      }
+      return extKeys.has(normalizeKey(val));
     });
+  }
+  if (hideDone) {
+    const doneKeys = new Set(["DONE", "CLOSED", "RESOLVED"]);
+    filtered = filtered.filter((item) => !doneKeys.has(normalizeKey(item.status)));
   }
   filtered = filterBySearch(filtered, search, ["title", "bucket", "status", "priority", "severity", "source_type"]);
 
@@ -430,6 +591,14 @@ function renderIntakeTable(items) {
     { key: "priority", label: "Priority" },
     { key: "severity", label: "Severity" },
     { key: "title", label: "Title" },
+    { key: "created_at", label: "Created", render: (item) => {
+        const keys = ["created_at", "created", "created_ts", "ts", "timestamp", "ingested_at"];
+        return formatTimestamp(pickTimestamp(item, keys)) || "-";
+      } },
+    { key: "updated_at", label: "Updated", render: (item) => {
+        const keys = ["updated_at", "updated", "modified_at", "modified", "last_updated", "last_update"];
+        return formatTimestamp(pickTimestamp(item, keys)) || "-";
+      } },
     { key: "suggested_extension", label: "Extension", render: (item) => {
         const v = item.suggested_extension;
         return Array.isArray(v) ? v.join(",") : (v || "");
@@ -447,11 +616,37 @@ function renderDecisionTable(items) {
   const search = $("#decision-search").value.trim();
   let filtered = filterBySearch(items, search, ["decision_kind", "status", "question", "title", "decision_id"]);
 
+  const inboxGeneratedAt = pickTimestamp(unwrap(state.decisions || {}), ["generated_at", "ts", "timestamp"]);
+  const intakeIndex = new Map();
+  const intakeItems = unwrap(state.intake || {}).items;
+  if (Array.isArray(intakeItems)) {
+    intakeItems.forEach((item) => {
+      const id = item?.intake_id;
+      if (id) intakeIndex.set(id, item);
+    });
+  }
+
+  const decisionCreatedKeys = ["created_at", "created", "created_ts", "ts", "timestamp"];
+  const decisionUpdatedKeys = ["updated_at", "updated", "modified_at", "modified", "last_updated", "last_update"];
+  const intakeCreatedKeys = ["created_at", "created", "created_ts", "ts", "timestamp", "ingested_at"];
+  const intakeUpdatedKeys = ["updated_at", "updated", "modified_at", "modified", "last_updated", "last_update"];
+
+  filtered = filtered.map((item) => {
+    const source = intakeIndex.get(item?.source_intake_id) || null;
+    const created =
+      pickTimestamp(item, decisionCreatedKeys) || pickTimestamp(source, intakeCreatedKeys) || inboxGeneratedAt || "";
+    const updated =
+      pickTimestamp(item, decisionUpdatedKeys) || pickTimestamp(source, intakeUpdatedKeys) || inboxGeneratedAt || created;
+    return { ...item, created_at: created, updated_at: updated };
+  });
+
   const columns = [
     { key: "decision_kind", label: "Kind" },
     { key: "status", label: "Status" },
     { key: "question", label: "Question", render: (item) => item.question || item.title || "" },
     { key: "decision_id", label: "ID" },
+    { key: "created_at", label: "Created", render: (item) => formatTimestamp(item.created_at) || "-" },
+    { key: "updated_at", label: "Updated", render: (item) => formatTimestamp(item.updated_at) || "-" },
   ];
 
   renderTable("#decision-table", filtered, columns, state.sort.decisions.key, state.sort.decisions.dir, (key) => {
@@ -938,7 +1133,14 @@ async function refreshIntake() {
   const items = Array.isArray(state.intake.items)
     ? state.intake.items
     : (unwrap(state.intake || {}).items || []);
+  updateIntakeFilterOptions(items);
   renderIntakeTable(items);
+  if (state.decisions) {
+    const decisionItems = Array.isArray(state.decisions.items)
+      ? state.decisions.items
+      : (unwrap(state.decisions || {}).items || []);
+    renderDecisionTable(decisionItems);
+  }
 }
 
 async function refreshDecisions() {
@@ -946,6 +1148,13 @@ async function refreshDecisions() {
   const items = Array.isArray(state.decisions.items)
     ? state.decisions.items
     : (unwrap(state.decisions || {}).items || []);
+  const inbox = unwrap(state.decisions || {});
+  const meta = $("#decision-meta");
+  if (meta) {
+    const generated = formatTimestamp(pickTimestamp(inbox, ["generated_at", "ts", "timestamp"])) || "-";
+    const total = inbox?.counts?.total ?? items.length;
+    meta.textContent = `generated_at=${generated} total=${total}`;
+  }
   renderDecisionTable(items);
 }
 
@@ -1256,7 +1465,85 @@ function setupNav() {
   applyRoute();
 }
 
+function setupTagSelects() {
+  const fields = ["bucket", "status", "source", "extension"];
+  const closeAll = (except) => {
+    fields.forEach((field) => {
+      if (field === except) return;
+      const wrap = $(`#filter-${field}`);
+      if (wrap) wrap.classList.remove("open");
+    });
+  };
+  fields.forEach((field) => {
+    const wrap = $(`#filter-${field}`);
+    const input = $(`#filter-${field}-input`);
+    const options = $(`#filter-${field}-options`);
+    if (!wrap || !input || !options) return;
+    const toggle = wrap.querySelector(".tag-toggle");
+
+    const openSelect = () => {
+      closeAll(field);
+      wrap.classList.add("open");
+      renderTagSelect(field);
+    };
+
+    input.addEventListener("focus", () => {
+      openSelect();
+    });
+    input.addEventListener("input", () => renderTagSelect(field));
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (wrap.contains(document.activeElement)) return;
+        wrap.classList.remove("open");
+      }, 150);
+    });
+    options.addEventListener("mousedown", (event) => event.preventDefault());
+    if (toggle) {
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (wrap.classList.contains("open")) {
+          wrap.classList.remove("open");
+        } else {
+          openSelect();
+        }
+        input.focus();
+      });
+    }
+    wrap.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target?.classList?.contains("tag-toggle")) return;
+      const rawValue = target?.dataset?.value;
+      const rawRemove = target?.dataset?.remove;
+      if (rawValue) {
+        addTag(field, decodeTag(rawValue));
+        input.value = "";
+        openSelect();
+        renderIntakeTable((unwrap(state.intake || {}).items || []));
+      }
+      if (rawRemove) {
+        removeTag(field, decodeTag(rawRemove));
+        renderIntakeTable((unwrap(state.intake || {}).items || []));
+      }
+      if (target && (target.classList?.contains("tag-select-input") || target.classList?.contains("tag-input"))) {
+        openSelect();
+        input.focus();
+      }
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    fields.forEach((field) => {
+      const wrap = $(`#filter-${field}`);
+      if (!wrap) return;
+      if (!wrap.contains(event.target)) wrap.classList.remove("open");
+    });
+  });
+}
+
 function setupOps() {
+  setupTagSelects();
+
   $("#refresh-all").addEventListener("click", () => {
     refreshAll();
     refreshEvidence();
@@ -1277,16 +1564,26 @@ function setupOps() {
     renderIntakeTable(items);
   });
   $("#clear-intake-filter").addEventListener("click", () => {
-    $("#filter-bucket").value = "";
-    $("#filter-status").value = "";
-    $("#filter-source").value = "";
-    $("#filter-extension").value = "";
+    state.filters.intake = { bucket: [], status: [], source: [], extension: [] };
+    ["bucket", "status", "source", "extension"].forEach((field) => {
+      const input = $(`#filter-${field}-input`);
+      if (input) input.value = "";
+      renderTagSelect(field);
+    });
+    const hideDone = $("#filter-hide-done");
+    if (hideDone) hideDone.checked = true;
     $("#intake-search").value = "";
     renderIntakeTable((unwrap(state.intake || {}).items || []));
   });
   $("#intake-search").addEventListener("input", () => {
     renderIntakeTable((unwrap(state.intake || {}).items || []));
   });
+  const hideDone = $("#filter-hide-done");
+  if (hideDone) {
+    hideDone.addEventListener("change", () => {
+      renderIntakeTable((unwrap(state.intake || {}).items || []));
+    });
+  }
   $("#decision-search").addEventListener("input", () => {
     renderDecisionTable((unwrap(state.decisions || {}).items || []));
   });
