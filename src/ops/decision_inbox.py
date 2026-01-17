@@ -72,6 +72,50 @@ def _canonical_hash(obj: dict[str, Any]) -> str:
     return _hash_text(json.dumps(obj, ensure_ascii=False, sort_keys=True))
 
 
+def _coerce_iso_or_none(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    if _parse_iso(value) is None:
+        return None
+    return value
+
+
+def _strip_decision_item_timestamps(item: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in item.items() if k not in {"created_at", "updated_at"}}
+
+
+def _decision_item_fingerprint(item: dict[str, Any]) -> str:
+    stripped = _strip_decision_item_timestamps(item)
+    return _hash_text(json.dumps(stripped, ensure_ascii=False, sort_keys=True))
+
+
+def _load_previous_decision_inbox(workspace_root: Path, candidates: list[Path]) -> dict[str, Any] | None:
+    for rel in candidates:
+        path = workspace_root / rel
+        if not path.exists():
+            continue
+        try:
+            obj = _load_json(path)
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return None
+
+
+def _atomic_write_text_if_changed(path: Path, text: str) -> bool:
+    try:
+        if path.exists() and path.read_text(encoding="utf-8") == text:
+            return False
+    except Exception:
+        pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(path.name + ".tmp")
+    tmp_path.write_text(text, encoding="utf-8")
+    tmp_path.replace(path)
+    return True
+
+
 def _normalize_seed(obj: dict[str, Any], seed_path: Path, source: str) -> dict[str, Any]:
     seed_id = str(obj.get("seed_id") or "")
     if not seed_id:
@@ -334,6 +378,7 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
 
     mapping = policy.get("mapping") if isinstance(policy.get("mapping"), dict) else {}
     limit = int(policy.get("limits", {}).get("max_items_per_run", 20) or 20)
+    run_now = _now_iso()
 
     decisions: list[dict[str, Any]] = []
     for entry in entries:
@@ -371,7 +416,7 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
     seed_ingest_path = _seed_ingest_path(workspace_root)
     seed_ingested = _load_seed_ingested_index(seed_ingest_path)
     dedup_hours = int(policy.get("limits", {}).get("dedup_window_hours", 24) or 24)
-    dedup_cutoff = _now_iso()
+    dedup_cutoff = run_now
     dedup_floor = _parse_iso(dedup_cutoff) - timedelta(hours=dedup_hours) if _parse_iso(dedup_cutoff) else None
     seed_ingest_records: list[dict[str, Any]] = []
     for seed in seed_items:
@@ -425,7 +470,7 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
                 "seed_id": seed_id,
                 "seed_path": str(seed_path or ""),
                 "decision_kind": decision_kind,
-                "ingested_at": _now_iso(),
+                "ingested_at": run_now,
             }
         )
 
@@ -460,6 +505,53 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
             str(d.get("decision_id") or ""),
         ),
     )[: max(0, limit)]
+
+    previous_inbox = _load_previous_decision_inbox(workspace_root, [decision_path, canonical_path])
+    previous_items_by_id: dict[str, dict[str, Any]] = {}
+    previous_items = previous_inbox.get("items") if isinstance(previous_inbox, dict) else None
+    if isinstance(previous_items, list):
+        for item in previous_items:
+            if not isinstance(item, dict):
+                continue
+            decision_id = str(item.get("decision_id") or "")
+            if decision_id:
+                previous_items_by_id[decision_id] = item
+
+    previous_items_fingerprint = ""
+    if isinstance(previous_items, list):
+        previous_items_fingerprint = _hash_text(
+            json.dumps(
+                [_strip_decision_item_timestamps(d) for d in previous_items if isinstance(d, dict)],
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+    new_items_fingerprint = _hash_text(
+        json.dumps([_strip_decision_item_timestamps(d) for d in decisions], ensure_ascii=False, sort_keys=True)
+    )
+
+    generated_at = run_now
+    previous_generated_at = _coerce_iso_or_none(
+        previous_inbox.get("generated_at") if isinstance(previous_inbox, dict) else None
+    )
+    if previous_generated_at and previous_items_fingerprint == new_items_fingerprint:
+        generated_at = previous_generated_at
+
+    for item in decisions:
+        decision_id = str(item.get("decision_id") or "")
+        prev = previous_items_by_id.get(decision_id)
+        created_at = _coerce_iso_or_none(prev.get("created_at") if isinstance(prev, dict) else None) or run_now
+
+        prev_fingerprint = _decision_item_fingerprint(prev) if isinstance(prev, dict) else ""
+        new_fingerprint = _decision_item_fingerprint(item)
+        if prev_fingerprint and prev_fingerprint == new_fingerprint:
+            updated_at = _coerce_iso_or_none(prev.get("updated_at") if isinstance(prev, dict) else None) or created_at
+        else:
+            updated_at = run_now
+
+        item["created_at"] = created_at
+        item["updated_at"] = updated_at
+
     seed_ids_in_inbox = {
         str(d.get("decision_id") or "")
         for d in decisions
@@ -476,7 +568,7 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
 
     payload = {
         "version": "v1",
-        "generated_at": _now_iso(),
+        "generated_at": generated_at,
         "workspace_root": str(workspace_root),
         "items": decisions,
         "counts": {"total": len(decisions), "by_kind": {k: counts_by_kind[k] for k in sorted(counts_by_kind)}},
@@ -486,17 +578,16 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
     out_md_lines = ["DECISION INBOX", "", f"Total: {len(decisions)}", ""]
     for item in decisions:
         out_md_lines.append(
-            f"- {item.get('decision_id')} intake={item.get('source_intake_id')} kind={item.get('decision_kind')}"
+            f"- {item.get('decision_id')} intake={item.get('source_intake_id')} kind={item.get('decision_kind')} created={item.get('created_at')} updated={item.get('updated_at')}"
         )
 
+    out_json = _dump_json(payload)
+    out_md = "\n".join(out_md_lines) + "\n"
+
     for path in sorted({decision_path, canonical_path}, key=lambda p: p.as_posix()):
-        out_path = workspace_root / path
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(_dump_json(payload), encoding="utf-8")
+        _atomic_write_text_if_changed(workspace_root / path, out_json)
     for path in sorted({decision_md_path, canonical_md_path}, key=lambda p: p.as_posix()):
-        out_md_path = workspace_root / path
-        out_md_path.parent.mkdir(parents=True, exist_ok=True)
-        out_md_path.write_text("\n".join(out_md_lines) + "\n", encoding="utf-8")
+        _atomic_write_text_if_changed(workspace_root / path, out_md)
 
     status = "OK" if decisions else "IDLE"
     return {

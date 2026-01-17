@@ -1685,9 +1685,21 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
         (policy.get("job") or {}).get("ttl_seconds", 0) if isinstance(policy.get("job"), dict) else 0
     )
     if status in {"QUEUED", "RUNNING"}:
+        # Source-of-truth: rc.json. This avoids false "still running" due to PID reuse.
+        rc_path = _job_output_paths(workspace_root, job_id)[2]
+        rc = None
+        rc_obj: dict[str, Any] | None = None
+        if rc_path.exists():
+            try:
+                loaded = _load_json(rc_path)
+                rc_obj = loaded if isinstance(loaded, dict) else None
+                rc = int(rc_obj.get("rc")) if rc_obj is not None and isinstance(rc_obj.get("rc"), int) else None
+            except Exception:
+                rc = None
+
         pid = target.get("pid")
         job_time = _job_time(target)
-        if timeout_seconds and now - job_time > timedelta(seconds=timeout_seconds):
+        if rc is None and timeout_seconds and now - job_time > timedelta(seconds=timeout_seconds):
             if isinstance(pid, int):
                 try:
                     os.kill(pid, signal.SIGKILL)
@@ -1698,7 +1710,7 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
             target["error_code"] = "TIMEOUT"
         else:
             running = False
-            if isinstance(pid, int):
+            if rc is None and isinstance(pid, int):
                 try:
                     os.kill(pid, 0)
                     running = True
@@ -1707,16 +1719,6 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
             if running:
                 target["status"] = "RUNNING"
             else:
-                rc_path = _job_output_paths(workspace_root, job_id)[2]
-                rc = None
-                rc_obj: dict[str, Any] | None = None
-                if rc_path.exists():
-                    try:
-                        loaded = _load_json(rc_path)
-                        rc_obj = loaded if isinstance(loaded, dict) else None
-                        rc = int(rc_obj.get("rc")) if rc_obj is not None and isinstance(rc_obj.get("rc"), int) else None
-                    except Exception:
-                        rc = None
                 if rc is None:
                     target["status"] = "FAIL"
                     target["error_code"] = "RC_MISSING"

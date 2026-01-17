@@ -324,7 +324,10 @@ def run_release_final_e2e(
     report["jobs"]["pr_open"]["rc"] = {k: pr_rc.get(k) for k in sorted(pr_rc.keys()) if k in {"pr_url", "pr_number", "pr_state", "noop"}}
 
     # --- MERGE job ---
-    merge = start_github_ops_job(workspace_root=ws, kind="MERGE", dry_run=False, request=None)
+    merge_request: dict[str, Any] | None = None
+    if isinstance(pr_number, int) and pr_number > 0:
+        merge_request = {"pr_number": pr_number}
+    merge = start_github_ops_job(workspace_root=ws, kind="MERGE", dry_run=False, request=merge_request)
     merge_job_id = str(merge.get("job_id") or "")
     report["jobs"]["merge"] = {"job_id": merge_job_id, "start": merge}
     if not merge_job_id:

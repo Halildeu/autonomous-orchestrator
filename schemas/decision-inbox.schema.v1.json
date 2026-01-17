@@ -68,6 +68,8 @@
         "bucket": { "type": "string", "minLength": 1 },
         "decision_kind": { "$ref": "#/$defs/decision_kind" },
         "question": { "type": "string", "minLength": 1 },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
         "options": {
           "type": "array",
           "items": { "$ref": "#/$defs/option" }

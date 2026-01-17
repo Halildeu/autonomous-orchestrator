@@ -58,6 +58,17 @@ def main() -> None:
     if not inbox_path.exists():
         raise SystemExit("decision_inbox_contract_test failed: decision_inbox missing")
 
+    inbox = json.loads(inbox_path.read_text(encoding="utf-8"))
+    items = inbox.get("items") if isinstance(inbox, dict) else []
+    if not items:
+        raise SystemExit("decision_inbox_contract_test failed: decision_inbox items empty")
+    first_item = items[0] if isinstance(items[0], dict) else {}
+    if not first_item.get("created_at") or not first_item.get("updated_at"):
+        raise SystemExit("decision_inbox_contract_test failed: expected created_at/updated_at on items")
+
+    # Ensure build is idempotent across time: preserve existing generated_at when content doesn't change.
+    inbox["generated_at"] = "2000-01-01T00:00:00Z"
+    _write_json(inbox_path, inbox)
     first = inbox_path.read_text(encoding="utf-8")
     res2 = run_decision_inbox_build(workspace_root=ws)
     if res2.get("status") not in {"OK", "IDLE"}:

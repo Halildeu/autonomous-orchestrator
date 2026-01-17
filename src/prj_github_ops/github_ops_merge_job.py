@@ -318,6 +318,32 @@ def _run_pr_merge_job_impl(
         if isinstance(mergeable_state, str):
             payload["pr_mergeable_state"] = mergeable_state
 
+    # Idempotency: if PR is already merged, treat this job as a NOOP success.
+    # This allows safe reruns (e.g., PR open -> merge -> release flow) without failing on
+    # "already merged" API responses.
+    pr_state = _clean_str(pr_obj.get("state") if isinstance(pr_obj, dict) else "")
+    merged_at = _clean_str(pr_obj.get("merged_at") if isinstance(pr_obj, dict) else "")
+    merge_commit_sha = _clean_str(pr_obj.get("merge_commit_sha") if isinstance(pr_obj, dict) else "")
+    if pr_state:
+        payload["pr_state"] = pr_state
+    if merged_at:
+        payload["pr_merged_at"] = merged_at
+    if merge_commit_sha:
+        payload["merge_commit_sha"] = merge_commit_sha
+
+    if merged_at:
+        payload["rc"] = 0
+        payload["noop"] = True
+        payload["noop_reason"] = "PR_ALREADY_MERGED"
+        payload["merged"] = True
+        _write(payload)
+        return
+    if pr_state and pr_state.lower() != "open":
+        payload["error_code"] = "PR_NOT_OPEN"
+        payload["failure_class"] = "VALIDATION"
+        _write(payload)
+        return
+
     # Enforce expected head sha (optional)
     if expected_head_sha:
         head_sha = ""
