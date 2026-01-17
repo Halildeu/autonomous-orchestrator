@@ -450,6 +450,7 @@
         <div class="brand">Cockpit Lite</div>
         <nav class="nav">
           <button class="active" data-tab="overview">Overview</button>
+          <button data-tab="north-star">North Star</button>
           <button data-tab="intake">Intake</button>
           <button data-tab="decisions">Decisions</button>
           <button data-tab="extensions">Extensions</button>
@@ -542,6 +543,44 @@
                 <h3>UI Snapshot (raw)</h3>
                 <pre id="snapshot-json"></pre>
               </div>
+            </div>
+          </section>
+
+          <section id="tab-north-star" class="tab">
+            <div class="grid">
+              <div class="card">
+                <h3>North Star</h3>
+                <div class="badge" id="north-star-status">loading</div>
+                <div class="subtle" id="north-star-summary"></div>
+                <div class="row">
+                  <div class="pill" id="north-star-coverage"></div>
+                  <div class="pill" id="north-star-maturity"></div>
+                </div>
+              </div>
+              <div class="card">
+                <h3>Lens Summary</h3>
+                <div id="north-star-lenses-table" class="table-wrap"></div>
+              </div>
+              <div class="card">
+                <h3>Gap Summary</h3>
+                <div class="subtle" id="north-star-gap-count"></div>
+                <div class="subtle" id="north-star-gap-breakdown"></div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Top Gaps</h3>
+              <div id="north-star-gap-table" class="table-wrap"></div>
+            </div>
+            <div class="card">
+              <h3>Raw JSON</h3>
+              <details>
+                <summary class="subtle">assessment_eval</summary>
+                <pre id="north-star-eval-json"></pre>
+              </details>
+              <details>
+                <summary class="subtle">gap_register</summary>
+                <pre id="north-star-gap-json"></pre>
+              </details>
             </div>
           </section>
 

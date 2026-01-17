@@ -119,6 +119,99 @@ class CockpitHandler(BaseHTTPRequestHandler):
             self._send_json(200, payload)
             return
 
+        if parsed.path == "/api/north_star":
+            eval_path = ws_root / ".cache" / "index" / "assessment_eval.v1.json"
+            gap_path = ws_root / ".cache" / "index" / "gap_register.v1.json"
+            scorecard_path = ws_root / ".cache" / "reports" / "benchmark_scorecard.v1.json"
+            eval_payload = self._wrap_file(eval_path)
+            gap_payload = self._wrap_file(gap_path)
+            scorecard_payload = self._wrap_file(scorecard_path)
+
+            eval_data = eval_payload.get("data") if isinstance(eval_payload, dict) else {}
+            gap_data = gap_payload.get("data") if isinstance(gap_payload, dict) else {}
+            lenses = eval_data.get("lenses") if isinstance(eval_data, dict) else {}
+            gaps = gap_data.get("gaps") if isinstance(gap_data, dict) else []
+            gap_list = gaps if isinstance(gaps, list) else []
+
+            lens_summary: dict[str, Any] = {}
+            if isinstance(lenses, dict):
+                for name in sorted(lenses.keys()):
+                    lens = lenses.get(name)
+                    if not isinstance(lens, dict):
+                        continue
+                    reqs = lens.get("requirements")
+                    req_list = reqs if isinstance(reqs, list) else []
+                    req_ok = 0
+                    for req in req_list:
+                        if isinstance(req, dict) and str(req.get("status") or "").upper() == "OK":
+                            req_ok += 1
+                    lens_summary[name] = {
+                        "status": str(lens.get("status") or ""),
+                        "score": lens.get("score"),
+                        "coverage": lens.get("coverage"),
+                        "requirements_total": len(req_list),
+                        "requirements_ok": req_ok,
+                    }
+
+            counts_sev: dict[str, int] = {}
+            counts_risk: dict[str, int] = {}
+            counts_effort: dict[str, int] = {}
+            for gap in gap_list:
+                if not isinstance(gap, dict):
+                    continue
+                sev = str(gap.get("severity") or "").lower()
+                risk = str(gap.get("risk_class") or "").lower()
+                effort = str(gap.get("effort") or "").lower()
+                if sev:
+                    counts_sev[sev] = counts_sev.get(sev, 0) + 1
+                if risk:
+                    counts_risk[risk] = counts_risk.get(risk, 0) + 1
+                if effort:
+                    counts_effort[effort] = counts_effort.get(effort, 0) + 1
+
+            sev_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+            top_gaps = [gap for gap in gap_list if isinstance(gap, dict)]
+            top_gaps.sort(
+                key=lambda g: (sev_rank.get(str(g.get("severity") or "").lower(), 9), str(g.get("id") or ""))
+            )
+            top_gaps = [
+                {
+                    "id": str(g.get("id") or ""),
+                    "control_id": str(g.get("control_id") or ""),
+                    "severity": str(g.get("severity") or ""),
+                    "risk_class": str(g.get("risk_class") or ""),
+                    "effort": str(g.get("effort") or ""),
+                    "status": str(g.get("status") or ""),
+                }
+                for g in top_gaps[:12]
+            ]
+
+            summary = {
+                "status": str(eval_data.get("status") or ""),
+                "generated_at": str(eval_data.get("generated_at") or ""),
+                "scores": eval_data.get("scores") if isinstance(eval_data, dict) else {},
+                "gap_count": len(gap_list),
+                "lens_count": len(lens_summary),
+                "gap_by_severity": {k: counts_sev[k] for k in sorted(counts_sev)},
+                "gap_by_risk_class": {k: counts_risk[k] for k in sorted(counts_risk)},
+                "gap_by_effort": {k: counts_effort[k] for k in sorted(counts_effort)},
+            }
+            payload = {
+                "summary": summary,
+                "lenses": lens_summary,
+                "top_gaps": top_gaps,
+                "assessment_eval": eval_payload,
+                "gap_register": {
+                    "path": gap_payload.get("path"),
+                    "exists": gap_payload.get("exists"),
+                    "json_valid": gap_payload.get("json_valid"),
+                    "gap_count": len(gap_list),
+                },
+                "scorecard": scorecard_payload,
+            }
+            self._send_json(200, payload)
+            return
+
         if parsed.path == "/api/status":
             path = ws_root / ".cache" / "reports" / "system_status.v1.json"
             self._send_json(200, self._wrap_file(path))

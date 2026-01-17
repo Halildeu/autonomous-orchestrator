@@ -4,6 +4,7 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const endpoints = {
   ws: "/api/ws",
   overview: "/api/overview",
+  northStar: "/api/north_star",
   status: "/api/status",
   snapshot: "/api/ui_snapshot",
   intake: "/api/intake",
@@ -31,6 +32,7 @@ const endpoints = {
 const state = {
   ws: null,
   overview: null,
+  northStar: null,
   status: null,
   snapshot: null,
   intake: null,
@@ -129,6 +131,13 @@ function compareBy(key, dir = "asc") {
     const bv = String(b?.[key] ?? "");
     return av.localeCompare(bv) * mult;
   };
+}
+
+function formatNumber(value, digits = 2) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toFixed(digits);
+  }
+  return value === 0 ? "0" : String(value || "-");
 }
 
 function renderActionLog() {
@@ -258,6 +267,65 @@ function renderOverview() {
   renderActionLog();
 }
 
+function renderNorthStar() {
+  const payload = state.northStar || {};
+  const summary = payload.summary || {};
+  const scores = summary.scores || {};
+  const status = summary.status || "UNKNOWN";
+
+  setBadge($("#north-star-status"), status);
+  const summaryEl = $("#north-star-summary");
+  if (summaryEl) {
+    summaryEl.textContent = `generated_at=${summary.generated_at || ""} gaps=${summary.gap_count || 0} lenses=${summary.lens_count || 0}`;
+  }
+  const coverageEl = $("#north-star-coverage");
+  if (coverageEl) coverageEl.textContent = `coverage=${formatNumber(scores.coverage)}`;
+  const maturityEl = $("#north-star-maturity");
+  if (maturityEl) maturityEl.textContent = `maturity_avg=${formatNumber(scores.maturity_avg)}`;
+
+  const lenses = payload.lenses || {};
+  const lensItems = Object.entries(lenses).map(([name, lens]) => {
+    const reqTotal = lens?.requirements_total || 0;
+    const reqOk = lens?.requirements_ok || 0;
+    return {
+      name,
+      status: String(lens?.status || ""),
+      score: formatNumber(lens?.score),
+      coverage: formatNumber(lens?.coverage),
+      requirements: reqTotal ? `${reqOk}/${reqTotal}` : "-",
+    };
+  });
+  renderStaticTable("#north-star-lenses-table", lensItems, [
+    { key: "name", label: "Lens" },
+    { key: "status", label: "Status" },
+    { key: "score", label: "Score" },
+    { key: "coverage", label: "Coverage" },
+    { key: "requirements", label: "Req OK/Total" },
+  ]);
+
+  const gapBreakdownEl = $("#north-star-gap-breakdown");
+  const gapCountEl = $("#north-star-gap-count");
+  if (gapBreakdownEl) {
+    gapBreakdownEl.textContent = `severity=${JSON.stringify(summary.gap_by_severity || {})} risk=${JSON.stringify(summary.gap_by_risk_class || {})} effort=${JSON.stringify(summary.gap_by_effort || {})}`;
+  }
+  if (gapCountEl) {
+    gapCountEl.textContent = `total_gaps=${summary.gap_count || 0}`;
+  }
+
+  const gapItems = Array.isArray(payload.top_gaps) ? payload.top_gaps : [];
+  renderStaticTable("#north-star-gap-table", gapItems, [
+    { key: "id", label: "Gap ID" },
+    { key: "control_id", label: "Control" },
+    { key: "severity", label: "Severity" },
+    { key: "risk_class", label: "Risk" },
+    { key: "effort", label: "Effort" },
+    { key: "status", label: "Status" },
+  ]);
+
+  renderJson($("#north-star-eval-json"), payload.assessment_eval || {});
+  renderJson($("#north-star-gap-json"), payload.gap_register || {});
+}
+
 function filterBySearch(items, text, keys) {
   if (!text) return items;
   const q = text.toUpperCase();
@@ -305,6 +373,33 @@ function renderTable(containerId, items, columns, sortKey, sortDir, onSort) {
   container.querySelectorAll("[data-sort]").forEach((btn) => {
     btn.addEventListener("click", () => onSort(btn.dataset.sort));
   });
+}
+
+function renderStaticTable(containerId, items, columns) {
+  const container = $(containerId);
+  if (!container) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    container.innerHTML = `<div class="empty">No items.</div>`;
+    return;
+  }
+  const headers = columns.map((col) => `<th>${col.label}</th>`).join("");
+  const rows = items
+    .map((item) => {
+      const tds = columns
+        .map((col) => {
+          const raw = col.render ? col.render(item) : item?.[col.key] ?? "";
+          return `<td>${escapeHtml(raw)}</td>`;
+        })
+        .join("");
+      return `<tr>${tds}</tr>`;
+    })
+    .join("");
+  container.innerHTML = `
+    <table>
+      <thead><tr>${headers}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
 }
 
 function renderIntakeTable(items) {
@@ -833,6 +928,11 @@ async function refreshOverview() {
   renderOverview();
 }
 
+async function refreshNorthStar() {
+  state.northStar = await fetchJson(endpoints.northStar);
+  renderNorthStar();
+}
+
 async function refreshIntake() {
   state.intake = await fetchJson(endpoints.intake);
   const items = Array.isArray(state.intake.items)
@@ -913,6 +1013,7 @@ async function refreshAll() {
 
   const promises = [
     refreshOverview(),
+    refreshNorthStar(),
     refreshIntake(),
     refreshDecisions(),
     refreshExtensions(),
