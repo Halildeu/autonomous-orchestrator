@@ -35,6 +35,11 @@ Bu liste "sik kullanilan tek kapi" operasyonlarini ve urettikleri kanit yollarin
 - doc-nav-check (summary)
   - `.cache/ws_customer_default/.cache/reports/doc_graph_report.v1.json`
 
+## Script-Budget Guardrail (soft)
+- hedef: refactor sonrasinda ana dosya <800 satir
+- kural: refactor biter bitmez script-budget; soft>0 ise yeni degisiklik yok
+- yeni kod ekleri ana dosyaya degil, modullere
+
 ## North Star kanitlari
 - assessment_raw / assessment_eval
   - `.cache/ws_customer_default/.cache/index/assessment_raw.v1.json`

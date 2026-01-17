@@ -1,7 +1,6 @@
 from __future__ import annotations
 import json
 import os
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -18,6 +17,8 @@ from src.ops.system_status_sections_intake import (
     _work_intake_exec_section as _work_intake_exec_section_base,
     _work_intake_section,
 )
+from src.ops.portfolio_budget import script_budget_actions_from_report
+from src.ops.system_status_sections_git_helpers import _git_status_lines, _parse_git_status_paths
 def _now_iso8601() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 def _parse_iso(value: str | None) -> datetime | None:
@@ -748,15 +749,29 @@ def _readiness_status(workspace_root: Path) -> tuple[str, int, int]:
     return (str(status), int(fails), int(warns))
 def _actions_status(workspace_root: Path, max_actions: int) -> tuple[str, int, list[dict[str, Any]]]:
     path = workspace_root / ".cache" / "roadmap_actions.v1.json"
-    if not path.exists():
+    actions: list[Any] = []
+    if path.exists():
+        try:
+            obj = _load_json(path)
+        except Exception:
+            return ("WARN", 0, [])
+        actions = obj.get("actions") if isinstance(obj, dict) else None
+        if not isinstance(actions, list):
+            return ("WARN", 0, [])
+    core_root = Path(__file__).resolve().parents[2]
+    script_budget_actions = script_budget_actions_from_report(core_root)
+    if script_budget_actions is not None:
+        actions = [
+            a
+            for a in actions
+            if not (
+                isinstance(a, dict)
+                and (str(a.get("kind") or "") == "SCRIPT_BUDGET" or str(a.get("source") or "") == "SCRIPT_BUDGET")
+            )
+        ]
+        actions.extend(script_budget_actions)
+    if not actions:
         return ("OK", 0, [])
-    try:
-        obj = _load_json(path)
-    except Exception:
-        return ("WARN", 0, [])
-    actions = obj.get("actions") if isinstance(obj, dict) else None
-    if not isinstance(actions, list):
-        return ("WARN", 0, [])
     unresolved = [
         a
         for a in actions
@@ -787,19 +802,6 @@ def _normalize_core_path(core_root: Path, raw: str) -> Path | None:
     else:
         path = path.resolve()
     return path if _is_within_root(path, core_root) else None
-def _git_status_lines(core_root: Path) -> list[str] | None:
-    try:
-        proc = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=core_root,
-            text=True,
-            capture_output=True,
-        )
-    except FileNotFoundError:
-        return None
-    if proc.returncode != 0:
-        return None
-    return [line.strip() for line in (proc.stdout or "").splitlines() if line.strip()]
 def _find_core_dirty_report(core_root: Path, workspace_root: Path) -> tuple[list[str] | None, Path | None]:
     candidates: list[Path] = []
     hint_path = workspace_root / ".cache" / "last_finish_evidence.v1.txt"
@@ -835,18 +837,6 @@ def _find_core_dirty_report(core_root: Path, workspace_root: Path) -> tuple[list
         if isinstance(obj, list):
             return (obj, report_path)
     return (None, None)
-def _parse_git_status_paths(lines: list[str]) -> list[str]:
-    paths: list[str] = []
-    for line in lines:
-        parts = line.split(maxsplit=1)
-        if len(parts) < 2:
-            continue
-        raw = parts[1].strip()
-        if " -> " in raw:
-            raw = raw.split(" -> ", 1)[1].strip()
-        if raw:
-            paths.append(raw)
-    return sorted({p for p in paths if p})
 def _write_core_unlock_compliance(
     *, core_root: Path, workspace_root: Path, allowlist: list[str], env_var: str, env_value: str, reason: str
 ) -> Path:

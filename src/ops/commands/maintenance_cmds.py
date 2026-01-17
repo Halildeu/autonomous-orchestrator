@@ -12,7 +12,12 @@ from typing import Any
 
 from src.ops.commands.common import repo_root, run_step, warn
 from src.ops.commands.context_cmds import register_context_subcommands
-from src.ops.commands.maintenance_doc_cmds import cmd_doc_graph, cmd_doc_nav_check
+from src.ops.commands.maintenance_doc_cmds import (
+    cmd_doc_graph,
+    cmd_doc_nav_check,
+    cmd_doc_nav_job_poll,
+    cmd_doc_nav_job_start,
+)
 from src.ops.commands.maintenance_lease_cmds import (
     cmd_doer_loop_lock_clear,
     cmd_doer_loop_lock_seed,
@@ -52,6 +57,21 @@ def _parse_notes_links(raw: str) -> list[dict[str, Any]] | None:
         if isinstance(kind, str) and isinstance(target, str) and kind.strip() and target.strip():
             out.append({"kind": kind.strip(), "id_or_path": target.strip()})
     return out
+
+
+def _normalize_script_budget_report(report: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(report, dict):
+        return {"status": "FAIL", "hard_exceeded": 0, "soft_exceeded": 0}
+    exceeded_hard = report.get("exceeded_hard") if isinstance(report.get("exceeded_hard"), list) else []
+    exceeded_soft = report.get("exceeded_soft") if isinstance(report.get("exceeded_soft"), list) else []
+    function_hard = report.get("function_hard") if isinstance(report.get("function_hard"), list) else []
+    function_soft = report.get("function_soft") if isinstance(report.get("function_soft"), list) else []
+    hard_exceeded = len(exceeded_hard) + len(function_hard)
+    soft_exceeded = len(exceeded_soft) + len(function_soft)
+    report["hard_exceeded"] = hard_exceeded
+    report["soft_exceeded"] = soft_exceeded
+    report.setdefault("soft_only", hard_exceeded == 0 and soft_exceeded > 0)
+    return report
 def cmd_script_budget(args: argparse.Namespace) -> int:
     root = repo_root()
 
@@ -74,13 +94,14 @@ def cmd_script_budget(args: argparse.Namespace) -> int:
     try:
         report = json.loads(out_path.read_text(encoding="utf-8"))
         if isinstance(report, dict):
+            report = _normalize_script_budget_report(report)
             status = str(report.get("status") or "FAIL")
-            exceeded_hard = report.get("exceeded_hard") if isinstance(report.get("exceeded_hard"), list) else []
-            exceeded_soft = report.get("exceeded_soft") if isinstance(report.get("exceeded_soft"), list) else []
-            function_hard = report.get("function_hard") if isinstance(report.get("function_hard"), list) else []
-            function_soft = report.get("function_soft") if isinstance(report.get("function_soft"), list) else []
-            hard_exceeded = len(exceeded_hard) + len(function_hard)
-            soft_exceeded = len(exceeded_soft) + len(function_soft)
+            hard_exceeded = int(report.get("hard_exceeded", hard_exceeded) or 0)
+            soft_exceeded = int(report.get("soft_exceeded", soft_exceeded) or 0)
+            out_path.write_text(
+                json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+                encoding="utf-8",
+            )
     except Exception:
         pass
 
@@ -961,6 +982,40 @@ def cmd_repo_hygiene(args: argparse.Namespace) -> int:
     )
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WARN"} else 2
+def cmd_airunner_time_sinks_prune(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    try:
+        max_age_seconds = int(str(args.max_age_seconds))
+    except Exception:
+        warn("FAIL error=INVALID_MAX_AGE_SECONDS")
+        return 2
+
+    try:
+        dry_run = parse_reaper_bool(str(args.dry_run))
+    except ValueError:
+        warn("FAIL error=INVALID_DRY_RUN")
+        return 2
+
+    from src.ops.maintenance_time_sinks import prune_time_sinks_report
+
+    res = prune_time_sinks_report(
+        workspace_root=ws,
+        max_age_seconds=max_age_seconds,
+        dry_run=bool(dry_run),
+    )
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "IDLE", "WOULD_WRITE"} else 2
 
 def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     ap_reaper = parent.add_parser("reaper", help="Run retention reaper (dry-run supported).")
@@ -983,6 +1038,14 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_sb = parent.add_parser("script-budget", help="Run Script Budget guardrails (soft=warn, hard=fail).")
     ap_sb.add_argument("--out", default=".cache/script_budget/report.json", help="Report JSON output path.")
     ap_sb.set_defaults(func=cmd_script_budget)
+    ap_ts = parent.add_parser(
+        "airunner-time-sinks-prune",
+        help="Prune stale time_sinks report entries (workspace-only).",
+    )
+    ap_ts.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ts.add_argument("--max-age-seconds", default="86400", help="Max sink age in seconds (default: 86400).")
+    ap_ts.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_ts.set_defaults(func=cmd_airunner_time_sinks_prune)
     ap_smoke = parent.add_parser("smoke", help="Run smoke_test.py with SMOKE_LEVEL (fast|full).")
     ap_smoke.add_argument("--level", default="fast", help="fast|full (default: fast).")
     ap_smoke.set_defaults(func=cmd_smoke)
@@ -1145,3 +1208,16 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_nav.add_argument("--strict", default="false", help="true|false (default: false).")
     ap_nav.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_nav.set_defaults(func=cmd_doc_nav_check)
+
+    ap_nav_start = parent.add_parser("doc-nav-job-start", help="Start doc nav check as background job.")
+    ap_nav_start.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_nav_start.add_argument("--detail", default="false", help="true|false (default: false).")
+    ap_nav_start.add_argument("--strict", default="true", help="true|false (default: true).")
+    ap_nav_start.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_nav_start.set_defaults(func=cmd_doc_nav_job_start)
+
+    ap_nav_poll = parent.add_parser("doc-nav-job-poll", help="Poll doc nav job.")
+    ap_nav_poll.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_nav_poll.add_argument("--job-id", required=True, help="Job id.")
+    ap_nav_poll.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_nav_poll.set_defaults(func=cmd_doc_nav_job_poll)

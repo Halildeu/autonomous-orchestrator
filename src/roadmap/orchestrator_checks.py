@@ -18,6 +18,21 @@ def _sha256_hex(s: str) -> str:
     return sha256(s.encode("utf-8")).hexdigest()
 
 
+def _normalize_script_budget_report(report: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(report, dict):
+        return {"status": "FAIL", "hard_exceeded": 0, "soft_exceeded": 0}
+    exceeded_hard = report.get("exceeded_hard") if isinstance(report.get("exceeded_hard"), list) else []
+    exceeded_soft = report.get("exceeded_soft") if isinstance(report.get("exceeded_soft"), list) else []
+    function_hard = report.get("function_hard") if isinstance(report.get("function_hard"), list) else []
+    function_soft = report.get("function_soft") if isinstance(report.get("function_soft"), list) else []
+    hard_exceeded = len(exceeded_hard) + len(function_hard)
+    soft_exceeded = len(exceeded_soft) + len(function_soft)
+    report["hard_exceeded"] = hard_exceeded
+    report["soft_exceeded"] = soft_exceeded
+    report.setdefault("soft_only", hard_exceeded == 0 and soft_exceeded > 0)
+    return report
+
+
 @dataclass(frozen=True)
 class _CmdResult:
     returncode: int
@@ -50,6 +65,11 @@ def _run_script_budget_checker(*, core_root: Path) -> tuple[str, dict[str, Any]]
     if status not in {"OK", "WARN", "FAIL"}:
         status = "FAIL" if proc.returncode != 0 else "WARN"
     obj.setdefault("status", status)
+    obj = _normalize_script_budget_report(obj)
+    try:
+        report_path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    except Exception:
+        pass
     return (str(status), obj)
 
 

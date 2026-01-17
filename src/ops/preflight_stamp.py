@@ -32,6 +32,21 @@ def _rel_path(workspace_root: Path, path: Path) -> str:
         return path.as_posix()
 
 
+def _normalize_script_budget_report(report: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(report, dict):
+        return {"status": "FAIL", "hard_exceeded": 0, "soft_exceeded": 0}
+    exceeded_hard = report.get("exceeded_hard") if isinstance(report.get("exceeded_hard"), list) else []
+    exceeded_soft = report.get("exceeded_soft") if isinstance(report.get("exceeded_soft"), list) else []
+    function_hard = report.get("function_hard") if isinstance(report.get("function_hard"), list) else []
+    function_soft = report.get("function_soft") if isinstance(report.get("function_soft"), list) else []
+    hard_exceeded = len(exceeded_hard) + len(function_hard)
+    soft_exceeded = len(exceeded_soft) + len(function_soft)
+    report["hard_exceeded"] = hard_exceeded
+    report["soft_exceeded"] = soft_exceeded
+    report.setdefault("soft_only", hard_exceeded == 0 and soft_exceeded > 0)
+    return report
+
+
 def _policy_defaults() -> dict[str, Any]:
     return {
         "version": "v1",
@@ -194,13 +209,11 @@ def run_preflight_stamp(*, workspace_root: Path, mode: str = "write") -> dict[st
         try:
             report = _load_json(sb_path)
             if isinstance(report, dict):
+                report = _normalize_script_budget_report(report)
                 sb_status = str(report.get("status") or "FAIL")
-                exceeded_hard = report.get("exceeded_hard") if isinstance(report.get("exceeded_hard"), list) else []
-                exceeded_soft = report.get("exceeded_soft") if isinstance(report.get("exceeded_soft"), list) else []
-                function_hard = report.get("function_hard") if isinstance(report.get("function_hard"), list) else []
-                function_soft = report.get("function_soft") if isinstance(report.get("function_soft"), list) else []
-                hard_exceeded = len(exceeded_hard) + len(function_hard)
-                soft_exceeded = len(exceeded_soft) + len(function_soft)
+                hard_exceeded = int(report.get("hard_exceeded", hard_exceeded) or 0)
+                soft_exceeded = int(report.get("soft_exceeded", soft_exceeded) or 0)
+                sb_path.write_text(_dump_json(report), encoding="utf-8")
         except Exception:
             sb_status = "FAIL"
 

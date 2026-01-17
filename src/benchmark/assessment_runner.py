@@ -684,6 +684,71 @@ def _write_if_missing_or_same(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def _load_catalog_seed(seed_path: Path, workspace_root: Path) -> dict[str, Any] | None:
+    if not seed_path.exists():
+        return None
+    try:
+        obj = _load_json(seed_path)
+    except Exception:
+        return None
+    items = obj.get("items") if isinstance(obj, dict) else None
+    if not isinstance(items, list):
+        items = []
+    normalized: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = str(item.get("id") or "").strip()
+        title = str(item.get("title") or "").strip()
+        if not item_id or not title:
+            continue
+        source = str(item.get("source") or "seed").strip()
+        tags_raw = item.get("tags") if isinstance(item.get("tags"), list) else []
+        tags = [str(t).strip() for t in tags_raw if isinstance(t, str) and t.strip()]
+        normalized.append(
+            {
+                "id": item_id,
+                "title": title,
+                "source": source,
+                "tags": sorted(set(tags)),
+            }
+        )
+    normalized.sort(key=lambda entry: entry["id"])
+    generated_at = str(obj.get("generated_at") or _now_iso())
+    return {
+        "version": "v1",
+        "generated_at": generated_at,
+        "workspace_root": str(workspace_root),
+        "items": normalized,
+    }
+
+
+def _write_seed_catalogs(*, workspace_root: Path, out_bp_catalog: Path, out_trend_catalog: Path) -> dict[str, Any]:
+    bp_seed = workspace_root / ".cache" / "inputs" / "bp_catalog.seed.v1.json"
+    trend_seed = workspace_root / ".cache" / "inputs" / "trend_catalog.seed.v1.json"
+    bp_payload = _load_catalog_seed(bp_seed, workspace_root)
+    trend_payload = _load_catalog_seed(trend_seed, workspace_root)
+    written: list[str] = []
+    if bp_payload and bp_payload.get("items"):
+        _atomic_write_json(out_bp_catalog, bp_payload)
+        written.append(str(out_bp_catalog))
+    if trend_payload and trend_payload.get("items"):
+        _atomic_write_json(out_trend_catalog, trend_payload)
+        written.append(str(out_trend_catalog))
+    return {
+        "bp_items": len(bp_payload.get("items", [])) if bp_payload else 0,
+        "trend_items": len(trend_payload.get("items", [])) if trend_payload else 0,
+        "written": sorted(set(written)),
+    }
+
+
 def _write_integrity_md(path: Path, snapshot: dict[str, Any]) -> None:
     lines = [
         "# Integrity Verify Report",
@@ -852,6 +917,12 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     if docs_drift_mapping.get("include_extension_manifest_refs", True):
         input_files.extend(_collect_extension_manifest_paths(core_root))
     input_files.extend(_iter_md_paths(core_root, exclude_dirs=DOCS_DRIFT_EXCLUDE_DIRS))
+    for seed_path in [
+        workspace_root / ".cache" / "inputs" / "bp_catalog.seed.v1.json",
+        workspace_root / ".cache" / "inputs" / "trend_catalog.seed.v1.json",
+    ]:
+        if seed_path.exists():
+            input_files.append(seed_path)
 
     controls = sorted(controls, key=lambda x: str(x.get("id") or ""))
     metrics = sorted(metrics, key=lambda x: str(x.get("id") or ""))
@@ -1071,6 +1142,8 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
 
     if integrity_result == "FAIL" and not allow_report_only:
         return _fail("INTEGRITY_BLOCKED", "integrity verify failed", {"integrity_ref": integrity_ref})
+
+    _write_seed_catalogs(workspace_root=workspace_root, out_bp_catalog=out_bp_catalog, out_trend_catalog=out_trend_catalog)
 
     eval_res = run_eval(workspace_root=workspace_root, dry_run=False)
     eval_report_only = bool(eval_res.get("report_only")) if isinstance(eval_res, dict) else False

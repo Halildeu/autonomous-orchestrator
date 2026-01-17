@@ -403,3 +403,111 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
     if status == "FAIL":
         return 2
     return 0
+
+
+def cmd_doc_nav_job_start(args: argparse.Namespace) -> int:
+    root = repo_root()
+    ws_arg = str(args.workspace_root).strip()
+    if not ws_arg:
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    ws_path = Path(ws_arg)
+    if not ws_path.is_absolute():
+        ws_path = (root / ws_path).resolve()
+
+    ok, err = _ensure_workspace_root(root, ws_path)
+    if not ok:
+        print(json.dumps({"status": "FAIL", "error_code": err}, ensure_ascii=False, sort_keys=True))
+        return 2
+
+    strict = parse_reaper_bool(str(getattr(args, "strict", "true")))
+    detail = parse_reaper_bool(str(getattr(args, "detail", "false")))
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+
+    from src.ops.doc_nav_jobs import doc_nav_job_start
+
+    payload = doc_nav_job_start(workspace_root=ws_path, strict=bool(strict), detail=bool(detail))
+    if chat and isinstance(payload, dict):
+        preview_lines = [
+            "PROGRAM-LED: doc-nav-job-start",
+            f"workspace_root={ws_path}",
+            f"strict={strict}",
+            f"detail={detail}",
+        ]
+        result_lines = [
+            f"status={payload.get('status')}",
+            f"job_id={payload.get('job_id')}",
+        ]
+        evidence_lines = [str(payload.get("job_report_path") or ""), str(payload.get("jobs_index_path") or "")]
+        actions_lines = ["doc-nav-job-poll", "doc-nav-check"]
+        next_lines = ["Devam et", "Durumu goster", "Duraklat"]
+
+        print("PREVIEW:")
+        print("\n".join(preview_lines))
+        print("RESULT:")
+        print("\n".join(result_lines))
+        print("EVIDENCE:")
+        print("\n".join([e for e in evidence_lines if e]))
+        print("ACTIONS:")
+        print("\n".join(actions_lines))
+        print("NEXT:")
+        print("\n".join(next_lines))
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "ALREADY_RUNNING"} else 2
+
+
+def cmd_doc_nav_job_poll(args: argparse.Namespace) -> int:
+    root = repo_root()
+    ws_arg = str(args.workspace_root).strip()
+    if not ws_arg:
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    ws_path = Path(ws_arg)
+    if not ws_path.is_absolute():
+        ws_path = (root / ws_path).resolve()
+
+    ok, err = _ensure_workspace_root(root, ws_path)
+    if not ok:
+        print(json.dumps({"status": "FAIL", "error_code": err}, ensure_ascii=False, sort_keys=True))
+        return 2
+
+    job_id = str(getattr(args, "job_id", "") or "").strip()
+    if not job_id:
+        warn("FAIL error=JOB_ID_REQUIRED")
+        return 2
+
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+
+    from src.ops.doc_nav_jobs import doc_nav_job_poll
+
+    payload = doc_nav_job_poll(workspace_root=ws_path, job_id=job_id)
+    if chat and isinstance(payload, dict):
+        preview_lines = [
+            "PROGRAM-LED: doc-nav-job-poll",
+            f"workspace_root={ws_path}",
+            f"job_id={job_id}",
+        ]
+        result_lines = [
+            f"status={payload.get('status')}",
+            f"report_status={payload.get('report_status') or payload.get('status')}",
+        ]
+        evidence_lines = [str(payload.get("job_report_path") or ""), str(payload.get("jobs_index_path") or "")]
+        actions_lines = ["doc-nav-job-poll", "doc-nav-check"]
+        next_lines = ["Devam et", "Durumu goster", "Duraklat"]
+
+        print("PREVIEW:")
+        print("\n".join(preview_lines))
+        print("RESULT:")
+        print("\n".join(result_lines))
+        print("EVIDENCE:")
+        print("\n".join([e for e in evidence_lines if e]))
+        print("ACTIONS:")
+        print("\n".join(actions_lines))
+        print("NEXT:")
+        print("\n".join(next_lines))
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "FAIL", "RUNNING"} else 2

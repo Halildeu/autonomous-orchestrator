@@ -125,30 +125,28 @@ def run_finish_loop(
     while True:
         if stop_status is not None:
             break
+        st = status_func(roadmap_path=ctx.roadmap_path, workspace_root=ctx.workspace_root, state_path=ctx.state_path)
+        next_mid = st.get("next_milestone") if isinstance(st, dict) else None
+        if next_mid is None:
+            stop_status = "DONE"
+            break
         if ctx.deadline_seconds and (time.monotonic() - ctx.start_monotonic) > ctx.deadline_seconds:
             stop_status = "BLOCKED"
             stop_code = "TIME_LIMIT"
             logs.append("TIME_LIMIT\n")
             break
 
-        st = status_func(roadmap_path=ctx.roadmap_path, workspace_root=ctx.workspace_root, state_path=ctx.state_path)
-        next_mid = st.get("next_milestone") if isinstance(st, dict) else None
-        if next_mid is None:
-            stop_status = "DONE"
-            break
-
         slept_for_backoff = False
         for _ in range(max(1, int(ctx.max_steps_per_iteration))):
-            if ctx.deadline_seconds and (time.monotonic() - ctx.start_monotonic) > ctx.deadline_seconds:
-                stop_status = "BLOCKED"
-                stop_code = "TIME_LIMIT"
-                logs.append("TIME_LIMIT\n")
-                break
-
             st2 = status_func(roadmap_path=ctx.roadmap_path, workspace_root=ctx.workspace_root, state_path=ctx.state_path)
             next_mid = st2.get("next_milestone") if isinstance(st2, dict) else None
             if next_mid is None:
                 stop_status = "DONE"
+                break
+            if ctx.deadline_seconds and (time.monotonic() - ctx.start_monotonic) > ctx.deadline_seconds:
+                stop_status = "BLOCKED"
+                stop_code = "TIME_LIMIT"
+                logs.append("TIME_LIMIT\n")
                 break
 
             milestone_id = str(next_mid)

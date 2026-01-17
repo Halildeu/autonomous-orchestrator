@@ -155,6 +155,7 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
 
     latest_by_key: dict[str, dict[str, Any]] = {}
     latest_key_meta: dict[str, tuple[datetime, str]] = {}
+    latest_pass_meta_by_kind: dict[str, tuple[datetime, str]] = {}
     terminal_statuses = {"PASS", "FAIL", "TIMEOUT", "KILLED", "SKIP"}
     for job in [j for j in jobs if isinstance(j, dict)]:
         status = str(job.get("status") or "")
@@ -170,11 +171,16 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
             str(job.get("updated_at") or job.get("last_poll_at") or job.get("started_at") or job.get("created_at") or "")
         ) or datetime.fromtimestamp(0, tz=timezone.utc)
         meta = (ts, job_id)
+        if status == "PASS":
+            prev_pass_meta = latest_pass_meta_by_kind.get(job_kind)
+            if prev_pass_meta is None or meta > prev_pass_meta:
+                latest_pass_meta_by_kind[job_kind] = meta
         prev_meta = latest_key_meta.get(key)
         if prev_meta is None or meta > prev_meta:
             latest_key_meta[key] = meta
             latest_by_key[key] = job
 
+    pruned_by_pass = 0
     for key in sorted(latest_by_key):
         job = latest_by_key[key]
         status = str(job.get("status") or "")
@@ -183,6 +189,14 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
         failure_class = str(job.get("failure_class") or "")
         skip_reason = str(job.get("skip_reason") or "")
         signature_hash = str(job.get("signature_hash") or "")
+        ts = _parse_iso(
+            str(job.get("updated_at") or job.get("last_poll_at") or job.get("started_at") or job.get("created_at") or "")
+        ) or datetime.fromtimestamp(0, tz=timezone.utc)
+        job_meta = (ts, job_id)
+        pass_meta = latest_pass_meta_by_kind.get(job_kind)
+        if pass_meta and pass_meta > job_meta and status in {"FAIL", "TIMEOUT", "KILLED", "SKIP"}:
+            pruned_by_pass += 1
+            continue
         last_seen = str(
             job.get("updated_at") or job.get("last_poll_at") or job.get("started_at") or job.get("created_at") or ""
         )
@@ -217,6 +231,8 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
             }
         )
 
+    if pruned_by_pass:
+        notes.append(f"github_ops_pruned_by_pass={pruned_by_pass}")
     if not sources:
         notes.append("github_ops_sources_empty")
     return sources
