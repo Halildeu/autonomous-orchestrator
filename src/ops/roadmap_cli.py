@@ -524,7 +524,8 @@ def cmd_roadmap_finish(args: argparse.Namespace) -> int:
     )
     if not chat:
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-        return 0 if payload.get("status") in {"DONE", "DONE_WITH_DEBT", "OK"} else 2
+        # roadmap-finish is expected to terminate in DONE or BLOCKED; BLOCKED is not a runtime error.
+        return 0 if payload.get("status") in {"DONE", "DONE_WITH_DEBT", "OK", "BLOCKED"} else 2
 
     evidence_paths = payload.get("evidence") if isinstance(payload, dict) else None
     evidence_root = None
@@ -602,7 +603,7 @@ def cmd_roadmap_finish(args: argparse.Namespace) -> int:
         next_steps="\n".join(next_lines),
         final_json=final_json,
     )
-    return 0 if payload.get("status") in {"DONE", "DONE_WITH_DEBT", "OK"} else 2
+    return 0 if payload.get("status") in {"DONE", "DONE_WITH_DEBT", "OK", "BLOCKED"} else 2
 
 
 def cmd_roadmap_pause(args: argparse.Namespace) -> int:
