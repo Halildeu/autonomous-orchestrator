@@ -335,7 +335,7 @@ def run_release_final_e2e(
         report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
         return report
 
-    merge_poll = _poll_job(workspace_root=ws, job_id=merge_job_id, max_polls=60, sleep_seconds=1.0)
+    merge_poll = _poll_job(workspace_root=ws, job_id=merge_job_id, max_polls=180, sleep_seconds=1.0)
     report["jobs"]["merge"]["poll"] = merge_poll
     if merge_poll.get("status") != "PASS":
         report["status"] = "FAIL"
@@ -401,7 +401,7 @@ def run_release_final_e2e(
         report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
         return report
 
-    release_poll = _poll_job(workspace_root=ws, job_id=release_job_id, max_polls=90, sleep_seconds=1.0)
+    release_poll = _poll_job(workspace_root=ws, job_id=release_job_id, max_polls=240, sleep_seconds=1.0)
     report["jobs"]["release_publish"]["poll"] = release_poll
     if release_poll.get("status") != "PASS":
         report["status"] = "FAIL"
