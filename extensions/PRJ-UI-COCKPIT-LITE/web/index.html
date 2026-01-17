@@ -153,6 +153,7 @@
         padding: 14px;
         box-shadow: 0 12px 20px var(--shadow);
         animation: fadeUp 0.4s ease both;
+        overflow-wrap: anywhere;
       }
       .card h3 {
         margin: 0 0 8px;
@@ -185,12 +186,110 @@
         flex-wrap: wrap;
         align-items: center;
       }
+      .field-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 140px;
+      }
       .input {
         background: #0f1415;
         border: 1px solid var(--border);
         color: var(--text);
         padding: 6px 10px;
         border-radius: 8px;
+      }
+      .checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .checkbox input {
+        accent-color: var(--accent);
+      }
+      .tag-select {
+        position: relative;
+        min-width: 180px;
+      }
+      .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        align-items: center;
+      }
+      .tag-select.open .tag-dropdown {
+        display: block;
+      }
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(61, 214, 176, 0.12);
+        font-size: 11px;
+      }
+      .tag button {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 11px;
+        padding: 0;
+      }
+      .tag-input {
+        flex: 1 1 auto;
+        min-width: 80px;
+        border: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 12px;
+        outline: none;
+      }
+      .tag-toggle {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 11px;
+        padding: 2px 4px;
+      }
+      .tag-select.open .tag-toggle {
+        color: var(--accent);
+      }
+      .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        max-height: 200px;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #10181a;
+        box-shadow: 0 12px 20px var(--shadow-soft);
+        display: none;
+        z-index: 20;
+      }
+      .tag-option {
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .tag-option:hover {
+        background: rgba(61, 214, 176, 0.08);
       }
       textarea.input {
         width: 100%;
@@ -589,14 +688,54 @@
               <h3>Intake (strict)</h3>
               <div class="row">
                 <input class="input" id="intake-search" placeholder="Quick search" />
-                <label class="subtle">Bucket</label>
-                <input class="input" id="filter-bucket" placeholder="INCIDENT/TICKET" />
-                <label class="subtle">Status</label>
-                <input class="input" id="filter-status" placeholder="OPEN/PLANNED" />
-                <label class="subtle">Source</label>
-                <input class="input" id="filter-source" placeholder="WORK_INTAKE" />
-                <label class="subtle">Extension</label>
-                <input class="input" id="filter-extension" placeholder="PRJ-..." />
+                <div class="field-stack">
+                  <label class="subtle">Bucket</label>
+                  <div class="tag-select" id="filter-bucket">
+                    <div class="tag-select-input">
+                      <div class="tag-list" id="filter-bucket-tags"></div>
+                      <input class="tag-input" id="filter-bucket-input" placeholder="Select bucket" />
+                      <button class="tag-toggle" type="button" aria-label="Toggle bucket options">v</button>
+                    </div>
+                    <div class="tag-dropdown" id="filter-bucket-options"></div>
+                  </div>
+                </div>
+                <div class="field-stack">
+                  <label class="subtle">Status</label>
+                  <div class="tag-select" id="filter-status">
+                    <div class="tag-select-input">
+                      <div class="tag-list" id="filter-status-tags"></div>
+                      <input class="tag-input" id="filter-status-input" placeholder="Select status" />
+                      <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
+                    </div>
+                    <div class="tag-dropdown" id="filter-status-options"></div>
+                  </div>
+                </div>
+                <div class="field-stack">
+                  <label class="subtle">Source</label>
+                  <div class="tag-select" id="filter-source">
+                    <div class="tag-select-input">
+                      <div class="tag-list" id="filter-source-tags"></div>
+                      <input class="tag-input" id="filter-source-input" placeholder="Select source" />
+                      <button class="tag-toggle" type="button" aria-label="Toggle source options">v</button>
+                    </div>
+                    <div class="tag-dropdown" id="filter-source-options"></div>
+                  </div>
+                </div>
+                <div class="field-stack">
+                  <label class="subtle">Extension</label>
+                  <div class="tag-select" id="filter-extension">
+                    <div class="tag-select-input">
+                      <div class="tag-list" id="filter-extension-tags"></div>
+                      <input class="tag-input" id="filter-extension-input" placeholder="Select extension" />
+                      <button class="tag-toggle" type="button" aria-label="Toggle extension options">v</button>
+                    </div>
+                    <div class="tag-dropdown" id="filter-extension-options"></div>
+                  </div>
+                </div>
+                <label class="checkbox">
+                  <input type="checkbox" id="filter-hide-done" checked />
+                  Hide DONE
+                </label>
                 <button class="btn" id="apply-intake-filter">Apply</button>
                 <button class="btn" id="clear-intake-filter">Clear</button>
               </div>
@@ -612,6 +751,7 @@
                 <input class="input" id="decision-search" placeholder="Search decisions" />
                 <button class="btn" data-op="decision-inbox-show">Refresh Inbox</button>
               </div>
+              <div class="subtle" id="decision-meta"></div>
               <div id="decision-table" class="table-wrap"></div>
             </div>
           </section>

@@ -677,11 +677,22 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_prepare.add_argument("--channel", default="", help="rc|final (default: plan channel).")
     ap_prepare.set_defaults(func=cmd_release_prepare)
 
-    ap_publish = parent.add_parser("release-publish", help="Publish release (policy-gated, network off by default).")
+    ap_publish = parent.add_parser(
+        "release-publish",
+        help="Publish release (policy-gated; network/trust on by default for this command).",
+    )
     ap_publish.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_publish.add_argument("--channel", default="", help="rc|final (default: plan channel).")
-    ap_publish.add_argument("--allow-network", default="false", help="true|false (default: false).")
-    ap_publish.add_argument("--trusted-context", default="false", help="true|false (default: false).")
+    ap_publish.add_argument(
+        "--allow-network",
+        default="true",
+        help="true|false (default: true). Policy gate still applies.",
+    )
+    ap_publish.add_argument(
+        "--trusted-context",
+        default="true",
+        help="true|false (default: true). Policy gate still applies.",
+    )
     ap_publish.set_defaults(func=cmd_release_publish)
 
     ap_check = parent.add_parser("release-check", help="Single gate: release plan + system + portfolio.")
