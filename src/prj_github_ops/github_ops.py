@@ -479,7 +479,7 @@ def _run_pr_open_job(
     else:
         auth_header = f"Bearer {auth_value}"
     headers = {
-        "Accept": "application/vnd.github+json",
+        "Accept": "application/vnd.github+json, application/vnd.github.shadow-cat-preview+json",
         "Content-Type": "application/json",
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
@@ -640,7 +640,7 @@ def _run_pr_merge_job(
     else:
         auth_header = f"Bearer {token}"
     headers = {
-        "Accept": "application/vnd.github+json",
+        "Accept": "application/vnd.github+json, application/vnd.github.shadow-cat-preview+json",
         "Content-Type": "application/json",
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
@@ -1162,7 +1162,7 @@ def _run_release_create_job(
     else:
         auth_header = f"Bearer {token}"
     headers = {
-        "Accept": "application/vnd.github+json",
+        "Accept": "application/vnd.github+json, application/vnd.github.shadow-cat-preview+json",
         "Content-Type": "application/json",
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
