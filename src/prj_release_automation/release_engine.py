@@ -360,7 +360,7 @@ def build_release_plan(
         globs = policy.component_paths.get(component_id, [])
         changed = False
         reason = change_detector
-        if change_detector == "git_status":
+        if change_detector in {"git_status", "git_diff_tag"}:
             for path in changed_paths:
                 if any(_path_matches_prefix(path, prefix) for prefix in globs):
                     changed = True
