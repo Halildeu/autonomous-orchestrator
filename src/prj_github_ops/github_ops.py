@@ -122,6 +122,109 @@ def _redact_message(message: str) -> tuple[str, str]:
     redacted = re.sub(r"[A-Za-z0-9_\\-]{20,}", "[REDACTED]", redacted)
     redacted = redacted[:200]
     return redacted, message_hash
+
+
+class _SSLVerifyFailed(RuntimeError):
+    def __init__(self, message: str, *, tried: list[str]):
+        super().__init__(message)
+        self.tried = tried
+
+
+def _resolve_ssl_cafile(*, workspace_root: Path) -> str:
+    candidates: list[str] = []
+    for key in ("GITHUB_OPS_SSL_CAFILE", "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"):
+        raw = os.getenv(key, "") or _dotenv_env_value(key, workspace_root=workspace_root)
+        if raw:
+            candidates.append(str(raw).strip())
+    for raw in candidates:
+        if not raw:
+            continue
+        p = Path(raw).expanduser()
+        if not p.is_absolute():
+            p = (_repo_root() / p).resolve()
+        try:
+            if p.exists() and p.is_file():
+                return str(p)
+        except Exception:
+            continue
+    return ""
+
+
+def _ssl_context_candidates(*, workspace_root: Path) -> list[tuple[str, Any]]:
+    import ssl
+    contexts: list[tuple[str, Any]] = []
+    env_cafile = _resolve_ssl_cafile(workspace_root=workspace_root)
+    if env_cafile:
+        contexts.append((f"cafile_env:{Path(env_cafile).name}", ssl.create_default_context(cafile=env_cafile)))
+    contexts.append(("default", ssl.create_default_context()))
+    for cafile in ("/etc/ssl/cert.pem", "/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt"):
+        p = Path(cafile)
+        try:
+            if p.exists() and p.is_file():
+                contexts.append((f"cafile:{cafile}", ssl.create_default_context(cafile=str(p))))
+        except Exception:
+            continue
+    try:
+        import certifi
+        cafile = str(certifi.where() or "")
+        if cafile:
+            p = Path(cafile)
+            if p.exists() and p.is_file():
+                contexts.append(("certifi", ssl.create_default_context(cafile=str(p))))
+    except Exception:
+        pass
+    out: list[tuple[str, Any]] = []
+    seen: set[str] = set()
+    for name, ctx in contexts:
+        if name in seen:
+            continue
+        seen.add(name)
+        out.append((name, ctx))
+    return out
+
+
+def _is_ssl_cert_verify_error(exc: BaseException) -> bool:
+    import ssl
+    import urllib.error
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        return True
+    if isinstance(exc, urllib.error.URLError):
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return True
+        if reason and "CERTIFICATE_VERIFY_FAILED" in str(reason):
+            return True
+    return "CERTIFICATE_VERIFY_FAILED" in str(exc)
+
+
+def _urlopen_read_with_ssl_fallback(
+    req: Any,
+    *,
+    workspace_root: Path,
+    timeout_seconds: int,
+) -> tuple[int, bytes, Any, str, list[str]]:
+    import urllib.error
+    import urllib.request
+    tried: list[str] = []
+    last_exc: BaseException | None = None
+    for name, ssl_ctx in _ssl_context_candidates(workspace_root=workspace_root):
+        tried.append(name)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_seconds, context=ssl_ctx) as resp:
+                return int(resp.getcode() or 0), resp.read(), resp.headers, name, tried
+        except urllib.error.HTTPError as exc:
+            try:
+                setattr(exc, "_ssl_context_selected", name)
+                setattr(exc, "_ssl_context_tried", list(tried))
+            except Exception:
+                pass
+            raise
+        except Exception as exc:
+            if _is_ssl_cert_verify_error(exc):
+                last_exc = exc
+                continue
+            raise
+    raise _SSLVerifyFailed("SSL_CERT_VERIFY_FAILED", tried=tried) from last_exc
 def _job_workspace_root_from_record(job: dict[str, Any], repo_root: Path) -> Path | None:
     raw = job.get("workspace_root")
     if not isinstance(raw, str) or not raw.strip():
@@ -321,7 +424,6 @@ def _run_pr_open_job(
     workspace_root: str,
 ) -> None:
     import json as _json
-    import ssl as _ssl
     import urllib.error as _urllib_error
     import urllib.request as _urllib_request
     from pathlib import Path as _Path
@@ -382,18 +484,35 @@ def _run_pr_open_job(
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
     }
-    cafile = _Path("/etc/ssl/cert.pem")
-    ssl_ctx = _ssl.create_default_context(cafile=str(cafile)) if cafile.exists() else _ssl.create_default_context()
     data = _json.dumps(request_body).encode("utf-8")
     req = _urllib_request.Request(api_url, data=data, headers=headers, method="POST")
     try:
-        with _urllib_request.urlopen(req, timeout=30, context=ssl_ctx) as resp:
-            status_code = resp.getcode()
-            body_bytes = resp.read()
-            headers = resp.headers
+        status_code, body_bytes, headers, ssl_selected, ssl_tried = _urlopen_read_with_ssl_fallback(
+            req,
+            workspace_root=_Path(workspace_root),
+            timeout_seconds=30,
+        )
+        payload["ssl_context_selected"] = ssl_selected
+        payload["ssl_context_tried"] = ssl_tried
+    except _SSLVerifyFailed as exc:
+        redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+        payload.update(
+            {
+                "error_code": "SSL_CERT_VERIFY_FAILED",
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "ssl_context_tried": getattr(exc, "tried", None),
+            }
+        )
+        payload["failure_class"] = "NETWORK"
+        _write(payload)
+        return
     except _urllib_error.HTTPError as exc:
         status_code = int(getattr(exc, "code", 0) or 0)
         headers = getattr(exc, "headers", {}) or {}
+        ssl_selected = _clean_str(getattr(exc, "_ssl_context_selected", ""))
+        ssl_tried = getattr(exc, "_ssl_context_tried", None)
         try:
             body_bytes = exc.read()
         except Exception:
@@ -425,6 +544,8 @@ def _run_pr_open_job(
                 "message_redacted": redacted or None,
                 "message_hash": message_hash or None,
                 "retry_after_seconds": int(headers.get("Retry-After") or 0) if hasattr(headers, "get") and str(headers.get("Retry-After") or "").isdigit() else None,
+                "ssl_context_selected": ssl_selected or None,
+                "ssl_context_tried": ssl_tried if isinstance(ssl_tried, list) else None,
             }
         )
         payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
@@ -466,6 +587,450 @@ def _run_pr_open_job(
     payload["rc"] = 0
     payload.update(_extract_pr_metadata(response_obj))
     _write(payload)
+
+
+def _run_pr_merge_job(
+    rc_path: str,
+    request_path: str,
+    token_env: str,
+    auth_mode: str,
+    fingerprint: str,
+    workspace_root: str,
+) -> None:
+    import json as _json
+    import urllib.error as _urllib_error
+    import urllib.request as _urllib_request
+    from pathlib import Path as _Path
+
+    def _write(payload: dict[str, Any]) -> None:
+        _Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
+        _Path(rc_path).write_text(_dump_json(payload), encoding="utf-8")
+
+    payload: dict[str, Any] = {"rc": 1, "fingerprint": fingerprint, "kind": "MERGE"}
+    ws = _Path(workspace_root)
+
+    req_obj: dict[str, Any] = {}
+    if request_path:
+        try:
+            p = _Path(request_path)
+            if p.exists():
+                req_obj = _json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            req_obj = {}
+
+    pr_number = req_obj.get("pr_number") if isinstance(req_obj.get("pr_number"), int) else None
+    merge_method_override = _clean_str(req_obj.get("merge_method"))
+    expected_head_sha = _clean_str(req_obj.get("expected_head_sha") or req_obj.get("head_sha"))
+
+    owner, repo = _infer_repo_from_git(_repo_root())
+    if not owner or not repo:
+        payload["error_code"] = "REPO_INFER_FAIL"
+        _write(payload)
+        return
+
+    token = os.getenv(token_env, "") or _dotenv_env_value(token_env, workspace_root=ws)
+    if not token:
+        payload["error_code"] = "AUTH_MISSING"
+        _write(payload)
+        return
+
+    mode = _clean_str(auth_mode).lower()
+    if mode == "token":
+        auth_header = f"token {token}"
+    else:
+        auth_header = f"Bearer {token}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "Authorization": auth_header,
+        "User-Agent": "autonomous-orchestrator",
+    }
+
+    def _http_json(method: str, url: str, body: dict[str, Any] | None = None) -> tuple[int, bytes, Any]:
+        data = _json.dumps(body).encode("utf-8") if isinstance(body, dict) else None
+        req = _urllib_request.Request(url, data=data, headers=headers, method=str(method).upper())
+        status_code, body_bytes, resp_headers, ssl_selected, ssl_tried = _urlopen_read_with_ssl_fallback(
+            req,
+            workspace_root=ws,
+            timeout_seconds=30,
+        )
+        payload.setdefault("ssl_context_selected", ssl_selected)
+        payload.setdefault("ssl_context_tried", ssl_tried)
+        return status_code, body_bytes, resp_headers
+
+    def _write_http_error(exc: _urllib_error.HTTPError, *, endpoint: str) -> None:
+        status_code = int(getattr(exc, "code", 0) or 0)
+        headers2 = getattr(exc, "headers", {}) or {}
+        ssl_selected = _clean_str(getattr(exc, "_ssl_context_selected", ""))
+        ssl_tried = getattr(exc, "_ssl_context_tried", None)
+        try:
+            body_bytes = exc.read()
+        except Exception:
+            body_bytes = b""
+        message = ""
+        gh_error_code = ""
+        try:
+            err_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+        except Exception:
+            err_obj = {}
+        if isinstance(err_obj, dict):
+            message = _clean_str(err_obj.get("message"))
+            errors = err_obj.get("errors") if isinstance(err_obj.get("errors"), list) else []
+            if errors:
+                first = errors[0] if isinstance(errors[0], dict) else {}
+                gh_error_code = _clean_str(first.get("code"))
+                if not message:
+                    message = _clean_str(first.get("message"))
+        if not message:
+            message = _clean_str(getattr(exc, "reason", "")) or "HTTP_ERROR"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_ERROR",
+                "http_status": int(status_code or 0),
+                "gh_error_code": gh_error_code or None,
+                "gh_request_id": _clean_str(headers2.get("X-GitHub-Request-Id") if hasattr(headers2, "get") else ""),
+                "endpoint": endpoint,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "retry_after_seconds": int(headers2.get("Retry-After") or 0)
+                if hasattr(headers2, "get") and str(headers2.get("Retry-After") or "").isdigit()
+                else None,
+                "ssl_context_selected": ssl_selected or None,
+                "ssl_context_tried": ssl_tried if isinstance(ssl_tried, list) else None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
+        _write(payload)
+
+    # Decide merge method deterministically from repo settings
+    repo_url = f"https://api.github.com/repos/{owner}/{repo}"
+    try:
+        repo_status, repo_body, _repo_headers = _http_json("GET", repo_url)
+    except _SSLVerifyFailed as exc:
+        redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+        payload.update(
+            {
+                "error_code": "SSL_CERT_VERIFY_FAILED",
+                "endpoint": repo_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "ssl_context_tried": getattr(exc, "tried", None),
+            }
+        )
+        payload["failure_class"] = "NETWORK"
+        _write(payload)
+        return
+    except _urllib_error.HTTPError as exc:
+        _write_http_error(exc, endpoint=repo_url)
+        return
+    except Exception as exc:
+        message = _clean_str(str(exc)) or "REQUEST_FAILED"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "REQUEST_FAILED",
+                "endpoint": repo_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+        _write(payload)
+        return
+    if repo_status != 200:
+        message = "HTTP_STATUS"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_STATUS",
+                "http_status": int(repo_status or 0),
+                "endpoint": repo_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(repo_status or 0), "HTTP_STATUS", redacted)
+        _write(payload)
+        return
+    try:
+        repo_obj = _json.loads(repo_body.decode("utf-8")) if repo_body else {}
+    except Exception:
+        repo_obj = {}
+
+    allowed_methods: list[str] = []
+    if isinstance(repo_obj, dict):
+        if bool(repo_obj.get("allow_merge_commit", False)):
+            allowed_methods.append("merge")
+        if bool(repo_obj.get("allow_squash_merge", False)):
+            allowed_methods.append("squash")
+        if bool(repo_obj.get("allow_rebase_merge", False)):
+            allowed_methods.append("rebase")
+    allowed_methods = sorted(set(allowed_methods))
+    if not allowed_methods:
+        payload["error_code"] = "MERGE_METHODS_UNAVAILABLE"
+        _write(payload)
+        return
+
+    merge_method = ""
+    if merge_method_override:
+        if merge_method_override not in {"merge", "squash", "rebase"}:
+            payload["error_code"] = "MERGE_METHOD_INVALID"
+            payload["merge_method"] = merge_method_override
+            _write(payload)
+            return
+        if merge_method_override not in allowed_methods:
+            payload["error_code"] = "MERGE_METHOD_NOT_ALLOWED"
+            payload["merge_method"] = merge_method_override
+            payload["allowed_merge_methods"] = allowed_methods
+            _write(payload)
+            return
+        merge_method = merge_method_override
+    else:
+        for candidate in ["merge", "squash", "rebase"]:
+            if candidate in allowed_methods:
+                merge_method = candidate
+                break
+    if not merge_method:
+        payload["error_code"] = "MERGE_METHOD_SELECT_FAIL"
+        payload["allowed_merge_methods"] = allowed_methods
+        _write(payload)
+        return
+
+    # Determine PR number
+    try:
+        jobs_index, _notes = _load_jobs_index(ws)
+    except Exception:
+        jobs_index = {}
+    jobs = jobs_index.get("jobs") if isinstance(jobs_index.get("jobs"), list) else []
+    if pr_number is None:
+        candidates = [j for j in jobs if isinstance(j, dict) and str(j.get("kind") or "") == "PR_OPEN"]
+        candidates.sort(key=lambda j: (_job_time(j), str(j.get("job_id") or "")), reverse=True)
+        for j in candidates:
+            pn = j.get("pr_number")
+            if isinstance(pn, int) and pn > 0:
+                pr_number = pn
+                break
+    if pr_number is None:
+        last_request = _load_last_pr_open_request(ws, jobs)
+        if isinstance(last_request, dict):
+            head_branch = _clean_str(last_request.get("head_branch"))
+            base_branch = _clean_str(last_request.get("base_branch"))
+            if head_branch:
+                list_url = f"https://api.github.com/repos/{owner}/{repo}/pulls?state=open&head={owner}:{head_branch}"
+                try:
+                    status_code, body_bytes, _headers2 = _http_json("GET", list_url)
+                except _SSLVerifyFailed as exc:
+                    redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+                    payload.update(
+                        {
+                            "error_code": "SSL_CERT_VERIFY_FAILED",
+                            "endpoint": list_url,
+                            "message_redacted": redacted or None,
+                            "message_hash": message_hash or None,
+                            "ssl_context_tried": getattr(exc, "tried", None),
+                        }
+                    )
+                    payload["failure_class"] = "NETWORK"
+                    _write(payload)
+                    return
+                except _urllib_error.HTTPError as exc:
+                    _write_http_error(exc, endpoint=list_url)
+                    return
+                except Exception as exc:
+                    message = _clean_str(str(exc)) or "REQUEST_FAILED"
+                    redacted, message_hash = _redact_message(message)
+                    payload.update(
+                        {
+                            "error_code": "REQUEST_FAILED",
+                            "endpoint": list_url,
+                            "message_redacted": redacted or None,
+                            "message_hash": message_hash or None,
+                        }
+                    )
+                    payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+                    _write(payload)
+                    return
+                if status_code == 200:
+                    try:
+                        arr = _json.loads(body_bytes.decode("utf-8")) if body_bytes else []
+                    except Exception:
+                        arr = []
+                    if isinstance(arr, list):
+                        # best-effort: pick unique PR, or filter by base branch
+                        prs = [p for p in arr if isinstance(p, dict) and isinstance(p.get("number"), int)]
+                        if base_branch:
+                            prs_base = [
+                                p
+                                for p in prs
+                                if isinstance(p.get("base"), dict) and _clean_str(p.get("base", {}).get("ref")) == base_branch
+                            ]
+                            if prs_base:
+                                prs = prs_base
+                        prs.sort(key=lambda p: int(p.get("number") or 0))
+                        if len(prs) == 1:
+                            pr_number = int(prs[0].get("number") or 0) or None
+
+    if pr_number is None:
+        payload["error_code"] = "PR_NUMBER_MISSING"
+        _write(payload)
+        return
+
+    payload["pr_number"] = int(pr_number)
+
+    pr_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    try:
+        status_code, body_bytes, _headers2 = _http_json("GET", pr_url)
+    except _SSLVerifyFailed as exc:
+        redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+        payload.update(
+            {
+                "error_code": "SSL_CERT_VERIFY_FAILED",
+                "endpoint": pr_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "ssl_context_tried": getattr(exc, "tried", None),
+            }
+        )
+        payload["failure_class"] = "NETWORK"
+        _write(payload)
+        return
+    except _urllib_error.HTTPError as exc:
+        _write_http_error(exc, endpoint=pr_url)
+        return
+    except Exception as exc:
+        message = _clean_str(str(exc)) or "REQUEST_FAILED"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "REQUEST_FAILED",
+                "endpoint": pr_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+        _write(payload)
+        return
+    if status_code != 200:
+        message = "HTTP_STATUS"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_STATUS",
+                "http_status": int(status_code or 0),
+                "endpoint": pr_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+        _write(payload)
+        return
+    try:
+        pr_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+    except Exception:
+        pr_obj = {}
+
+    if isinstance(pr_obj, dict):
+        payload.update(_extract_pr_metadata(pr_obj))
+    state = _clean_str(pr_obj.get("state") if isinstance(pr_obj, dict) else "")
+    merged_at = pr_obj.get("merged_at") if isinstance(pr_obj, dict) else None
+    if state == "closed" and isinstance(merged_at, str) and merged_at:
+        payload["rc"] = 0
+        payload["noop"] = True
+        _write(payload)
+        return
+    if state == "closed":
+        payload["error_code"] = "PR_CLOSED"
+        _write(payload)
+        return
+    if bool(pr_obj.get("draft", False)) is True:
+        payload["error_code"] = "PR_DRAFT"
+        _write(payload)
+        return
+
+    head_sha = ""
+    if isinstance(pr_obj.get("head"), dict):
+        head_sha = _clean_str(pr_obj.get("head", {}).get("sha"))
+    if expected_head_sha and head_sha and expected_head_sha != head_sha:
+        payload["error_code"] = "HEAD_SHA_MISMATCH"
+        payload["expected_head_sha"] = expected_head_sha
+        payload["head_sha"] = head_sha
+        _write(payload)
+        return
+
+    merge_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/merge"
+    merge_body: dict[str, Any] = {"merge_method": merge_method}
+    if expected_head_sha:
+        merge_body["sha"] = expected_head_sha
+    try:
+        status_code, body_bytes, _headers2 = _http_json("PUT", merge_url, merge_body)
+    except _SSLVerifyFailed as exc:
+        redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+        payload.update(
+            {
+                "error_code": "SSL_CERT_VERIFY_FAILED",
+                "endpoint": merge_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "ssl_context_tried": getattr(exc, "tried", None),
+            }
+        )
+        payload["failure_class"] = "NETWORK"
+        _write(payload)
+        return
+    except _urllib_error.HTTPError as exc:
+        _write_http_error(exc, endpoint=merge_url)
+        return
+    except Exception as exc:
+        message = _clean_str(str(exc)) or "REQUEST_FAILED"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "REQUEST_FAILED",
+                "endpoint": merge_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(None, "REQUEST_FAILED", redacted)
+        _write(payload)
+        return
+    payload["http_status"] = int(status_code or 0)
+    if status_code != 200:
+        message = "HTTP_STATUS"
+        redacted, message_hash = _redact_message(message)
+        payload.update(
+            {
+                "error_code": "HTTP_STATUS",
+                "endpoint": merge_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+            }
+        )
+        payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_STATUS", redacted)
+        _write(payload)
+        return
+    try:
+        merge_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+    except Exception:
+        merge_obj = {}
+    payload["rc"] = 0
+    payload["merge_method"] = merge_method
+    if isinstance(merge_obj, dict):
+        sha = merge_obj.get("sha")
+        if isinstance(sha, str) and sha:
+            payload["merge_commit_sha"] = sha
+        merged = merge_obj.get("merged")
+        if isinstance(merged, bool):
+            payload["merged"] = merged
+        message = merge_obj.get("message")
+        if isinstance(message, str) and message:
+            redacted, message_hash = _redact_message(message)
+            payload["merge_message_redacted"] = redacted or None
+            payload["merge_message_hash"] = message_hash or None
+    _write(payload)
 def _run_release_create_job(
     rc_path: str,
     kind: str,
@@ -475,7 +1040,6 @@ def _run_release_create_job(
     workspace_root: str,
 ) -> None:
     import json as _json
-    import ssl as _ssl
     import subprocess as _subprocess
     import urllib.error as _urllib_error
     import urllib.request as _urllib_request
@@ -545,15 +1109,17 @@ def _run_release_create_job(
         "Authorization": auth_header,
         "User-Agent": "autonomous-orchestrator",
     }
-    cafile = _Path("/etc/ssl/cert.pem")
-    ssl_ctx = _ssl.create_default_context(cafile=str(cafile)) if cafile.exists() else _ssl.create_default_context()
     # idempotency: if release for this tag already exists, NOOP -> PASS
     get_url = f"https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag_name}"
     get_req = _urllib_request.Request(get_url, headers=headers, method="GET")
     try:
-        with _urllib_request.urlopen(get_req, timeout=30, context=ssl_ctx) as resp:
-            status_code = resp.getcode()
-            body_bytes = resp.read()
+        status_code, body_bytes, _headers3, ssl_selected, ssl_tried = _urlopen_read_with_ssl_fallback(
+            get_req,
+            workspace_root=ws,
+            timeout_seconds=30,
+        )
+        payload.setdefault("ssl_context_selected", ssl_selected)
+        payload.setdefault("ssl_context_tried", ssl_tried)
         if int(status_code or 0) == 200:
             try:
                 response_obj = _json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
@@ -564,8 +1130,28 @@ def _run_release_create_job(
             payload.update(_extract_release_metadata(response_obj))
             _write(payload)
             return
+    except _SSLVerifyFailed as exc:
+        redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+        payload.update(
+            {
+                "error_code": "SSL_CERT_VERIFY_FAILED",
+                "endpoint": get_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "ssl_context_tried": getattr(exc, "tried", None),
+            }
+        )
+        payload["failure_class"] = "NETWORK"
+        _write(payload)
+        return
     except _urllib_error.HTTPError as exc:
         status_code = int(getattr(exc, "code", 0) or 0)
+        ssl_selected = _clean_str(getattr(exc, "_ssl_context_selected", ""))
+        ssl_tried = getattr(exc, "_ssl_context_tried", None)
+        if ssl_selected:
+            payload.setdefault("ssl_context_selected", ssl_selected)
+        if isinstance(ssl_tried, list):
+            payload.setdefault("ssl_context_tried", ssl_tried)
         if status_code != 404:
             headers2 = getattr(exc, "headers", {}) or {}
             try:
@@ -601,6 +1187,8 @@ def _run_release_create_job(
                     "retry_after_seconds": int(headers2.get("Retry-After") or 0)
                     if hasattr(headers2, "get") and str(headers2.get("Retry-After") or "").isdigit()
                     else None,
+                    "ssl_context_selected": ssl_selected or None,
+                    "ssl_context_tried": ssl_tried if isinstance(ssl_tried, list) else None,
                 }
             )
             payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
@@ -634,13 +1222,32 @@ def _run_release_create_job(
     data = _json.dumps(request_body).encode("utf-8")
     req = _urllib_request.Request(api_url, data=data, headers=headers, method="POST")
     try:
-        with _urllib_request.urlopen(req, timeout=30, context=ssl_ctx) as resp:
-            status_code = resp.getcode()
-            body_bytes = resp.read()
-            headers2 = resp.headers
+        status_code, body_bytes, headers2, ssl_selected, ssl_tried = _urlopen_read_with_ssl_fallback(
+            req,
+            workspace_root=ws,
+            timeout_seconds=30,
+        )
+        payload.setdefault("ssl_context_selected", ssl_selected)
+        payload.setdefault("ssl_context_tried", ssl_tried)
+    except _SSLVerifyFailed as exc:
+        redacted, message_hash = _redact_message(str(exc) or "SSL_CERT_VERIFY_FAILED")
+        payload.update(
+            {
+                "error_code": "SSL_CERT_VERIFY_FAILED",
+                "endpoint": api_url,
+                "message_redacted": redacted or None,
+                "message_hash": message_hash or None,
+                "ssl_context_tried": getattr(exc, "tried", None),
+            }
+        )
+        payload["failure_class"] = "NETWORK"
+        _write(payload)
+        return
     except _urllib_error.HTTPError as exc:
         status_code = int(getattr(exc, "code", 0) or 0)
         headers2 = getattr(exc, "headers", {}) or {}
+        ssl_selected = _clean_str(getattr(exc, "_ssl_context_selected", ""))
+        ssl_tried = getattr(exc, "_ssl_context_tried", None)
         try:
             body_bytes = exc.read()
         except Exception:
@@ -674,6 +1281,8 @@ def _run_release_create_job(
                 "retry_after_seconds": int(headers2.get("Retry-After") or 0)
                 if hasattr(headers2, "get") and str(headers2.get("Retry-After") or "").isdigit()
                 else None,
+                "ssl_context_selected": ssl_selected or None,
+                "ssl_context_tried": ssl_tried if isinstance(ssl_tried, list) else None,
             }
         )
         payload["failure_class"] = _map_failure_class(int(status_code or 0), "HTTP_ERROR", redacted)
@@ -855,13 +1464,31 @@ def _spawn_job_process(
             command_fingerprint,
             str(workspace_root),
         ]
+    elif kind == "MERGE":
+        request_arg = str(request_path) if isinstance(request_path, Path) else ""
+        stub = (
+            "import sys;"
+            "from src.prj_github_ops.github_ops import _run_pr_merge_job;"
+            "_run_pr_merge_job(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6]);"
+        )
+        cmd = [
+            sys.executable,
+            "-c",
+            stub,
+            str(rc_path),
+            request_arg,
+            token_env,
+            auth_mode,
+            command_fingerprint,
+            str(workspace_root),
+        ]
     else:
         stub = (
             "import json,sys,time;"
             "time.sleep(0.1);"
-            "json.dump({'rc':0,'fingerprint':sys.argv[2]}, open(sys.argv[1],'w'));"
+            "json.dump({'rc':1,'error_code':'KIND_NOT_IMPLEMENTED','fingerprint':sys.argv[2],'kind':sys.argv[3]}, open(sys.argv[1],'w'));"
         )
-        cmd = [sys.executable, "-c", stub, str(rc_path), command_fingerprint]
+        cmd = [sys.executable, "-c", stub, str(rc_path), command_fingerprint, str(kind)]
     try:
         stdout_f = stdout_path.open("w", encoding="utf-8")
         stderr_f = stderr_path.open("w", encoding="utf-8")
@@ -1498,6 +2125,14 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
                     for meta_key, meta_value in release_meta.items():
                         target[meta_key] = meta_value
                     if target.get("status") == "FAIL":
+                        # Prefer the rc_obj error_code over the generic RC_NONZERO marker when present.
+                        rc_error_code = rc_obj.get("error_code")
+                        if (
+                            isinstance(rc_error_code, str)
+                            and rc_error_code
+                            and str(target.get("error_code") or "") in {"", "RC_MISSING", "RC_NONZERO"}
+                        ):
+                            target["error_code"] = rc_error_code
                         has_error = bool(rc_obj.get("error_code")) or int(rc_obj.get("rc") or 0) != 0
                         http_status = rc_obj.get("http_status")
                         if isinstance(http_status, int) and http_status >= 400:

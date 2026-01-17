@@ -44,9 +44,14 @@ def main() -> None:
 
     schema_path = repo_root / "schemas" / "github-ops-jobs-index.schema.v1.json"
     job_schema_path = repo_root / "schemas" / "github-ops-job.schema.v1.json"
+    trace_meta_schema_path = repo_root / "schemas" / "trace-meta.schema.v1.json"
     schema = _load_json(schema_path)
     job_schema = _load_json(job_schema_path)
-    store = {str(job_schema.get("$id") or ""): job_schema}
+    trace_meta_schema = _load_json(trace_meta_schema_path)
+    store = {
+        str(job_schema.get("$id") or ""): job_schema,
+        str(trace_meta_schema.get("$id") or ""): trace_meta_schema,
+    }
     _validator(schema, store=store).validate(_load_json(index_path))
 
     index_obj = _load_json(index_path)

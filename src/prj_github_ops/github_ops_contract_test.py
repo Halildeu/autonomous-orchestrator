@@ -64,14 +64,19 @@ def main() -> None:
 
     job_schema_path = repo_root / "schemas" / "github-ops-job.schema.v1.json"
     job_schema = _load_json(job_schema_path)
-    _validator(job_schema).validate(_load_json(job_report_path))
+    trace_meta_schema_path = repo_root / "schemas" / "trace-meta.schema.v1.json"
+    trace_meta_schema = _load_json(trace_meta_schema_path)
+    store = {
+        str(job_schema.get("$id") or ""): job_schema,
+        str(trace_meta_schema.get("$id") or ""): trace_meta_schema,
+    }
+    _validator(job_schema, store=store).validate(_load_json(job_report_path))
 
     jobs_index_path = ws / ".cache" / "github_ops" / "jobs_index.v1.json"
     if not jobs_index_path.exists():
         raise SystemExit("github_ops_contract_test failed: jobs_index missing")
     jobs_index_schema = repo_root / "schemas" / "github-ops-jobs-index.schema.v1.json"
     jobs_index_obj = _load_json(jobs_index_schema)
-    store = {str(job_schema.get(\"$id\") or \"\"): job_schema}
     _validator(jobs_index_obj, store=store).validate(_load_json(jobs_index_path))
 
     poll = poll_github_ops_job(workspace_root=ws, job_id=str(job_start.get("job_id") or ""))
