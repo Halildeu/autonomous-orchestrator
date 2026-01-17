@@ -199,7 +199,16 @@ def run_release_final_e2e(
         return {"status": "FAIL", "error_code": "GIT_HEAD_SHA_FAIL", "git_stderr": head_sha.stderr}
     short_sha = _run_git(["rev-parse", "--short", "HEAD"], repo_root=repo_root)
     short = short_sha.stdout.strip() if short_sha.returncode == 0 else ""
-    branch_name = f"release/final/{tag}-{short}" if short else f"release/final/{tag}"
+    branch_mode = "create_new"
+    current_branch_res = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo_root=repo_root)
+    current_branch = current_branch_res.stdout.strip() if current_branch_res.returncode == 0 else ""
+    if current_branch and current_branch not in {"HEAD", base_branch}:
+        # If user already runs this flow from a branch, treat that branch as the head branch.
+        # This prevents accidental PR spam when you add a follow-up commit and re-run.
+        branch_name = current_branch
+        branch_mode = "reuse_current"
+    else:
+        branch_name = f"release/final/{tag}-{short}" if short else f"release/final/{tag}"
 
     report: dict[str, Any] = {
         "version": "v0.1",
@@ -209,7 +218,7 @@ def run_release_final_e2e(
         "repo": {"owner": owner, "name": repo, "remote": "origin"},
         "inputs": {"base_branch": base_branch, "allow_network": bool(allow_network), "dry_run": bool(dry_run)},
         "release": {"channel": "final", "tag": tag, "release_version": release_version},
-        "branch": {"name": branch_name, "head_sha": head_sha.stdout},
+        "branch": {"name": branch_name, "mode": branch_mode, "head_sha": head_sha.stdout},
         "jobs": {},
         "git": {"dirty_before": None},
         "notes": [],
@@ -257,15 +266,16 @@ def run_release_final_e2e(
             return report
 
     # --- Create/switch branch and push ---
-    checkout_res = _run_git(["checkout", "-B", branch_name], repo_root=repo_root, env=git_env)
-    if checkout_res.returncode != 0:
-        report["status"] = "FAIL"
-        report["error_code"] = "GIT_CHECKOUT_BRANCH_FAIL"
-        report["git"]["checkout_stderr"] = checkout_res.stderr
-        out_path = ws / ".cache" / "reports" / "release_final_e2e.v1.json"
-        _atomic_write_json(out_path, report)
-        report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
-        return report
+    if branch_mode == "create_new":
+        checkout_res = _run_git(["checkout", "-B", branch_name], repo_root=repo_root, env=git_env)
+        if checkout_res.returncode != 0:
+            report["status"] = "FAIL"
+            report["error_code"] = "GIT_CHECKOUT_BRANCH_FAIL"
+            report["git"]["checkout_stderr"] = checkout_res.stderr
+            out_path = ws / ".cache" / "reports" / "release_final_e2e.v1.json"
+            _atomic_write_json(out_path, report)
+            report["report_path"] = str(Path(".cache") / "reports" / out_path.name)
+            return report
 
     push_res = _run_git(["push", "-u", "origin", branch_name], repo_root=repo_root, env=git_env)
     if push_res.returncode != 0:
