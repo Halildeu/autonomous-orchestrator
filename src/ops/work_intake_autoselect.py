@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root
+from src.ops.doer_loop_lock import owner_tag_from_env
 from src.ops.work_intake_from_sources import _load_autopilot_policy, run_work_intake_build
+from src.ops.work_item_claims import get_active_claim
 
 
 def _now_iso() -> str:
@@ -209,10 +211,26 @@ def run_work_intake_autoselect(*, workspace_root: Path, limit: int, mode: str = 
         selected = candidates[:limit] if limit > 0 else []
         selected_ids = [str(x.get("intake_id") or "") for x in selected if str(x.get("intake_id") or "")]
 
+    claim_guard_owner = owner_tag_from_env()
+    claim_guard_skipped: list[str] = []
+    claim_guard_selected: list[str] = []
+    for intake_id in selected_ids:
+        claim = get_active_claim(workspace_root, intake_id)
+        if isinstance(claim, dict):
+            owner = str(claim.get("owner_tag") or "").strip()
+            if not owner or owner != claim_guard_owner:
+                claim_guard_skipped.append(intake_id)
+                continue
+        claim_guard_selected.append(intake_id)
+    if claim_guard_skipped:
+        notes.append(f"claim_guard_skipped={len(claim_guard_skipped)}")
+    selected_ids = claim_guard_selected
+
     selection_path = workspace_root / ".cache" / "index" / "work_intake_selection.v1.json"
     selection_notes = ["PROGRAM_LED=true", "AUTOSELECT=true"]
     if mode == "safe_first":
         selection_notes.append("AUTOSELECT_SAFE_FIRST=true")
+    selection_notes.append("CLAIM_GUARD=true")
     selection_payload = {
         "version": "v1",
         "generated_at": _now_iso(),

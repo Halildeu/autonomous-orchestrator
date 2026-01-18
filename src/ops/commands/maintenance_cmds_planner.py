@@ -14,6 +14,8 @@ def register_planner_and_intake_subcommands(
     cmd_doer_loop_lock_status,
     cmd_doer_loop_lock_clear,
     cmd_work_intake_select,
+    cmd_work_intake_claim,
+    cmd_work_intake_close,
     cmd_work_intake_autoselect,
     cmd_doer_actionability,
 ) -> None:
@@ -86,6 +88,30 @@ def register_planner_and_intake_subcommands(
     ap_intake_select.add_argument("--intake-id", required=False, help="Intake id to select/deselect.")
     ap_intake_select.add_argument("--selected", default="true", help="true|false (default: true).")
     ap_intake_select.set_defaults(func=cmd_work_intake_select)
+
+    ap_intake_claim = parent.add_parser(
+        "work-intake-claim",
+        help="Claim/release one intake item for exclusive focus (workspace-only, TTL-based).",
+    )
+    ap_intake_claim.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_claim.add_argument("--intake-id", dest="intake_id", required=True, help="Intake id to claim/release.")
+    ap_intake_claim.add_argument("--mode", default="claim", help="claim|release|status (default: claim).")
+    ap_intake_claim.add_argument("--ttl-seconds", dest="ttl_seconds", default="3600", help="Claim TTL seconds (default: 3600).")
+    ap_intake_claim.add_argument("--owner-tag", dest="owner_tag", default="", help="Owner tag (default: env CODEX_CHAT_TAG).")
+    ap_intake_claim.add_argument("--force", default="false", help="true|false (default: false; release only).")
+    ap_intake_claim.set_defaults(func=cmd_work_intake_claim)
+
+    ap_intake_close = parent.add_parser(
+        "work-intake-close",
+        help="Explicitly close/reopen one intake item (workspace-only, manual-request tickets only).",
+    )
+    ap_intake_close.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_close.add_argument("--intake-id", dest="intake_id", required=True, help="Intake id to close/reopen.")
+    ap_intake_close.add_argument("--mode", default="close", help="close|reopen|status (default: close).")
+    ap_intake_close.add_argument("--reason", default="", help="Optional close reason (default: empty).")
+    ap_intake_close.add_argument("--owner-tag", dest="owner_tag", default="", help="Owner tag (default: env CODEX_CHAT_TAG).")
+    ap_intake_close.add_argument("--force", default="false", help="true|false (default: false).")
+    ap_intake_close.set_defaults(func=cmd_work_intake_close)
 
     ap_intake_autoselect = parent.add_parser(
         "work-intake-autoselect",

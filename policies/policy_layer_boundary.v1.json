@@ -4,6 +4,7 @@
   "core_roots": [
     "src",
     "docs",
+    "extensions",
     "roadmaps",
     "ci",
     ".codex",

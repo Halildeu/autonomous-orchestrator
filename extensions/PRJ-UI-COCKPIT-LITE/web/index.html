@@ -20,6 +20,7 @@
         --shadow: rgba(0, 0, 0, 0.35);
         --shadow-soft: rgba(0, 0, 0, 0.2);
         --radius: 12px;
+        --sidebar-width: 260px;
       }
       * { box-sizing: border-box; }
       body {
@@ -33,21 +34,56 @@
       }
       .app {
         display: grid;
-        grid-template-columns: 260px 1fr;
+        grid-template-columns: var(--sidebar-width) 1fr;
         min-height: 100vh;
       }
       .sidebar {
         background: var(--panel);
         border-right: 1px solid var(--border);
         padding: 18px 16px;
+        width: var(--sidebar-width);
         display: flex;
         flex-direction: column;
         gap: 16px;
       }
+      .sidebar-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
       .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-size: 14px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
+        color: var(--accent);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+      }
+      .brand-short { display: none; }
+      .sidebar-toggle-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        color: var(--muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .sidebar-toggle-btn:hover {
+        border-color: var(--accent);
         color: var(--accent);
       }
       .nav {
@@ -57,6 +93,9 @@
       }
       .nav button {
         width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
         text-align: left;
         padding: 10px 12px;
         background: transparent;
@@ -65,9 +104,32 @@
         border-radius: 8px;
         cursor: pointer;
       }
+      .nav-icon {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        flex: 0 0 auto;
+        user-select: none;
+      }
+      .nav-label {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
       .nav button.active {
         border-color: var(--accent);
         background: rgba(61, 214, 176, 0.08);
+      }
+      .nav button.active .nav-icon {
+        border-color: var(--accent);
+        color: var(--accent);
       }
       .sidebar-footer {
         margin-top: auto;
@@ -132,6 +194,18 @@
         transition: transform 0.08s ease, border 0.2s ease;
       }
       .btn:hover { transform: translateY(-1px); }
+      .sidebar-toggle-btn:focus-visible,
+      .nav button:focus-visible,
+      .btn:focus-visible,
+      .tag-toggle:focus-visible,
+      th button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
       .btn[disabled] {
         opacity: 0.45;
         cursor: not-allowed;
@@ -141,6 +215,10 @@
       .btn.warn { border-color: var(--accent-2); }
       .btn.danger { border-color: var(--danger); }
       .btn.ghost { background: transparent; }
+      .btn.small {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -154,6 +232,7 @@
         box-shadow: 0 12px 20px var(--shadow);
         animation: fadeUp 0.4s ease both;
         overflow-wrap: anywhere;
+        word-break: break-word;
       }
       .card h3 {
         margin: 0 0 8px;
@@ -291,6 +370,10 @@
       .tag-option:hover {
         background: rgba(61, 214, 176, 0.08);
       }
+      .tag-option.active,
+      .tag-option[aria-selected="true"] {
+        background: rgba(61, 214, 176, 0.12);
+      }
       textarea.input {
         width: 100%;
         min-height: 120px;
@@ -299,9 +382,41 @@
       }
       .table-wrap {
         overflow: auto;
+        max-height: 68vh;
+        scrollbar-gutter: stable;
         border: 1px solid var(--border);
         border-radius: 10px;
         background: #11181a;
+      }
+      .table-wrap tbody tr.clickable:hover {
+        cursor: pointer;
+        background: rgba(61, 214, 176, 0.08);
+      }
+      .table-wrap tbody tr.selected {
+        outline: 1px solid rgba(61, 214, 176, 0.55);
+        background: rgba(61, 214, 176, 0.04);
+      }
+      .table-wrap tbody tr.blocked {
+        background: rgba(255, 193, 7, 0.05);
+      }
+      .intake-detail-grid {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 8px 12px;
+        margin-top: 12px;
+      }
+      .intake-detail-grid .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .intake-detail-grid .value {
+        font-size: 12px;
+      }
+      .path-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
       }
       .note-list {
         display: flex;
@@ -323,6 +438,12 @@
       .note-meta {
         font-size: 11px;
         color: var(--muted);
+      }
+      .note-body {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--text);
+        overflow-wrap: anywhere;
       }
       .note-tags {
         display: flex;
@@ -408,6 +529,8 @@
         padding: 8px 10px;
         border-bottom: 1px solid var(--border);
         font-size: 12px;
+        vertical-align: top;
+        overflow-wrap: anywhere;
       }
       th {
         position: sticky;
@@ -437,6 +560,9 @@
         max-height: 260px;
         font-size: 12px;
         line-height: 1.4;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       .split {
         display: grid;
@@ -501,6 +627,12 @@
         border-radius: 8px;
         padding: 6px 8px;
       }
+      .evidence-tree {
+        max-height: 68vh;
+        overflow: auto;
+        padding-right: 6px;
+        scrollbar-gutter: stable;
+      }
       .evidence-tree summary {
         cursor: pointer;
         color: var(--muted);
@@ -518,6 +650,9 @@
         gap: 8px;
         margin-bottom: 8px;
       }
+      #evidence-viewer {
+        max-height: 68vh;
+      }
       .status-banner {
         padding: 10px 12px;
         border-radius: 10px;
@@ -528,9 +663,32 @@
       .status-banner.warn { border-color: var(--accent-2); }
       .status-banner.ok { border-color: var(--accent); }
       .status-banner.fail { border-color: var(--danger); }
-      .sidebar-collapsed .sidebar { width: 64px; padding: 16px 8px; }
-      .sidebar-collapsed .nav button { text-align: center; }
+      .sidebar-collapsed .app,
+      .app.sidebar-collapsed { --sidebar-width: 72px; }
+      .sidebar-collapsed { --sidebar-width: 72px; }
+      .sidebar-collapsed .sidebar { padding: 16px 10px; }
+      .sidebar-collapsed .nav-label { display: none; }
+      .sidebar-collapsed .nav button { justify-content: center; padding: 10px 8px; }
       .sidebar-collapsed .sidebar-footer { display: none; }
+      .sidebar-collapsed .sidebar-header {
+        justify-content: center;
+        align-items: center;
+      }
+      .sidebar-collapsed .brand-full { display: none; }
+      .sidebar-collapsed .brand-short {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        user-select: none;
+      }
       @keyframes fadeUp {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -540,46 +698,102 @@
         .sidebar { flex-direction: row; overflow-x: auto; }
         .nav { flex-direction: row; }
         .split { grid-template-columns: 1fr; }
+        .table-wrap { max-height: 40vh; }
+        .evidence-tree { max-height: 40vh; }
+        #evidence-viewer { max-height: 40vh; }
       }
     </style>
+    <script>
+      (function () {
+        try {
+          const raw = localStorage.getItem("cockpit_lite_sidebar_collapsed_v1");
+          const v = String(raw || "").trim().toLowerCase();
+          const collapsed = v === "1" || v === "true" || v === "yes" || v === "on";
+          if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+        } catch (_) {
+          // ignore
+        }
+      })();
+    </script>
   </head>
   <body>
-    <div class="app" id="app-root">
-      <aside class="sidebar" id="sidebar">
-        <div class="brand">Cockpit Lite</div>
-        <nav class="nav">
-          <button class="active" data-tab="overview">Overview</button>
-          <button data-tab="north-star">North Star</button>
-          <button data-tab="intake">Intake</button>
-          <button data-tab="decisions">Decisions</button>
-          <button data-tab="extensions">Extensions</button>
-          <button data-tab="overrides">Overrides</button>
-          <button data-tab="auto-loop">Auto-loop</button>
-          <button data-tab="jobs">Jobs</button>
-          <button data-tab="locks">Locks</button>
-          <button data-tab="run-card">Run-Card</button>
-          <button data-tab="planner-chat">Planner Chat</button>
-          <button data-tab="command-composer">Command Composer</button>
-          <button data-tab="evidence">Evidence</button>
-        </nav>
-        <div class="sidebar-footer">
-          <div id="ws-root">workspace: ...</div>
+	    <div class="app" id="app-root">
+			      <aside class="sidebar" id="sidebar">
+			        <div class="sidebar-header">
+			          <button class="sidebar-toggle-btn" id="toggle-sidebar-inline" type="button" data-i18n-aria-label="sidebar.toggle" data-i18n-title="sidebar.toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+			            <span aria-hidden="true">≡</span>
+			          </button>
+			          <div class="brand">
+			            <span class="brand-full">Cockpit Lite</span>
+			            <span class="brand-short" aria-label="Cockpit Lite">CL</span>
+			          </div>
+			        </div>
+			        <nav class="nav" data-i18n-aria-label="nav.primary" aria-label="Primary">
+			          <button class="active" data-tab="overview" type="button" data-i18n-title="nav.overview" data-i18n-aria-label="nav.overview" title="Overview" aria-label="Overview" aria-controls="tab-overview">
+			            <span class="nav-icon" aria-hidden="true">OV</span><span class="nav-label" data-i18n="nav.overview">Overview</span>
+			          </button>
+	          <button data-tab="north-star" type="button" data-i18n-title="nav.north_star" data-i18n-aria-label="nav.north_star" title="North Star" aria-label="North Star" aria-controls="tab-north-star">
+	            <span class="nav-icon" aria-hidden="true">NS</span><span class="nav-label" data-i18n="nav.north_star">North Star</span>
+	          </button>
+	          <button data-tab="inbox" type="button" data-i18n-title="nav.inbox" data-i18n-aria-label="nav.inbox" title="Inbox" aria-label="Inbox" aria-controls="tab-inbox">
+	            <span class="nav-icon" aria-hidden="true">IB</span><span class="nav-label" data-i18n="nav.inbox">Inbox</span>
+	          </button>
+	          <button data-tab="intake" type="button" data-i18n-title="nav.intake" data-i18n-aria-label="nav.intake" title="Intake" aria-label="Intake" aria-controls="tab-intake">
+	            <span class="nav-icon" aria-hidden="true">IN</span><span class="nav-label" data-i18n="nav.intake">Intake</span>
+	          </button>
+	          <button data-tab="decisions" type="button" data-i18n-title="nav.decisions" data-i18n-aria-label="nav.decisions" title="Decisions" aria-label="Decisions" aria-controls="tab-decisions">
+	            <span class="nav-icon" aria-hidden="true">DC</span><span class="nav-label" data-i18n="nav.decisions">Decisions</span>
+	          </button>
+	          <button data-tab="extensions" type="button" data-i18n-title="nav.extensions" data-i18n-aria-label="nav.extensions" title="Extensions" aria-label="Extensions" aria-controls="tab-extensions">
+	            <span class="nav-icon" aria-hidden="true">EX</span><span class="nav-label" data-i18n="nav.extensions">Extensions</span>
+	          </button>
+	          <button data-tab="overrides" type="button" data-i18n-title="nav.overrides" data-i18n-aria-label="nav.overrides" title="Overrides" aria-label="Overrides" aria-controls="tab-overrides">
+	            <span class="nav-icon" aria-hidden="true">OR</span><span class="nav-label" data-i18n="nav.overrides">Overrides</span>
+	          </button>
+	          <button data-tab="auto-loop" type="button" data-i18n-title="nav.auto_loop" data-i18n-aria-label="nav.auto_loop" title="Auto-loop" aria-label="Auto-loop" aria-controls="tab-auto-loop">
+	            <span class="nav-icon" aria-hidden="true">AL</span><span class="nav-label" data-i18n="nav.auto_loop">Auto-loop</span>
+	          </button>
+	          <button data-tab="jobs" type="button" data-i18n-title="nav.jobs" data-i18n-aria-label="nav.jobs" title="Jobs" aria-label="Jobs" aria-controls="tab-jobs">
+	            <span class="nav-icon" aria-hidden="true">JB</span><span class="nav-label" data-i18n="nav.jobs">Jobs</span>
+	          </button>
+	          <button data-tab="locks" type="button" data-i18n-title="nav.locks" data-i18n-aria-label="nav.locks" title="Locks" aria-label="Locks" aria-controls="tab-locks">
+	            <span class="nav-icon" aria-hidden="true">LK</span><span class="nav-label" data-i18n="nav.locks">Locks</span>
+	          </button>
+	          <button data-tab="run-card" type="button" data-i18n-title="nav.run_card" data-i18n-aria-label="nav.run_card" title="Run-Card" aria-label="Run-Card" aria-controls="tab-run-card">
+	            <span class="nav-icon" aria-hidden="true">RC</span><span class="nav-label" data-i18n="nav.run_card">Run-Card</span>
+	          </button>
+	          <button data-tab="planner-chat" type="button" data-i18n-title="nav.planner_chat" data-i18n-aria-label="nav.planner_chat" title="Planner Chat" aria-label="Planner Chat" aria-controls="tab-planner-chat">
+	            <span class="nav-icon" aria-hidden="true">PC</span><span class="nav-label" data-i18n="nav.planner_chat">Planner Chat</span>
+	          </button>
+	          <button data-tab="command-composer" type="button" data-i18n-title="nav.command_composer" data-i18n-aria-label="nav.command_composer" title="Command Composer" aria-label="Command Composer" aria-controls="tab-command-composer">
+	            <span class="nav-icon" aria-hidden="true">CC</span><span class="nav-label" data-i18n="nav.command_composer">Command Composer</span>
+	          </button>
+	          <button data-tab="evidence" type="button" data-i18n-title="nav.evidence" data-i18n-aria-label="nav.evidence" title="Evidence" aria-label="Evidence" aria-controls="tab-evidence">
+	            <span class="nav-icon" aria-hidden="true">EV</span><span class="nav-label" data-i18n="nav.evidence">Evidence</span>
+	          </button>
+	        </nav>
+	        <div class="sidebar-footer">
+	          <div id="ws-root">workspace: ...</div>
           <div id="last-change">last change: ...</div>
         </div>
       </aside>
       <div class="main">
-        <header class="topbar">
+	        <header class="topbar">
           <div class="topbar-left">
-            <div class="topbar-title">Operator Console</div>
+            <div class="topbar-title" data-i18n="ui.title">Operator Console</div>
             <span class="badge" id="conn-status">API: ...</span>
             <span class="badge" id="sse-status">SSE: ...</span>
           </div>
-          <div class="topbar-right row">
-            <button class="btn ghost" id="toggle-sidebar">Toggle Sidebar</button>
-            <button class="btn accent" id="refresh-all">Refresh All</button>
-          </div>
-        </header>
-        <main class="content">
+	          <div class="topbar-right row">
+	            <button class="btn accent" id="refresh-all" data-i18n="actions.refresh_all">Refresh All</button>
+              <select class="input" id="lang-select" data-i18n-aria-label="lang.label" data-i18n-title="lang.label">
+                <option value="en">EN</option>
+                <option value="tr">TR</option>
+              </select>
+              <button class="btn warn" id="admin-mode-toggle-topbar" type="button" data-i18n-title="admin.title_topbar">Admin mode: off</button>
+	          </div>
+	        </header>
+	        <main class="content">
           <div class="toolbar">
             <button class="btn" data-op="system-status">system-status</button>
             <button class="btn" data-op="ui-snapshot-bundle">ui-snapshot-bundle</button>
@@ -593,40 +807,40 @@
             <div class="status-banner" id="next-banner"></div>
             <div class="grid">
               <div class="card">
-                <h3>System Status</h3>
+                <h3 data-i18n="h.system_status">System Status</h3>
                 <div class="pill" id="status-pill">loading</div>
                 <div class="subtle" id="status-summary">...</div>
               </div>
               <div class="card">
-                <h3>Work Intake</h3>
+                <h3 data-i18n="h.work_intake">Work Intake</h3>
                 <div id="intake-summary"></div>
               </div>
               <div class="card">
-                <h3>Decisions</h3>
+                <h3 data-i18n="h.decisions">Decisions</h3>
                 <div id="decision-summary"></div>
               </div>
               <div class="card">
-                <h3>Loop Activity</h3>
+                <h3 data-i18n="h.loop_activity">Loop Activity</h3>
                 <div id="loop-summary"></div>
               </div>
               <div class="card">
-                <h3>Locks</h3>
+                <h3 data-i18n="h.locks">Locks</h3>
                 <div id="lock-summary"></div>
               </div>
               <div class="card">
-                <h3>Script Budget</h3>
+                <h3 data-i18n="h.script_budget">Script Budget</h3>
                 <pre id="budget-json"></pre>
               </div>
               <div class="card">
-                <h3>Next Steps</h3>
+                <h3 data-i18n="h.next_steps">Next Steps</h3>
                 <div id="next-steps" class="subtle"></div>
               </div>
               <div class="card">
-                <h3>Action Log</h3>
+                <h3 data-i18n="h.action_log">Action Log</h3>
                 <div id="action-log" class="action-log"></div>
               </div>
               <div class="card">
-                <h3>Last Action</h3>
+                <h3 data-i18n="h.last_action">Last Action</h3>
                 <div class="subtle" id="action-status">no actions yet</div>
                 <div id="action-meta" class="subtle"></div>
                 <details>
@@ -635,11 +849,11 @@
                 </details>
               </div>
               <div class="card">
-                <h3>System Status (raw)</h3>
+                <h3 data-i18n="h.system_status_raw">System Status (raw)</h3>
                 <pre id="status-json"></pre>
               </div>
               <div class="card">
-                <h3>UI Snapshot (raw)</h3>
+                <h3 data-i18n="h.ui_snapshot_raw">UI Snapshot (raw)</h3>
                 <pre id="snapshot-json"></pre>
               </div>
             </div>
@@ -648,90 +862,207 @@
           <section id="tab-north-star" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>North Star</h3>
+                <h3 data-i18n="h.north_star">North Star</h3>
                 <div class="badge" id="north-star-status">loading</div>
-                <div class="subtle" id="north-star-summary"></div>
-                <div class="row">
-                  <div class="pill" id="north-star-coverage"></div>
-                  <div class="pill" id="north-star-maturity"></div>
-                </div>
-              </div>
+	                <div class="subtle" id="north-star-summary"></div>
+	                <div class="row">
+	                  <div class="pill" id="north-star-coverage"></div>
+	                  <div class="pill" id="north-star-maturity"></div>
+	                </div>
+	                <div class="row" id="north-star-runner-badges"></div>
+	              </div>
+	              <div class="card">
+	                <h3 data-i18n="h.lens_summary">Lens Summary</h3>
+	                <div id="north-star-lenses-table" class="table-wrap"></div>
+	              </div>
               <div class="card">
-                <h3>Lens Summary</h3>
-                <div id="north-star-lenses-table" class="table-wrap"></div>
-              </div>
-              <div class="card">
-                <h3>Gap Summary</h3>
+                <h3 data-i18n="h.gap_summary">Gap Summary</h3>
                 <div class="subtle" id="north-star-gap-count"></div>
                 <div class="subtle" id="north-star-gap-breakdown"></div>
               </div>
             </div>
+	            <div class="card">
+	              <h3 data-i18n="h.top_gaps">Top Gaps</h3>
+	              <div id="north-star-gap-table" class="table-wrap"></div>
+	            </div>
+	            <div class="card">
+	              <h3 data-i18n="h.lens_details">Lens Details</h3>
+	              <div class="subtle">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
+	              <div id="north-star-lens-details"></div>
+	            </div>
+		            <div class="card">
+			              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
+			              <div class="subtle" id="ns-findings-meta">Select a lens to explore findings.</div>
+			              <div class="row" style="margin-top: 10px;">
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-preset">Preset</label>
+			                  <select class="input" id="ns-findings-preset" aria-label="Select preset"></select>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-lens">Lens</label>
+			                  <select class="input" id="ns-findings-lens" aria-label="Select lens"></select>
+			                </div>
+		                <input class="input" id="ns-findings-search" placeholder="Search findings (id/title/topic/tags/reasons)" aria-label="Search findings" />
+		                <div class="field-stack">
+		                  <label class="subtle" for="ns-findings-filter-domain-input">Domain</label>
+		                  <div class="tag-select" id="ns-findings-filter-domain">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="ns-findings-filter-domain-tags"></div>
+		                      <input class="tag-input" id="ns-findings-filter-domain-input" placeholder="Select domain" aria-label="Filter by domain" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-domain-options" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle domain options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="ns-findings-filter-domain-options" role="listbox" aria-label="Domain options"></div>
+		                  </div>
+		                </div>
+		                <div class="field-stack">
+		                  <label class="subtle" for="ns-findings-filter-topic-input">Topic</label>
+		                  <div class="tag-select" id="ns-findings-filter-topic">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="ns-findings-filter-topic-tags"></div>
+		                      <input class="tag-input" id="ns-findings-filter-topic-input" placeholder="Select topic" aria-label="Filter by topic" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-topic-options" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle topic options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="ns-findings-filter-topic-options" role="listbox" aria-label="Topic options"></div>
+		                  </div>
+		                </div>
+		                <div class="field-stack">
+		                  <label class="subtle" for="ns-findings-filter-match-input">Match</label>
+		                  <div class="tag-select" id="ns-findings-filter-match">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
+		                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Triggered only (default)" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle match options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
+		                  </div>
+		                </div>
+		                <div class="field-stack">
+		                  <label class="subtle" for="ns-findings-filter-catalog-input">Catalog</label>
+		                  <div class="tag-select" id="ns-findings-filter-catalog">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
+		                      <input class="tag-input" id="ns-findings-filter-catalog-input" placeholder="(optional)" aria-label="Filter by catalog" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-catalog-options" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle catalog options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="ns-findings-filter-catalog-options" role="listbox" aria-label="Catalog options"></div>
+		                  </div>
+		                </div>
+		                <button class="btn small" id="ns-findings-clear" type="button">Reset</button>
+		              </div>
+	              <div class="subtle" id="ns-findings-summary" style="margin-top: 8px;"></div>
+	              <div id="ns-findings-table" style="margin-top: 10px;"></div>
+	              <div id="ns-findings-detail" style="margin-top: 10px;"></div>
+	            </div>
+	            <div class="card">
+	              <h3 data-i18n="h.raw_json">Raw JSON</h3>
+	              <details>
+	                <summary class="subtle">assessment_eval</summary>
+	                <pre id="north-star-eval-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">trend_catalog</summary>
+	                <pre id="north-star-trend-catalog-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">bp_catalog</summary>
+	                <pre id="north-star-bp-catalog-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">north_star_catalog</summary>
+	                <pre id="north-star-catalog-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">gap_register</summary>
+	                <pre id="north-star-gap-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">scorecard</summary>
+	                <pre id="north-star-scorecard-json"></pre>
+	              </details>
+	            </div>
+	          </section>
+
+          <section id="tab-inbox" class="tab">
             <div class="card">
-              <h3>Top Gaps</h3>
-              <div id="north-star-gap-table" class="table-wrap"></div>
-            </div>
-            <div class="card">
-              <h3>Raw JSON</h3>
-              <details>
-                <summary class="subtle">assessment_eval</summary>
-                <pre id="north-star-eval-json"></pre>
-              </details>
-              <details>
-                <summary class="subtle">gap_register</summary>
-                <pre id="north-star-gap-json"></pre>
-              </details>
+              <h3 data-i18n="h.input_inbox">Input Inbox</h3>
+              <div class="row">
+                <input class="input" id="inbox-search" placeholder="Search inbox" />
+                <select class="input" id="inbox-filter-bucket" aria-label="Filter by bucket">
+                  <option value="">Bucket (all)</option>
+                  <option value="TICKET">TICKET</option>
+                  <option value="PROJECT">PROJECT</option>
+                  <option value="ROADMAP">ROADMAP</option>
+                </select>
+                <select class="input" id="inbox-filter-status" aria-label="Filter by intake status">
+                  <option value="">Status (all)</option>
+                  <option value="OPEN">OPEN</option>
+                  <option value="DONE">DONE</option>
+                </select>
+                <select class="input" id="inbox-filter-triage" aria-label="Filter by triage state">
+                  <option value="">Triage (all)</option>
+                  <option value="NEW">NEW</option>
+                  <option value="ROUTE_TO_ROADMAP">ROUTE_TO_ROADMAP</option>
+                  <option value="ROUTE_TO_PROJECT">ROUTE_TO_PROJECT</option>
+                  <option value="CONVERT_TO_PROJECT">CONVERT_TO_PROJECT</option>
+                  <option value="NEEDS_INFO">NEEDS_INFO</option>
+                </select>
+                <button class="btn" id="inbox-refresh" type="button">Refresh</button>
+              </div>
+              <div class="subtle" id="inbox-meta"></div>
+              <div class="subtle" id="inbox-count"></div>
+              <div id="inbox-table" class="table-wrap"></div>
             </div>
           </section>
 
           <section id="tab-intake" class="tab">
             <div class="card">
-              <h3>Intake (strict)</h3>
+              <h3 data-i18n="h.intake_strict">Intake (strict)</h3>
               <div class="row">
                 <input class="input" id="intake-search" placeholder="Quick search" />
-                <div class="field-stack">
-                  <label class="subtle">Bucket</label>
-                  <div class="tag-select" id="filter-bucket">
-                    <div class="tag-select-input">
-                      <div class="tag-list" id="filter-bucket-tags"></div>
-                      <input class="tag-input" id="filter-bucket-input" placeholder="Select bucket" />
-                      <button class="tag-toggle" type="button" aria-label="Toggle bucket options">v</button>
-                    </div>
-                    <div class="tag-dropdown" id="filter-bucket-options"></div>
-                  </div>
-                </div>
-                <div class="field-stack">
-                  <label class="subtle">Status</label>
-                  <div class="tag-select" id="filter-status">
-                    <div class="tag-select-input">
-                      <div class="tag-list" id="filter-status-tags"></div>
-                      <input class="tag-input" id="filter-status-input" placeholder="Select status" />
-                      <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
-                    </div>
-                    <div class="tag-dropdown" id="filter-status-options"></div>
-                  </div>
-                </div>
-                <div class="field-stack">
-                  <label class="subtle">Source</label>
-                  <div class="tag-select" id="filter-source">
-                    <div class="tag-select-input">
-                      <div class="tag-list" id="filter-source-tags"></div>
-                      <input class="tag-input" id="filter-source-input" placeholder="Select source" />
-                      <button class="tag-toggle" type="button" aria-label="Toggle source options">v</button>
-                    </div>
-                    <div class="tag-dropdown" id="filter-source-options"></div>
-                  </div>
-                </div>
-                <div class="field-stack">
-                  <label class="subtle">Extension</label>
-                  <div class="tag-select" id="filter-extension">
-                    <div class="tag-select-input">
-                      <div class="tag-list" id="filter-extension-tags"></div>
-                      <input class="tag-input" id="filter-extension-input" placeholder="Select extension" />
-                      <button class="tag-toggle" type="button" aria-label="Toggle extension options">v</button>
-                    </div>
-                    <div class="tag-dropdown" id="filter-extension-options"></div>
-                  </div>
-                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-bucket-input">Bucket</label>
+	                  <div class="tag-select" id="filter-bucket">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-bucket-tags"></div>
+	                      <input class="tag-input" id="filter-bucket-input" placeholder="Select bucket" aria-label="Filter by bucket" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-bucket-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle bucket options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-bucket-options" role="listbox" aria-label="Bucket options"></div>
+	                  </div>
+	                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-status-input">Status</label>
+	                  <div class="tag-select" id="filter-status">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-status-tags"></div>
+	                      <input class="tag-input" id="filter-status-input" placeholder="Select status" aria-label="Filter by status" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-status-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-status-options" role="listbox" aria-label="Status options"></div>
+	                  </div>
+	                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-source-input">Source</label>
+	                  <div class="tag-select" id="filter-source">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-source-tags"></div>
+	                      <input class="tag-input" id="filter-source-input" placeholder="Select source" aria-label="Filter by source" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-source-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle source options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-source-options" role="listbox" aria-label="Source options"></div>
+	                  </div>
+	                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-extension-input">Extension</label>
+	                  <div class="tag-select" id="filter-extension">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-extension-tags"></div>
+	                      <input class="tag-input" id="filter-extension-input" placeholder="Select extension" aria-label="Filter by extension" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-extension-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle extension options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-extension-options" role="listbox" aria-label="Extension options"></div>
+	                  </div>
+	                </div>
                 <label class="checkbox">
                   <input type="checkbox" id="filter-hide-done" checked />
                   Hide DONE
@@ -741,12 +1072,47 @@
               </div>
               <div class="subtle" id="intake-count"></div>
               <div id="intake-table" class="table-wrap"></div>
+	              <details id="intake-detail-panel">
+	                <summary class="subtle">Selected item details</summary>
+	                <div class="row" style="margin-top: 10px;">
+	                  <div class="subtle" id="intake-detail-meta">no selection</div>
+	                  <button class="btn ghost" id="intake-clear-selection" type="button">Clear</button>
+	                </div>
+                <div id="intake-detail-fields" class="intake-detail-grid"></div>
+                <div class="row" style="margin-top: 10px;">
+                  <div class="subtle" id="intake-claim-meta" data-i18n="intake.claim.meta_none">Claim: -</div>
+                  <button class="btn" id="intake-claim" type="button" data-i18n="intake.claim.btn_claim">Claim</button>
+                  <button class="btn ghost" id="intake-claim-release" type="button" data-i18n="intake.claim.btn_release">Release</button>
+                  <button class="btn danger" id="intake-claim-force-release" type="button" data-i18n="intake.claim.btn_force_release">Force release</button>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                  <div class="subtle" id="intake-close-meta" data-i18n="intake.close.meta_none">Close: -</div>
+                  <button class="btn warn" id="intake-close" type="button" data-i18n="intake.close.btn_close">Close</button>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                  <div class="subtle" id="intake-notes-meta">Notes for this item: -</div>
+                  <button class="btn accent" id="intake-create-note" type="button">Create note</button>
+                  <button class="btn ghost" id="intake-open-notes" type="button">Open Notes tab</button>
+                </div>
+                <div id="intake-notes-list" class="note-list"></div>
+                <div class="subtle" style="margin-top: 10px;">Evidence paths (click to preview)</div>
+                <div id="intake-evidence-paths" class="path-chips"></div>
+                <details id="intake-evidence-preview-panel" style="margin-top: 10px;">
+                  <summary class="subtle">Evidence preview</summary>
+                  <div class="subtle" id="intake-evidence-preview-meta"></div>
+                  <pre id="intake-evidence-preview"></pre>
+                </details>
+                <details style="margin-top: 10px;">
+                  <summary class="subtle">Raw intake item JSON (redacted)</summary>
+                  <pre id="intake-detail-json"></pre>
+                </details>
+              </details>
             </div>
           </section>
 
           <section id="tab-decisions" class="tab">
             <div class="card">
-              <h3>Decision Inbox</h3>
+              <h3 data-i18n="h.decision_inbox">Decision Inbox</h3>
               <div class="row">
                 <input class="input" id="decision-search" placeholder="Search decisions" />
                 <button class="btn" data-op="decision-inbox-show">Refresh Inbox</button>
@@ -759,14 +1125,14 @@
           <section id="tab-extensions" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>Extensions</h3>
+                <h3 data-i18n="h.extensions">Extensions</h3>
                 <div class="row">
                   <button class="btn" id="extensions-refresh">Refresh</button>
                 </div>
                 <div id="extensions-list" class="table-wrap"></div>
               </div>
               <div class="card">
-                <h3>Extension Detail</h3>
+                <h3 data-i18n="h.extension_detail">Extension Detail</h3>
                 <div class="subtle" id="extension-meta"></div>
                 <pre id="extension-json"></pre>
               </div>
@@ -776,14 +1142,14 @@
           <section id="tab-overrides" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>Safe Overrides</h3>
+                <h3 data-i18n="h.safe_overrides">Safe Overrides</h3>
                 <div class="row">
                   <button class="btn" id="settings-refresh">Refresh</button>
                 </div>
                 <div id="overrides-list" class="table-wrap"></div>
               </div>
               <div class="card">
-                <h3>Edit Override</h3>
+                <h3 data-i18n="h.edit_override">Edit Override</h3>
                 <div class="subtle" id="settings-meta"></div>
                 <textarea class="input" id="settings-editor" placeholder="Select an override to edit..."></textarea>
                 <div class="row">
@@ -797,7 +1163,7 @@
           <section id="tab-auto-loop" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>Auto-loop</h3>
+                <h3 data-i18n="h.auto_loop">Auto-loop</h3>
                 <div class="row">
                   <button class="btn warn" data-op="auto-loop">Run auto-loop</button>
                   <button class="btn" data-op="airrunner-run">Run airrunner (ticks=2)</button>
@@ -805,7 +1171,7 @@
                 <pre id="auto-loop-json"></pre>
               </div>
               <div class="card">
-                <h3>Airrunner Jobs</h3>
+                <h3 data-i18n="h.airunner_jobs">Airrunner Jobs</h3>
                 <div id="airunner-jobs-table" class="table-wrap"></div>
               </div>
             </div>
@@ -814,8 +1180,9 @@
           <section id="tab-jobs" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>GitHub Ops Jobs</h3>
+                <h3 data-i18n="h.github_ops_jobs">GitHub Ops Jobs</h3>
                 <div class="subtle">Jobs list is read-only in strict allowlist mode.</div>
+                <div class="subtle" id="smoke-fast-last">last smoke job: -</div>
                 <div id="github-jobs-table" class="table-wrap"></div>
               </div>
             </div>
@@ -823,19 +1190,34 @@
 
           <section id="tab-locks" class="tab">
             <div class="card">
-              <h3>Loop Lock</h3>
+              <h3 data-i18n="h.loop_lock">Loop Lock</h3>
               <div class="row">
                 <button class="btn" id="lock-refresh">Refresh</button>
               </div>
               <div class="subtle" id="lock-detail"></div>
               <div class="subtle" id="lock-leases"></div>
+              <div class="subtle" id="lock-claims"></div>
+              <div class="row" style="margin-top: 10px; align-items: flex-end;">
+                <div class="field-stack" style="min-width: 140px;">
+                  <label class="subtle">Active claims limit</label>
+                  <select class="input" id="lock-claims-limit">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
+                <button class="btn" id="lock-claims-group-owner" type="button">Group by owner: off</button>
+                <button class="btn warn" id="admin-mode-toggle" type="button" data-i18n-title="admin.title_sidebar">Admin mode: off</button>
+              </div>
+              <div class="subtle" id="lock-claims-list-meta" style="margin-top: 6px;"></div>
+              <div id="lock-claims-list" class="table-wrap"></div>
               <pre id="lock-json"></pre>
             </div>
           </section>
 
           <section id="tab-run-card" class="tab">
             <div class="card">
-              <h3>Run-Card</h3>
+              <h3 data-i18n="h.run_card">Run-Card</h3>
               <div class="row">
                 <button class="btn" id="run-card-refresh">Refresh</button>
                 <button class="btn warn" id="run-card-save">Save Run-Card</button>
@@ -849,7 +1231,7 @@
           <section id="tab-planner-chat" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>Planner Threads</h3>
+                <h3 data-i18n="h.planner_threads">Planner Threads</h3>
                 <div class="row">
                   <input class="input" id="planner-thread" placeholder="thread id (default)" />
                   <button class="btn" id="planner-thread-refresh">Refresh</button>
@@ -857,7 +1239,7 @@
                 <div id="planner-thread-list" class="note-list"></div>
               </div>
               <div class="card">
-                <h3>Thread Messages</h3>
+                <h3 data-i18n="h.thread_messages">Thread Messages</h3>
                 <div class="row">
                   <input class="input" id="notes-search" placeholder="Search title/body/tags" />
                   <input class="input" id="notes-tag-filter" placeholder="Tag filter" />
@@ -867,7 +1249,7 @@
                 <div id="notes-list" class="note-list"></div>
               </div>
               <div class="card">
-                <h3>Compose Message</h3>
+                <h3 data-i18n="h.compose_message">Compose Message</h3>
                 <div class="row">
                   <input class="input" id="note-title" placeholder="Title" />
                   <input class="input" id="note-tags" placeholder="tags (comma separated)" />
@@ -891,7 +1273,7 @@
                 </div>
               </div>
               <div class="card">
-                <h3>Message Detail</h3>
+                <h3 data-i18n="h.message_detail">Message Detail</h3>
                 <div class="subtle" id="note-view-meta"></div>
                 <pre id="note-view-body"></pre>
               </div>
@@ -900,7 +1282,7 @@
 
           <section id="tab-evidence" class="tab">
             <div class="card">
-              <h3>Evidence Browser</h3>
+              <h3 data-i18n="h.evidence_browser">Evidence Browser</h3>
               <div class="row">
                 <input class="input" id="evidence-filter" placeholder="filter path (default closeout)" />
                 <input class="input" id="evidence-search" placeholder="quick search" />
@@ -925,7 +1307,7 @@
           <section id="tab-command-composer" class="tab">
             <div class="grid">
               <div class="card">
-                <h3>Command Composer</h3>
+                <h3 data-i18n="h.command_composer">Command Composer</h3>
                 <div class="row">
                   <select class="input" id="composer-op">
                     <option value="system-status">system-status</option>
@@ -940,14 +1322,14 @@
                     <option value="auto-loop">auto-loop (budgeted)</option>
                     <option value="airrunner-run">airrunner-run (no-wait)</option>
                   </select>
-                  <button class="btn accent" id="composer-run">Run (confirm)</button>
+                  <button class="btn accent" id="composer-run" data-i18n="composer.run_confirm">Run (confirm)</button>
                 </div>
                 <textarea class="input" id="composer-args" placeholder='{"budget_seconds":"120"}'></textarea>
-                <div class="subtle">Allowlist only. Responses are stored as system notes in the current thread.</div>
+                <div class="subtle" data-i18n="composer.allowlist_hint">Allowlist only. Responses are stored as system notes in the current thread.</div>
               </div>
               <div class="card">
-                <h3>Last Response</h3>
-                <div class="subtle" id="composer-meta">no response yet</div>
+                <h3 data-i18n="h.last_response">Last Response</h3>
+                <div class="subtle" id="composer-meta" data-i18n="composer.no_response_yet">no response yet</div>
                 <pre id="composer-response"></pre>
               </div>
             </div>
@@ -956,16 +1338,16 @@
       </div>
     </div>
 
-    <div class="modal" id="confirm-modal">
-      <div class="modal-card">
-        <h3>Confirm Action</h3>
-        <p id="confirm-text" class="subtle"></p>
-        <div class="row">
-          <button class="btn danger" id="confirm-yes">Confirm</button>
-          <button class="btn" id="confirm-no">Cancel</button>
-        </div>
-      </div>
-    </div>
+	    <div class="modal" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+	      <div class="modal-card" role="document">
+	        <h3 id="confirm-title" data-i18n="modal.confirm_title">Confirm action</h3>
+	        <p id="confirm-text" class="subtle"></p>
+	        <div class="row">
+	          <button class="btn danger" id="confirm-yes" type="button" data-i18n="modal.confirm_yes">Confirm</button>
+	          <button class="btn" id="confirm-no" type="button" data-i18n="modal.confirm_no">Cancel</button>
+	        </div>
+	      </div>
+	    </div>
 
     <div class="toast-container" id="toast-container"></div>
 
