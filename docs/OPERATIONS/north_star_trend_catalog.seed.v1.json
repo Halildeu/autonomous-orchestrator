@@ -1,0 +1,571 @@
+{
+  "generated_at": "2026-01-18T00:00:00Z",
+  "items": [
+    {
+      "evidence_expectations": [
+        "Varsayılan NO_NETWORK; network gerekiyorsa explicit policy/allowlist ile açılıyor.",
+        "Secrets redaction kanıtlı; log/evidence içinde token/anahtar yok.",
+        "Üretilen çıktılar kanıta bağlı (evidence_pointers) ve deterministik (stable sort/sort_keys).",
+        "İnsan onayı gerektiren adımlar (apply/core edit) açıkça ayrıştırılmış (plan-only vs apply)."
+      ],
+      "id": "trend-core-001",
+      "remediation": [
+        "Otomasyon sınırlarını belirle: hangi adımlar auto, hangileri review gerektiriyor.",
+        "Policy guardrail’ları zorunlu kıl (NO_NETWORK, secrets redaction, deterministic output).",
+        "Her otomasyon adımına contract test + closeout kanıt zinciri ekle."
+      ],
+      "source": "seed",
+      "summary": "Yapay zekâ/otomasyon; tekrarlayan analiz, triage ve raporlama işlerini hızlandırır. Ancak “doğru sonuç” için guardrail (policy), kanıt üretimi ve deterministik yürütme şarttır.",
+      "tags": [
+        "core",
+        "topic:ai_otomasyon"
+      ],
+      "title": "Yapay zekâ ile yapılabilecekler / otomasyon potansiyeli"
+    },
+    {
+      "evidence_expectations": [
+        "İstek/amaç/kapsam/kısıtlar/kabul kriterleri tek yerde tanımlı (context pack / run-card / plan).",
+        "Çıktı şemaları/policy’ler validate ediliyor (schema validation PASS).",
+        "Core değişiklikleri CHG + CORE_UNLOCK compliance kanıtı ile kayıtlı.",
+        "Deterministik marker/signature mekanizması var (aynı hata aynı imza).",
+        "Closeout’larda evidence_paths deterministik ve izlenebilir."
+      ],
+      "id": "trend-core-002",
+      "remediation": [
+        "Konu için kısa “context_pack” oluştur: amaç, kapsam, kısıtlar, kabul kriterleri, sözlük.",
+        "Kritik çıktılar için contract test ekle (schema + semantic + determinism).",
+        "Marker → sınıf eşlemesini deterministik yap; OTHER kalmasın.",
+        "Core editleri one-shot allowlist + TTL ile sınırla; compliance kanıtını zorunlu kıl."
+      ],
+      "source": "seed",
+      "summary": "Bağlam (kapsam, hedef, kısıtlar, tanımlar ve kabul kriterleri) net değilse çıktı “drift” eder. Bu trend, bağlamı açıkça paketlemeyi ve değişiklikleri sözleşme/kanıt üzerinden yönetmeyi hedefler.",
+      "tags": [
+        "core",
+        "topic:baglam_uyum"
+      ],
+      "title": "Bağlam yönetimi ve uyum (context alignment)"
+    },
+    {
+      "evidence_expectations": [
+        "ci/validate_schemas.py PASS (schema-valid).",
+        "Kritik artefact’lar için no-pytest contract test PASS (semantic).",
+        "Aynı input → aynı output (deterministic hash/marker) kanıtı var.",
+        "Hata sınıfları anlamlı (OTHER yerine deterministik DEMO_*)."
+      ],
+      "id": "trend-core-003",
+      "remediation": [
+        "Şema eksikse schema ekle; varsa required alanları test ile garanti et.",
+        "Semantik kontrolü kodla ve contract test’e bağla.",
+        "Marker extraction + mapping’i deterministik hale getir (stable substring + enum)."
+      ],
+      "source": "seed",
+      "summary": "Kalite/doğruluk: Şema doğrulama + semantik kontrol + kontrat testleri ile “çalıştı” değil “doğru çalıştı” yaklaşımını sağlar.",
+      "tags": [
+        "core",
+        "topic:kalite_dogruluk"
+      ],
+      "title": "Kalite / Doğruluk"
+    },
+    {
+      "evidence_expectations": [
+        "Start komutları hemen döner (NO WAIT).",
+        "Her tick’te en fazla 1 poll (max=1) uygulanır; döngü yok.",
+        "Uzun işler job report + jobs_index ile izlenir (deterministik job_id seçimi).",
+        "Terminal değilse “next tick needed” notu closeout’ta yer alır."
+      ],
+      "id": "trend-core-004",
+      "remediation": [
+        "Uzun süren işleri joblaştır: start/poll ayrımı + job report yaz.",
+        "Deterministik resolver kullan (jobs_index newest/started_at).",
+        "UI/raporlarda “tick” mantığını net göster (RUNNING backlog)."
+      ],
+      "source": "seed",
+      "summary": "Zaman/hız/çeviklik: “no-wait tick” (start + single poll) ve jobify yaklaşımıyla uzun operasyonları bloklamadan yönetir.",
+      "tags": [
+        "core",
+        "topic:zaman_hiz_ceviklik"
+      ],
+      "title": "Zaman / Hız / Çeviklik"
+    },
+    {
+      "evidence_expectations": [
+        "script-budget report: hard_exceeded=0 (fail-closed).",
+        "soft_exceeded metrikleri raporlanıyor ve görünür (UI/system-status).",
+        "Ağır işler (doc-nav vb.) aynı anda kontrolsüz çalışmıyor (concurrency policy)."
+      ],
+      "id": "trend-core-005",
+      "remediation": [
+        "Heavy ops için throttle/jobify uygula; aynı anda paralel koşmayı sınırla.",
+        "script-budget rapor contract’ını güçlendir (soft/hard alanları her zaman var).",
+        "Gerektiğinde bakım adımlarını manuel çalıştır (yanlış zamanda otomatik IO bindirme)."
+      ],
+      "source": "seed",
+      "summary": "Maliyet/verimlilik: Script budget ve IO baskısını yönetir; ağır işleri jobify/throttle ederek “soft budget” aşımını azaltmayı hedefler.",
+      "tags": [
+        "core",
+        "topic:maliyet_verimlilik_kaynak"
+      ],
+      "title": "Maliyet / Verimlilik / Kaynak kullanımı"
+    },
+    {
+      "evidence_expectations": [
+        "No-network default: policy/konfig ile network kapalı ve kanıtlanmış.",
+        "Secrets redaction: log/evidence içinde secret sızıntısı yok; redaction policy mevcut.",
+        "Policy-check/thresholds deterministik ve sürümlü.",
+        "High-risk aksiyonlar “review required” gate ile korunuyor.",
+        "Audit trail: kararlar/override’lar/ticket closeout’lar izlenebilir."
+      ],
+      "id": "trend-core-006",
+      "remediation": [
+        "Network kullanımını policy ile fail-closed yap; sadece allowlist ile aç.",
+        "Secrets redaction policy + kontrat test ekle (ör. token/anahtar sızıntısı yok).",
+        "Ops kapıları standardize et: validate_schemas + script_budget + doc-nav preflight.",
+        "GAP → remediation pack eşlemesini yazılı hale getir ve closeout’ta kanıtla."
+      ],
+      "source": "seed",
+      "summary": "Uyum/risk/güvence; varsayılan güvenli davranış, policy-driven kapılar ve iz bırakılabilir kanıt üretimi demektir. Amaç: no-network, secrets redaction, erişim kontrolü ve denetlenebilirlik.",
+      "tags": [
+        "core",
+        "topic:uygunluk_risk_guvence_kontrol"
+      ],
+      "title": "Uygunluk / Risk / Güvence / Kontrol"
+    },
+    {
+      "evidence_expectations": [
+        "work_intake item’larında created_at/updated_at ve dedup_key mevcut.",
+        "decision_inbox üretimi deterministik; applied decisions izleniyor (jsonl).",
+        "Her iş adımı closeout ile kapanıyor; evidence_paths sorted."
+      ],
+      "id": "trend-core-007",
+      "remediation": [
+        "Intake şemasında timestamp’leri zorunlu yap; ingest noktalarında doldur.",
+        "Decision inbox’ta per-item created_at/updated_at üret ve UI’da göster.",
+        "Plan-only → apply ayrımını netleştir; drift riski olan işleri CHG ile yönet."
+      ],
+      "source": "seed",
+      "summary": "Süreç etkinliği/olgunluk: Run-card, intake, decision inbox ve closeout ile izlenebilir ve tekrarlanabilir operasyon standardı kurar.",
+      "tags": [
+        "core",
+        "topic:surec_etkinligi_olgunluk"
+      ],
+      "title": "Süreç etkinliği / olgunluk"
+    },
+    {
+      "evidence_expectations": [
+        "extension.manifest.v1.json dosyaları okunabiliyor ve tutarlı.",
+        "layer_boundary_report (core/workspace ihlali) raporlanıyor.",
+        "integration_coherence lens sinyalleri üretiliyor (pack_conflicts vb.)."
+      ],
+      "id": "trend-core-008",
+      "remediation": [
+        "Kırılgan entegrasyonları contract test ile sabitle (schema+semantic).",
+        "Katman sınırını enforce et (ONE_SHOT_SRC_WINDOW + restore kanıtı).",
+        "Paket/manifest uyumsuzlukları için tek SSOT map + deterministik resolver kullan."
+      ],
+      "source": "seed",
+      "summary": "Entegrasyon/birlikte çalışabilirlik: Şema/policy/manifest uyumu, katman sınırı ve paket tutarlılığı üzerinden drift’i azaltır.",
+      "tags": [
+        "core",
+        "topic:entegrasyon_birlikte_calisabilirlik"
+      ],
+      "title": "Entegrasyon ve birlikte çalışabilirlik"
+    },
+    {
+      "evidence_expectations": [
+        "Cockpit Lite: lens findings “summary/evidence/remediation” alanlarını gösteriyor.",
+        "Evidence pointer’lar tıklanınca Evidence tab’ında preview açılıyor.",
+        "Filtre/arama ile konu-konu ve lens-lens inceleme mümkün."
+      ],
+      "id": "trend-core-009",
+      "remediation": [
+        "UI’da ham JSON yerine özet + kanıt + öneri göster (lens details).",
+        "En yüksek etki/riske göre GAP ve intake önceliğini otomatik öner.",
+        "Çıktıları TR/EN dil tutarlılığıyla standardize et."
+      ],
+      "source": "seed",
+      "summary": "Paydaş memnuniyeti/değer: Çıktıları “insan okunabilir” özetlere dönüştürür; kanıtı tıklanabilir yapar; önceliklendirmeyi görünür kılar.",
+      "tags": [
+        "core",
+        "topic:paydas_memnuniyeti_deger"
+      ],
+      "title": "Paydaş memnuniyeti / değer katkısı"
+    },
+    {
+      "evidence_expectations": [
+        "Etik & uyum kontrol listesi (risk sınıfı, veri hassasiyeti, onay gereksinimi).",
+        "Mahremiyet/PII politikası (toplama, saklama, maskeleme, retention).",
+        "Model kullanım politikası (hallucination riski, güvenlik sınırları, disclaimer).",
+        "Geri bildirim/izleme: sorun bildirimi ve düzeltici aksiyon kaydı (PDCA).",
+        "Yüksek etkili kararlar için insan onayı (review) şartı."
+      ],
+      "id": "trend-core-010",
+      "remediation": [
+        "Etik & uyum için “run-card” ve kontrol listesi ekle; her çalışmada doldur.",
+        "PII/secret maskeleme katmanı uygula; kanıt çıktılarında sızıntıyı engelle.",
+        "High-impact işlerde otomasyonu “öneri” seviyesinde tut; auto-apply yerine review.",
+        "Model çıktıları için kalite/yanlılık/zarar kontrolleri ve izleme metrikleri tanımla."
+      ],
+      "source": "seed",
+      "summary": "Etik/ESG/İSG; yalnız “doğru” değil, güvenli ve sorumlu çıktılar üretmeyi hedefler. Özellikle yapay zekâ kullanımında: mahremiyet, yanlılık, zarar azaltma ve insan onayı kritik.",
+      "tags": [
+        "core",
+        "topic:surdurulebilirlik_esg_isg_etik"
+      ],
+      "title": "Sürdürülebilirlik – Etik / ESG / İSG"
+    },
+    {
+      "evidence_expectations": [
+        "Heartbeat dosyası üretiliyor; stale_seconds hesaplanıyor.",
+        "Heartbeat expectation mode açık: bekleniyor mu, beklenmiyor mu UI’da net.",
+        "Bakım işleri dry-run destekli; yanlış zamanda otomatik koşmuyor."
+      ],
+      "id": "trend-core-011",
+      "remediation": [
+        "Heartbeat üretim kaynağını kanıtla ve gerekirse “auto refresh”i budget+cooldown ile sınırla.",
+        "UI’da “enabled_effective” ve “heartbeat_expected” ayrımını badge ile göster.",
+        "Stale temizliği gerekiyorsa manual maintenance op (prune) ile yap."
+      ],
+      "source": "seed",
+      "summary": "Süreklilik/dayanıklılık: Heartbeat, stale sinyalleri ve bakım operasyonları ile sistemin “çalışır durumda” kalmasını izler ve yönetir.",
+      "tags": [
+        "core",
+        "topic:sureklilik_dayaniklilik"
+      ],
+      "title": "Süreklilik / dayanıklılık"
+    },
+    {
+      "evidence_expectations": [
+        "jobs_index/work_intake/gap_register gibi indeksler deterministik yazılıyor.",
+        "UI’da filtreleme/arama mevcut (büyük listelerde kullanılabilir).",
+        "Ağır raporlar jobify/throttle ile yönetiliyor."
+      ],
+      "id": "trend-core-012",
+      "remediation": [
+        "İndeks dosyaları için incremental update stratejisi uygula (append/compact).",
+        "UI’da sayfalama/filtreleme ile büyük listeleri yönetilebilir kıl.",
+        "Stale veriler için manuel prune/compact adımı ekle."
+      ],
+      "source": "seed",
+      "summary": "Ölçeklenebilirlik: Intake/gap/job listeleri büyüdükçe indeksleme, filtreleme ve incremental güncelleme ile performansı korur.",
+      "tags": [
+        "core",
+        "topic:olceklenebilirlik"
+      ],
+      "title": "Ölçeklenebilirlik"
+    },
+    {
+      "evidence_expectations": [
+        "JSON çıktıları sort_keys=true ve sabit sıralı listelerle yazılıyor.",
+        "Atomic tmp+replace kullanılıyor (yarım yazım yok).",
+        "Contract test’ler iki run hash eşitliğini doğruluyor."
+      ],
+      "id": "trend-core-013",
+      "remediation": [
+        "Tüm rapor yazımlarını atomic hale getir; timestamp’i içerikte minimize et.",
+        "Stable sort + set dedup + lexicographic tie-break uygula.",
+        "Determinism contract test ekle (aynı input → aynı hash)."
+      ],
+      "source": "seed",
+      "summary": "Deterministiklik/tekrarlanabilirlik: Aynı girdi → aynı çıktı prensibini; stable sort, sort_keys ve atomic write ile garanti altına alır.",
+      "tags": [
+        "core",
+        "topic:deterministiklik_tekrarlanabilirlik"
+      ],
+      "title": "Deterministiklik ve tekrarlanabilirlik"
+    },
+    {
+      "evidence_expectations": [
+        "system_status.v1.json mevcut ve okunabilir.",
+        "doc_graph_report.strict.v1.json üretiliyor (strict sonuç görünür).",
+        "ui_snapshot_bundle.v1.json üretiliyor ve closeout’larda referanslanıyor.",
+        "evidence_paths kullanıcıya tıklanabilir şekilde sunuluyor."
+      ],
+      "id": "trend-core-014",
+      "remediation": [
+        "Reporter op’larını standardize et (system-status/ui-snapshot/doc-nav).",
+        "Uzun kontrolleri jobify yap; timeout yerine tick yaklaşımı kullan.",
+        "Cockpit’te konu/katalog/lens filtreleriyle analist görünümü sağla."
+      ],
+      "source": "seed",
+      "summary": "Gözlemlenebilirlik (izleme/ölçme): Sistem durumu, doc-nav, UI snapshot ve kanıt grafiği ile “ne oldu?” sorusunu tek ekranda yanıtlar.",
+      "tags": [
+        "core",
+        "topic:gozlemlenebilirlik_izleme_olcme"
+      ],
+      "title": "Gözlemlenebilirlik (izleme/ölçme dahil)"
+    },
+    {
+      "evidence_expectations": [
+        "İstek + plan + çıktı arasında izlenebilir bağ (link/evidence pointers).",
+        "Uyum skorunun girdileri deterministik (aynı input → aynı skor).",
+        "Skor düşükse gerekçe listesi ve öneri üretiliyor."
+      ],
+      "id": "trend-ctx-001",
+      "remediation": [
+        "Context alignment skorunu “findings” çıktısına ekle (matched/missed + gerekçe).",
+        "Skor düşükse otomatik “clarify questions” veya plan-only CHG üret."
+      ],
+      "source": "seed",
+      "summary": "Context alignment scoring: İstek ile üretilen çıktı arasındaki uyumu ölçer (kapsam, dil, varsayımlar, kabul kriterleri). Amaç: yanlış bağlamla üretim yapmayı erken yakalamak.",
+      "tags": [
+        "context",
+        "alignment",
+        "domain_ai",
+        "domain_management",
+        "domain_software"
+      ],
+      "title": "Bağlam uyumu puanlama"
+    },
+    {
+      "evidence_expectations": [
+        "Şema doğrulama (validate_schemas) her preflight’ta çalışıyor.",
+        "Kontrat testler kritik artefact’lar için mevcut.",
+        "Değişiklikler CHG ile kayıtlı; mig. adımları planlanmış."
+      ],
+      "id": "trend-ctx-002",
+      "remediation": [
+        "Kritik schema/policy değişikliklerinde contract test güncelle; geriye uyumluluk kontrolü ekle.",
+        "Değişikliği “plan-only → apply” akışıyla taşı; kanıt yollarını closeout’ta ver."
+      ],
+      "source": "seed",
+      "summary": "Contract drift detection: Şema/policy/kontrat değiştiğinde çıktılar uyumlu mu? Amaç: sessiz kırılmaları (drift) contract test ve validate adımlarıyla yakalamak.",
+      "tags": [
+        "contract",
+        "drift",
+        "domain_ai",
+        "domain_management",
+        "domain_software"
+      ],
+      "title": "Kontrat drift tespiti"
+    },
+    {
+      "evidence_expectations": [
+        "Layer boundary raporu (core/workspace ihlali yok).",
+        "Core unlock compliance: allow_paths + TTL + reason + restore kanıtı mevcut.",
+        "ONE_SHOT_SRC_WINDOW dışında src/** yazımı yok."
+      ],
+      "id": "trend-ctx-003",
+      "remediation": [
+        "Core editleri sadece allowlist+TTL penceresinde yap; pencere bitince restore kanıtı yaz.",
+        "Sınır ihlallerini otomatik “block” seviyesinde raporla (fail-closed)."
+      ],
+      "source": "seed",
+      "summary": "Scope boundary regression: Core vs workspace sınırının ihlal edilmesini ve allowlist’in kontrolsüz genişlemesini önler. Amaç: drift ve güvenlik riskini azaltmak.",
+      "tags": [
+        "scope",
+        "boundary",
+        "regression",
+        "domain_ai",
+        "domain_management",
+        "domain_software"
+      ],
+      "title": "Kapsam sınırı regresyonu"
+    },
+    {
+      "evidence_expectations": [
+        "Job start/poll ayrımı var; start hemen döner.",
+        "Job report içinde stderr/stdout/rc path’leri bulunur.",
+        "jobs_index deterministik seçime uygun (started_at + job_id)."
+      ],
+      "id": "trend-ops-001",
+      "remediation": [
+        "Uzun işleri joblaştır (start/poll) ve job report yaz.",
+        "Job report yazım sırasını garanti et (JOB_REPORT_MISSING riskini azalt).",
+        "Kind-level lock ile aynı anda tek RUNNING kuralını uygula."
+      ],
+      "source": "seed",
+      "summary": "Asenkron ops pipeline: Uzun süren işleri job report + jobs_index üzerinden izlenebilir hale getirir; UI’yı ve CLI’yı bloklamaz.",
+      "tags": [
+        "ops",
+        "pipeline",
+        "domain_software"
+      ],
+      "title": "Asenkron operasyon boru hatları"
+    },
+    {
+      "evidence_expectations": [
+        "Komutlar max=1 poll ile çalıştırılabiliyor; döngü yok.",
+        "Terminal değilse closeout’ta “next tick” notu var.",
+        "Deterministik seçim: latest job_id resolver tek yerde."
+      ],
+      "id": "trend-ops-002",
+      "remediation": [
+        "Poll loop’larını kaldır; max=1 standardını enforce et.",
+        "RUNNING backlog mantığını UI/rapora taşı.",
+        "Resolver’ı tek fonksiyonda topla (jobs_index)."
+      ],
+      "source": "seed",
+      "summary": "Tek poll, beklemesiz: Operasyonları “tick” mantığıyla yönetir; her iterasyonda en fazla 1 poll yapılır ve kalan iş next tick’e bırakılır.",
+      "tags": [
+        "ops",
+        "no_wait",
+        "domain_software"
+      ],
+      "title": "Tek poll, beklemesiz"
+    },
+    {
+      "evidence_expectations": [
+        "Test script’i tek komutla çalışır ve exit(0) döner.",
+        "Test deterministik: iki çalıştırmada aynı sonuç (hash) üretir.",
+        "Test çıktısı workspace report olarak yazılır (kanıt)."
+      ],
+      "id": "trend-ops-003",
+      "remediation": [
+        "Pytest bağımlılığı olmadan contract test yaz (python file).",
+        "Testte atomic write + sort_keys ile determinism doğrula.",
+        "Closeout’a test kanıtını ekle."
+      ],
+      "source": "seed",
+      "summary": "Kontrat testleri (pytest yok): Basit Python script’leriyle kritik sözleşmeleri doğrular; CI/ortam bağımlılığını azaltır.",
+      "tags": [
+        "tests",
+        "contract",
+        "domain_software"
+      ],
+      "title": "Kontrat testleri (pytest yok)"
+    },
+    {
+      "evidence_expectations": [
+        ".cache/inputs altında seed dosyaları var ve schema-valid.",
+        "Loader workspace seed varsa onu kullanıyor; yoksa repo seed fallback yapıyor.",
+        "Seed → materialized catalog → findings zinciri çalışıyor (benchmark-assess)."
+      ],
+      "id": "trend-ops-004",
+      "remediation": [
+        "Repo’da canonical seed paketi tut; workspace override’ı destekle.",
+        "Seed formatını schema ile sabitle; enrichment alanlarını (summary/evidence/remediation) standartlaştır.",
+        "Fallback davranışını contract test ile kilitle."
+      ],
+      "source": "seed",
+      "summary": "Workspace seed’leri: Network olmadan katalog beslemek için workspace altında seed dosyaları kullanır; repo seed fallback ile “kalıcı” hale gelir.",
+      "tags": [
+        "seed",
+        "offline",
+        "domain_software"
+      ],
+      "title": "Workspace içi seed'ler"
+    },
+    {
+      "evidence_expectations": [
+        "policy_north_star_eval_lenses.v1.json mevcut ve schema-valid.",
+        "Workspace override varsa deterministic merge ediliyor.",
+        "Lens listesi UI’da görünür (lens summary)."
+      ],
+      "id": "trend-ops-005",
+      "remediation": [
+        "Lens policy şemasını sabitle ve default’ları güvenli tut.",
+        "Yeni lens eklerken önce plan-only, sonra apply (contract test) uygula.",
+        "Policy değişimlerinde closeout + evidence üret."
+      ],
+      "source": "seed",
+      "summary": "Policy ile lens kayıt defteri: Hangi lenslerin çalışacağını, ağırlıkları ve eşikleri JSON policy ile yönetir; drift’i azaltır.",
+      "tags": [
+        "lenses",
+        "policy",
+        "domain_management"
+      ],
+      "title": "Politika ile lens kayıt defteri"
+    },
+    {
+      "evidence_expectations": [
+        "closeout-write tek JSON üretir ve evidence_paths sorted.",
+        "doc_graph_report.strict ve system_status gibi temel kanıtlar ekli.",
+        "Secrets redaction korunuyor."
+      ],
+      "id": "trend-ops-006",
+      "remediation": [
+        "Closeout şemasını standardize et; her işte minimum kanıt setini zorunlu kıl.",
+        "UI’da evidence pointer tıklanınca preview aç (kopyala-yapıştır değil)."
+      ],
+      "source": "seed",
+      "summary": "Kanıt grafiği kapanışları: Her otomasyon adımı closeout ile “ne oldu?” sorusunu kanıtlarla birlikte kapatır; denetlenebilirlik sağlar.",
+      "tags": [
+        "evidence",
+        "closeout",
+        "domain_management"
+      ],
+      "title": "Kanıt grafiği kapanışları"
+    },
+    {
+      "evidence_expectations": [
+        "marker_candidates + picked_marker raporu var (deterministik).",
+        "classification_override.used=true olduğunda mapped_class görünür.",
+        "Schema enum listeleri yeni DEMO_* sınıfını içerir."
+      ],
+      "id": "trend-ops-007",
+      "remediation": [
+        "Marker extractor op ekle; dosya path’lerinden direkt okuma destekle.",
+        "Classifier mapping + contract test ekle; reproof single poll ile kanıtla."
+      ],
+      "source": "seed",
+      "summary": "Marker tabanlı sınıflandırma: stderr/rc içinden deterministik marker çıkarıp OTHER yerine DEMO_* sınıfına map eder; triage ve raporlama netleşir.",
+      "tags": [
+        "triage",
+        "classification",
+        "domain_software"
+      ],
+      "title": "Marker tabanlı sınıflandırma"
+    },
+    {
+      "evidence_expectations": [
+        "ui_snapshot_bundle.v1.json mevcut; schema-valid.",
+        "Snapshot içinde north star / gap / intake gibi ana çıktılar var."
+      ],
+      "id": "trend-ops-008",
+      "remediation": [
+        "Snapshot üretimini deterministik yap (stable sort).",
+        "Kullanıcı dostu render: ham JSON yerine özet kartları + detay açılır alanlar."
+      ],
+      "source": "seed",
+      "summary": "UI snapshot paketi: Cockpit’in okuyacağı minimal, deterministik snapshot setini üretir; operasyon görünürlüğünü artırır.",
+      "tags": [
+        "ui",
+        "cockpit",
+        "domain_management"
+      ],
+      "title": "UI snapshot paketi"
+    },
+    {
+      "evidence_expectations": [
+        "doc_nav/jobs_index.v1.json ve job report mevcut.",
+        "doc_graph_report.strict.v1.json terminal olduğunda üretiliyor.",
+        "Tek poll ile ilerleniyor; gerekirse next tick."
+      ],
+      "id": "trend-ops-009",
+      "remediation": [
+        "doc-nav-job-start/poll komutlarını standardize et.",
+        "Detail/strict parametrelerini safe defaults ile yönet (detail=false)."
+      ],
+      "source": "seed",
+      "summary": "Doc-nav joblaştırma: Strict doc-nav kontrolünü job start/poll ile yöneterek timeout riskini azaltır ve tick mantığına uyar.",
+      "tags": [
+        "doc_nav",
+        "jobify",
+        "domain_software"
+      ],
+      "title": "Doc-nav joblaştırma"
+    },
+    {
+      "evidence_expectations": [
+        "integration_coherence lens findings üretiliyor (items[]).",
+        "Layer boundary raporu ve core unlock compliance kanıtı mevcut.",
+        "Schema validation summary/sinyali görünür."
+      ],
+      "id": "trend-ops-010",
+      "remediation": [
+        "Sinyal üreticileri için deterministic raporlar ekle.",
+        "Lens findings item’larına özet + remediation ekleyip UI’da göster."
+      ],
+      "source": "seed",
+      "summary": "Entegrasyon tutarlılık lens hattı: Katman sınırı, paket çatışmaları ve şema hataları gibi entegrasyon sinyallerini tek lens altında toplar.",
+      "tags": [
+        "integration",
+        "lens",
+        "domain_software"
+      ],
+      "title": "Entegrasyon tutarlılık lens hattı"
+    }
+  ],
+  "version": "v1",
+  "workspace_root": "REPO_SEED"
+}

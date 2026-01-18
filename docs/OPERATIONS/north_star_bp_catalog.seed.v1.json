@@ -1,0 +1,274 @@
+{
+  "generated_at": "2026-01-18T00:00:00Z",
+  "items": [
+    {
+      "evidence_expectations": [
+        "Her run sonunda tek bir closeout JSON üretilir ve ilgili evidence_paths içerir.",
+        "Raporlar workspace altında tutulur (workspace_root/.cache/**) ve kliklenebilir path’ler sağlar.",
+        "Secrets/token gibi hassas veriler log/raporlarda redakte edilir.",
+        "Deterministik sıralama uygulanır (stable sort) ve JSON çıktılarında sort_keys kullanılır.",
+        "Kanıtlar, triage ve reproof adımlarını tekrar oynatmaya (replay) yetecek kadar kapsamlıdır."
+      ],
+      "id": "bp-ops-001",
+      "remediation": [
+        "Her kritik op için “report + closeout-write” standardını uygula.",
+        "Triage raporlarına evidence_paths ekle ve eksikse “expected-path exists/json_valid” ölçümleri ekle.",
+        "Secrets redaction filtrelerini (stdout/stderr snippet) güçlendir.",
+        "JSON çıktılarında sort_keys=True + stable sort uygula.",
+        "UI’da evidence pointer tıklanınca Evidence tab’ında preview açılmasını destekle."
+      ],
+      "source": "seed",
+      "summary": "Önemli her karar/aksiyon “kanıt” dosyalarıyla iz bırakmalı: raporlar, closeout, kullanılan girdiler ve deterministik çıktı imzaları. Amaç hem denetlenebilirlik (audit) hem de hızlı triage için kanıt zinciri oluşturmaktır.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "ops",
+        "evidence",
+        "topic:gozlemlenebilirlik_izleme_olcme"
+      ],
+      "title": "Kanıt-Önce (Evidence-first) artefact üretimi"
+    },
+    {
+      "evidence_expectations": [
+        "İmzalar (signature_hash) aynı hatada stabil kalır.",
+        "Sıralamalar deterministik (stable sort), JSON çıktılar sort_keys ile yazılır.",
+        "Aynı input set’iyle aynı hash/özet tekrar üretilebilir (contract test ile kanıt).",
+        "Atomic yazım (tmp+replace) ile yarım dosya riskleri minimize edilir.",
+        "Rapor formatları versionlanır (v1/v2) ve geriye dönük uyumluluk korunur."
+      ],
+      "id": "bp-ops-002",
+      "remediation": [
+        "Tüm listelerde stable sort; JSON’da sort_keys=True standardı getir.",
+        "Marker/signature üretimini normalize et (whitespace/case/path redaction).",
+        "Contract test: aynı input ile iki çalıştırma aynı hash üretsin.",
+        "Atomic write yardımcı fonksiyonu kullan ve kritik dosyalarda zorunlu kıl.",
+        "Schema validate + policy-check adımlarını deterministik pipeline’a sabitle."
+      ],
+      "source": "seed",
+      "summary": "Aynı girdilerle aynı çıktıyı üretmek; hataları deterministik marker/signature ile sınıflandırmak; ve tekrar çalıştırmalarda (re-eval/reproof) sürpriz üretmemek.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "determinism",
+        "topic:deterministiklik_tekrarlanabilirlik"
+      ],
+      "title": "Deterministik çıktı üretimi (reproducibility)"
+    },
+    {
+      "evidence_expectations": [
+        "Çalışmalar NO_NETWORK modunda yürür ve raporlarda network_used=false olarak kanıtlanır.",
+        "Network gerektiren adımlar fail-closed çalışır (şüphede durur).",
+        "Dış kaynak bağımlılığı gerekiyorsa: açık allowlist + gerekçe + closeout kanıtı vardır.",
+        "Secrets redaction uygulanır; token/anahtar asla rapora yazılmaz.",
+        "Seed/catalog gibi içerikler offline/workspace üzerinden beslenir (network fetch yok)."
+      ],
+      "id": "bp-ops-003",
+      "remediation": [
+        "Policy: default_off / allowlist modelini policy-check ile enforce et.",
+        "Ağ bağımlı adımları “jobify + poll” veya “manual gate” ile izole et.",
+        "Closeout’lara network_used bayrağı ve kanıt yollarını ekle.",
+        "Seed/catalog yüklemesini workspace input’larıyla (offline) standartlaştır.",
+        "Secrets redaction sözleşmesini contract test ile kilitle."
+      ],
+      "source": "seed",
+      "summary": "Varsayılan güvenli mod: dış ağ erişimi kapalıdır. İzin gerekiyorsa, açık bir allowlist + kanıt + gerekçe ile açılır. Bu, veri sızıntısı ve belirsiz dış bağımlılık riskini azaltır.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "policy",
+        "security",
+        "topic:uygunluk_risk_guvence_kontrol"
+      ],
+      "title": "Varsayılan: Ağ kapalı (no-network default)"
+    },
+    {
+      "evidence_expectations": [
+        "CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set edilmeden core değişikliği yapılmaz (fail-closed).",
+        "ONE_SHOT_SRC_WINDOW allow_paths + ttl_seconds ile sınırlandırılır.",
+        "core_unlock_compliance raporu (workspace/.cache/reports/core_unlock_compliance*.json) üretilir.",
+        "Pencere kapanınca restore/normal moda dönüş kanıtı yazılır.",
+        "Schema validate + doc-nav-check gibi gate’ler değişiklik sonrası PASS olmalıdır."
+      ],
+      "id": "bp-ops-004",
+      "remediation": [
+        "Core edit akışını: unlock → patch → postcheck → restore şeklinde standardize et.",
+        "Allowlist dışında yazımı engelleyen guardrail ekle (fail-closed).",
+        "Compliance report şemasını sabitle ve closeout’a ekle.",
+        "Gerekliyse core unlock kapsamını minimal tut (tek iş, tek patch).",
+        "Kontrat testi: allowlist dışında yazım denemesi BLOCKED olmalı."
+      ],
+      "source": "seed",
+      "summary": "Core repo değişikliği yalnızca kontrollü “unlock penceresi” ile yapılır: süre sınırlı (ttl), allow_paths listesi, gerekçe (CORE_UNLOCK_REASON) ve compliance evidence zorunludur. Amaç drift ve kazara kapsam genişletmeyi engellemektir.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "compliance"
+      ],
+      "title": "CORE_UNLOCK uyum kanıtı (compliance evidence)"
+    },
+    {
+      "evidence_expectations": [
+        "Job start anında job_id üretilir ve jobs_index’e yazılır.",
+        "Tek poll (max=1) ile ilerleme/terminal durum raporlanır (no-wait standardı).",
+        "Job report dosyası deterministik path’de bulunur ve okunabilir.",
+        "Timeout yerine “RUNNING backlog” yaklaşımı ile sistem drift’e sokulmaz.",
+        "Closeout’larda job_id ve ilgili job report path’leri kanıt olarak yer alır."
+      ],
+      "id": "bp-ops-005",
+      "remediation": [
+        "Uzun op’lar için start/poll komut çiftlerini ekle (doc-nav-job-start/poll gibi).",
+        "jobs_index yazım sırasını garanti et (job_report_miss riskini azalt).",
+        "UI’da job durumlarını ve log özetlerini gösterecek alan ekle.",
+        "No-wait standardını koru: her tick’te max 1 poll.",
+        "Contract test: start sonrası jobs_index/job report path oluşmalı."
+      ],
+      "source": "seed",
+      "summary": "Uzun süren kontroller (ör. doc-nav strict, büyük analizler) tek çağrıda timeout olmamalı. Start-job hemen döner; sonraki tick’lerde tek poll ile ilerleme/terminal kanıtı alınır.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "ops",
+        "jobify",
+        "topic:surec_etkinligi_olgunluk"
+      ],
+      "title": "Uzun operasyonları joblaştır (start + poll)"
+    },
+    {
+      "evidence_expectations": [
+        "Triage raporunda job_id, job_report_path, stderr_path/rc_path gibi referanslar bulunur.",
+        "job_id seçimi deterministiktir (started_at desc, tie job_id).",
+        "Job report yoksa triage fail-closed davranır (OTHER yerine kanıt+not).",
+        "Triage, terminal PASS/FAIL durumuna göre recommended_class’i tutarlı üretir.",
+        "Elde edilen marker’lar deterministik sıralanır ve sınırlı sayıda raporlanır."
+      ],
+      "id": "bp-ops-006",
+      "remediation": [
+        "jobs_index resolver’ı tek bir yerde standardize et (ops helper).",
+        "Triage çıktısına ‘job_ref’ alanı ekle ve closeout’a dahil et.",
+        "PASS iken recommended_class=OTHER gibi tutarsızlıkları contract test ile kilitle.",
+        "JOB_REPORT_MISSING durumunda marker-extract fallback (stderr/rc dosyası) uygula.",
+        "Triage raporlarında evidence_paths’i deterministik sırayla yaz."
+      ],
+      "source": "seed",
+      "summary": "“latest” bazen job report henüz yazılmadan triage çalıştırdığı için JOB_REPORT_MISSING üretebilir. Deterministik job_id seçimi (jobs_index) ile triage her zaman hedefi net bilir.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "ops",
+        "triage",
+        "topic:surec_etkinligi_olgunluk"
+      ],
+      "title": "Triyajda explicit job_id kullan (latest yerine)"
+    },
+    {
+      "evidence_expectations": [
+        "Policy-check çalıştırıldığında sonuçlar deterministik olarak raporlanır.",
+        "Policy dosyaları versionlanır ve schema ile validate edilir.",
+        "Fail-closed: belirsizlikte riskli işlemler durdurulur veya report-only yapılır.",
+        "Policy değişiklikleri için CHG/closeout kanıtı üretilir.",
+        "Policy’ler NO_NETWORK / secrets_logged=false gibi güvenlik kısıtlarını enforce eder."
+      ],
+      "id": "bp-ops-007",
+      "remediation": [
+        "Gating kurallarını policy dosyalarına taşı ve policy-check’i pipeline’a ekle.",
+        "Policy schema’larını netleştir ve ci/validate_schemas ile kilitle.",
+        "Policy ihlalinde otomatik ‘plan-only’ fallback üret (drift-free).",
+        "UI’da policy sonuçlarını (hangi kural tetiklendi) okunabilir göster.",
+        "Contract test: policy kaynaklı PASS/WARN/FAIL deterministik olmalı."
+      ],
+      "source": "seed",
+      "summary": "Gating kararları (pass/warn/fail) kod içinde dağınık kurallar yerine policy dosyalarıyla yönetilir. Bu, uyum (compliance) ve değişiklik kontrolü için ‘tek kaynak’ sağlar.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "policy",
+        "gates",
+        "topic:uygunluk_risk_guvence_kontrol"
+      ],
+      "title": "Policy odaklı gate’ler (policy-driven)"
+    },
+    {
+      "evidence_expectations": [
+        "work-intake şemasında per-item created_at/updated_at alanları tanımlıdır.",
+        "Ingest/submit komutları bu alanları otomatik set eder (UTC ISO).",
+        "Stale metrikleri (hours/days) deterministik hesaplanır ve raporlanır.",
+        "DONE/OPEN filtreleri UI’da bu tarih alanlarını kullanabilir.",
+        "Contract test: timestamps eksik item’lar ya fail olur ya da auto-fill edilir (net kural)."
+      ],
+      "id": "bp-ops-008",
+      "remediation": [
+        "work-intake schema + ingest noktalarında created_at/updated_at zorunluluğu ekle.",
+        "Backfill: eski item’lar için ‘unknown’ veya migration kuralı belirle.",
+        "UI’da ‘eklendi/güncellendi’ kolonlarını ekle ve filtrelemeyi destekle.",
+        "Stale-check raporunu closeout’a dahil et.",
+        "Contract test: timestamp’lı item üretimi ve stale hesap PASS olmalı."
+      ],
+      "source": "seed",
+      "summary": "Stale ölçümü ve operasyonel görünürlük için work_intake item’larında created_at/updated_at alanları zorunlu olmalı. Böylece “eskimiş ama hâlâ açık” işleri güvenilir şekilde ayırabiliriz.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "intake",
+        "stale",
+        "topic:surec_etkinligi_olgunluk"
+      ],
+      "title": "Work intake timestamp zorunluluğu (created/updated)"
+    },
+    {
+      "evidence_expectations": [
+        "gap_register güncel ve json_valid olmalı; GAP sayıları raporlanır.",
+        "Her pack için plan-only CHG üretilir (apply=false) ve kanıtlar eklenir.",
+        "Apply sonrası benchmark-assess/re-eval ile kapanış kanıtı alınır.",
+        "Persist eden GAP’ler ‘kalıcı grup’ olarak ayrı raporlanır (root-cause).",
+        "Closeout’lar tek JSON ile kanıt zinciri sağlar."
+      ],
+      "id": "bp-ops-009",
+      "remediation": [
+        "Top-N GAP grupları için remediation pack generator yaz.",
+        "Apply-ready olanlar için core allowlist + contract test + single-poll reproof standardı uygula.",
+        "Kapanmayan GAP’ler için root-cause plan-only üret (drift-free).",
+        "UI’da GAP’leri ‘pack’ görünümüyle (grup → aksiyon) göster.",
+        "Re-eval sonrası gap_register refresh raporu üret ve karşılaştır."
+      ],
+      "source": "seed",
+      "summary": "Açık GAP’ler tek tek ele alınmak yerine, etki/risk/efor bazında ‘remediation pack’ olarak gruplanır. Her pack: plan-only CHG → apply → re-eval kanıtı şeklinde ilerler.",
+      "tags": [
+        "core",
+        "domain_ops",
+        "gaps",
+        "pdca",
+        "topic:surec_etkinligi_olgunluk"
+      ],
+      "title": "GAP remediation pack’leri (plan-only → apply → re-eval)"
+    },
+    {
+      "evidence_expectations": [
+        "Kritik JSON dosyaları atomik yazılır (tmp + replace).",
+        "Bozuk/yarım JSON durumları schema validate/policy-check ile yakalanır.",
+        "Yazım aynı içerikteyse NOOP (idempotent) davranış tercih edilir.",
+        "Dosya path normalizasyonu yapılır (workspace_root içinde).",
+        "Contract test: iki yazım aynı hash ile sonuçlanır; parse edilen JSON valid kalır."
+      ],
+      "id": "bp-ops-010",
+      "remediation": [
+        "Ortak bir write_atomic helper’ı oluştur ve tüm kritik yazımlarda kullan.",
+        "Yazım öncesi path traversal guard ekle (workspace dışına yazma).",
+        "Bozuk JSON tespitinde fail-closed davran (raporla, uygulama yapma).",
+        "Idempotent yazım: içerik aynıysa dosyayı değiştirme (timestamp churn azalt).",
+        "Contract test: atomic write + json_valid + deterministik hash."
+      ],
+      "source": "seed",
+      "summary": "Dosya yazımları tmp dosyaya yazılıp atomik rename/replace ile tamamlanır. Bu, yarım dosya, yarış durumu ve bozulmuş JSON riskini azaltır (özellikle heavy ops paralel koşarken).",
+      "tags": [
+        "core",
+        "domain_ops",
+        "io",
+        "safety",
+        "topic:deterministiklik_tekrarlanabilirlik"
+      ],
+      "title": "Atomic write (tmp + replace) ile güvenli yazım"
+    }
+  ],
+  "version": "v1",
+  "workspace_root": "REPO_SEED"
+}

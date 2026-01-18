@@ -72,7 +72,8 @@ def _load_decisions_applied(workspace_root: Path) -> list[dict[str, Any]]:
 
 def _decision_allows_auto_apply(decisions: list[dict[str, Any]], intake_id: str) -> bool:
     for item in decisions:
-        if str(item.get("source_intake_id") or "") != intake_id:
+        source_intake_id = str(item.get("source_intake_id") or "")
+        if source_intake_id != intake_id and source_intake_id != f"SEED:{intake_id}":
             continue
         if str(item.get("decision_kind") or "") != "AUTO_APPLY_ALLOW":
             continue

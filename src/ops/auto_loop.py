@@ -292,6 +292,72 @@ def _write_self_heal_scaffold(*, workspace_root: Path, report: dict[str, Any]) -
     }
 
 
+def _int_from_any(value: Any) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return 0
+
+
+def _compute_pr_merge_promotion_plan(*, github_ops_report: dict[str, Any]) -> dict[str, Any]:
+    git_state = github_ops_report.get("git_state") if isinstance(github_ops_report.get("git_state"), dict) else {}
+    live_gate = github_ops_report.get("live_gate") if isinstance(github_ops_report.get("live_gate"), dict) else {}
+
+    dirty_tree = bool(git_state.get("dirty_tree", False))
+    ahead = _int_from_any(git_state.get("ahead"))
+    behind = _int_from_any(git_state.get("behind"))
+    index_lock = bool(git_state.get("index_lock", False))
+
+    needed = bool(dirty_tree or ahead > 0)
+    gate_enabled = bool(live_gate.get("enabled", False))
+
+    # Fail-closed: do not attempt promotion if repo is behind remote or git index.lock is present.
+    if not needed:
+        return {
+            "needed": False,
+            "should_run": False,
+            "skip_reason": "NOT_NEEDED",
+            "git_state": {"dirty_tree": dirty_tree, "ahead": ahead, "behind": behind, "index_lock": index_lock},
+            "gate": {"enabled": gate_enabled},
+        }
+    if behind > 0:
+        return {
+            "needed": True,
+            "should_run": False,
+            "skip_reason": "BEHIND_REMOTE",
+            "git_state": {"dirty_tree": dirty_tree, "ahead": ahead, "behind": behind, "index_lock": index_lock},
+            "gate": {"enabled": gate_enabled},
+        }
+    if index_lock:
+        return {
+            "needed": True,
+            "should_run": False,
+            "skip_reason": "GIT_INDEX_LOCK_PRESENT",
+            "git_state": {"dirty_tree": dirty_tree, "ahead": ahead, "behind": behind, "index_lock": index_lock},
+            "gate": {"enabled": gate_enabled},
+        }
+    if not gate_enabled:
+        return {
+            "needed": True,
+            "should_run": False,
+            "skip_reason": "GITHUB_OPS_GATE_BLOCKED",
+            "git_state": {"dirty_tree": dirty_tree, "ahead": ahead, "behind": behind, "index_lock": index_lock},
+            "gate": {
+                "enabled": gate_enabled,
+                "network_enabled": bool(live_gate.get("network_enabled", False)),
+                "env_flag_set": bool(live_gate.get("env_flag_set", False)),
+                "env_key_present": bool(live_gate.get("env_key_present", False)),
+            },
+        }
+    return {
+        "needed": True,
+        "should_run": True,
+        "skip_reason": None,
+        "git_state": {"dirty_tree": dirty_tree, "ahead": ahead, "behind": behind, "index_lock": index_lock},
+        "gate": {"enabled": gate_enabled},
+    }
+
+
 def _work_intake_check_payload(*, workspace_root: Path, mode: str) -> dict[str, Any]:
     import argparse
     from src.ops.work_intake_from_sources import run_work_intake_build
@@ -460,6 +526,58 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
     if lock_res.get("lease_id"):
         touch_doer_loop_lock(workspace_root=workspace_root, lease_id=str(lock_res.get("lease_id") or ""))
 
+    # --- Optional autopromotion lane (A1): if repo is dirty/ahead, open PR -> merge (no release) ---
+    github_ops_report_rel = str(Path(".cache") / "reports" / "github_ops_report.v1.json")
+    github_ops_report: dict[str, Any] = {}
+    try:
+        from src.prj_github_ops.github_ops import build_github_ops_report
+
+        loaded = build_github_ops_report(workspace_root=workspace_root)
+        if isinstance(loaded, dict):
+            github_ops_report = loaded
+    except Exception:
+        github_ops_report = {}
+        notes.append("auto_loop_promotion_github_ops_report_unavailable")
+
+    promotion_plan = _compute_pr_merge_promotion_plan(github_ops_report=github_ops_report)
+    pr_merge_res: dict[str, Any] | None = None
+    pr_merge_report_path: str | None = None
+    promotion_status = "SKIP"
+    promotion_error_code: str | None = None
+    promotion_notes: list[str] = []
+
+    if bool(promotion_plan.get("needed")):
+        skip_reason = promotion_plan.get("skip_reason")
+        if isinstance(skip_reason, str) and skip_reason and skip_reason != "NOT_NEEDED":
+            promotion_notes.append(f"skip_reason:{skip_reason}")
+
+    if promotion_plan.get("should_run") is True:
+        try:
+            from src.prj_release_automation.pr_merge_e2e import run_pr_merge_e2e
+
+            pr_merge_res = run_pr_merge_e2e(
+                workspace_root=workspace_root,
+                base_branch="main",
+                allow_network=True,
+                dry_run=False,
+            )
+        except Exception:
+            pr_merge_res = {"status": "FAIL", "error_code": "PR_MERGE_E2E_EXCEPTION"}
+
+        promotion_status = str((pr_merge_res or {}).get("status") or "FAIL")
+        promotion_error_code = str((pr_merge_res or {}).get("error_code") or "") or None
+        pr_merge_report_path = pr_merge_res.get("report_path") if isinstance(pr_merge_res, dict) else None
+        if isinstance(pr_merge_report_path, str) and pr_merge_report_path:
+            promotion_notes.append("pr_merge_report_written")
+        if promotion_status == "OK":
+            promotion_notes.append("pr_merge_e2e_ok")
+        else:
+            promotion_notes.append("pr_merge_e2e_not_ok")
+        # This step uses git push + GitHub API (network) when it runs.
+        notes[:] = [n for n in notes if n != "NO_NETWORK=true"]
+        notes.append("NO_NETWORK=false")
+        notes.append("NETWORK_USED=true")
+
     doer_counts = run_res.get("doer_processed_count") if isinstance(run_res.get("doer_processed_count"), dict) else {}
     raw_skipped = doer_counts.get("skipped_by_reason") if isinstance(doer_counts.get("skipped_by_reason"), dict) else {}
     doer_counts = {
@@ -509,6 +627,9 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
     if run_res.get("status") not in {"OK", "WARN", "IDLE"}:
         status = "WARN"
 
+    if promotion_plan.get("should_run") is True and promotion_status != "OK":
+        status = "WARN"
+
     report = {
         "version": "v1",
         "generated_at": _now_iso(),
@@ -528,6 +649,15 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         "airunner_baseline_path": baseline_res.get("report_path"),
         "airunner_run_path": run_res.get("run_path"),
         "airunner_deltas_path": run_res.get("deltas_path"),
+        "github_ops_report_path": github_ops_report_rel if (workspace_root / github_ops_report_rel).exists() else None,
+        "pr_merge_e2e_report_path": pr_merge_report_path,
+        "pr_merge_e2e": {
+            "plan": promotion_plan,
+            "status": promotion_status,
+            "error_code": promotion_error_code,
+            "report_path": pr_merge_report_path,
+            "notes": sorted({str(x) for x in promotion_notes if isinstance(x, str) and x.strip()}),
+        },
         "system_status_path": None,
         "ui_snapshot_path": None,
         "script_budget_report_path": _rel_path(workspace_root, report_path) if report_path else None,
@@ -585,6 +715,10 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
     apply_rel = report.get("apply_details_path")
     if isinstance(apply_rel, str) and apply_rel and apply_rel not in evidence_paths:
         evidence_paths.append(apply_rel)
+    if github_ops_report_rel and github_ops_report_rel not in evidence_paths and (workspace_root / github_ops_report_rel).exists():
+        evidence_paths.append(github_ops_report_rel)
+    if isinstance(pr_merge_report_path, str) and pr_merge_report_path and pr_merge_report_path not in evidence_paths:
+        evidence_paths.append(pr_merge_report_path)
     report["evidence_paths"] = evidence_paths
     report["trace_meta"] = build_trace_meta(
         work_item_id=run_id,

@@ -558,6 +558,7 @@ def _load_airrunner_state(*, workspace_root: Path, heartbeat_stale_seconds: int)
     enabled_effective = False
     auto_mode_enabled = False
     active_hours_enabled = False
+    active_hours_is_now = True
 
     try:
         from src.prj_airunner.airunner_tick_support import _load_policy as _load_airunner_policy
@@ -567,9 +568,16 @@ def _load_airrunner_state(*, workspace_root: Path, heartbeat_stale_seconds: int)
         schedule = airunner_policy.get("schedule") if isinstance(airunner_policy.get("schedule"), dict) else {}
         active_hours = schedule.get("active_hours") if isinstance(schedule.get("active_hours"), dict) else {}
         active_hours_enabled = bool(active_hours.get("enabled", False))
+        try:
+            from src.prj_airunner.airunner_tick_utils import _within_active_hours
+
+            active_hours_is_now, _ = _within_active_hours(schedule, datetime.now(timezone.utc))
+        except Exception:
+            active_hours_is_now = True
     except Exception:
         enabled_effective = False
         active_hours_enabled = False
+        active_hours_is_now = True
 
     try:
         from src.prj_airunner.auto_mode_dispatch import load_auto_mode_policy
@@ -583,6 +591,7 @@ def _load_airrunner_state(*, workspace_root: Path, heartbeat_stale_seconds: int)
         "enabled_effective": bool(enabled_effective),
         "auto_mode_enabled_effective": bool(auto_mode_enabled),
         "active_hours_enabled": bool(active_hours_enabled),
+        "active_hours_is_now": bool(active_hours_is_now),
         "heartbeat_stale_seconds": int(heartbeat_stale_seconds),
     }
 
@@ -752,6 +761,19 @@ def _load_catalog_seed(seed_path: Path, workspace_root: Path) -> dict[str, Any] 
         obj = _load_json(seed_path)
     except Exception:
         return None
+
+    def _normalize_str_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        out: list[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            s = item.strip()
+            if s:
+                out.append(s)
+        return out
+
     items = obj.get("items") if isinstance(obj, dict) else None
     if not isinstance(items, list):
         items = []
@@ -766,14 +788,24 @@ def _load_catalog_seed(seed_path: Path, workspace_root: Path) -> dict[str, Any] 
         source = str(item.get("source") or "seed").strip()
         tags_raw = item.get("tags") if isinstance(item.get("tags"), list) else []
         tags = [str(t).strip() for t in tags_raw if isinstance(t, str) and t.strip()]
-        normalized.append(
-            {
-                "id": item_id,
-                "title": title,
-                "source": source,
-                "tags": sorted(set(tags)),
-            }
-        )
+        summary = str(item.get("summary") or "").strip()
+        evidence_expectations = _normalize_str_list(item.get("evidence_expectations"))
+        remediation = _normalize_str_list(item.get("remediation"))
+
+        payload: dict[str, Any] = {
+            "id": item_id,
+            "title": title,
+            "source": source,
+            "tags": sorted(set(tags)),
+        }
+        if summary:
+            payload["summary"] = summary
+        if evidence_expectations:
+            payload["evidence_expectations"] = evidence_expectations
+        if remediation:
+            payload["remediation"] = remediation
+
+        normalized.append(payload)
     normalized.sort(key=lambda entry: entry["id"])
     generated_at = str(obj.get("generated_at") or _now_iso())
     return {
@@ -784,11 +816,37 @@ def _load_catalog_seed(seed_path: Path, workspace_root: Path) -> dict[str, Any] 
     }
 
 
-def _write_seed_catalogs(*, workspace_root: Path, out_bp_catalog: Path, out_trend_catalog: Path) -> dict[str, Any]:
-    bp_seed = workspace_root / ".cache" / "inputs" / "bp_catalog.seed.v1.json"
-    trend_seed = workspace_root / ".cache" / "inputs" / "trend_catalog.seed.v1.json"
-    bp_payload = _load_catalog_seed(bp_seed, workspace_root)
-    trend_payload = _load_catalog_seed(trend_seed, workspace_root)
+def _pick_first_existing(candidates: list[Path]) -> Path | None:
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _seed_candidates(*, workspace_root: Path, core_root: Path) -> dict[str, list[Path]]:
+    return {
+        "bp": [
+            workspace_root / ".cache" / "inputs" / "bp_catalog.seed.v1.json",
+            core_root / "docs" / "OPERATIONS" / "north_star_bp_catalog.seed.v1.json",
+        ],
+        "trend": [
+            workspace_root / ".cache" / "inputs" / "trend_catalog.seed.v1.json",
+            core_root / "docs" / "OPERATIONS" / "north_star_trend_catalog.seed.v1.json",
+        ],
+    }
+
+
+def _write_seed_catalogs(
+    *, workspace_root: Path, out_bp_catalog: Path, out_trend_catalog: Path, core_root: Path | None = None
+) -> dict[str, Any]:
+    core_root = core_root or _repo_root()
+
+    candidates = _seed_candidates(workspace_root=workspace_root, core_root=core_root)
+    bp_seed = _pick_first_existing(candidates.get("bp", [])) or candidates.get("bp", [None])[0]
+    trend_seed = _pick_first_existing(candidates.get("trend", [])) or candidates.get("trend", [None])[0]
+
+    bp_payload = _load_catalog_seed(bp_seed, workspace_root) if isinstance(bp_seed, Path) else None
+    trend_payload = _load_catalog_seed(trend_seed, workspace_root) if isinstance(trend_seed, Path) else None
     written: list[str] = []
     if bp_payload and bp_payload.get("items"):
         _atomic_write_json(out_bp_catalog, bp_payload)
@@ -799,6 +857,18 @@ def _write_seed_catalogs(*, workspace_root: Path, out_bp_catalog: Path, out_tren
     return {
         "bp_items": len(bp_payload.get("items", [])) if bp_payload else 0,
         "trend_items": len(trend_payload.get("items", [])) if trend_payload else 0,
+        "seed_paths_used": sorted(
+            set(
+                [
+                    str(p)
+                    for p in [
+                        bp_seed if isinstance(bp_seed, Path) else None,
+                        trend_seed if isinstance(trend_seed, Path) else None,
+                    ]
+                    if p
+                ]
+            )
+        ),
         "written": sorted(set(written)),
     }
 
@@ -933,7 +1003,11 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     metrics: list[dict[str, Any]] = []
     warnings: list[str] = []
     input_files: list[Path] = []
-    input_files.append(Path(__file__).resolve())
+    self_path = Path(__file__).resolve()
+    input_files.append(self_path)
+    eval_runner_path = self_path.with_name("eval_runner.py")
+    if eval_runner_path.exists():
+        input_files.append(eval_runner_path)
 
     for pack in packs:
         manifest_path = pack.get("manifest_path")
@@ -963,6 +1037,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         core_root / "policies" / "policy_north_star_eval_lenses.v1.json",
         workspace_root / "policies" / "policy_north_star_operability.v1.json",
         core_root / "policies" / "policy_north_star_operability.v1.json",
+        workspace_root / ".cache" / "policy_overrides" / "policy_north_star_operability.override.v1.json",
     ]
     for candidate in policy_candidates:
         if candidate.exists():
@@ -972,10 +1047,10 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         input_files.extend(_collect_extension_manifest_paths(core_root))
     input_files.extend(_iter_md_paths(core_root, exclude_dirs=DOCS_DRIFT_EXCLUDE_DIRS))
     for seed_path in [
-        workspace_root / ".cache" / "inputs" / "bp_catalog.seed.v1.json",
-        workspace_root / ".cache" / "inputs" / "trend_catalog.seed.v1.json",
+        _pick_first_existing(_seed_candidates(workspace_root=workspace_root, core_root=core_root).get("bp", [])),
+        _pick_first_existing(_seed_candidates(workspace_root=workspace_root, core_root=core_root).get("trend", [])),
     ]:
-        if seed_path.exists():
+        if seed_path and seed_path.exists():
             input_files.append(seed_path)
 
     input_files.append(workspace_root / ".cache" / "airunner" / "airunner_heartbeat.v1.json")

@@ -126,6 +126,7 @@
             "enabled_effective": { "type": "boolean" },
             "auto_mode_enabled_effective": { "type": "boolean" },
             "active_hours_enabled": { "type": "boolean" },
+            "active_hours_is_now": { "type": "boolean" },
             "heartbeat_stale_seconds": { "type": "integer", "minimum": 0 }
           }
         },

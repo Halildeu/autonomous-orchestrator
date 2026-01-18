@@ -3,6 +3,60 @@
   "$id": "https://example.com/schemas/assessment-eval.schema.v1.json",
   "title": "Assessment Eval",
   "type": "object",
+  "$defs": {
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "summary", "items"],
+      "properties": {
+        "version": { "type": "string", "enum": ["v1"] },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["total", "triggered", "not_triggered", "unknown"],
+          "properties": {
+            "total": { "type": "integer", "minimum": 0 },
+            "triggered": { "type": "integer", "minimum": 0 },
+            "not_triggered": { "type": "integer", "minimum": 0 },
+            "unknown": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/findings_item" }
+        }
+      }
+    },
+    "findings_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalog",
+        "id",
+        "title",
+        "tags",
+        "domains",
+        "topic",
+        "match_status",
+        "reasons",
+        "evidence_pointers"
+      ],
+      "properties": {
+        "catalog": { "type": "string", "enum": ["trend", "bp", "lens"] },
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "evidence_expectations": { "type": "array", "items": { "type": "string" } },
+        "remediation": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "domains": { "type": "array", "items": { "type": "string" } },
+        "topic": { "type": "string" },
+        "match_status": { "type": "string", "enum": ["TRIGGERED", "NOT_TRIGGERED", "UNKNOWN"] },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "evidence_pointers": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
   "additionalProperties": false,
   "required": [
     "version",
@@ -68,7 +122,8 @@
             "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
             "score": { "type": "number", "minimum": 0, "maximum": 1 },
             "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "notes": { "type": "array", "items": { "type": "string" } }
+            "notes": { "type": "array", "items": { "type": "string" } },
+            "findings": { "$ref": "#/$defs/findings" }
           }
         },
         "integrity_compat": {
@@ -92,7 +147,8 @@
             "classification": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
             "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
             "subscores": { "type": "object" },
-            "reasons": { "type": "array", "items": { "type": "string" } }
+            "reasons": { "type": "array", "items": { "type": "string" } },
+            "findings": { "$ref": "#/$defs/findings" }
           }
         },
         "ai_ops_fit": {
@@ -112,7 +168,8 @@
                 "secrets_redacted": { "type": "boolean" }
               }
             },
-            "notes": { "type": "array", "items": { "type": "string" } }
+            "notes": { "type": "array", "items": { "type": "string" } },
+            "findings": { "$ref": "#/$defs/findings" }
           }
         },
         "github_ops_release": {
@@ -141,7 +198,8 @@
                 "release_manifest_present": { "type": "boolean" }
               }
             },
-            "notes": { "type": "array", "items": { "type": "string" } }
+            "notes": { "type": "array", "items": { "type": "string" } },
+            "findings": { "$ref": "#/$defs/findings" }
           }
         },
         "operability": {
@@ -163,7 +221,8 @@
                 "continuity": { "type": "number", "minimum": 0, "maximum": 1 }
               }
             },
-            "reasons": { "type": "array", "items": { "type": "string" } }
+            "reasons": { "type": "array", "items": { "type": "string" } },
+            "findings": { "$ref": "#/$defs/findings" }
           }
         }
       }

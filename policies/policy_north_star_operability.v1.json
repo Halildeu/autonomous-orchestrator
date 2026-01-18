@@ -1,5 +1,6 @@
 {
   "version": "v1",
+  "heartbeat_expectation_mode": "ALWAYS",
   "thresholds": {
     "hard_exceeded_must_be": 0,
     "soft_target": 0,

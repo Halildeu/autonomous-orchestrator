@@ -30,12 +30,14 @@ CHAT_MAX_RETURN = 200
 OVERRIDE_NAME_RE = re.compile(r"^policy_[a-z0-9_]+\.override\.v1\.json$")
 SETTINGS_NAME_RE = re.compile(r"^[a-z0-9_]+\.override\.v1\.json$")
 EXTENSION_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+COCKPIT_LITE_OVERRIDE_NAME = "policy_cockpit_lite.override.v1.json"
 SAFE_OVERRIDE_FILES = {
     "policy_auto_mode.override.v1.json",
     "policy_airunner.override.v1.json",
     "policy_auto_loop.override.v1.json",
     "policy_doc_graph.override.v1.json",
     "policy_autopilot_apply.override.v1.json",
+    COCKPIT_LITE_OVERRIDE_NAME,
 }
 
 OP_DEFAULTS = {
@@ -45,11 +47,14 @@ OP_DEFAULTS = {
     "extension-registry": {},
     "extension-help": {},
     "work-intake-check": {"mode": "strict", "chat": "false", "detail": "false"},
+    "work-intake-claim": {"mode": "claim", "ttl_seconds": "3600", "owner_tag": "", "force": "false"},
+    "work-intake-close": {"mode": "close", "reason": "", "owner_tag": "", "force": "false"},
     "doc-nav-check": {"strict": "true", "detail": "false", "chat": "false"},
     "smoke-full-triage": {"detail": "false", "chat": "false"},
     "smoke-fast-triage": {"detail": "false", "chat": "false"},
     "auto-loop": {"budget_seconds": "120", "chat": "false"},
     "airrunner-run": {"ticks": "2", "mode": "no_wait", "budget_seconds": "0", "chat": "false"},
+    "planner-notes-create": {"title": "", "body": "", "tags": "", "links_json": "[]"},
     "planner-chat-send": {"thread": "default", "title": "", "body": "", "tags": "", "links_json": "[]"},
     "overrides-write": {"name": "", "json": ""},
 }
@@ -61,11 +66,26 @@ OP_ARG_MAP = {
     "extension-registry": {},
     "extension-help": {},
     "work-intake-check": {"mode": "--mode", "detail": "--detail", "chat": "--chat"},
+    "work-intake-claim": {
+        "mode": "--mode",
+        "intake_id": "--intake-id",
+        "ttl_seconds": "--ttl-seconds",
+        "owner_tag": "--owner-tag",
+        "force": "--force",
+    },
+    "work-intake-close": {
+        "mode": "--mode",
+        "intake_id": "--intake-id",
+        "reason": "--reason",
+        "owner_tag": "--owner-tag",
+        "force": "--force",
+    },
     "doc-nav-check": {"strict": "--strict", "detail": "--detail", "chat": "--chat"},
     "smoke-full-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
     "smoke-fast-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
     "auto-loop": {"budget_seconds": "--budget_seconds", "chat": "--chat"},
     "airrunner-run": {"ticks": "--ticks", "mode": "--mode", "budget_seconds": "--budget_seconds", "chat": "--chat"},
+    "planner-notes-create": {"title": "--title", "body": "--body", "tags": "--tags", "links_json": "--links-json"},
     "planner-chat-send": {"thread": None, "title": None, "body": None, "tags": None, "links_json": None},
     "overrides-write": {"name": None, "json": None},
 }
@@ -712,8 +732,6 @@ def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[in
                 return 400, {"status": "FAIL", "error": "ARG_INVALID"}
             merged[key] = safe_value
 
-    if op == "system-status":
-        merged["dry_run"] = "false"
     if op == "work-intake-check":
         merged["mode"] = "strict"
     if op == "auto-loop":
@@ -807,6 +825,7 @@ __all__ = [
     "OVERRIDE_NAME_RE",
     "SETTINGS_NAME_RE",
     "EXTENSION_ID_RE",
+    "COCKPIT_LITE_OVERRIDE_NAME",
     "SAFE_OVERRIDE_FILES",
     "OP_DEFAULTS",
     "OP_ARG_MAP",
