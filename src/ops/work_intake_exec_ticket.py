@@ -15,6 +15,7 @@ from src.ops.trace_meta import (
     date_bucket_from_iso,
 )
 from src.ops.work_item_leases import acquire_lease, release_lease
+from src.ops.work_item_claims import get_active_claim
 from src.ops.work_item_state import (
     STATE_APPLIED,
     STATE_IN_PROGRESS,
@@ -25,6 +26,7 @@ from src.ops.work_item_state import (
     should_skip_due_to_fingerprint,
     update_state,
 )
+from src.ops.doer_loop_lock import owner_tag_from_env
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -218,7 +220,8 @@ def _load_decisions_applied(workspace_root: Path) -> list[dict[str, Any]]:
 
 def _decision_allows_auto_apply(decisions: list[dict[str, Any]], intake_id: str) -> bool:
     for item in decisions:
-        if str(item.get("source_intake_id") or "") != intake_id:
+        source_intake_id = str(item.get("source_intake_id") or "")
+        if source_intake_id != intake_id and source_intake_id != f"SEED:{intake_id}":
             continue
         if str(item.get("decision_kind") or "") != "AUTO_APPLY_ALLOW":
             continue
@@ -762,6 +765,21 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             _attach_trace_meta(entry, intake_id)
             entries.append(entry)
             continue
+
+        claim_guard_owner = owner_tag_from_env()
+        active_claim = get_active_claim(workspace_root, intake_id)
+        if isinstance(active_claim, dict):
+            claim_owner = str(active_claim.get("owner_tag") or "").strip()
+            if not claim_owner or claim_owner != claim_guard_owner:
+                entry["status"] = "SKIPPED"
+                entry["skip_reason"] = "CLAIMED_BY_OTHER"
+                entry["claim_owner_tag"] = claim_owner
+                entry["claim_expires_at"] = str(active_claim.get("expires_at") or "")
+                skipped += 1
+                skipped_by_reason["CLAIMED_BY_OTHER"] = skipped_by_reason.get("CLAIMED_BY_OTHER", 0) + 1
+                _attach_trace_meta(entry, intake_id)
+                entries.append(entry)
+                continue
 
         lease_result = acquire_lease(
             workspace_root=workspace_root,

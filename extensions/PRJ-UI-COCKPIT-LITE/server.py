@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import signal
+import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -83,6 +88,41 @@ class CockpitHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"status": "OK", "ts": int(time.time())})
             return
 
+        if parsed.path == "/api/op_job":
+            qs = parse_qs(parsed.query)
+            job_id = str(qs.get("job_id", [""])[0]).strip()
+            if not job_id:
+                self._send_json(400, {"status": "FAIL", "error": "JOB_ID_REQUIRED"})
+                return
+            if not isinstance(job_id, str) or not job_id.startswith("OPJOB-") or len(job_id) > 80:
+                self._send_json(400, {"status": "FAIL", "error": "JOB_ID_INVALID"})
+                return
+            with self.server.op_jobs_lock:
+                job = dict(self.server.op_jobs.get(job_id) or {})
+            if not job:
+                self._send_json(404, {"status": "FAIL", "error": "JOB_NOT_FOUND"})
+                return
+            result = job.get("result")
+            if isinstance(result, dict):
+                out = dict(result)
+                out["job_id"] = job_id
+                out["job_status"] = str(job.get("job_status") or "DONE")
+                self._send_json(200, out)
+                return
+            self._send_json(
+                200,
+                {
+                    "status": str(job.get("job_status") or "PENDING"),
+                    "job_id": job_id,
+                    "job_status": str(job.get("job_status") or "PENDING"),
+                    "op": str(job.get("op") or ""),
+                    "trace_meta": job.get("trace_meta") if isinstance(job.get("trace_meta"), dict) else {},
+                    "created_at": str(job.get("created_at") or ""),
+                    "started_at": str(job.get("started_at") or ""),
+                },
+            )
+            return
+
         if parsed.path == "/api/overview":
             status_path = ws_root / ".cache" / "reports" / "system_status.v1.json"
             snapshot_path = ws_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json"
@@ -121,17 +161,132 @@ class CockpitHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/north_star":
             eval_path = ws_root / ".cache" / "index" / "assessment_eval.v1.json"
+            raw_path = ws_root / ".cache" / "index" / "assessment_raw.v1.json"
             gap_path = ws_root / ".cache" / "index" / "gap_register.v1.json"
+            trend_catalog_path = ws_root / ".cache" / "index" / "trend_catalog.v1.json"
+            bp_catalog_path = ws_root / ".cache" / "index" / "bp_catalog.v1.json"
+            north_star_catalog_path = ws_root / ".cache" / "index" / "north_star_catalog.v1.json"
             scorecard_path = ws_root / ".cache" / "reports" / "benchmark_scorecard.v1.json"
             eval_payload = self._wrap_file(eval_path)
+            raw_payload = self._wrap_file(raw_path)
             gap_payload = self._wrap_file(gap_path)
+            trend_catalog_payload = self._wrap_file(trend_catalog_path)
+            bp_catalog_payload = self._wrap_file(bp_catalog_path)
+            north_star_catalog_payload = self._wrap_file(north_star_catalog_path)
             scorecard_payload = self._wrap_file(scorecard_path)
 
             eval_data = eval_payload.get("data") if isinstance(eval_payload, dict) else {}
+            raw_data = raw_payload.get("data") if isinstance(raw_payload, dict) else {}
             gap_data = gap_payload.get("data") if isinstance(gap_payload, dict) else {}
             lenses = eval_data.get("lenses") if isinstance(eval_data, dict) else {}
             gaps = gap_data.get("gaps") if isinstance(gap_data, dict) else []
             gap_list = gaps if isinstance(gaps, list) else []
+
+            # Surface “capability vs expected” (monitoring) so UI can show:
+            # enabled_effective / auto_mode_enabled_effective (capability)
+            # heartbeat_expectation_mode (monitoring/expected)
+            raw_signals = raw_data.get("signals") if isinstance(raw_data, dict) else {}
+            airunner_state = (
+                raw_signals.get("airunner_state") if isinstance(raw_signals.get("airunner_state"), dict) else {}
+            )
+            enabled_effective = (
+                bool(airunner_state.get("enabled_effective"))
+                if isinstance(airunner_state, dict) and "enabled_effective" in airunner_state
+                else None
+            )
+            auto_mode_enabled_effective = (
+                bool(airunner_state.get("auto_mode_enabled_effective"))
+                if isinstance(airunner_state, dict) and "auto_mode_enabled_effective" in airunner_state
+                else None
+            )
+            active_hours_is_now = None
+            if isinstance(airunner_state, dict) and "active_hours_is_now" in airunner_state:
+                active_hours_value = airunner_state.get("active_hours_is_now")
+                active_hours_is_now = active_hours_value if isinstance(active_hours_value, bool) else None
+            heartbeat_stale_seconds = None
+            if isinstance(airunner_state, dict) and "heartbeat_stale_seconds" in airunner_state:
+                try:
+                    heartbeat_stale_seconds = int(airunner_state.get("heartbeat_stale_seconds") or 0)
+                except Exception:
+                    heartbeat_stale_seconds = None
+
+            heartbeat_expectation_mode = None
+            mode_source = "default"
+            override_path = ws_root / ".cache" / "policy_overrides" / "policy_north_star_operability.override.v1.json"
+            override_obj, override_exists, override_valid = _read_json_file(override_path)
+            if override_exists and override_valid and isinstance(override_obj, dict):
+                heartbeat_expectation_mode = override_obj.get("heartbeat_expectation_mode")
+                if heartbeat_expectation_mode:
+                    mode_source = "override"
+            policy_path = repo_root / "policies" / "policy_north_star_operability.v1.json"
+            policy_obj, policy_exists, policy_valid = _read_json_file(policy_path)
+            thresholds = (
+                policy_obj.get("thresholds")
+                if policy_exists and policy_valid and isinstance(policy_obj, dict) and isinstance(policy_obj.get("thresholds"), dict)
+                else {}
+            )
+            override_thresholds = (
+                override_obj.get("thresholds")
+                if override_exists and override_valid and isinstance(override_obj, dict) and isinstance(override_obj.get("thresholds"), dict)
+                else {}
+            )
+            if override_thresholds:
+                merged = dict(thresholds)
+                merged.update(override_thresholds)
+                thresholds = merged
+
+            if not heartbeat_expectation_mode and policy_exists and policy_valid and isinstance(policy_obj, dict):
+                heartbeat_expectation_mode = policy_obj.get("heartbeat_expectation_mode")
+            heartbeat_expectation_mode = str(heartbeat_expectation_mode or "ALWAYS").strip().upper()
+            if heartbeat_expectation_mode not in {"ALWAYS", "ACTIVE_HOURS", "NONE"}:
+                heartbeat_expectation_mode = "ALWAYS"
+
+            heartbeat_warn_seconds = None
+            heartbeat_fail_seconds = None
+            if isinstance(thresholds, dict):
+                try:
+                    heartbeat_warn_seconds = int(thresholds.get("heartbeat_stale_seconds_warn"))  # type: ignore[arg-type]
+                except Exception:
+                    heartbeat_warn_seconds = None
+                try:
+                    heartbeat_fail_seconds = int(thresholds.get("heartbeat_stale_seconds_fail"))  # type: ignore[arg-type]
+                except Exception:
+                    heartbeat_fail_seconds = None
+
+            heartbeat_capability = bool(enabled_effective) or bool(auto_mode_enabled_effective)
+            if heartbeat_expectation_mode == "NONE":
+                heartbeat_expected_now = False
+            elif heartbeat_expectation_mode == "ACTIVE_HOURS":
+                active_hours_is_now_bool = bool(active_hours_is_now) if isinstance(active_hours_is_now, bool) else True
+                heartbeat_expected_now = heartbeat_capability and active_hours_is_now_bool
+            else:
+                heartbeat_expected_now = heartbeat_capability
+
+            heartbeat_stale_level = "UNKNOWN"
+            if not heartbeat_expected_now:
+                heartbeat_stale_level = "NOT_EXPECTED"
+            elif heartbeat_stale_seconds is None:
+                heartbeat_stale_level = "UNKNOWN"
+            else:
+                if heartbeat_fail_seconds is not None and heartbeat_stale_seconds >= heartbeat_fail_seconds:
+                    heartbeat_stale_level = "FAIL"
+                elif heartbeat_warn_seconds is not None and heartbeat_stale_seconds >= heartbeat_warn_seconds:
+                    heartbeat_stale_level = "WARN"
+                else:
+                    heartbeat_stale_level = "OK"
+
+            runner_meta = {
+                "auto_mode_enabled_effective": auto_mode_enabled_effective,
+                "enabled_effective": enabled_effective,
+                "active_hours_is_now": active_hours_is_now,
+                "heartbeat_expectation_mode": heartbeat_expectation_mode,
+                "heartbeat_expectation_source": mode_source,
+                "heartbeat_expected_now": bool(heartbeat_expected_now),
+                "heartbeat_stale_seconds": heartbeat_stale_seconds,
+                "heartbeat_stale_level": heartbeat_stale_level,
+                "heartbeat_stale_warn_seconds": heartbeat_warn_seconds,
+                "heartbeat_stale_fail_seconds": heartbeat_fail_seconds,
+            }
 
             lens_summary: dict[str, Any] = {}
             if isinstance(lenses, dict):
@@ -198,9 +353,13 @@ class CockpitHandler(BaseHTTPRequestHandler):
             }
             payload = {
                 "summary": summary,
+                "runner_meta": runner_meta,
                 "lenses": lens_summary,
                 "top_gaps": top_gaps,
                 "assessment_eval": eval_payload,
+                "trend_catalog": trend_catalog_payload,
+                "bp_catalog": bp_catalog_payload,
+                "north_star_catalog": north_star_catalog_payload,
                 "gap_register": {
                     "path": gap_payload.get("path"),
                     "exists": gap_payload.get("exists"),
@@ -222,14 +381,102 @@ class CockpitHandler(BaseHTTPRequestHandler):
             self._send_json(200, self._wrap_file(path))
             return
 
+        if parsed.path == "/api/inbox":
+            path = ws_root / ".cache" / "index" / "input_inbox.v0.1.json"
+            payload = self._wrap_file(path)
+            data = payload.get("data") if isinstance(payload, dict) else {}
+            items = data.get("items") if isinstance(data, dict) else []
+            items_list = items if isinstance(items, list) else []
+            payload["items"] = items_list[:200]
+            self._send_json(200, payload)
+            return
+
         if parsed.path == "/api/intake":
             path = ws_root / ".cache" / "index" / "work_intake.v1.json"
             payload = self._wrap_file(path)
             data = payload.get("data") if isinstance(payload, dict) else {}
             items = data.get("items") if isinstance(data, dict) else []
             items_list = items if isinstance(items, list) else []
+            now = datetime.now(timezone.utc)
+
+            claims_path = ws_root / ".cache" / "index" / "work_item_claims.v1.json"
+            claims_payload: list[dict[str, Any]] = []
+            if claims_path.exists():
+                try:
+                    obj = json.loads(claims_path.read_text(encoding="utf-8"))
+                    if isinstance(obj, dict):
+                        raw = obj.get("claims")
+                        if isinstance(raw, list):
+                            claims_payload = [c for c in raw if isinstance(c, dict)]
+                except Exception:
+                    claims_payload = []
+            active_claims: dict[str, dict[str, Any]] = {}
+            for claim in claims_payload:
+                work_item_id = str(claim.get("work_item_id") or "")
+                if not work_item_id:
+                    continue
+                exp = _parse_iso(str(claim.get("expires_at") or ""))
+                if not exp or now >= exp:
+                    continue
+                active_claims[work_item_id] = claim
+
+            leases_path = ws_root / ".cache" / "index" / "work_item_leases.v1.json"
+            leases_payload: list[dict[str, Any]] = []
+            if leases_path.exists():
+                try:
+                    obj = json.loads(leases_path.read_text(encoding="utf-8"))
+                    if isinstance(obj, dict):
+                        raw = obj.get("leases")
+                        if isinstance(raw, list):
+                            leases_payload = [l for l in raw if isinstance(l, dict)]
+                except Exception:
+                    leases_payload = []
+            active_leases: dict[str, dict[str, Any]] = {}
+            for lease in leases_payload:
+                work_item_id = str(lease.get("work_item_id") or "")
+                if not work_item_id:
+                    continue
+                exp = _parse_iso(str(lease.get("expires_at") or ""))
+                if not exp or now >= exp:
+                    continue
+                active_leases[work_item_id] = lease
+
+            enriched: list[dict[str, Any]] = []
+            for item in items_list:
+                if not isinstance(item, dict):
+                    continue
+                intake_id = str(item.get("intake_id") or "")
+                claim = active_claims.get(intake_id)
+                lease = active_leases.get(intake_id)
+                out_item = dict(item)
+                if isinstance(claim, dict):
+                    out_item["claim_status"] = "CLAIMED"
+                    out_item["claim"] = {
+                        "owner_tag": str(claim.get("owner_tag") or ""),
+                        "owner_session": str(claim.get("owner_session") or ""),
+                        "acquired_at": str(claim.get("acquired_at") or ""),
+                        "expires_at": str(claim.get("expires_at") or ""),
+                        "ttl_seconds": claim.get("ttl_seconds"),
+                    }
+                else:
+                    out_item["claim_status"] = "FREE"
+                    out_item["claim"] = {}
+                if isinstance(lease, dict):
+                    out_item["exec_lease_status"] = "LEASED"
+                    out_item["exec_lease"] = {
+                        "owner": str(lease.get("owner") or ""),
+                        "acquired_at": str(lease.get("acquired_at") or ""),
+                        "expires_at": str(lease.get("expires_at") or ""),
+                        "ttl_seconds": lease.get("ttl_seconds"),
+                    }
+                else:
+                    out_item["exec_lease_status"] = "FREE"
+                    out_item["exec_lease"] = {}
+                enriched.append(out_item)
             payload["summary"] = _summarize_intake(items_list)
-            payload["items"] = items_list[:100]
+            payload["claims_path"] = str(claims_path) if claims_path.exists() else ""
+            payload["leases_path"] = str(leases_path) if leases_path.exists() else ""
+            payload["items"] = enriched[:100]
             self._send_json(200, payload)
             return
 
@@ -347,6 +594,47 @@ class CockpitHandler(BaseHTTPRequestHandler):
                 lease_summary["active_count"] = len(active)
                 owners = sorted({str(l.get("owner") or "") for l in leases_payload if isinstance(l, dict)})
                 lease_summary["owners_sample"] = [o for o in owners if o][:5]
+
+            claim_summary = {"claim_count": 0, "active_count": 0, "owners_sample": [], "path": ""}
+            active_claims_sample: list[dict[str, Any]] = []
+            claims_json = ws_root / ".cache" / "index" / "work_item_claims.v1.json"
+            claims_payload = []
+            if claims_json.exists():
+                try:
+                    obj = json.loads(claims_json.read_text(encoding="utf-8"))
+                    if isinstance(obj, dict):
+                        claims_payload = obj.get("claims") if isinstance(obj.get("claims"), list) else []
+                        claim_summary["path"] = str(claims_json)
+                except Exception:
+                    claims_payload = []
+            if isinstance(claims_payload, list) and claims_payload:
+                claim_summary["claim_count"] = len(claims_payload)
+                now = datetime.now(timezone.utc)
+                active = []
+                for claim in claims_payload:
+                    if not isinstance(claim, dict):
+                        continue
+                    expires_at = _parse_iso(str(claim.get("expires_at") or ""))
+                    if not expires_at:
+                        continue
+                    if now >= expires_at:
+                        continue
+                    active.append(claim)
+                claim_summary["active_count"] = len(active)
+                owners = sorted({str(c.get("owner_tag") or "") for c in claims_payload if isinstance(c, dict)})
+                claim_summary["owners_sample"] = [o for o in owners if o][:5]
+                active_sorted = sorted(active, key=lambda c: (str(c.get("expires_at") or ""), str(c.get("work_item_id") or "")))
+                for claim in active_sorted[:50]:
+                    active_claims_sample.append(
+                        {
+                            "work_item_id": str(claim.get("work_item_id") or ""),
+                            "owner_tag": str(claim.get("owner_tag") or ""),
+                            "owner_session": str(claim.get("owner_session") or ""),
+                            "acquired_at": str(claim.get("acquired_at") or ""),
+                            "expires_at": str(claim.get("expires_at") or ""),
+                            "ttl_seconds": claim.get("ttl_seconds"),
+                        }
+                    )
             payload = {
                 "lock_state": lock_state,
                 "lock_path": str(Path(".cache") / "doer" / "doer_loop_lock.v1.json"),
@@ -356,6 +644,8 @@ class CockpitHandler(BaseHTTPRequestHandler):
                 "run_id": run_id,
                 "lock": _redact(lock_data) if lock_data else {},
                 "leases_summary": lease_summary,
+                "claims_summary": claim_summary,
+                "claims_active_sample": active_claims_sample,
             }
             self._send_json(200, payload)
             return
@@ -608,7 +898,10 @@ class CockpitHandler(BaseHTTPRequestHandler):
                         payload = _json_dumps({"paths": sorted(changed), "ts": int(time.time())})
                         event_map = {
                             "overview_tick": any(
-                                "system_status.v1.json" in p or "ui_snapshot_bundle.v1.json" in p for p in changed
+                            "system_status.v1.json" in p or "ui_snapshot_bundle.v1.json" in p for p in changed
+                            ),
+                            "inbox_tick": any(
+                                "input_inbox.v0.1.json" in p or "manual_request_triage.v0.1.json" in p for p in changed
                             ),
                             "intake_tick": any("work_intake.v1.json" in p for p in changed),
                             "decisions_tick": any("decision_inbox.v1.json" in p for p in changed),
@@ -628,6 +921,7 @@ class CockpitHandler(BaseHTTPRequestHandler):
                         }
                         for event_name in [
                             "overview_tick",
+                            "inbox_tick",
                             "intake_tick",
                             "decisions_tick",
                             "jobs_tick",
@@ -670,6 +964,11 @@ class CockpitHandler(BaseHTTPRequestHandler):
         ws_root = self.server.workspace_root
 
         if parsed.path == "/api/op":
+            op = str(payload.get("op") or "").strip()
+            if op in ASYNC_OPS:
+                code, out = _start_op_job(self.server, repo_root, ws_root, payload, op=op)
+                self._send_json(code, out)
+                return
             code, out = _run_op(repo_root, ws_root, payload)
             self._send_json(code, out)
             return
@@ -896,15 +1195,275 @@ class CockpitHandler(BaseHTTPRequestHandler):
         return
 
 
+class CockpitServer(ThreadingHTTPServer):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.op_jobs: dict[str, dict[str, Any]] = {}
+        self.op_job_procs: dict[str, subprocess.Popen[str]] = {}
+        self.op_jobs_lock = threading.Lock()
+        super().__init__(*args, **kwargs)
+
+    def _cancel_op_jobs(self) -> None:
+        with self.op_jobs_lock:
+            running = [(job_id, proc) for job_id, proc in self.op_job_procs.items()]
+        for job_id, proc in running:
+            try:
+                if proc.poll() is not None:
+                    continue
+                if os.name != "nt":
+                    try:
+                        os.killpg(proc.pid, signal.SIGTERM)
+                    except Exception:
+                        proc.terminate()
+                else:
+                    proc.terminate()
+            except Exception:
+                continue
+            finally:
+                with self.op_jobs_lock:
+                    job = self.op_jobs.get(job_id)
+                    if isinstance(job, dict) and str(job.get("job_status") or "") in {"PENDING", "RUNNING"}:
+                        job["job_status"] = "CANCELLED"
+                        job["finished_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                    self.op_job_procs.pop(job_id, None)
+
+    def server_close(self) -> None:  # noqa: N802
+        try:
+            if hasattr(self, "op_jobs_lock"):
+                self._cancel_op_jobs()
+        finally:
+            super().server_close()
+
+
 def build_server(repo_root: Path, workspace_root: Path, host: str, port: int, poll_interval: float) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), CockpitHandler)
+    server = CockpitServer((host, port), CockpitHandler)
     server.repo_root = repo_root
     server.workspace_root = workspace_root
     server.allow_roots = _allow_roots(repo_root, workspace_root)
-    server.watch_paths = _watch_paths(repo_root, workspace_root)
+    server.watch_paths = _watch_paths(repo_root, workspace_root) + [
+        workspace_root / ".cache" / "index" / "input_inbox.v0.1.json",
+        workspace_root / ".cache" / "index" / "manual_request_triage.v0.1.json",
+    ]
     server.poll_interval = poll_interval
     server.web_root = (repo_root / "extensions" / "PRJ-UI-COCKPIT-LITE" / "web").resolve()
     return server
+
+
+def _new_op_job_id() -> str:
+    seed = f"{time.time_ns()}:{os.getpid()}:{os.urandom(8).hex()}"
+    return "OPJOB-" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
+
+
+ASYNC_OPS = {
+    "system-status",
+    "ui-snapshot-bundle",
+    "auto-loop",
+}
+
+
+def _op_job_timeout_seconds(op: str, merged_args: dict[str, Any]) -> int:
+    default = 600
+    if op == "auto-loop":
+        raw = str(merged_args.get("budget_seconds") or "").strip()
+        if raw.isdigit():
+            budget = int(raw)
+            # Add overhead and clamp to avoid runaway jobs.
+            return max(default, min(budget + 90, 3600))
+    return default
+
+
+def _start_op_job(
+    server: CockpitServer, repo_root: Path, ws_root: Path, payload: dict[str, Any], *, op: str
+) -> tuple[int, dict[str, Any]]:
+    if payload.get("confirm") is not True:
+        return 400, {"status": "FAIL", "error": "CONFIRM_REQUIRED"}
+
+    op = str(op or "").strip()
+    if op not in ASYNC_OPS:
+        return 400, {"status": "FAIL", "error": "OP_NOT_ASYNC"}
+    if op not in OP_ARG_MAP:
+        return 400, {"status": "FAIL", "error": "OP_NOT_ALLOWED"}
+
+    args = payload.get("args")
+    if args is None:
+        args = {}
+    if not isinstance(args, dict):
+        return 400, {"status": "FAIL", "error": "ARGS_INVALID"}
+
+    merged = dict(OP_DEFAULTS.get(op, {}))
+    allowed_args = OP_ARG_MAP.get(op, {})
+    for key, value in args.items():
+        if key not in allowed_args:
+            return 400, {"status": "FAIL", "error": "ARG_NOT_ALLOWED"}
+        safe_value = _safe_arg_value(value, max_len=200, allow_newlines=False)
+        if safe_value is None:
+            return 400, {"status": "FAIL", "error": "ARG_INVALID"}
+        merged[key] = safe_value
+
+    if op == "auto-loop":
+        merged["budget_seconds"] = str(merged.get("budget_seconds") or "120")
+
+    trace_meta = _trace_meta_for_op(op, merged, ws_root)
+    _chat_append(
+        ws_root,
+        {
+            "version": "v1",
+            "type": "OP_CALL",
+            "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "op": op,
+            "args": _redact(merged),
+            "trace_meta": trace_meta,
+            "evidence_paths": [],
+        },
+    )
+
+    cmd = [sys.executable, "-m", "src.ops.manage", op, "--workspace-root", str(ws_root)]
+    for key, flag in allowed_args.items():
+        if key in merged:
+            if not flag:
+                continue
+            cmd.extend([flag, str(merged[key])])
+
+    job_id = _new_op_job_id()
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    with server.op_jobs_lock:
+        server.op_jobs[job_id] = {
+            "job_id": job_id,
+            "job_status": "PENDING",
+            "op": op,
+            "trace_meta": trace_meta,
+            "created_at": now_iso,
+            "started_at": "",
+            "finished_at": "",
+            "result": None,
+        }
+
+    def _job_thread() -> None:
+        start_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        with server.op_jobs_lock:
+            job = server.op_jobs.get(job_id)
+            if isinstance(job, dict):
+                job["job_status"] = "RUNNING"
+                job["started_at"] = start_iso
+
+        proc: subprocess.Popen[str] | None = None
+        stdout = ""
+        stderr = ""
+        timed_out = False
+
+        try:
+            timeout_seconds = _op_job_timeout_seconds(op, merged)
+            proc = subprocess.Popen(
+                cmd,
+                cwd=repo_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=(os.name != "nt"),
+            )
+            with server.op_jobs_lock:
+                server.op_job_procs[job_id] = proc
+
+            try:
+                stdout, stderr = proc.communicate(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                try:
+                    if os.name != "nt":
+                        try:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                        except Exception:
+                            proc.kill()
+                    else:
+                        proc.kill()
+                except Exception:
+                    pass
+                try:
+                    stdout, stderr = proc.communicate(timeout=2)
+                except Exception:
+                    stdout = stdout or ""
+                    stderr = stderr or ""
+
+            returncode = proc.returncode if proc.returncode is not None else 1
+        except Exception as exc:
+            timed_out = False
+            returncode = 2
+            stderr = str(exc)
+        finally:
+            with server.op_jobs_lock:
+                server.op_job_procs.pop(job_id, None)
+
+        status = "OK" if int(returncode) == 0 else "FAIL"
+        evidence_paths: list[str] = []
+        parsed = None
+        for line in str(stdout or "").splitlines()[::-1]:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                candidate = json.loads(line)
+            except Exception:
+                continue
+            if isinstance(candidate, dict):
+                parsed = candidate
+                break
+
+        if isinstance(parsed, dict):
+            status = str(parsed.get("status") or status)
+            ev = parsed.get("evidence_paths")
+            if isinstance(ev, list):
+                evidence_paths = [str(p) for p in ev if isinstance(p, str)]
+
+        payload_out: dict[str, Any] = {
+            "status": "WARN" if timed_out else status,
+            "op": op,
+            "trace_meta": trace_meta,
+            "evidence_paths": sorted(set(evidence_paths)),
+            "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "OP_ASYNC=true"],
+        }
+        if timed_out:
+            payload_out["error"] = "TIMEOUT"
+            payload_out["timeout_seconds"] = _op_job_timeout_seconds(op, merged)
+
+        if int(returncode) != 0 and str(payload_out.get("status") or "") not in {"WARN", "IDLE"}:
+            payload_out["status"] = "FAIL"
+
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "RESULT",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "status": payload_out.get("status"),
+                "error_code": payload_out.get("error") or payload_out.get("error_code"),
+                "trace_meta": trace_meta,
+                "evidence_paths": payload_out.get("evidence_paths", []),
+            },
+        )
+
+        finished_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        with server.op_jobs_lock:
+            job = server.op_jobs.get(job_id)
+            if isinstance(job, dict) and str(job.get("job_status") or "") != "CANCELLED":
+                job["job_status"] = "DONE"
+                job["finished_at"] = finished_iso
+                job["result"] = payload_out
+
+    threading.Thread(target=_job_thread, daemon=True).start()
+
+    return (
+        200,
+        {
+            "status": "RUNNING",
+            "job_id": job_id,
+            "job_status": "RUNNING",
+            "poll_url": f"/api/op_job?job_id={job_id}",
+            "op": op,
+            "trace_meta": trace_meta,
+            "evidence_paths": [],
+            "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "OP_ASYNC=true"],
+        },
+    )
 
 
 def _write_status_report(ws_root: Path, port: int) -> None:

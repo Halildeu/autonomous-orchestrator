@@ -7,6 +7,10 @@
   "required": ["version", "thresholds", "signals", "classification", "gap_rules"],
   "properties": {
     "version": { "type": "string", "enum": ["v1"] },
+    "heartbeat_expectation_mode": {
+      "type": "string",
+      "enum": ["ALWAYS", "ACTIVE_HOURS", "NONE"]
+    },
     "thresholds": {
       "type": "object",
       "additionalProperties": false,

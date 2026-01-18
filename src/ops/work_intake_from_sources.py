@@ -26,6 +26,7 @@ from src.ops.work_intake_helpers import (
     _normalize_evidence,
     _suggested_extensions,
 )
+from src.ops.work_item_state import FINAL_STATES, load_state_map
 from src.ops.work_intake_autopilot import (
     _autopilot_labels,
     _load_autopilot_policy,
@@ -984,6 +985,25 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
             if item.get("intake_id") in applied_ids and item.get("status") != "DONE":
                 item["status"] = "DONE"
                 item["closed_reason"] = "EXEC_APPLIED"
+
+    # Persistent close/applied/noop state (explicit close) should override transient intake status.
+    # This is fail-closed: only FINAL_STATES affect visibility.
+    state_map = load_state_map(workspace_root)
+    if state_map:
+        for item in items:
+            intake_id = str(item.get("intake_id") or "")
+            if not intake_id:
+                continue
+            state_entry = state_map.get(intake_id)
+            if not isinstance(state_entry, dict):
+                continue
+            state = str(state_entry.get("state") or "")
+            if state not in FINAL_STATES:
+                continue
+            if item.get("status") != "DONE":
+                item["status"] = "DONE"
+            if not item.get("closed_reason"):
+                item["closed_reason"] = f"WORK_ITEM_STATE_{state}"
 
     bucket_order = policy.get("bucket_order") if isinstance(policy.get("bucket_order"), list) else []
     if not bucket_order:

@@ -28,6 +28,8 @@ from src.ops.commands.maintenance_cmds_doer import cmd_doer_actionability, cmd_w
 from src.ops.commands.maintenance_cmds_planner import register_planner_and_intake_subcommands
 from src.ops.commands.intake_link_report_cmds import cmd_intake_link_report
 from src.ops.commands.maintenance_policy_cmds import cmd_evidence_export, cmd_policy_check, cmd_reaper
+from src.ops.commands.work_intake_claim_cmds import cmd_work_intake_claim
+from src.ops.commands.work_intake_close_cmds import cmd_work_intake_close
 from src.ops.commands.work_intake_select_cmds import cmd_work_intake_select
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
@@ -1083,6 +1085,8 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
         cmd_doer_loop_lock_status=cmd_doer_loop_lock_status,
         cmd_doer_loop_lock_clear=cmd_doer_loop_lock_clear,
         cmd_work_intake_select=cmd_work_intake_select,
+        cmd_work_intake_claim=cmd_work_intake_claim,
+        cmd_work_intake_close=cmd_work_intake_close,
         cmd_work_intake_autoselect=cmd_work_intake_autoselect,
         cmd_doer_actionability=cmd_doer_actionability,
     )

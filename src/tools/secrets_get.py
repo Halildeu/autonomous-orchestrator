@@ -73,6 +73,17 @@ def run(*, secret_id: str, workspace: str | None = None) -> dict[str, Any]:
     )
 
     value = provider.get(secret_id)
+    if not value and provider_used == "env":
+        # Deterministic fallback: allow dotenv-backed secrets (workspace .env or repo .env),
+        # without ever writing secret values to disk or stdout.
+        try:
+            from src.prj_kernel_api.dotenv_loader import resolve_env_value
+
+            present, dotenv_value = resolve_env_value(secret_id, str(ws), env_mode="dotenv")
+            if present and isinstance(dotenv_value, str) and dotenv_value.strip():
+                value = dotenv_value.strip()
+        except Exception:
+            value = value or None
     if not value:
         return {
             "tool": "secrets_get",

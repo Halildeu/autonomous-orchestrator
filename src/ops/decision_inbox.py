@@ -913,10 +913,13 @@ def run_decision_apply(*, workspace_root: Path, decision_id: str, option_id: str
     selection_written = ""
     policy_override_written = ""
     if decision_kind == "AUTO_APPLY_ALLOW" and option_id and option_id not in {"A", "KEEP"}:
+        selection_intake_id = source_intake_id
+        if selection_intake_id.startswith("SEED:") and selection_intake_id[5:].startswith("INTAKE-"):
+            selection_intake_id = selection_intake_id[5:]
         selection_written = str(selection_path)
         _update_selection_file(
             workspace_root=workspace_root,
-            intake_id=source_intake_id,
+            intake_id=selection_intake_id,
             selection_path=workspace_root / selection_path,
         )
     if decision_kind == "NETWORK_ENABLE" and option_id and option_id not in {"A", "KEEP"}:
