@@ -752,13 +752,16 @@ class CockpitHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"status": "FAIL", "error": "OVERRIDE_NOT_ALLOWED"})
                 return
             path = _override_path(ws_root, name)
-            if path is None or not path.exists():
-                self._send_json(404, {"status": "FAIL", "error": "OVERRIDE_NOT_FOUND"})
+            if path is None:
+                self._send_json(400, {"status": "FAIL", "error": "OVERRIDE_PATH_INVALID"})
                 return
             payload = self._wrap_file(path)
             payload["name"] = name
             schema_path = _schema_path_for_override(repo_root, name)
             payload["schema_path"] = str(schema_path) if schema_path else ""
+            if not payload.get("exists") and name == COCKPIT_LITE_OVERRIDE_NAME:
+                payload["data"] = _cockpit_lite_override_template()
+                payload["json_valid"] = True
             self._send_json(200, payload)
             return
 
@@ -965,8 +968,10 @@ class CockpitHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/op":
             op = str(payload.get("op") or "").strip()
-            if op in ASYNC_OPS:
-                code, out = _start_op_job(self.server, repo_root, ws_root, payload, op=op)
+            op_cfg = _effective_op_job_config(ws_root)
+            async_ops = op_cfg["async_ops"]
+            if op in async_ops:
+                code, out = _start_op_job(self.server, repo_root, ws_root, payload, op=op, async_ops=async_ops)
                 self._send_json(code, out)
                 return
             code, out = _run_op(repo_root, ws_root, payload)
@@ -1253,11 +1258,51 @@ def _new_op_job_id() -> str:
     return "OPJOB-" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
 
 
-ASYNC_OPS = {
+DEFAULT_ASYNC_OPS = {
     "system-status",
     "ui-snapshot-bundle",
     "auto-loop",
 }
+
+
+def _cockpit_lite_override_template() -> dict[str, Any]:
+    ops = sorted(DEFAULT_ASYNC_OPS)
+    return {
+        "version": "v1",
+        "async_ops": ops,
+        "notes": [
+            "controls which ops are executed as async jobs in Cockpit Lite",
+            "unknown ops are ignored and defaults apply if nothing matches",
+        ],
+    }
+
+
+def _effective_op_job_config(ws_root: Path) -> dict[str, set[str]]:
+    allowed_ops = set(OP_ARG_MAP.keys())
+    default_async = set(DEFAULT_ASYNC_OPS) & allowed_ops
+
+    path = _override_path(ws_root, COCKPIT_LITE_OVERRIDE_NAME)
+    override: dict[str, Any] = {}
+    if path and path.exists():
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                override = raw
+        except Exception:
+            override = {}
+
+    async_raw = override.get("async_ops")
+    if isinstance(async_raw, list):
+        filtered = {
+            str(item).strip()
+            for item in async_raw
+            if isinstance(item, str) and str(item).strip() and str(item).strip() in allowed_ops
+        }
+        async_ops = filtered or (set() if len(async_raw) == 0 else set(default_async))
+    else:
+        async_ops = set(default_async)
+
+    return {"async_ops": async_ops}
 
 
 def _op_job_timeout_seconds(op: str, merged_args: dict[str, Any]) -> int:
@@ -1272,13 +1317,19 @@ def _op_job_timeout_seconds(op: str, merged_args: dict[str, Any]) -> int:
 
 
 def _start_op_job(
-    server: CockpitServer, repo_root: Path, ws_root: Path, payload: dict[str, Any], *, op: str
+    server: CockpitServer,
+    repo_root: Path,
+    ws_root: Path,
+    payload: dict[str, Any],
+    *,
+    op: str,
+    async_ops: set[str],
 ) -> tuple[int, dict[str, Any]]:
     if payload.get("confirm") is not True:
         return 400, {"status": "FAIL", "error": "CONFIRM_REQUIRED"}
 
     op = str(op or "").strip()
-    if op not in ASYNC_OPS:
+    if op not in async_ops:
         return 400, {"status": "FAIL", "error": "OP_NOT_ASYNC"}
     if op not in OP_ARG_MAP:
         return 400, {"status": "FAIL", "error": "OP_NOT_ALLOWED"}
@@ -1303,6 +1354,50 @@ def _start_op_job(
         merged["budget_seconds"] = str(merged.get("budget_seconds") or "120")
 
     trace_meta = _trace_meta_for_op(op, merged, ws_root)
+
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    with server.op_jobs_lock:
+        for existing_id, existing in server.op_jobs.items():
+            if not isinstance(existing, dict):
+                continue
+            if str(existing.get("op") or "") != op:
+                continue
+            existing_status = str(existing.get("job_status") or "")
+            if existing_status not in {"PENDING", "RUNNING"}:
+                continue
+            existing_trace = existing.get("trace_meta") if isinstance(existing.get("trace_meta"), dict) else {}
+            return (
+                200,
+                {
+                    "status": existing_status,
+                    "job_id": existing_id,
+                    "job_status": existing_status,
+                    "poll_url": f"/api/op_job?job_id={existing_id}",
+                    "op": op,
+                    "trace_meta": existing_trace,
+                    "evidence_paths": [],
+                    "notes": [
+                        "PROGRAM_LED=true",
+                        "NO_NETWORK=true",
+                        "OP_ASYNC=true",
+                        "SINGLEFLIGHT=true",
+                        "JOB_REUSED=true",
+                    ],
+                },
+            )
+
+        job_id = _new_op_job_id()
+        server.op_jobs[job_id] = {
+            "job_id": job_id,
+            "job_status": "PENDING",
+            "op": op,
+            "trace_meta": trace_meta,
+            "created_at": now_iso,
+            "started_at": "",
+            "finished_at": "",
+            "result": None,
+        }
+
     _chat_append(
         ws_root,
         {
@@ -1322,20 +1417,6 @@ def _start_op_job(
             if not flag:
                 continue
             cmd.extend([flag, str(merged[key])])
-
-    job_id = _new_op_job_id()
-    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    with server.op_jobs_lock:
-        server.op_jobs[job_id] = {
-            "job_id": job_id,
-            "job_status": "PENDING",
-            "op": op,
-            "trace_meta": trace_meta,
-            "created_at": now_iso,
-            "started_at": "",
-            "finished_at": "",
-            "result": None,
-        }
 
     def _job_thread() -> None:
         start_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

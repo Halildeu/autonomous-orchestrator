@@ -9,6 +9,7 @@ const ADMIN_REQUIRED_ACTIONS = new Set(["run-card-set", "extension-toggle", "set
 const ADMIN_REQUIRED_ELEMENT_IDS = new Set(["settings-save", "run-card-save"]);
 const LANG_STORAGE_KEY = "cockpit_lang.v1";
 const SUPPORTED_LANGS = ["en", "tr"];
+const OP_JOB_POLLING = new Set();
 
 const I18N = {
   en: {
@@ -163,7 +164,9 @@ const I18N = {
     "job.poll_failed": "Job poll failed: {error}",
     "job.poll_timeout": "Job polling timed out: {id}",
     "job.poll_timeout_short": "Job polling timed out: {id}",
+    "job.started": "{op}: started (job {id})",
     "job.done": "{op}: {status}",
+    "job.already_running": "{op}: already running (tracking {id})",
     "toast.refresh_failed": "Refresh failed ({name}): {error}",
     "toast.select_intake_first": "Select an intake item first.",
     "toast.notes_composer_unavailable": "Notes composer not available.",
@@ -453,7 +456,9 @@ const I18N = {
     "job.poll_failed": "İş takibi başarısız: {error}",
     "job.poll_timeout": "İş takibi zaman aşımına uğradı: {id}",
     "job.poll_timeout_short": "İş takibi zaman aşımı: {id}",
+    "job.started": "{op}: başlatıldı (iş {id})",
     "job.done": "{op}: {status}",
+    "job.already_running": "{op}: zaten çalışıyor (takip: {id})",
     "toast.refresh_failed": "Yenileme başarısız ({name}): {error}",
     "toast.select_intake_first": "Önce bir iş alımı öğesi seçin.",
     "toast.notes_composer_unavailable": "Not editörü mevcut değil.",
@@ -667,7 +672,7 @@ const endpoints = {
 };
 
 const state = {
-  lang: "en",
+  lang: "tr",
   ws: null,
   overview: null,
   northStar: null,
@@ -716,6 +721,7 @@ const state = {
   actionLog: [],
   sseConnected: false,
   actionPending: false,
+  opJobsInProgress: {},
   activeTab: "overview",
   didInitialRefresh: false,
   tagSelectActiveIndex: {
@@ -4445,9 +4451,38 @@ function confirmAction(op, args) {
   });
 }
 
+function applyOpButtonsDisabledState() {
+  $$("[data-op]").forEach((btn) => {
+    const opName = String(btn?.dataset?.op || "").trim();
+    const locked = Boolean(opName && state.opJobsInProgress && state.opJobsInProgress[opName]);
+    btn.disabled = Boolean(state.actionPending) || locked;
+    if (locked) btn.setAttribute("aria-busy", "true");
+    else btn.removeAttribute("aria-busy");
+  });
+}
+
+function markOpJobInProgress(opName, jobId) {
+  const op = String(opName || "").trim();
+  const id = String(jobId || "").trim();
+  if (!op || !id) return;
+  if (!state.opJobsInProgress || typeof state.opJobsInProgress !== "object") state.opJobsInProgress = {};
+  state.opJobsInProgress[op] = id;
+  applyOpButtonsDisabledState();
+}
+
+function clearOpJobInProgress(opName, jobId = "") {
+  const op = String(opName || "").trim();
+  if (!op) return;
+  if (!state.opJobsInProgress || typeof state.opJobsInProgress !== "object") state.opJobsInProgress = {};
+  const expected = String(jobId || "").trim();
+  if (expected && state.opJobsInProgress[op] && state.opJobsInProgress[op] !== expected) return;
+  delete state.opJobsInProgress[op];
+  applyOpButtonsDisabledState();
+}
+
 function setActionDisabled(disabled) {
   state.actionPending = disabled;
-  $$('[data-op]').forEach((btn) => (btn.disabled = disabled));
+  applyOpButtonsDisabledState();
   [
     "lock-refresh",
     "extensions-refresh",
@@ -4479,22 +4514,46 @@ function isOpJobInProgress(payload) {
   return jobStatus === "RUNNING" || jobStatus === "PENDING";
 }
 
-function pollOpJob(jobId, pollUrl = "") {
+function pollOpJob(jobId, pollUrl = "", opHint = "") {
   const id = String(jobId || "").trim();
   if (!id) return;
+  if (OP_JOB_POLLING.has(id)) return;
+  OP_JOB_POLLING.add(id);
   const url = String(pollUrl || "").trim() || `/api/op_job?job_id=${encodeURIComponent(id)}`;
   const startedAt = Date.now();
   const maxMs = 10 * 60 * 1000;
+  let opName = String(opHint || "").trim();
+  if (opName) markOpJobInProgress(opName, id);
+  let errors = 0;
+
+  const cleanup = () => {
+    OP_JOB_POLLING.delete(id);
+    if (opName) clearOpJobInProgress(opName, id);
+  };
 
   const tick = async () => {
     let data = null;
     try {
       data = await fetchJson(url);
+      errors = 0;
     } catch (err) {
       showToast(t("job.poll_failed", { error: formatError(err) }), "warn");
+      errors += 1;
+      if (Date.now() - startedAt > maxMs || errors >= 3) {
+        cleanup();
+        return;
+      }
+      setTimeout(tick, 1200);
       return;
     }
-    if (!data) return;
+    if (!data) {
+      cleanup();
+      return;
+    }
+    if (!opName && data.op) {
+      opName = String(data.op || "").trim();
+      if (opName) markOpJobInProgress(opName, id);
+    }
     state.lastAction = data;
     renderActionResponse();
     logAction(data);
@@ -4504,6 +4563,7 @@ function pollOpJob(jobId, pollUrl = "") {
     if (inProgress) {
       if (Date.now() - startedAt > maxMs) {
         showToast(t("job.poll_timeout", { id }), "warn");
+        cleanup();
         return;
       }
       setTimeout(tick, 650);
@@ -4513,6 +4573,7 @@ function pollOpJob(jobId, pollUrl = "") {
     const kind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op: data.op || "op", status: status || "DONE" }), kind);
     scheduleRefresh("active_tab", refreshActiveTab, 140);
+    cleanup();
   };
 
   setTimeout(tick, 400);
@@ -4521,6 +4582,15 @@ function pollOpJob(jobId, pollUrl = "") {
 async function postOp(op, args = {}) {
   if (state.actionPending) return null;
   const opName = String(op || "").trim();
+  const existingJobId =
+    opName && state.opJobsInProgress && typeof state.opJobsInProgress === "object"
+      ? String(state.opJobsInProgress[opName] || "").trim()
+      : "";
+  if (existingJobId) {
+    showToast(t("job.already_running", { op: opName, id: existingJobId }), "warn");
+    pollOpJob(existingJobId, "", opName);
+    return null;
+  }
   if (ADMIN_REQUIRED_OPS.has(opName) && !isAdminModeEnabled()) {
     showToast(t("admin.required_op"), "warn");
     return null;
@@ -4539,19 +4609,28 @@ async function postOp(op, args = {}) {
     state.lastAction = data;
     renderActionResponse();
     logAction(data);
-    const status = String(data?.status || "UNKNOWN").toUpperCase();
-    const toastKind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : status.includes("RUN") || status.includes("PEND") ? "warn" : "ok";
-    showToast(t("job.done", { op, status: data.status || "UNKNOWN" }), toastKind);
-    if (op === "planner-chat-send" && data.status !== "FAIL") {
-      clearNoteComposer();
-    }
     if (!res.ok) {
       showToast(t("toast.op_failed", { error: data.error || data.status || "UNKNOWN" }), "fail");
       return data;
     }
     if (isOpJobInProgress(data)) {
-      pollOpJob(data.job_id, data.poll_url || "");
+      const jobId = String(data.job_id || "").trim();
+      const effectiveOp = String(data.op || opName || op).trim() || "op";
+      const notes = Array.isArray(data.notes) ? data.notes.map((x) => String(x)) : [];
+      const reused = notes.some((n) => n.includes("JOB_REUSED=true"));
+      showToast(
+        t(reused ? "job.already_running" : "job.started", { op: effectiveOp, id: jobId || "-" }),
+        "warn"
+      );
+      if (jobId) markOpJobInProgress(effectiveOp, jobId);
+      pollOpJob(jobId, data.poll_url || "", effectiveOp);
       return data;
+    }
+    const status = String(data?.status || "UNKNOWN").toUpperCase();
+    const toastKind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
+    showToast(t("job.done", { op, status: data.status || "UNKNOWN" }), toastKind);
+    if (op === "planner-chat-send" && data.status !== "FAIL") {
+      clearNoteComposer();
     }
     await refreshAll();
   } finally {
@@ -5244,7 +5323,7 @@ function setupStream() {
 
 applySidebarCollapsedState(readSidebarCollapsedFromStorage(), { persist: false });
 state.claimOwnerTag = getOrCreateClaimOwnerTag();
-state.lang = readLangFromStorage(LANG_STORAGE_KEY, "en");
+state.lang = readLangFromStorage(LANG_STORAGE_KEY, "tr");
 state.adminModeEnabled = readBoolFromStorage("cockpit_admin_mode.v1", false);
 state.lockClaimsLimit = readIntFromStorage("cockpit_lock_claims_limit.v1", 20, [10, 20, 50]);
 state.lockClaimsGroupByOwner = readBoolFromStorage("cockpit_lock_claims_group_owner.v1", false);
