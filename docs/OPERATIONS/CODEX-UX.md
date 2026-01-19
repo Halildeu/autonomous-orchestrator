@@ -65,7 +65,7 @@ Agent:
 
 ## AUTOPILOT CHAT formatı (always-on)
 
-Agent her yanıtında aşağıdaki başlıkları **sırasıyla** üretir:
+Ops/kanıt/closeout yürütülen görevlerde agent aşağıdaki kanıt odaklı başlıkları **sırasıyla** üretir:
 
 SSOT: `formats/format-autopilot-chat.v1.json` (`FORMAT-AUTOPILOT-CHAT` / `v1`).
 
@@ -78,6 +78,20 @@ SSOT: `formats/format-autopilot-chat.v1.json` (`FORMAT-AUTOPILOT-CHAT` / `v1`).
 Not:
 - Kullanıcıya shell komutu “kopyala‑yapıştır” olarak verilmez.
 - Agent, komutları kendi içinde çalıştırır.
+
+## Chat variants (inner, intent-based)
+
+İstişare konuşmalarında (tasarım/niyet netleştirme) agent, AUTOPILOT CHAT dış kabuğunu zorunlu tutmak yerine niyet/işlev odaklı “chat variant” başlıklarını kullanır.
+Ops/kanıt gereken akışlarda ise AUTOPILOT CHAT kanıt formatı tercih edilir (EVIDENCE yolları görünür olmalı).
+
+SSOT: `docs/OPERATIONS/CHAT-VARIANTS.v1.json`
+
+Not:
+- Agent mesajı, seçilen varyantı en başta tek satır bir prefix ile gösterir: `**[İSTİŞARE]**`, `**[PLAN]**`, `**[UYGULAMA]**`, `**[DEBUG]**`, `**[UX]**`.
+
+Kısa amaç:
+- İstişare konuşmalarında “RESULT/ACTIONS” gibi başlıkların “iş bitti” hissi vermesini önleyip, karar ve riskleri daha net gösterir.
+- Apply/Debug/UX akışlarında farklı iç yapıların tutarlı şekilde tekrar kullanılmasını sağlar.
 
 ## Pause/Resume davranışı
 

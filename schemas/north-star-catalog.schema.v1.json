@@ -23,6 +23,10 @@
         "id": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
         "source": { "type": "string", "minLength": 1 },
+        "theme_id": { "type": "string" },
+        "theme_title_tr": { "type": "string" },
+        "subtheme_id": { "type": "string" },
+        "subtheme_title_tr": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } },
         "summary": { "type": "string" },
         "evidence_expectations": { "type": "array", "items": { "type": "string" } },
@@ -31,4 +35,3 @@
     }
   }
 }
-

@@ -26,7 +26,11 @@
         "evidence",
         "topic:gozlemlenebilirlik_izleme_olcme"
       ],
-      "title": "Kanıt-Önce (Evidence-first) artefact üretimi"
+      "title": "Kanıt-Önce (Evidence-first) artefact üretimi",
+      "theme_id": "evidence",
+      "theme_title_tr": "Kanıt & İz",
+      "subtheme_id": "bp-ops-001",
+      "subtheme_title_tr": "Kanıt-Önce (Evidence-first) artefact üretimi"
     },
     {
       "evidence_expectations": [
@@ -52,7 +56,11 @@
         "determinism",
         "topic:deterministiklik_tekrarlanabilirlik"
       ],
-      "title": "Deterministik çıktı üretimi (reproducibility)"
+      "title": "Deterministik çıktı üretimi (reproducibility)",
+      "theme_id": "determinism",
+      "theme_title_tr": "Deterministiklik",
+      "subtheme_id": "bp-ops-002",
+      "subtheme_title_tr": "Deterministik çıktı üretimi (reproducibility)"
     },
     {
       "evidence_expectations": [
@@ -77,9 +85,13 @@
         "domain_ops",
         "policy",
         "security",
-        "topic:uygunluk_risk_guvence_kontrol"
+        "topic:guvenlik"
       ],
-      "title": "Varsayılan: Ağ kapalı (no-network default)"
+      "title": "Varsayılan: Ağ kapalı (no-network default)",
+      "theme_id": "security",
+      "theme_title_tr": "Güvenlik",
+      "subtheme_id": "bp-ops-003",
+      "subtheme_title_tr": "Varsayılan: Ağ kapalı (no-network default)"
     },
     {
       "evidence_expectations": [
@@ -104,7 +116,11 @@
         "domain_ops",
         "compliance"
       ],
-      "title": "CORE_UNLOCK uyum kanıtı (compliance evidence)"
+      "title": "CORE_UNLOCK uyum kanıtı (compliance evidence)",
+      "theme_id": "governance",
+      "theme_title_tr": "Yönetişim",
+      "subtheme_id": "bp-ops-004",
+      "subtheme_title_tr": "CORE_UNLOCK uyum kanıtı (compliance evidence)"
     },
     {
       "evidence_expectations": [
@@ -131,7 +147,11 @@
         "jobify",
         "topic:surec_etkinligi_olgunluk"
       ],
-      "title": "Uzun operasyonları joblaştır (start + poll)"
+      "title": "Uzun operasyonları joblaştır (start + poll)",
+      "theme_id": "ops_execution",
+      "theme_title_tr": "Operasyon yürütümü",
+      "subtheme_id": "bp-ops-005",
+      "subtheme_title_tr": "Uzun operasyonları joblaştır (start + poll)"
     },
     {
       "evidence_expectations": [
@@ -158,7 +178,11 @@
         "triage",
         "topic:surec_etkinligi_olgunluk"
       ],
-      "title": "Triyajda explicit job_id kullan (latest yerine)"
+      "title": "Triyajda explicit job_id kullan (latest yerine)",
+      "theme_id": "ops_execution",
+      "theme_title_tr": "Operasyon yürütümü",
+      "subtheme_id": "bp-ops-006",
+      "subtheme_title_tr": "Triyajda explicit job_id kullan (latest yerine)"
     },
     {
       "evidence_expectations": [
@@ -185,7 +209,11 @@
         "gates",
         "topic:uygunluk_risk_guvence_kontrol"
       ],
-      "title": "Policy odaklı gate’ler (policy-driven)"
+      "title": "Policy odaklı gate’ler (policy-driven)",
+      "theme_id": "governance",
+      "theme_title_tr": "Yönetişim",
+      "subtheme_id": "bp-ops-007",
+      "subtheme_title_tr": "Policy odaklı gate’ler (policy-driven)"
     },
     {
       "evidence_expectations": [
@@ -212,7 +240,11 @@
         "stale",
         "topic:surec_etkinligi_olgunluk"
       ],
-      "title": "Work intake timestamp zorunluluğu (created/updated)"
+      "title": "Work intake timestamp zorunluluğu (created/updated)",
+      "theme_id": "intake",
+      "theme_title_tr": "Intake",
+      "subtheme_id": "bp-ops-008",
+      "subtheme_title_tr": "Work intake timestamp zorunluluğu (created/updated)"
     },
     {
       "evidence_expectations": [
@@ -239,7 +271,11 @@
         "pdca",
         "topic:surec_etkinligi_olgunluk"
       ],
-      "title": "GAP remediation pack’leri (plan-only → apply → re-eval)"
+      "title": "GAP remediation pack’leri (plan-only → apply → re-eval)",
+      "theme_id": "improvement",
+      "theme_title_tr": "Sürekli iyileştirme",
+      "subtheme_id": "bp-ops-009",
+      "subtheme_title_tr": "GAP remediation pack’leri (plan-only → apply → re-eval)"
     },
     {
       "evidence_expectations": [
@@ -266,7 +302,43 @@
         "safety",
         "topic:deterministiklik_tekrarlanabilirlik"
       ],
-      "title": "Atomic write (tmp + replace) ile güvenli yazım"
+      "title": "Atomic write (tmp + replace) ile güvenli yazım",
+      "theme_id": "determinism",
+      "theme_title_tr": "Deterministiklik",
+      "subtheme_id": "bp-ops-010",
+      "subtheme_title_tr": "Atomic write (tmp + replace) ile güvenli yazım"
+    },
+    {
+      "evidence_expectations": [
+        "Secrets redaction: stdout/stderr snippet ve kanıt dosyalarında token/anahtar görünmez.",
+        "secrets_logged=false sözleşmesi policy-check veya contract test ile enforce edilir.",
+        "PII/mahrem veri rapor çıktılarında maskelenir veya hiç yer almaz (data minimization).",
+        "Redaction kuralları deterministic (aynı input → aynı redacted output).",
+        "İhlal durumunda fail-closed: iş akışı durur veya report-only moduna düşer."
+      ],
+      "id": "bp-ops-011",
+      "remediation": [
+        "Secrets/PII redaction helper’larını tek yerde topla ve stdout/stderr snippet üretiminde zorunlu kıl.",
+        "Policy: secrets_logged=false + redaction enforce kuralını ekle (yoksa).",
+        "Contract test: bilinen bir “secret marker” içeren input → kanıtta redakte edilmiş olmalı.",
+        "Cockpit’te evidence_pointers linkleri ile kullanıcıya güvenli kanıt navigasyonu sağla.",
+        "Dokümantasyon: redaction kapsamı + istisnalar (ör. public artefacts) SSOT’ta net olsun."
+      ],
+      "source": "seed",
+      "summary": "Gizlilik: secrets/PII redaksiyonu ve veri minimizasyonu ile rapor/kanıt çıktılarında mahrem bilgilerin sızmasını engeller (fail-closed).",
+      "tags": [
+        "core",
+        "domain_ops",
+        "privacy",
+        "secrets",
+        "pii",
+        "topic:gizlilik"
+      ],
+      "title": "Gizlilik: Secrets/PII redaksiyonu (privacy by default)",
+      "theme_id": "privacy",
+      "theme_title_tr": "Gizlilik",
+      "subtheme_id": "bp-ops-011",
+      "subtheme_title_tr": "Gizlilik: Secrets/PII redaksiyonu (privacy by default)"
     }
   ],
   "version": "v1",

@@ -20,7 +20,11 @@
         "core",
         "topic:ai_otomasyon"
       ],
-      "title": "Yapay zekâ ile yapılabilecekler / otomasyon potansiyeli"
+      "title": "Yapay zekâ ile yapılabilecekler / otomasyon potansiyeli",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "ai_otomasyon",
+      "subtheme_title_tr": "Yapay zekâ ile yapılabilecekler / otomasyon potansiyeli"
     },
     {
       "evidence_expectations": [
@@ -43,7 +47,11 @@
         "core",
         "topic:baglam_uyum"
       ],
-      "title": "Bağlam yönetimi ve uyum (context alignment)"
+      "title": "Bağlam yönetimi ve uyum (context alignment)",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "baglam_uyum",
+      "subtheme_title_tr": "Bağlam yönetimi ve uyum (context alignment)"
     },
     {
       "evidence_expectations": [
@@ -64,7 +72,11 @@
         "core",
         "topic:kalite_dogruluk"
       ],
-      "title": "Kalite / Doğruluk"
+      "title": "Kalite / Doğruluk",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "kalite_dogruluk",
+      "subtheme_title_tr": "Kalite / Doğruluk"
     },
     {
       "evidence_expectations": [
@@ -85,7 +97,11 @@
         "core",
         "topic:zaman_hiz_ceviklik"
       ],
-      "title": "Zaman / Hız / Çeviklik"
+      "title": "Zaman / Hız / Çeviklik",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "zaman_hiz_ceviklik",
+      "subtheme_title_tr": "Zaman / Hız / Çeviklik"
     },
     {
       "evidence_expectations": [
@@ -105,7 +121,11 @@
         "core",
         "topic:maliyet_verimlilik_kaynak"
       ],
-      "title": "Maliyet / Verimlilik / Kaynak kullanımı"
+      "title": "Maliyet / Verimlilik / Kaynak kullanımı",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "maliyet_verimlilik_kaynak",
+      "subtheme_title_tr": "Maliyet / Verimlilik / Kaynak kullanımı"
     },
     {
       "evidence_expectations": [
@@ -128,7 +148,11 @@
         "core",
         "topic:uygunluk_risk_guvence_kontrol"
       ],
-      "title": "Uygunluk / Risk / Güvence / Kontrol"
+      "title": "Uygunluk / Risk / Güvence / Kontrol",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "uygunluk_risk_guvence_kontrol",
+      "subtheme_title_tr": "Uygunluk / Risk / Güvence / Kontrol"
     },
     {
       "evidence_expectations": [
@@ -148,7 +172,11 @@
         "core",
         "topic:surec_etkinligi_olgunluk"
       ],
-      "title": "Süreç etkinliği / olgunluk"
+      "title": "Süreç etkinliği / olgunluk",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "surec_etkinligi_olgunluk",
+      "subtheme_title_tr": "Süreç etkinliği / olgunluk"
     },
     {
       "evidence_expectations": [
@@ -168,7 +196,11 @@
         "core",
         "topic:entegrasyon_birlikte_calisabilirlik"
       ],
-      "title": "Entegrasyon ve birlikte çalışabilirlik"
+      "title": "Entegrasyon ve birlikte çalışabilirlik",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "entegrasyon_birlikte_calisabilirlik",
+      "subtheme_title_tr": "Entegrasyon ve birlikte çalışabilirlik"
     },
     {
       "evidence_expectations": [
@@ -188,7 +220,11 @@
         "core",
         "topic:paydas_memnuniyeti_deger"
       ],
-      "title": "Paydaş memnuniyeti / değer katkısı"
+      "title": "Paydaş memnuniyeti / değer katkısı",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "paydas_memnuniyeti_deger",
+      "subtheme_title_tr": "Paydaş memnuniyeti / değer katkısı"
     },
     {
       "evidence_expectations": [
@@ -211,7 +247,11 @@
         "core",
         "topic:surdurulebilirlik_esg_isg_etik"
       ],
-      "title": "Sürdürülebilirlik – Etik / ESG / İSG"
+      "title": "Sürdürülebilirlik – Etik / ESG / İSG",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "surdurulebilirlik_esg_isg_etik",
+      "subtheme_title_tr": "Sürdürülebilirlik – Etik / ESG / İSG"
     },
     {
       "evidence_expectations": [
@@ -231,7 +271,11 @@
         "core",
         "topic:sureklilik_dayaniklilik"
       ],
-      "title": "Süreklilik / dayanıklılık"
+      "title": "Süreklilik / dayanıklılık",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "sureklilik_dayaniklilik",
+      "subtheme_title_tr": "Süreklilik / dayanıklılık"
     },
     {
       "evidence_expectations": [
@@ -251,7 +295,11 @@
         "core",
         "topic:olceklenebilirlik"
       ],
-      "title": "Ölçeklenebilirlik"
+      "title": "Ölçeklenebilirlik",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "olceklenebilirlik",
+      "subtheme_title_tr": "Ölçeklenebilirlik"
     },
     {
       "evidence_expectations": [
@@ -271,7 +319,11 @@
         "core",
         "topic:deterministiklik_tekrarlanabilirlik"
       ],
-      "title": "Deterministiklik ve tekrarlanabilirlik"
+      "title": "Deterministiklik ve tekrarlanabilirlik",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "deterministiklik_tekrarlanabilirlik",
+      "subtheme_title_tr": "Deterministiklik ve tekrarlanabilirlik"
     },
     {
       "evidence_expectations": [
@@ -292,7 +344,61 @@
         "core",
         "topic:gozlemlenebilirlik_izleme_olcme"
       ],
-      "title": "Gözlemlenebilirlik (izleme/ölçme dahil)"
+      "title": "Gözlemlenebilirlik (izleme/ölçme dahil)",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "gozlemlenebilirlik_izleme_olcme",
+      "subtheme_title_tr": "Gözlemlenebilirlik (izleme/ölçme dahil)"
+    },
+    {
+      "evidence_expectations": [
+        "Varsayılan NO_NETWORK; network gerekiyorsa explicit policy/allowlist ile açılıyor.",
+        "Provider guardrails (LLM/provider policy) pin’li ve enforce ediliyor.",
+        "Açık allowlist + closeout kanıtı olmadan network açılmıyor.",
+        "Kanıt yollarında traversal engeli + allow_roots yaklaşımı var."
+      ],
+      "id": "trend-core-015",
+      "remediation": [
+        "Provider/policy guardrail’larını zorunlu kıl (provider policy pin + fail-closed).",
+        "Ağ erişimini “varsayılan kapalı” tut; gerekirse allowlist + closeout kanıtı ile aç.",
+        "Erişim sınırlarını contract test ile kilitle (fail-closed).",
+        "Kanıt yollarında traversal engeli + allow_roots yaklaşımı uygula."
+      ],
+      "source": "seed",
+      "summary": "Güvenlik: default-deny (ağ kapalı), provider guardrails ve path güvenliği ile riskli otomasyonları kontrol altına alır.",
+      "tags": [
+        "core",
+        "topic:guvenlik"
+      ],
+      "title": "Güvenlik",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "guvenlik",
+      "subtheme_title_tr": "Güvenlik"
+    },
+    {
+      "evidence_expectations": [
+        "Secrets redaction policy mevcut; log/evidence içinde token/anahtar yok.",
+        "PII/mahrem veri sınırları: hangi veri AI’ye asla gitmez net (policy + audit).",
+        "Raporlarda hassas veri yalnızca redakte edilmiş şekilde yer alıyor (secrets_logged=false)."
+      ],
+      "id": "trend-core-016",
+      "remediation": [
+        "Secrets redaction sözleşmesini contract test ile kilitle (fail-closed).",
+        "PII/veri sınıflandırma policy’lerini belirginleştir ve rapor çıktılarında enforce et.",
+        "Kullanıcıya sunulan kanıtlarda minimum veri ilkesi uygula (data minimization)."
+      ],
+      "source": "seed",
+      "summary": "Gizlilik: secrets/PII redaksiyonu ve veri sınıflandırması ile mahrem bilgilerin rapor/kanıt çıktılarında sızmasını engeller.",
+      "tags": [
+        "core",
+        "topic:gizlilik"
+      ],
+      "title": "Gizlilik",
+      "theme_id": "core_axes",
+      "theme_title_tr": "Çekirdek eksenler",
+      "subtheme_id": "gizlilik",
+      "subtheme_title_tr": "Gizlilik"
     },
     {
       "evidence_expectations": [
@@ -314,7 +420,11 @@
         "domain_management",
         "domain_software"
       ],
-      "title": "Bağlam uyumu puanlama"
+      "title": "Bağlam uyumu puanlama",
+      "theme_id": "context_trends",
+      "theme_title_tr": "Bağlam / drift trendleri",
+      "subtheme_id": "trend-ctx-001",
+      "subtheme_title_tr": "Bağlam uyumu puanlama"
     },
     {
       "evidence_expectations": [
@@ -336,7 +446,11 @@
         "domain_management",
         "domain_software"
       ],
-      "title": "Kontrat drift tespiti"
+      "title": "Kontrat drift tespiti",
+      "theme_id": "context_trends",
+      "theme_title_tr": "Bağlam / drift trendleri",
+      "subtheme_id": "trend-ctx-002",
+      "subtheme_title_tr": "Kontrat drift tespiti"
     },
     {
       "evidence_expectations": [
@@ -359,7 +473,11 @@
         "domain_management",
         "domain_software"
       ],
-      "title": "Kapsam sınırı regresyonu"
+      "title": "Kapsam sınırı regresyonu",
+      "theme_id": "context_trends",
+      "theme_title_tr": "Bağlam / drift trendleri",
+      "subtheme_id": "trend-ctx-003",
+      "subtheme_title_tr": "Kapsam sınırı regresyonu"
     },
     {
       "evidence_expectations": [
@@ -380,7 +498,11 @@
         "pipeline",
         "domain_software"
       ],
-      "title": "Asenkron operasyon boru hatları"
+      "title": "Asenkron operasyon boru hatları",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-001",
+      "subtheme_title_tr": "Asenkron operasyon boru hatları"
     },
     {
       "evidence_expectations": [
@@ -401,7 +523,11 @@
         "no_wait",
         "domain_software"
       ],
-      "title": "Tek poll, beklemesiz"
+      "title": "Tek poll, beklemesiz",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-002",
+      "subtheme_title_tr": "Tek poll, beklemesiz"
     },
     {
       "evidence_expectations": [
@@ -422,7 +548,11 @@
         "contract",
         "domain_software"
       ],
-      "title": "Kontrat testleri (pytest yok)"
+      "title": "Kontrat testleri (pytest yok)",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-003",
+      "subtheme_title_tr": "Kontrat testleri (pytest yok)"
     },
     {
       "evidence_expectations": [
@@ -443,7 +573,11 @@
         "offline",
         "domain_software"
       ],
-      "title": "Workspace içi seed'ler"
+      "title": "Workspace içi seed'ler",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-004",
+      "subtheme_title_tr": "Workspace içi seed'ler"
     },
     {
       "evidence_expectations": [
@@ -464,7 +598,11 @@
         "policy",
         "domain_management"
       ],
-      "title": "Politika ile lens kayıt defteri"
+      "title": "Politika ile lens kayıt defteri",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-005",
+      "subtheme_title_tr": "Politika ile lens kayıt defteri"
     },
     {
       "evidence_expectations": [
@@ -484,7 +622,11 @@
         "closeout",
         "domain_management"
       ],
-      "title": "Kanıt grafiği kapanışları"
+      "title": "Kanıt grafiği kapanışları",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-006",
+      "subtheme_title_tr": "Kanıt grafiği kapanışları"
     },
     {
       "evidence_expectations": [
@@ -504,7 +646,11 @@
         "classification",
         "domain_software"
       ],
-      "title": "Marker tabanlı sınıflandırma"
+      "title": "Marker tabanlı sınıflandırma",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-007",
+      "subtheme_title_tr": "Marker tabanlı sınıflandırma"
     },
     {
       "evidence_expectations": [
@@ -523,7 +669,11 @@
         "cockpit",
         "domain_management"
       ],
-      "title": "UI snapshot paketi"
+      "title": "UI snapshot paketi",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-008",
+      "subtheme_title_tr": "UI snapshot paketi"
     },
     {
       "evidence_expectations": [
@@ -543,7 +693,11 @@
         "jobify",
         "domain_software"
       ],
-      "title": "Doc-nav joblaştırma"
+      "title": "Doc-nav joblaştırma",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-009",
+      "subtheme_title_tr": "Doc-nav joblaştırma"
     },
     {
       "evidence_expectations": [
@@ -563,7 +717,11 @@
         "lens",
         "domain_software"
       ],
-      "title": "Entegrasyon tutarlılık lens hattı"
+      "title": "Entegrasyon tutarlılık lens hattı",
+      "theme_id": "ops_trends",
+      "theme_title_tr": "Operasyon trendleri",
+      "subtheme_id": "trend-ops-010",
+      "subtheme_title_tr": "Entegrasyon tutarlılık lens hattı"
     }
   ],
   "version": "v1",

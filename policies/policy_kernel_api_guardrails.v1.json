@@ -27,6 +27,7 @@
       "llm_providers_init",
       "llm_list_providers",
       "llm_call",
+      "llm_call_live",
       "llm_live_probe",
       "github_ops_check",
       "github_ops_job_start",

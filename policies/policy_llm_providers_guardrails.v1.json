@@ -17,19 +17,27 @@
     },
     "google": {
       "enabled": true,
-      "expected_env_keys": ["GOOGLE_API_KEY"],
+      "expected_env_keys": ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
       "allow_models": ["gemini-1.5-pro", "gemini-2.0-flash"],
       "default_model": "gemini-2.0-flash"
     },
     "openai": {
       "enabled": false,
       "expected_env_keys": ["OPENAI_API_KEY"],
-      "allow_models": ["gpt-5.2", "gpt-5.2-mini"]
+      "allow_models": ["gpt-4o-mini"],
+      "default_model": "gpt-4o-mini"
     },
     "qwen": {
       "enabled": false,
-      "expected_env_keys": ["QWEN_API_KEY"],
-      "allow_models": ["qwen2.5-72b-instruct"]
+      "expected_env_keys": ["DASHSCOPE_API_KEY", "QWEN_API_KEY"],
+      "allow_models": ["qwen-plus", "qwen2.5-72b-instruct"],
+      "default_model": "qwen-plus"
+    },
+    "xai": {
+      "enabled": false,
+      "expected_env_keys": ["XAI_API_KEY"],
+      "allow_models": ["grok-4-latest"],
+      "default_model": "grok-4-latest"
     }
   },
   "live_gate": {

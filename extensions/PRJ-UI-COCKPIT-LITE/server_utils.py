@@ -46,6 +46,8 @@ OP_DEFAULTS = {
     "decision-inbox-show": {"chat": "false"},
     "extension-registry": {},
     "extension-help": {},
+    "doer-loop-lock-status": {},
+    "doer-loop-lock-clear": {},
     "work-intake-check": {"mode": "strict", "chat": "false", "detail": "false"},
     "work-intake-claim": {"mode": "claim", "ttl_seconds": "3600", "owner_tag": "", "force": "false"},
     "work-intake-close": {"mode": "close", "reason": "", "owner_tag": "", "force": "false"},
@@ -65,6 +67,8 @@ OP_ARG_MAP = {
     "decision-inbox-show": {"chat": "--chat"},
     "extension-registry": {},
     "extension-help": {},
+    "doer-loop-lock-status": {},
+    "doer-loop-lock-clear": {},
     "work-intake-check": {"mode": "--mode", "detail": "--detail", "chat": "--chat"},
     "work-intake-claim": {
         "mode": "--mode",
@@ -88,6 +92,8 @@ OP_ARG_MAP = {
     "planner-notes-create": {"title": "--title", "body": "--body", "tags": "--tags", "links_json": "--links-json"},
     "planner-chat-send": {"thread": None, "title": None, "body": None, "tags": None, "links_json": None},
     "overrides-write": {"name": None, "json": None},
+    "inbox-draft-create": {},
+    "inbox-draft-batch-generate": {},
 }
 
 
@@ -614,6 +620,36 @@ def _parse_iso(ts: str | None) -> datetime | None:
         return None
 
 
+def _load_json_dict(path: Path) -> dict[str, Any]:
+    data, exists, valid = _read_json_file(path)
+    return data if exists and valid and isinstance(data, dict) else {}
+
+
+def _safe_preview(text: str, limit: int = 480) -> str:
+    collapsed = " ".join(str(text or "").split())
+    if len(collapsed) <= limit:
+        return collapsed
+    return collapsed[: max(0, limit - 1)] + "…"
+
+
+def _draft_templates(bucket: str, *, requires_core: bool) -> tuple[list[str], list[str]]:
+    from server_inbox_drafts import _draft_templates as _impl
+
+    return _impl(bucket, requires_core=requires_core)
+
+
+def _build_inbox_draft_v0_2(
+    ws_root: Path,
+    request_id: str,
+    *,
+    inbox_index: dict[str, Any] | None = None,
+    triage_index: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    from server_inbox_drafts import _build_inbox_draft_v0_2 as _impl
+
+    return _impl(ws_root, request_id, inbox_index=inbox_index, triage_index=triage_index)
+
+
 def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     if payload.get("confirm") is not True:
         return 400, {"status": "FAIL", "error": "CONFIRM_REQUIRED"}
@@ -627,6 +663,230 @@ def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[in
         args = {}
     if not isinstance(args, dict):
         return 400, {"status": "FAIL", "error": "ARGS_INVALID"}
+
+    if op == "inbox-draft-create":
+        request_id = str(args.get("request_id") or "").strip()
+        if not request_id or not request_id.startswith("REQ-") or len(request_id) > 80:
+            return 400, {"status": "FAIL", "error": "REQUEST_ID_INVALID"}
+
+        raw_mode = str(args.get("mode") or "").strip().lower()
+        raw_force = str(args.get("force") or "").strip().lower()
+        force = raw_mode in {"force", "overwrite", "regenerate"} or raw_force in {"1", "true", "yes"}
+        mode = "force" if force else "create_if_missing"
+
+        rel_out = f".cache/reports/inbox_drafts/{request_id}.v0.2.md"
+        out_path = ws_root / rel_out
+        existed = out_path.exists()
+
+        trace_args = {"request_id": request_id, "mode": mode}
+        trace_meta = _trace_meta_for_op(op, trace_args, ws_root)
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "OP_CALL",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "args": trace_args,
+                "trace_meta": trace_meta,
+                "evidence_paths": [],
+            },
+        )
+
+        if existed and not force:
+            payload_out = {
+                "status": "IDLE",
+                "op": op,
+                "trace_meta": trace_meta,
+                "draft_path": rel_out,
+                "evidence_paths": [rel_out],
+                "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true", "DRAFT_EXISTS=true"],
+            }
+            _chat_append(
+                ws_root,
+                {
+                    "version": "v1",
+                    "type": "RESULT",
+                    "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "op": op,
+                    "status": payload_out.get("status"),
+                    "trace_meta": trace_meta,
+                    "evidence_paths": payload_out.get("evidence_paths", []),
+                },
+            )
+            return 200, payload_out
+
+        inbox_index = _load_json_dict(ws_root / ".cache" / "index" / "input_inbox.v0.1.json")
+        triage_index = _load_json_dict(ws_root / ".cache" / "index" / "manual_request_triage.v0.1.json")
+        draft_path, content = _build_inbox_draft_v0_2(ws_root, request_id, inbox_index=inbox_index, triage_index=triage_index)
+        _atomic_write_text(ws_root / draft_path, content)
+
+        notes = ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true"]
+        if force:
+            notes.append("FORCE=true")
+        if existed:
+            notes.append("DRAFT_OVERWRITTEN=true")
+
+        payload_out = {
+            "status": "OK",
+            "op": op,
+            "trace_meta": trace_meta,
+            "draft_path": draft_path,
+            "evidence_paths": [draft_path],
+            "notes": notes,
+        }
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "RESULT",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "status": payload_out.get("status"),
+                "trace_meta": trace_meta,
+                "evidence_paths": payload_out.get("evidence_paths", []),
+            },
+        )
+        return 200, payload_out
+
+    if op == "inbox-draft-batch-generate":
+        raw_mode = str(args.get("mode") or "").strip().lower()
+        raw_force = str(args.get("force") or "").strip().lower()
+        force = raw_mode in {"force", "overwrite", "regenerate"} or raw_force in {"1", "true", "yes"}
+        mode = "force" if force else "create_if_missing"
+
+        try:
+            limit = int(str(args.get("limit") or "50"))
+        except Exception:
+            limit = 50
+        if limit < 1:
+            limit = 1
+        if limit > 200:
+            limit = 200
+
+        target_states = {"ROUTE_TO_ROADMAP", "ROUTE_TO_PROJECT", "CONVERT_TO_PROJECT"}
+        trace_args = {"mode": mode, "limit": str(limit), "states": ",".join(sorted(target_states))}
+        trace_meta = _trace_meta_for_op(op, trace_args, ws_root)
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "OP_CALL",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "args": trace_args,
+                "trace_meta": trace_meta,
+                "evidence_paths": [],
+            },
+        )
+
+        triage_index = _load_json_dict(ws_root / ".cache" / "index" / "manual_request_triage.v0.1.json")
+        inbox_index = _load_json_dict(ws_root / ".cache" / "index" / "input_inbox.v0.1.json")
+
+        request_ids: list[str] = []
+        for item in triage_index.get("items") if isinstance(triage_index.get("items"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            request_id = str(item.get("request_id") or "").strip()
+            if not request_id or not request_id.startswith("REQ-") or len(request_id) > 80:
+                continue
+            state_value = str(item.get("state") or "").strip().upper()
+            if state_value in target_states:
+                request_ids.append(request_id)
+
+        request_ids = sorted(set(request_ids))
+        candidates_total = len(request_ids)
+        truncated = False
+        if len(request_ids) > limit:
+            truncated = True
+            request_ids = request_ids[:limit]
+
+        created: list[dict[str, Any]] = []
+        skipped: list[dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
+
+        for req_id in request_ids:
+            try:
+                draft_path, content = _build_inbox_draft_v0_2(
+                    ws_root,
+                    req_id,
+                    inbox_index=inbox_index,
+                    triage_index=triage_index,
+                )
+                out_path = ws_root / draft_path
+                existed = out_path.exists()
+                if existed and not force:
+                    skipped.append({"request_id": req_id, "draft_path": draft_path, "reason": "exists"})
+                    continue
+                _atomic_write_text(out_path, content)
+                created.append({"request_id": req_id, "draft_path": draft_path, "overwritten": bool(existed)})
+            except Exception as exc:
+                errors.append({"request_id": req_id, "error": str(exc)})
+
+        status = "OK" if not errors else "WARN"
+        report_rel = ".cache/reports/inbox_drafts_batch_generate.v0.2.v1.json"
+        report_obj = {
+            "version": "v1",
+            "kind": "inbox_drafts_batch_generate",
+            "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "workspace_root": str(ws_root),
+            "status": status,
+            "mode": mode,
+            "force": bool(force),
+            "limit": int(limit),
+            "target_states": sorted(target_states),
+            "counts": {
+                "candidates_total": int(candidates_total),
+                "processed": int(len(request_ids)),
+                "created": int(len(created)),
+                "skipped": int(len(skipped)),
+                "errors": int(len(errors)),
+            },
+            "truncated": bool(truncated),
+            "created": created,
+            "skipped": skipped,
+            "errors": errors,
+            "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true"],
+        }
+        _atomic_write_text(ws_root / report_rel, json.dumps(report_obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+
+        evidence_paths = [report_rel] + [str(item.get("draft_path") or "") for item in created]
+        evidence_paths = [p for p in evidence_paths if p]
+        if len(evidence_paths) > 60:
+            evidence_paths = evidence_paths[:60]
+
+        notes = ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true"]
+        if force:
+            notes.append("FORCE=true")
+        if truncated:
+            notes.append("TRUNCATED=true")
+        if errors:
+            notes.append("HAS_ERRORS=true")
+
+        payload_out = {
+            "status": status,
+            "op": op,
+            "trace_meta": trace_meta,
+            "report_path": report_rel,
+            "created_count": len(created),
+            "skipped_count": len(skipped),
+            "errors_count": len(errors),
+            "evidence_paths": evidence_paths,
+            "notes": notes,
+        }
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "RESULT",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "status": payload_out.get("status"),
+                "trace_meta": trace_meta,
+                "evidence_paths": payload_out.get("evidence_paths", []),
+            },
+        )
+        return 200, payload_out
 
     if op == "overrides-write":
         name = str(args.get("name") or "").strip()
@@ -814,6 +1074,12 @@ def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[in
     return return_code, payload_out
 
 
+def _inbox_triage_apply_ai(ws_root: Path, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    from server_inbox_triage import _inbox_triage_apply_ai as _impl
+
+    return _impl(ws_root, payload)
+
+
 __all__ = [
     "SECRET_KEY_HINTS",
     "ALLOWED_EXTS",
@@ -876,5 +1142,6 @@ __all__ = [
     "_summarize_decisions",
     "_summarize_jobs",
     "_parse_iso",
+    "_inbox_triage_apply_ai",
     "_run_op",
 ]

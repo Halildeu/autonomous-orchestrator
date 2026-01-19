@@ -2,7 +2,7 @@
   "version": "v1",
   "live_enabled": false,
   "enable_env_key": "KERNEL_API_LLM_LIVE",
-  "allowed_providers": ["deepseek", "google"],
+  "allowed_providers": ["deepseek", "google", "openai", "qwen"],
   "max_calls_per_run": 2,
   "timeout_ms": 5000,
   "max_output_chars": 0

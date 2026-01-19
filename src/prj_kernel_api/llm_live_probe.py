@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ssl
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -88,6 +89,30 @@ def _preview_hash(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(stable.encode("utf-8")).hexdigest()
 
 
+def _resolve_tls_cafile() -> str | None:
+    try:
+        paths = ssl.get_default_verify_paths()
+        if isinstance(paths.cafile, str) and paths.cafile and Path(paths.cafile).exists():
+            return paths.cafile
+    except Exception:
+        pass
+    fallback = Path("/etc/ssl/cert.pem")
+    if fallback.exists():
+        return str(fallback)
+    return None
+
+
+def _build_tls_context(tls_cafile: str | None) -> ssl.SSLContext | None:
+    if not tls_cafile:
+        return None
+    try:
+        ctx = ssl.create_default_context(cafile=tls_cafile)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        return ctx
+    except Exception:
+        return None
+
+
 def run_live_probe(
     *,
     workspace_root: str,
@@ -134,6 +159,9 @@ def run_live_probe(
             "model": None,
             "http_status": None,
             "elapsed_ms": None,
+            "tls_cafile": None,
+            "error_type": None,
+            "error_detail": None,
         }
 
         guard = provider_settings(guardrails, provider_id)
@@ -177,9 +205,28 @@ def run_live_probe(
             skipped_count += 1
             continue
 
+        expected_env_keys = guard.get("expected_env_keys", [])
+        if not isinstance(expected_env_keys, list):
+            expected_env_keys = []
+        expected_env_keys = [str(x) for x in expected_env_keys if isinstance(x, str) and x.strip()]
         api_key_env = provider.get("api_key_env") if isinstance(provider.get("api_key_env"), str) else ""
-        api_key_present, api_key_value = resolve_env_value(api_key_env, workspace_root, env_mode=env_mode)
-        if not api_key_present or not api_key_value:
+        if not expected_env_keys and api_key_env:
+            expected_env_keys = [api_key_env]
+
+        api_key_value: str | None = None
+        api_key_used: str | None = None
+        for key_name in expected_env_keys:
+            api_key_present, candidate_value = resolve_env_value(key_name, workspace_root, env_mode=env_mode)
+            if api_key_present and candidate_value:
+                api_key_value = candidate_value
+                api_key_used = key_name
+                break
+
+        entry["api_key_env"] = api_key_env
+        entry["api_key_env_used"] = api_key_used
+        entry["expected_env_keys"] = expected_env_keys
+
+        if not api_key_value:
             entry["error_code"] = "API_KEY_MISSING"
             results.append(entry)
             skipped_count += 1
@@ -203,9 +250,13 @@ def run_live_probe(
         }
         req = request.Request(base_url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
 
+        tls_cafile = _resolve_tls_cafile()
+        tls_context = _build_tls_context(tls_cafile)
+        entry["tls_cafile"] = tls_cafile
+
         start = time.monotonic()
         try:
-            with request.urlopen(req, timeout=timeout_value / 1000.0) as resp:
+            with request.urlopen(req, timeout=timeout_value / 1000.0, context=tls_context) as resp:
                 entry["http_status"] = resp.status
                 if output_limit > 0:
                     resp.read(output_limit)
@@ -215,10 +266,14 @@ def run_live_probe(
             entry["http_status"] = int(getattr(exc, "code", 0) or 0)
             entry["status"] = "FAIL"
             entry["error_code"] = "PROVIDER_HTTP_ERROR"
+            entry["error_type"] = exc.__class__.__name__
+            entry["error_detail"] = str(exc)[:220]
             fail_count += 1
-        except Exception:
+        except Exception as exc:
             entry["status"] = "FAIL"
             entry["error_code"] = "PROVIDER_REQUEST_FAILED"
+            entry["error_type"] = exc.__class__.__name__
+            entry["error_detail"] = str(exc)[:220]
             fail_count += 1
         finally:
             elapsed_ms = (time.monotonic() - start) * 1000.0
