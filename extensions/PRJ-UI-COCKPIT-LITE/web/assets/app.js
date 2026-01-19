@@ -3,11 +3,28 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 const SIDEBAR_STORAGE_KEY = "cockpit_lite_sidebar_collapsed_v1";
 const SIDEBAR_COLLAPSED_CLASS = "sidebar-collapsed";
+const SIDEBAR_AUTO_COLLAPSE_THRESHOLD_PX = 960;
+const SIDEBAR_AUTO_COLLAPSE_HINT_SEEN_KEY = "cockpit_lite_sidebar_auto_collapse_hint_seen_v1";
 const NORTH_STAR_FINDINGS_ALL_LENSES_KEY = "__ALL_LENSES__";
-const ADMIN_REQUIRED_OPS = new Set(["overrides-write"]);
-const ADMIN_REQUIRED_ACTIONS = new Set(["run-card-set", "extension-toggle", "settings-set-override"]);
+const NS_TOP_GAPS_EXPANDED_STORAGE_KEY = "cockpit_ns_top_gaps_expanded.v1";
+const NS_FINDINGS_ADVANCED_OPEN_STORAGE_KEY = "cockpit_ns_findings_advanced_open.v1";
+const NS_FINDINGS_LENS_STORAGE_KEY = "cockpit_ns_findings_lens.v1";
+// v2: presets now act as "subject" selectors (no implicit axis auto-selection),
+// and theme/subtheme cascades depend on subject selection.
+// Bumping the storage key cleans previously auto-populated axis selections.
+const NS_FINDINGS_FILTER_STATE_STORAGE_KEY = "cockpit_ns_findings_filter_state.v2";
+const ADMIN_REQUIRED_OPS = new Set(["overrides-write", "doer-loop-lock-clear"]);
+const ADMIN_REQUIRED_ACTIONS = new Set([
+  "run-card-set",
+  "extension-toggle",
+  "settings-set-override",
+  "inbox-triage-set",
+  "inbox-triage-apply-ai-batch",
+]);
 const ADMIN_REQUIRED_ELEMENT_IDS = new Set(["settings-save", "run-card-save"]);
 const LANG_STORAGE_KEY = "cockpit_lang.v1";
+const INBOX_TRIAGE_FILTER_STORAGE_KEY = "cockpit_inbox_filter_triage.v1";
+const INBOX_HIDE_DISMISSED_STORAGE_KEY = "cockpit_inbox_hide_dismissed.v1";
 const SUPPORTED_LANGS = ["en", "tr"];
 const OP_JOB_POLLING = new Set();
 
@@ -16,6 +33,100 @@ const I18N = {
     "ui.title": "Operator Console",
     "lang.label": "Language",
     "actions.refresh_all": "Refresh All",
+    "actions.refresh": "Refresh",
+    "actions.reset": "Reset",
+    "actions.apply": "Apply",
+    "actions.clear": "Clear",
+    "actions.refresh_inbox": "Refresh Inbox",
+    "filters.bucket_all": "Bucket (all)",
+    "filters.status_all": "Status (all)",
+    "filters.triage_all": "Triage (all)",
+    "placeholder.search_findings": "Search findings (id/title/axis/tags/reasons)",
+    "placeholder.search_inbox": "Search inbox",
+    "placeholder.search_intake": "Quick search",
+    "placeholder.search_decisions": "Search decisions",
+    "placeholder.search_notes": "Search title/body/tags",
+    "placeholder.tag_filter": "Tag filter",
+    "placeholder.note_title": "Title",
+    "placeholder.note_tags": "tags (comma separated)",
+    "placeholder.note_body": "Write message...",
+    "placeholder.id_or_path": "id or path",
+    "placeholder.thread_id": "thread id (default)",
+    "placeholder.override_editor": "Select an override to edit...",
+    "placeholder.run_card_editor": "Run-Card JSON",
+    "placeholder.evidence_filter": "filter path (default closeout)",
+    "placeholder.evidence_search": "quick search",
+    "placeholder.select_domain": "Select domain",
+    "placeholder.select_topic": "Select axis",
+    "placeholder.select_theme": "Select theme",
+    "placeholder.select_subtheme": "Select subtheme",
+    "placeholder.triggered_only": "Triggered only (default)",
+    "placeholder.optional": "(optional)",
+    "placeholder.select_bucket": "Select bucket",
+    "placeholder.select_status": "Select status",
+    "placeholder.select_source": "Select source",
+    "placeholder.select_extension": "Select extension",
+    "aria.select_preset": "Select subject",
+    "aria.select_lens": "Select lens",
+    "aria.search_findings": "Search findings",
+    "aria.search_inbox": "Search inbox",
+    "aria.search_intake": "Search intake",
+    "aria.search_decisions": "Search decisions",
+    "aria.search_notes": "Search notes",
+    "aria.tag_filter": "Tag filter",
+    "aria.note_title": "Title",
+    "aria.note_tags": "Tags",
+    "aria.note_body": "Message body",
+    "aria.id_or_path": "id or path",
+    "aria.thread_id": "Thread id",
+    "aria.run_card_editor": "Run-Card JSON",
+    "aria.override_editor": "Override editor",
+    "aria.evidence_filter": "Evidence filter",
+    "aria.evidence_search": "Evidence search",
+    "aria.filter_by_domain": "Filter by domain",
+    "aria.filter_by_topic": "Filter by axis",
+    "aria.filter_by_theme": "Filter by theme",
+    "aria.filter_by_subtheme": "Filter by subtheme",
+    "aria.filter_by_match": "Filter by match status",
+    "aria.filter_by_catalog": "Filter by catalog",
+    "aria.toggle_options": "Toggle options",
+    "aria.filter_by_bucket": "Filter by bucket",
+    "aria.filter_by_status": "Filter by status",
+    "aria.filter_by_source": "Filter by source",
+    "aria.filter_by_extension": "Filter by extension",
+    "aria.filter_by_intake_status": "Filter by intake status",
+    "aria.filter_by_triage_state": "Filter by triage state",
+    "north_star.findings.preset_label": "Subject",
+    "north_star.findings.placeholder.select_subject_first": "Select subject first",
+    "north_star.top_gaps.show_all": "Show all",
+    "north_star.top_gaps.show_top5": "Show top-5",
+    "north_star.top_gaps.meta": "showing={shown}/{total}",
+    "north_star.findings.advanced_toggle_closed": "Advanced ▾",
+    "north_star.findings.advanced_toggle_open": "Advanced ▴",
+    "common.selected_item_details": "Selected item details",
+    "intake.filter.hide_done": "Hide DONE",
+    "intake.evidence.paths_hint": "Evidence paths (click to preview)",
+    "intake.evidence.preview_summary": "Evidence preview",
+    "intake.detail.raw_json_summary": "Raw intake item JSON (redacted)",
+    "notes.action.create_note": "Create note",
+    "notes.action.open_notes_tab": "Open Notes tab",
+    "notes.action.add_link": "Add link",
+    "notes.action.clear_links": "Clear links",
+    "notes.action.send": "Send",
+    "overrides.action.save": "Save Override",
+    "run_card.action.save": "Save Run-Card",
+    "evidence.action.copy_path": "Copy path",
+    "evidence.action.copy_json": "Copy JSON",
+    "evidence.action.download": "Download",
+    "auto_loop.action.run_auto_loop": "Run auto-loop",
+    "auto_loop.action.run_airrunner_ticks2": "Run airrunner (ticks=2)",
+    "jobs.note.read_only_allowlist": "Jobs list is read-only in strict allowlist mode.",
+    "jobs.meta.last_smoke_job_none": "last smoke job: -",
+    "jobs.meta.last_smoke_job": "last smoke job: {id}",
+    "locks.claims_limit_label": "Active claims limit",
+    "locks.claims_limit_opt_10": "Claims limit: 10",
+    "locks.claims_limit_opt_20": "Claims limit: 20",
+    "locks.claims_limit_opt_50": "Claims limit: 50",
     "sidebar.toggle": "Toggle sidebar",
     "nav.primary": "Primary",
     "nav.overview": "Overview",
@@ -51,6 +162,7 @@ const I18N = {
     "h.lens_findings": "Lens Findings",
     "h.raw_json": "Raw JSON",
     "h.input_inbox": "Input Inbox",
+    "h.inbox_detail": "Inbox Detail",
     "h.intake_strict": "Intake (strict)",
     "h.decision_inbox": "Decision Inbox",
     "h.extensions": "Extensions",
@@ -81,6 +193,37 @@ const I18N = {
     "admin.save_run_card": "Save run-card (confirm required)",
     "admin.save_run_card_disabled": "Enable Admin mode to save run-card",
     "admin.toggle_extensions_disabled": "Enable Admin mode to toggle extensions",
+    "inbox.detail.none": "Select an inbox item to see details.",
+    "inbox.detail.draft": "Draft",
+    "inbox.detail.preview": "Preview",
+    "inbox.detail.suggestions": "AI suggestions",
+    "inbox.detail.suggested_ops": "Suggested ops",
+    "inbox.detail.suggested_triage": "Suggested triage",
+    "inbox.action.open_evidence": "Open evidence",
+    "inbox.action.create_draft": "Create draft",
+    "inbox.action.regenerate_draft": "Regenerate v0.2",
+    "inbox.action.copy_draft": "Copy draft",
+    "inbox.action.open_draft": "Open draft",
+    "inbox.action.jump_to_intake": "Jump to Intake",
+    "inbox.action.create_note": "Create triage note",
+    "inbox.action.apply_ai_triage": "Apply AI triage (admin)",
+    "inbox.action.batch_ai_triage": "Batch AI triage (admin)",
+    "inbox.action.batch_generate_drafts": "Batch generate v0.2 drafts",
+    "inbox.action.accept_ticket": "Accept as Ticket",
+    "inbox.action.accept_roadmap": "Accept as Roadmap",
+    "inbox.action.accept_project": "Accept as Project",
+    "inbox.action.needs_info": "Needs info",
+    "inbox.action.dismiss": "Dismiss",
+    "inbox.action.run_op": "Run",
+    "inbox.batch.meta": "Eligible NEW (manual_requests): {count}",
+    "inbox.batch_drafts.meta": "Eligible triaged (roadmap/project): {count}",
+    "inbox.draft.loading": "Draft loading: {path}",
+    "inbox.draft.loaded": "Draft: {path}",
+    "inbox.draft.not_found": "Draft not found: {path}",
+    "inbox.draft.failed": "Draft load failed: {error}",
+    "inbox.filter.hide_dismissed": "Hide dismissed",
+    "inbox.meta.dismissed_count": "Dismissed: {count}",
+    "inbox.meta.dismissed_hidden": "Dismissed: {count} (hidden)",
     "modal.confirm_title": "Confirm action",
     "modal.confirm_yes": "Confirm",
     "modal.confirm_no": "Cancel",
@@ -158,7 +301,7 @@ const I18N = {
     "north_star.detail.requirements": "Requirements",
     "north_star.detail.subscores": "Subscores",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "Use “Lens Findings” below to browse per-item matches and evidence pointers (lens-by-lens, topic-by-topic).",
+    "north_star.detail.lens_findings_hint": "Use “Lens Findings” below to browse per-item matches and evidence pointers (lens-by-lens, axis-by-axis).",
     "north_star.detail.evidence_expectations": "Evidence expectations",
     "north_star.detail.remediation_ideas": "Remediation ideas",
     "job.poll_failed": "Job poll failed: {error}",
@@ -168,11 +311,16 @@ const I18N = {
     "job.done": "{op}: {status}",
     "job.already_running": "{op}: already running (tracking {id})",
     "toast.refresh_failed": "Refresh failed ({name}): {error}",
+    "toast.sidebar_auto_collapsed": "Sidebar collapsed for small screens. Use ≡ to expand.",
     "toast.select_intake_first": "Select an intake item first.",
     "toast.notes_composer_unavailable": "Notes composer not available.",
     "toast.note_composer_prefilled": "Note composer prefilled for selected intake item.",
     "toast.claim_failed": "Claim failed: {error}",
     "toast.admin_required_force_release": "Admin mode required for force release.",
+    "toast.select_inbox_first": "Select an inbox item first.",
+    "toast.inbox_evidence_missing": "Selected inbox item has no evidence path.",
+    "toast.inbox_intake_missing": "Selected inbox item has no intake_id.",
+    "toast.inbox_no_ai_triage": "No AI triage suggestion for this item.",
     "prompt.force_release_confirm": "Type FORCE to confirm force release.\n\n- intake_id: {id}\n\nThis clears the claim even if owned by another session.",
     "toast.force_release_canceled": "Force release canceled.",
     "toast.force_release_failed": "Force release failed: {error}",
@@ -208,7 +356,7 @@ const I18N = {
     "status.disconnected": "DISCONNECTED",
     "sidebar.workspace": "workspace: {path}",
     "sidebar.last_change": "last change: {ts}",
-    "intake.field.topic": "Topic",
+    "intake.field.topic": "Axis",
     "intake.field.why": "Why",
     "intake.field.bucket": "Bucket",
     "intake.field.status": "Status",
@@ -261,15 +409,18 @@ const I18N = {
     "north_star.unknown": "(unknown)",
     "north_star.table.lens": "Lens",
     "north_star.table.match": "Match",
-    "north_star.table.topic": "Topic",
+    "north_star.table.topic": "Axis",
     "north_star.table.domain": "Domain",
+    "north_star.table.theme": "Theme",
+    "north_star.table.subtheme": "Subtheme",
+    "north_star.badge.missing": "MISSING",
     "north_star.table.title": "Title",
     "north_star.table.catalog": "Catalog",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Reasons",
     "north_star.table.evidence": "Evidence",
-    "north_star.preset.custom": "Custom (manual selection)",
-    "north_star.preset.all": "All (no topic filter)",
+    "north_star.preset.custom": "Select subject",
+    "north_star.preset.all": "Select subject",
     "north_star.preset.ethics_compliance": "Ethics & Compliance",
     "north_star.preset.compliance_control": "Compliance / risk / assurance / control",
     "north_star.preset.context_alignment": "Context alignment",
@@ -308,6 +459,100 @@ const I18N = {
     "ui.title": "Operatör Konsolu",
     "lang.label": "Dil",
     "actions.refresh_all": "Tümünü Yenile",
+    "actions.refresh": "Yenile",
+    "actions.reset": "Sıfırla",
+    "actions.apply": "Uygula",
+    "actions.clear": "Temizle",
+    "actions.refresh_inbox": "Inbox'ı yenile",
+    "filters.bucket_all": "Kova (tümü)",
+    "filters.status_all": "Durum (tümü)",
+    "filters.triage_all": "Triage (tümü)",
+    "placeholder.search_findings": "Bulguları ara (id/başlık/kriter/etiket/neden)",
+    "placeholder.search_inbox": "Gelen kutusunda ara",
+    "placeholder.search_intake": "Hızlı arama",
+    "placeholder.search_decisions": "Kararları ara",
+    "placeholder.search_notes": "Başlık/içerik/etiket ara",
+    "placeholder.tag_filter": "Etiket filtresi",
+    "placeholder.note_title": "Başlık",
+    "placeholder.note_tags": "etiketler (virgülle)",
+    "placeholder.note_body": "Mesaj yaz…",
+    "placeholder.id_or_path": "id veya yol",
+    "placeholder.thread_id": "thread id (varsayılan)",
+    "placeholder.override_editor": "Düzenlemek için bir override seç…",
+    "placeholder.run_card_editor": "Run-Card JSON",
+    "placeholder.evidence_filter": "filtre yolu (varsayılan closeout)",
+    "placeholder.evidence_search": "hızlı arama",
+    "placeholder.select_domain": "Alan seç",
+    "placeholder.select_topic": "Kriter/Eksen seç",
+    "placeholder.select_theme": "Tema seç",
+    "placeholder.select_subtheme": "Alt tema seç",
+    "placeholder.triggered_only": "Sadece tetiklenen (varsayılan)",
+    "placeholder.optional": "(opsiyonel)",
+    "placeholder.select_bucket": "Kova seç",
+    "placeholder.select_status": "Durum seç",
+    "placeholder.select_source": "Kaynak seç",
+    "placeholder.select_extension": "Eklenti seç",
+    "aria.select_preset": "Konu seç",
+    "aria.select_lens": "Lens seç",
+    "aria.search_findings": "Bulguları ara",
+    "aria.search_inbox": "Gelen kutusunda ara",
+    "aria.search_intake": "Intake'te ara",
+    "aria.search_decisions": "Kararları ara",
+    "aria.search_notes": "Notları ara",
+    "aria.tag_filter": "Etiket filtresi",
+    "aria.note_title": "Başlık",
+    "aria.note_tags": "Etiketler",
+    "aria.note_body": "Mesaj içeriği",
+    "aria.id_or_path": "id veya yol",
+    "aria.thread_id": "Thread id",
+    "aria.run_card_editor": "Run-Card JSON",
+    "aria.override_editor": "Override editörü",
+    "aria.evidence_filter": "Kanıt filtresi",
+    "aria.evidence_search": "Kanıt araması",
+    "aria.filter_by_domain": "Alana göre filtrele",
+    "aria.filter_by_topic": "Kriter/Eksene göre filtrele",
+    "aria.filter_by_theme": "Temaya göre filtrele",
+    "aria.filter_by_subtheme": "Alt temaya göre filtrele",
+    "aria.filter_by_match": "Eşleşmeye göre filtrele",
+    "aria.filter_by_catalog": "Kataloğa göre filtrele",
+    "aria.toggle_options": "Seçenekleri aç/kapat",
+    "aria.filter_by_bucket": "Kovaya göre filtrele",
+    "aria.filter_by_status": "Duruma göre filtrele",
+    "aria.filter_by_source": "Kaynağa göre filtrele",
+    "aria.filter_by_extension": "Eklentiye göre filtrele",
+    "aria.filter_by_intake_status": "Intake durumuna göre filtrele",
+    "aria.filter_by_triage_state": "Triage durumuna göre filtrele",
+    "north_star.findings.preset_label": "Konu",
+    "north_star.findings.placeholder.select_subject_first": "Önce konu seç",
+    "north_star.top_gaps.show_all": "Tümünü göster",
+    "north_star.top_gaps.show_top5": "Top-5 göster",
+    "north_star.top_gaps.meta": "gösteriliyor={shown}/{total}",
+    "north_star.findings.advanced_toggle_closed": "Gelişmiş ▾",
+    "north_star.findings.advanced_toggle_open": "Gelişmiş ▴",
+    "common.selected_item_details": "Seçilen öğe detayları",
+    "intake.filter.hide_done": "DONE olanları gizle",
+    "intake.evidence.paths_hint": "Kanıt yolları (önizleme için tıkla)",
+    "intake.evidence.preview_summary": "Kanıt önizleme",
+    "intake.detail.raw_json_summary": "Ham intake JSON (redacted)",
+    "notes.action.create_note": "Not oluştur",
+    "notes.action.open_notes_tab": "Notlar sekmesini aç",
+    "notes.action.add_link": "Link ekle",
+    "notes.action.clear_links": "Linkleri temizle",
+    "notes.action.send": "Gönder",
+    "overrides.action.save": "Override'i kaydet",
+    "run_card.action.save": "Run-Card'ı kaydet",
+    "evidence.action.copy_path": "Yolu kopyala",
+    "evidence.action.copy_json": "JSON'u kopyala",
+    "evidence.action.download": "İndir",
+    "auto_loop.action.run_auto_loop": "Oto döngü çalıştır",
+    "auto_loop.action.run_airrunner_ticks2": "Airrunner çalıştır (ticks=2)",
+    "jobs.note.read_only_allowlist": "İş listesi strict allowlist modunda salt-okunur.",
+    "jobs.meta.last_smoke_job_none": "son smoke işi: -",
+    "jobs.meta.last_smoke_job": "son smoke işi: {id}",
+    "locks.claims_limit_label": "Aktif claim limiti",
+    "locks.claims_limit_opt_10": "Claim limiti: 10",
+    "locks.claims_limit_opt_20": "Claim limiti: 20",
+    "locks.claims_limit_opt_50": "Claim limiti: 50",
     "sidebar.toggle": "Sidebar’ı aç/kapat",
     "nav.primary": "Ana gezinme",
     "nav.overview": "Genel Bakış",
@@ -343,6 +588,7 @@ const I18N = {
     "h.lens_findings": "Lens Bulguları",
     "h.raw_json": "Ham JSON",
     "h.input_inbox": "Girdi Kutusu",
+    "h.inbox_detail": "Gelen Kutusu Detayı",
     "h.intake_strict": "İş Alımı (sıkı)",
     "h.decision_inbox": "Karar Kutusu",
     "h.extensions": "Eklentiler",
@@ -373,6 +619,37 @@ const I18N = {
     "admin.save_run_card": "Run-card kaydet (onay gerekir)",
     "admin.save_run_card_disabled": "Run-card kaydetmek için Admin modunu açın",
     "admin.toggle_extensions_disabled": "Eklentileri aç/kapatmak için Admin modunu açın",
+    "inbox.detail.none": "Detay için bir gelen kutusu öğesi seçin.",
+    "inbox.detail.draft": "Taslak",
+    "inbox.detail.preview": "Önizleme",
+    "inbox.detail.suggestions": "AI önerileri",
+    "inbox.detail.suggested_ops": "Önerilen ops",
+    "inbox.detail.suggested_triage": "Önerilen triage",
+    "inbox.action.open_evidence": "Kanıtı aç",
+    "inbox.action.create_draft": "Taslak oluştur",
+    "inbox.action.regenerate_draft": "v0.2 yeniden üret",
+    "inbox.action.copy_draft": "Taslağı kopyala",
+    "inbox.action.open_draft": "Taslağı aç",
+    "inbox.action.jump_to_intake": "Intake'a git",
+    "inbox.action.create_note": "Triage notu oluştur",
+    "inbox.action.apply_ai_triage": "AI triage uygula (admin)",
+    "inbox.action.batch_ai_triage": "Toplu AI triage uygula (admin)",
+    "inbox.action.batch_generate_drafts": "v0.2 taslaklarını toplu üret",
+    "inbox.action.accept_ticket": "Ticket olarak kabul et",
+    "inbox.action.accept_roadmap": "Roadmap olarak kabul et",
+    "inbox.action.accept_project": "Project olarak kabul et",
+    "inbox.action.needs_info": "Bilgi gerekiyor",
+    "inbox.action.dismiss": "Vazgeç (dismiss)",
+    "inbox.action.run_op": "Çalıştır",
+    "inbox.batch.meta": "Uygulanabilir NEW (manual_requests): {count}",
+    "inbox.batch_drafts.meta": "Uygun triaged (roadmap/project): {count}",
+    "inbox.draft.loading": "Taslak yükleniyor: {path}",
+    "inbox.draft.loaded": "Taslak: {path}",
+    "inbox.draft.not_found": "Taslak bulunamadı: {path}",
+    "inbox.draft.failed": "Taslak yükleme hatası: {error}",
+    "inbox.filter.hide_dismissed": "Vazgeçilenleri gizle",
+    "inbox.meta.dismissed_count": "Vazgeçilen: {count}",
+    "inbox.meta.dismissed_hidden": "Vazgeçilen: {count} (gizli)",
     "modal.confirm_title": "İşlemi onayla",
     "modal.confirm_yes": "Onayla",
     "modal.confirm_no": "Vazgeç",
@@ -460,11 +737,16 @@ const I18N = {
     "job.done": "{op}: {status}",
     "job.already_running": "{op}: zaten çalışıyor (takip: {id})",
     "toast.refresh_failed": "Yenileme başarısız ({name}): {error}",
+    "toast.sidebar_auto_collapsed": "Dar ekranda sidebar otomatik küçültüldü. Açmak için ≡ kullanın.",
     "toast.select_intake_first": "Önce bir iş alımı öğesi seçin.",
     "toast.notes_composer_unavailable": "Not editörü mevcut değil.",
     "toast.note_composer_prefilled": "Not editörü seçili öğeye göre dolduruldu.",
     "toast.claim_failed": "Sahiplenme başarısız: {error}",
     "toast.admin_required_force_release": "Zorla bırakma için Admin modu gerekli.",
+    "toast.select_inbox_first": "Önce bir gelen kutusu öğesi seçin.",
+    "toast.inbox_evidence_missing": "Seçili öğede kanıt yolu yok.",
+    "toast.inbox_intake_missing": "Seçili öğede intake_id yok.",
+    "toast.inbox_no_ai_triage": "Bu öğe için AI triage önerisi yok.",
     "prompt.force_release_confirm": "Zorla bırakmayı onaylamak için FORCE yazın.\n\n- intake_id: {id}\n\nBu işlem, başka bir oturuma ait olsa bile claim'i temizler.",
     "toast.force_release_canceled": "Zorla bırakma iptal edildi.",
     "toast.force_release_failed": "Zorla bırakma başarısız: {error}",
@@ -500,7 +782,7 @@ const I18N = {
     "status.disconnected": "BAĞLI DEĞİL",
     "sidebar.workspace": "çalışma alanı: {path}",
     "sidebar.last_change": "son değişiklik: {ts}",
-    "intake.field.topic": "Konu",
+    "intake.field.topic": "Kriter/Eksen",
     "intake.field.why": "Neden",
     "intake.field.bucket": "Kategori",
     "intake.field.status": "Durum",
@@ -553,15 +835,18 @@ const I18N = {
     "north_star.unknown": "(bilinmiyor)",
     "north_star.table.lens": "Lens",
     "north_star.table.match": "Eşleşme",
-    "north_star.table.topic": "Konu",
+    "north_star.table.topic": "Kriter/Eksen",
     "north_star.table.domain": "Alan",
+    "north_star.table.theme": "Tema",
+    "north_star.table.subtheme": "Alt tema",
+    "north_star.badge.missing": "EKSİK",
     "north_star.table.title": "Başlık",
     "north_star.table.catalog": "Katalog",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Gerekçeler",
     "north_star.table.evidence": "Kanıt",
-    "north_star.preset.custom": "Özel (manuel seçim)",
-    "north_star.preset.all": "Tümü (konu filtresi yok)",
+    "north_star.preset.custom": "Konu seç",
+    "north_star.preset.all": "Konu seç",
     "north_star.preset.ethics_compliance": "Etik & Uyum",
     "north_star.preset.compliance_control": "Uyum / risk / güvence / kontrol",
     "north_star.preset.context_alignment": "Bağlam uyumu",
@@ -621,6 +906,37 @@ function readSidebarCollapsedFromStorage() {
   }
 }
 
+function readSidebarCollapsedUserPreference() {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (raw === null || raw === undefined) return { hasPref: false, collapsed: false };
+    const v = String(raw).trim().toLowerCase();
+    return { hasPref: true, collapsed: v === "1" || v === "true" || v === "yes" || v === "on" };
+  } catch (_) {
+    return { hasPref: false, collapsed: false };
+  }
+}
+
+function isNarrowScreen() {
+  try {
+    if (window.matchMedia) {
+      return window.matchMedia(`(max-width: ${SIDEBAR_AUTO_COLLAPSE_THRESHOLD_PX}px)`).matches;
+    }
+  } catch (_) {
+    // ignore
+  }
+  const w = Number.isFinite(Number(window.innerWidth)) ? Number(window.innerWidth) : 0;
+  return w > 0 ? w <= SIDEBAR_AUTO_COLLAPSE_THRESHOLD_PX : false;
+}
+
+function computeSidebarCollapsedInitial() {
+  const pref = readSidebarCollapsedUserPreference();
+  if (pref.hasPref) return { collapsed: pref.collapsed, shouldHint: false };
+  const narrow = isNarrowScreen();
+  const hintSeen = readBoolFromStorage(SIDEBAR_AUTO_COLLAPSE_HINT_SEEN_KEY, false);
+  return { collapsed: narrow, shouldHint: narrow && !hintSeen };
+}
+
 function writeSidebarCollapsedToStorage(collapsed) {
   try {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "1" : "0");
@@ -639,6 +955,47 @@ function applySidebarCollapsedState(collapsed, { persist = true } = {}) {
   if (persist) writeSidebarCollapsedToStorage(collapsed);
 }
 
+let _sidebarAutoCollapseResizeTimer = null;
+function setupSidebarAutoCollapse() {
+  function hasUserPref() {
+    return readSidebarCollapsedUserPreference().hasPref;
+  }
+
+  function updateInlineToggleAria(collapsed) {
+    const inlineToggle = $("#toggle-sidebar-inline");
+    if (inlineToggle) inlineToggle.setAttribute("aria-pressed", collapsed ? "true" : "false");
+  }
+
+  function maybeShowAutoCollapsedHint() {
+    if (!isSidebarCollapsed()) return;
+    if (hasUserPref()) return;
+    if (readBoolFromStorage(SIDEBAR_AUTO_COLLAPSE_HINT_SEEN_KEY, false)) return;
+    showToast(t("toast.sidebar_auto_collapsed"), "ok");
+    writeToStorage(SIDEBAR_AUTO_COLLAPSE_HINT_SEEN_KEY, "true");
+  }
+
+  function applyAutoIfNeeded({ allowHint = false } = {}) {
+    if (hasUserPref()) return;
+    const desired = isNarrowScreen();
+    if (desired === isSidebarCollapsed()) return;
+    applySidebarCollapsedState(desired, { persist: false });
+    updateInlineToggleAria(desired);
+    if (desired && allowHint) maybeShowAutoCollapsedHint();
+  }
+
+  window.addEventListener(
+    "resize",
+    () => {
+      if (_sidebarAutoCollapseResizeTimer) clearTimeout(_sidebarAutoCollapseResizeTimer);
+      _sidebarAutoCollapseResizeTimer = setTimeout(() => applyAutoIfNeeded({ allowHint: true }), 140);
+    },
+    { passive: true }
+  );
+
+  applyAutoIfNeeded({ allowHint: false });
+  maybeShowAutoCollapsedHint();
+}
+
 const endpoints = {
   ws: "/api/ws",
   overview: "/api/overview",
@@ -646,6 +1003,8 @@ const endpoints = {
   status: "/api/status",
   snapshot: "/api/ui_snapshot",
   inbox: "/api/inbox",
+  inboxTriageSet: "/api/inbox/triage_set",
+  inboxTriageApplyAi: "/api/inbox/triage_apply_ai",
   intake: "/api/intake",
   decisions: "/api/decisions",
   extensions: "/api/extensions",
@@ -679,10 +1038,19 @@ const state = {
   northStarFindings: null,
   northStarFindingsByLens: null,
   northStarFindingsLensName: "",
+  northStarFindingsAdvancedOpen: false,
+  northStarTopGapsExpanded: false,
   northStarFindingSelected: null,
   status: null,
   snapshot: null,
   inbox: null,
+  inboxSelectedId: null,
+  inboxSelected: null,
+  inboxDraftToken: 0,
+  inboxDraftRequestId: null,
+  inboxDraftPath: null,
+  inboxDraftAvailable: false,
+  inboxDraftText: "",
   intake: null,
   intakeSelectedId: null,
   intakeSelected: null,
@@ -702,6 +1070,8 @@ const state = {
   overridesSelected: null,
   jobs: null,
   airunnerJobs: null,
+  jobSelectedId: null,
+  jobSelected: null,
   locks: null,
   adminModeEnabled: false,
   lockClaimsLimit: 20,
@@ -744,9 +1114,11 @@ const state = {
     },
     northStarFindings: {
       search: "",
-      preset: "CUSTOM",
+      preset: "ALL",
       domain: [],
       topic: [],
+      theme: [],
+      subtheme: [],
       match: ["TRIGGERED"],
       catalog: [],
     },
@@ -761,6 +1133,8 @@ const state = {
     northStarFindings: {
       domain: [],
       topic: [],
+      theme: [],
+      subtheme: [],
       match: ["TRIGGERED", "NOT_TRIGGERED", "UNKNOWN"],
       catalog: ["trend", "bp", "lens"],
     },
@@ -769,6 +1143,7 @@ const state = {
 
 let northStarFindingsUiAttached = false;
 let northStarFindingsControlsAttached = false;
+let northStarTopGapsControlsAttached = false;
 
 function unwrap(payload) {
   return payload && payload.data ? payload.data : payload;
@@ -811,12 +1186,53 @@ function setBadge(el, status) {
   el.textContent = norm;
 }
 
+const TOAST_BACKOFF_BASE_MS = 2500;
+const TOAST_BACKOFF_MAX_MS = 60000;
+const TOAST_BACKOFF_RESET_AFTER_MS = 120000;
+const _toastBackoff = new Map();
+
 function showToast(message, kind = "ok") {
   const container = $("#toast-container");
   if (!container) return;
+  const toastKind = String(kind || "ok");
+  const toastMessage = String(message || "");
+  const now = Date.now();
+  const shouldBackoff = toastKind === "warn" || toastKind === "fail";
+  let finalMessage = toastMessage;
+
+  if (shouldBackoff && toastMessage.trim()) {
+    const key = `${toastKind}:${toastMessage}`;
+    const entry = _toastBackoff.get(key) || {
+      cooldownMs: TOAST_BACKOFF_BASE_MS,
+      nextAllowedAt: 0,
+      suppressed: 0,
+      lastSeenAt: 0,
+    };
+    if (entry.lastSeenAt && now - entry.lastSeenAt > TOAST_BACKOFF_RESET_AFTER_MS) {
+      entry.cooldownMs = TOAST_BACKOFF_BASE_MS;
+      entry.nextAllowedAt = 0;
+      entry.suppressed = 0;
+    }
+    entry.lastSeenAt = now;
+    if (now < entry.nextAllowedAt) {
+      entry.suppressed += 1;
+      _toastBackoff.set(key, entry);
+      return;
+    }
+    const repeat = entry.suppressed;
+    entry.suppressed = 0;
+    if (repeat > 0) {
+      finalMessage = `${toastMessage} (x${repeat + 1})`;
+      entry.cooldownMs = Math.min(TOAST_BACKOFF_MAX_MS, Math.round(entry.cooldownMs * 1.7));
+    } else if (entry.cooldownMs > TOAST_BACKOFF_BASE_MS) {
+      entry.cooldownMs = Math.max(TOAST_BACKOFF_BASE_MS, Math.round(entry.cooldownMs * 0.8));
+    }
+    entry.nextAllowedAt = now + entry.cooldownMs;
+    _toastBackoff.set(key, entry);
+  }
   const div = document.createElement("div");
-  div.className = `toast ${kind}`;
-  div.textContent = message;
+  div.className = `toast ${toastKind}`;
+  div.textContent = finalMessage;
   container.appendChild(div);
   setTimeout(() => div.remove(), 3000);
 }
@@ -903,6 +1319,122 @@ function renderJson(el, data) {
   el.textContent = text.length > 8000 ? text.slice(0, 8000) + "\n..." : text;
 }
 
+function clearElement(el) {
+  if (!el) return;
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function appendInlineMarkdown(parent, text) {
+  if (!parent) return;
+  const s = String(text || "");
+  let i = 0;
+  while (i < s.length) {
+    const open = s.indexOf("`", i);
+    if (open === -1) {
+      parent.appendChild(document.createTextNode(s.slice(i)));
+      return;
+    }
+    const close = s.indexOf("`", open + 1);
+    if (close === -1) {
+      parent.appendChild(document.createTextNode(s.slice(i)));
+      return;
+    }
+    if (open > i) parent.appendChild(document.createTextNode(s.slice(i, open)));
+    const code = document.createElement("code");
+    code.textContent = s.slice(open + 1, close);
+    parent.appendChild(code);
+    i = close + 1;
+  }
+}
+
+function renderMarkdownSafe(container, markdownText) {
+  if (!container) return;
+  clearElement(container);
+  const raw = String(markdownText || "");
+  if (!raw.trim()) return;
+
+  const lines = raw.replaceAll("\r\n", "\n").split("\n");
+  let inCode = false;
+  let codeLines = [];
+  let listEl = null;
+
+  const flushList = () => {
+    if (!listEl) return;
+    container.appendChild(listEl);
+    listEl = null;
+  };
+  const flushCode = () => {
+    const pre = document.createElement("pre");
+    const code = document.createElement("code");
+    code.textContent = codeLines.join("\n");
+    pre.appendChild(code);
+    container.appendChild(pre);
+    codeLines = [];
+  };
+  const spacer = () => {
+    const div = document.createElement("div");
+    div.style.height = "6px";
+    container.appendChild(div);
+  };
+
+  for (const lineRaw of lines) {
+    const line = String(lineRaw || "");
+
+    if (line.startsWith("```")) {
+      if (inCode) {
+        inCode = false;
+        flushList();
+        flushCode();
+      } else {
+        flushList();
+        inCode = true;
+        codeLines = [];
+      }
+      continue;
+    }
+
+    if (inCode) {
+      codeLines.push(line);
+      continue;
+    }
+
+    if (!line.trim()) {
+      flushList();
+      spacer();
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,4})\s+(.*)$/);
+    if (headingMatch) {
+      flushList();
+      const depth = headingMatch[1].length;
+      const text = headingMatch[2] || "";
+      const tag = depth <= 1 ? "h2" : depth === 2 ? "h3" : "h4";
+      const h = document.createElement(tag);
+      appendInlineMarkdown(h, text);
+      container.appendChild(h);
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (trimmed.startsWith("- ")) {
+      if (!listEl) listEl = document.createElement("ul");
+      const li = document.createElement("li");
+      appendInlineMarkdown(li, trimmed.slice(2));
+      listEl.appendChild(li);
+      continue;
+    }
+
+    flushList();
+    const p = document.createElement("p");
+    appendInlineMarkdown(p, line);
+    container.appendChild(p);
+  }
+
+  flushList();
+  if (inCode) flushCode();
+}
+
 function renderKeyValueGrid(container, rows) {
   if (!container) return;
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -947,6 +1479,26 @@ function readBoolFromStorage(key, defaultValue = false) {
   }
 }
 
+function readStringFromStorage(key, defaultValue = "") {
+  try {
+    const raw = localStorage.getItem(String(key));
+    if (raw === null || raw === undefined || raw === "") return String(defaultValue || "");
+    return String(raw);
+  } catch (err) {
+    return String(defaultValue || "");
+  }
+}
+
+function readJsonFromStorage(key, defaultValue = null) {
+  try {
+    const raw = localStorage.getItem(String(key));
+    if (raw === null || raw === undefined || raw === "") return defaultValue;
+    return JSON.parse(String(raw));
+  } catch (err) {
+    return defaultValue;
+  }
+}
+
 function readIntFromStorage(key, defaultValue, allowed = null) {
   let v = defaultValue;
   try {
@@ -981,6 +1533,44 @@ function readLangFromStorage(key, defaultValue = "en") {
   return SUPPORTED_LANGS.includes(norm) ? norm : String(defaultValue || "en");
 }
 
+function readStringOrNullFromStorage(key) {
+  try {
+    return localStorage.getItem(String(key));
+  } catch (err) {
+    return null;
+  }
+}
+
+function normalizeInboxTriageFilter(raw, defaultValue = "NEW") {
+  if (raw === null || raw === undefined) return String(defaultValue || "NEW");
+  const v = String(raw).trim();
+  if (v === "") return "";
+  const upper = v.toUpperCase();
+  const allowed = new Set([
+    "NEW",
+    "NEEDS_INFO",
+    "DISMISSED",
+    "ROUTE_TO_TICKET",
+    "ROUTE_TO_ROADMAP",
+    "ROUTE_TO_PROJECT",
+    "CONVERT_TO_PROJECT",
+  ]);
+  return allowed.has(upper) ? upper : String(defaultValue || "NEW");
+}
+
+function applyInboxFilterDefaultsFromStorage() {
+  const triageSelect = $("#inbox-filter-triage");
+  if (triageSelect) {
+    const raw = readStringOrNullFromStorage(INBOX_TRIAGE_FILTER_STORAGE_KEY);
+    triageSelect.value = raw === null ? "NEW" : normalizeInboxTriageFilter(raw, "NEW");
+  }
+
+  const hideDismissed = $("#inbox-hide-dismissed");
+  if (hideDismissed) {
+    hideDismissed.checked = readBoolFromStorage(INBOX_HIDE_DISMISSED_STORAGE_KEY, true);
+  }
+}
+
 function applyI18n() {
   try {
     document.documentElement.lang = state.lang;
@@ -1011,6 +1601,7 @@ function applyI18n() {
   applyAdminModeToWriteControls();
   renderActionLog();
   renderActionResponse();
+  renderInboxDetail(state.inboxSelected);
 }
 
 function rehydrateNorthStarTopicFilters() {
@@ -1100,6 +1691,8 @@ function setAdminModeEnabled(enabled, { persist = true } = {}) {
   renderLocks();
   renderIntakeClaimControls(state.intakeSelected);
   renderIntakeCloseControls(state.intakeSelected);
+  renderInboxDetail(state.inboxSelected);
+  updateInboxBatchControls();
 }
 
 function setLockClaimsLimit(limit, { persist = true } = {}) {
@@ -1316,11 +1909,23 @@ async function refreshIntakeLinkedNotes(item) {
 async function openNoteInNotesTab(noteId) {
   const id = String(noteId || "").trim();
   if (!id) return;
-  navigateToTab("notes");
+  // Notes live under Planner Chat (no dedicated "#notes" tab).
+  navigateToTab("planner-chat");
   try {
     const payload = await fetchJson(`${endpoints.noteGet}?note_id=${encodeURIComponent(id)}`);
     state.noteDetail = payload;
     renderNoteDetail(payload);
+    // Best-effort UX: make sure the detail pane is visible after navigation.
+    requestAnimationFrame(() => {
+      const detail = $("#note-view-body") || $("#note-view-meta");
+      if (detail && typeof detail.scrollIntoView === "function") {
+        try {
+          detail.scrollIntoView({ block: "center" });
+        } catch {
+          detail.scrollIntoView();
+        }
+      }
+    });
   } catch (err) {
     showToast(t("toast.note_load_failed", { error: formatError(err) }), "fail");
   }
@@ -1369,7 +1974,7 @@ function renderIntakeLinkedNotes() {
       const tags = Array.isArray(note.tags) ? note.tags.map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("") : "";
       const excerpt = escapeHtml(note.body_excerpt || "");
       return `
-        <div class="note-item">
+        <div class="note-item clickable" role="button" tabindex="0" data-intake-note-row="${noteIdAttr}">
           <div class="note-title">${escapeHtml(titleRaw)}</div>
           <div class="note-meta">${escapeHtml(metaText)}</div>
           <div class="note-tags">${tags}</div>
@@ -1383,8 +1988,25 @@ function renderIntakeLinkedNotes() {
     .join("");
 
   $$("[data-intake-note-open]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
       const noteId = decodeTag(btn.dataset.intakeNoteOpen || "");
+      if (!noteId) return;
+      await openNoteInNotesTab(noteId);
+    });
+  });
+
+  $$("[data-intake-note-row]").forEach((row) => {
+    row.addEventListener("click", async () => {
+      const noteId = decodeTag(row.dataset.intakeNoteRow || "");
+      if (!noteId) return;
+      await openNoteInNotesTab(noteId);
+    });
+    row.addEventListener("keydown", async (ev) => {
+      if (ev.target !== row) return;
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      const noteId = decodeTag(row.dataset.intakeNoteRow || "");
       if (!noteId) return;
       await openNoteInNotesTab(noteId);
     });
@@ -1440,8 +2062,16 @@ function createNoteForSelectedIntake() {
     threadEl.value = state.plannerThread || "default";
   }
 
-  navigateToTab("notes");
-  titleEl.focus();
+  // Notes composer lives under Planner Chat.
+  navigateToTab("planner-chat");
+  requestAnimationFrame(() => {
+    try {
+      titleEl.focus();
+      titleEl.scrollIntoView({ block: "center", inline: "nearest" });
+    } catch (_) {
+      // ignore focus/scroll errors (e.g., tab hidden)
+    }
+  });
   showToast(t("toast.note_composer_prefilled"), "ok");
 }
 
@@ -1903,19 +2533,54 @@ function normalizeNorthStarFindingTopic(value) {
   return `${label} (${raw})`;
 }
 
+function normalizeNorthStarFindingTheme(item) {
+  const themeId = String(item?.theme_id || "").trim();
+  const themeTitleTr = String(item?.theme_title_tr || "").trim();
+  const themeTitle = themeTitleTr || themeId;
+  if (!themeTitle) return "";
+  if (themeId && themeTitleTr && themeTitleTr !== themeId) return `${themeTitleTr} (${themeId})`;
+  return themeTitle;
+}
+
+function normalizeNorthStarFindingSubtheme(item) {
+  const subthemeId = String(item?.subtheme_id || "").trim();
+  const subthemeTitleTr = String(item?.subtheme_title_tr || "").trim();
+  const subthemeTitle = subthemeTitleTr || subthemeId;
+  if (!subthemeTitle) return "";
+  if (subthemeId && subthemeTitleTr && subthemeTitleTr !== subthemeId) return `${subthemeTitleTr} (${subthemeId})`;
+  return subthemeTitle;
+}
+
+function northStarFindingHasSubjectTag(item) {
+  const tags = Array.isArray(item?.tags) ? item.tags : [];
+  return tags.some((t) => String(t || "").trim().toLowerCase().startsWith("subject:"));
+}
+
+function renderNorthStarMissingBadge() {
+  return `<span class="badge warn">${escapeHtml(t("north_star.badge.missing"))}</span>`;
+}
+
+function renderNorthStarTaxonomyCell(value, required) {
+  const text = String(value || "").trim();
+  if (text) return escapeHtml(text);
+  return required ? renderNorthStarMissingBadge() : "";
+}
+
 function normalizeNorthStarFindingDomains(domains) {
   if (!Array.isArray(domains) || domains.length === 0) return [t("common.none")];
   const cleaned = domains.map((d) => String(d || "").trim()).filter((d) => Boolean(d));
   return cleaned.length ? cleaned : [t("common.none")];
 }
 
-const NORTH_STAR_TOPIC_LABELS = {
+ const NORTH_STAR_TOPIC_LABELS = {
   en: {
     ai_otomasyon: "AI automation potential",
     baglam_uyum: "Context management and alignment",
     deterministiklik_tekrarlanabilirlik: "Determinism and repeatability",
     entegrasyon_birlikte_calisabilirlik: "Integration and interoperability",
     gozlemlenebilirlik_izleme_olcme: "Observability / monitoring / measurement",
+    guvenlik: "Security",
+    gizlilik: "Privacy",
     kalite_dogruluk: "Quality / accuracy",
     maliyet_verimlilik_kaynak: "Cost / efficiency / resource usage",
     olceklenebilirlik: "Scalability",
@@ -1932,6 +2597,8 @@ const NORTH_STAR_TOPIC_LABELS = {
     deterministiklik_tekrarlanabilirlik: "Deterministiklik ve tekrarlanabilirlik",
     entegrasyon_birlikte_calisabilirlik: "Entegrasyon ve birlikte çalışabilirlik",
     gozlemlenebilirlik_izleme_olcme: "Gözlemlenebilirlik / izleme / ölçme",
+    guvenlik: "Güvenlik",
+    gizlilik: "Gizlilik",
     kalite_dogruluk: "Kalite / doğruluk",
     maliyet_verimlilik_kaynak: "Maliyet / verimlilik / kaynak kullanımı",
     olceklenebilirlik: "Ölçeklenebilirlik",
@@ -1945,12 +2612,18 @@ const NORTH_STAR_TOPIC_LABELS = {
 };
 
 const NORTH_STAR_FINDINGS_PRESETS = [
-  { key: "CUSTOM", labelKey: "north_star.preset.custom" },
+  // "Konu" selector (subject) - does not auto-select axis tags.
   { key: "ALL", labelKey: "north_star.preset.all", topics: [] },
   {
     key: "ETHICS_COMPLIANCE",
     labelKey: "north_star.preset.ethics_compliance",
-    topics: ["uygunluk_risk_guvence_kontrol", "surdurulebilirlik_esg_isg_etik", "baglam_uyum"],
+    topics: [
+      "uygunluk_risk_guvence_kontrol",
+      "guvenlik",
+      "gizlilik",
+      "surdurulebilirlik_esg_isg_etik",
+      "baglam_uyum",
+    ],
   },
   {
     key: "COMPLIANCE_CONTROL",
@@ -1961,39 +2634,138 @@ const NORTH_STAR_FINDINGS_PRESETS = [
   { key: "SUSTAINABILITY_ETHICS", labelKey: "north_star.preset.sustainability_ethics", topics: ["surdurulebilirlik_esg_isg_etik"] },
 ];
 
+const NORTH_STAR_FINDINGS_PRESET_KEYS = new Set(
+  NORTH_STAR_FINDINGS_PRESETS.map((p) => String(p?.key || "").trim()).filter((k) => Boolean(k))
+);
+
+function normalizeNorthStarFindingsPresetKey(value) {
+  const key = String(value || "ALL").trim();
+  if (NORTH_STAR_FINDINGS_PRESET_KEYS.has(key)) return key;
+  return "ALL";
+}
+
+function getNorthStarFindingsPresetConfig(key) {
+  const normalized = normalizeNorthStarFindingsPresetKey(key);
+  return NORTH_STAR_FINDINGS_PRESETS.find((p) => p.key === normalized) || null;
+}
+
+function persistNorthStarFindingsPreferences() {
+  writeToStorage(NS_FINDINGS_LENS_STORAGE_KEY, state.northStarFindingsLensName || "");
+  writeToStorage(
+    NS_FINDINGS_FILTER_STATE_STORAGE_KEY,
+    JSON.stringify({
+      v: 2,
+      preset: normalizeNorthStarFindingsPresetKey(state.filters?.northStarFindings?.preset),
+      domain: normalizeTagList(state.filters?.northStarFindings?.domain),
+      topic: normalizeTagList(state.filters?.northStarFindings?.topic),
+      theme: normalizeTagList(state.filters?.northStarFindings?.theme),
+      subtheme: normalizeTagList(state.filters?.northStarFindings?.subtheme),
+      match: normalizeTagList(state.filters?.northStarFindings?.match),
+      catalog: normalizeTagList(state.filters?.northStarFindings?.catalog),
+    })
+  );
+}
+
 function setNorthStarFindingsPresetKey(next) {
-  state.filters.northStarFindings.preset = String(next || "CUSTOM");
+  const normalized = normalizeNorthStarFindingsPresetKey(next);
+  state.filters.northStarFindings.preset = normalized;
   const presetSelect = $("#ns-findings-preset");
-  if (presetSelect) presetSelect.value = state.filters.northStarFindings.preset;
+  if (presetSelect) presetSelect.value = normalized;
+}
+
+function extractNorthStarSubjectTags(tags) {
+  const out = [];
+  if (!Array.isArray(tags)) return out;
+  for (const tag of tags) {
+    const raw = String(tag || "").trim();
+    if (!raw) continue;
+    const lower = raw.toLowerCase();
+    if (!lower.startsWith("subject:")) continue;
+    const value = raw.slice(raw.indexOf(":") + 1).trim();
+    if (value) out.push(value);
+  }
+  return out;
+}
+
+function isNorthStarFindingsSubjectSelected() {
+  return normalizeNorthStarFindingsPresetKey(state.filters?.northStarFindings?.preset) !== "ALL";
+}
+
+function northStarFindingMatchesSubjectPreset(item, preset) {
+  const presetKey = normalizeNorthStarFindingsPresetKey(preset?.key);
+  if (presetKey === "ALL") return true;
+
+  const tags = Array.isArray(item?.tags) ? item.tags : [];
+  const subjectTags = extractNorthStarSubjectTags(tags);
+  if (subjectTags.length) {
+    const presetKeyNorm = normalizeKey(presetKey);
+    return subjectTags.some((s) => normalizeKey(s) === presetKeyNorm);
+  }
+
+  const allowedTopics = Array.isArray(preset?.topics) ? preset.topics : [];
+  if (!allowedTopics.length) return true;
+  const allowedKeys = new Set(allowedTopics.map((t) => normalizeKey(String(t || ""))));
+  const topicKey = String(item?.topic || "").trim();
+  return allowedKeys.has(normalizeKey(topicKey));
+}
+
+function syncNorthStarFindingsTaxonomyUi() {
+  const subjectSelected = isNorthStarFindingsSubjectSelected();
+  const subjectFirst = t("north_star.findings.placeholder.select_subject_first");
+
+  const setInputState = (field, enabled) => {
+    const wrap = $(`#ns-findings-filter-${field}`);
+    const input = $(`#ns-findings-filter-${field}-input`);
+    if (!input) return;
+
+    if (!input.dataset.defaultPlaceholder) {
+      input.dataset.defaultPlaceholder = input.placeholder || "";
+    }
+
+    input.disabled = !enabled;
+    input.placeholder = enabled ? input.dataset.defaultPlaceholder : subjectFirst;
+    if (!enabled) {
+      input.value = "";
+      if (wrap) wrap.classList.remove("open");
+      setAriaExpanded(input, false);
+    }
+  };
+
+  setInputState("theme", subjectSelected);
+  setInputState("subtheme", subjectSelected);
 }
 
 function applyNorthStarFindingsPreset(next) {
-  const key = String(next || "CUSTOM");
-  const preset = NORTH_STAR_FINDINGS_PRESETS.find((p) => p.key === key) || null;
-  setNorthStarFindingsPresetKey(key);
-  if (!preset || !Array.isArray(preset.topics)) return;
+  const prevKey = normalizeNorthStarFindingsPresetKey(state.filters?.northStarFindings?.preset);
+  const nextKey = normalizeNorthStarFindingsPresetKey(next);
+  setNorthStarFindingsPresetKey(nextKey);
 
-  const topics = preset.topics.map((t) => normalizeNorthStarFindingTopic(t));
-  state.filters.northStarFindings.topic = topics
-    .map((t) => String(t || "").trim())
-    .filter((t) => Boolean(t))
-    .sort((a, b) => a.localeCompare(b));
+  // Tema/alt-tema are subject-scoped. Reset them when subject changes (drift-free).
+  if (prevKey !== nextKey) {
+    state.filters.northStarFindings.theme = [];
+    state.filters.northStarFindings.subtheme = [];
+    const themeInput = $("#ns-findings-filter-theme-input");
+    if (themeInput) themeInput.value = "";
+    const subthemeInput = $("#ns-findings-filter-subtheme-input");
+    if (subthemeInput) subthemeInput.value = "";
+  }
 
-  // Presets are intended for exploration; do not hide NOT_TRIGGERED/UNKNOWN by default.
-  // Findings are already sorted with TRIGGERED first.
-  state.filters.northStarFindings.match = [];
   state.northStarFindingSelected = null;
+  syncNorthStarFindingsTaxonomyUi();
 
-  const topicInput = $("#ns-findings-filter-topic-input");
-  if (topicInput) topicInput.value = "";
-  renderNorthStarFindingsTagSelect("topic");
-  renderNorthStarFindingsTagSelect("match");
+  const itemsRaw = Array.isArray(state.northStarFindings?.items) ? state.northStarFindings.items : [];
+  updateNorthStarFindingsFilterOptions(itemsRaw);
+  ["domain", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => renderNorthStarFindingsTagSelect(field));
+
+  persistNorthStarFindingsPreferences();
   renderNorthStarFindings();
 }
 
 function updateNorthStarFindingsFilterOptions(items) {
   const domains = new Map();
   const topics = new Map();
+  const themes = new Map();
+  const subthemes = new Map();
   const catalogs = new Map();
 
   const addOption = (map, value) => {
@@ -2003,14 +2775,43 @@ function updateNorthStarFindingsFilterOptions(items) {
     if (!map.has(key)) map.set(key, raw);
   };
 
-  (Array.isArray(items) ? items : []).forEach((item) => {
+  const allItems = Array.isArray(items) ? items : [];
+  const preset = getNorthStarFindingsPresetConfig(state.filters?.northStarFindings?.preset);
+  const subjectSelected = normalizeNorthStarFindingsPresetKey(preset?.key) !== "ALL";
+  const scopedItems = subjectSelected ? allItems.filter((item) => northStarFindingMatchesSubjectPreset(item, preset)) : allItems;
+
+  // Domain/topic/catalog options follow the active subject (reduces noise).
+  (subjectSelected ? scopedItems : allItems).forEach((item) => {
     normalizeNorthStarFindingDomains(item?.domains).forEach((d) => addOption(domains, d));
     addOption(topics, normalizeNorthStarFindingTopic(item?.topic));
     addOption(catalogs, String(item?.catalog || ""));
   });
 
+  if (subjectSelected) {
+    scopedItems.forEach((item) => addOption(themes, normalizeNorthStarFindingTheme(item)));
+  }
+
   state.filterOptions.northStarFindings.domain = Array.from(domains.values()).sort((a, b) => a.localeCompare(b));
   state.filterOptions.northStarFindings.topic = Array.from(topics.values()).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.northStarFindings.theme = subjectSelected ? Array.from(themes.values()).sort((a, b) => a.localeCompare(b)) : [];
+
+  // Theme selection affects which subthemes are available (cascading).
+  const themeOptionKeys = new Set(state.filterOptions.northStarFindings.theme.map((opt) => normalizeKey(opt)));
+  state.filters.northStarFindings.theme = (state.filters.northStarFindings.theme || []).filter((opt) =>
+    themeOptionKeys.has(normalizeKey(opt))
+  );
+
+  if (subjectSelected) {
+    const selectedThemeKeys = new Set((state.filters.northStarFindings.theme || []).map((opt) => normalizeKey(opt)));
+    const subthemeSource =
+      selectedThemeKeys.size > 0
+        ? scopedItems.filter((item) => selectedThemeKeys.has(normalizeKey(normalizeNorthStarFindingTheme(item))))
+        : scopedItems;
+    subthemeSource.forEach((item) => addOption(subthemes, normalizeNorthStarFindingSubtheme(item)));
+    state.filterOptions.northStarFindings.subtheme = Array.from(subthemes.values()).sort((a, b) => a.localeCompare(b));
+  } else {
+    state.filterOptions.northStarFindings.subtheme = [];
+  }
   const nextCatalogs = Array.from(catalogs.values())
     .map((c) => String(c || "").trim())
     .filter((c) => Boolean(c))
@@ -2018,7 +2819,7 @@ function updateNorthStarFindingsFilterOptions(items) {
   state.filterOptions.northStarFindings.catalog = nextCatalogs.length ? nextCatalogs : state.filterOptions.northStarFindings.catalog;
 
   // Prune selections that no longer exist (fail-closed).
-  ["domain", "topic", "match", "catalog"].forEach((field) => {
+  ["domain", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     const selected = state.filters.northStarFindings[field] || [];
     const options = state.filterOptions.northStarFindings[field] || [];
     const optionKeys = new Set(options.map((opt) => normalizeKey(opt)));
@@ -2082,14 +2883,32 @@ function addNorthStarFindingTag(field, value) {
   list.push(normalizeValue(value));
   list.sort((a, b) => a.localeCompare(b));
   state.filters.northStarFindings[field] = list;
+
+  // Cascading: theme selection affects subtheme options.
+  if (field === "theme") {
+    const itemsRaw = Array.isArray(state.northStarFindings?.items) ? state.northStarFindings.items : [];
+    updateNorthStarFindingsFilterOptions(itemsRaw);
+  }
+
+  persistNorthStarFindingsPreferences();
   renderNorthStarFindingsTagSelect(field);
+  if (field === "theme") renderNorthStarFindingsTagSelect("subtheme");
 }
 
 function removeNorthStarFindingTag(field, value) {
   const list = state.filters.northStarFindings[field] || [];
   const key = normalizeKey(value);
   state.filters.northStarFindings[field] = list.filter((item) => normalizeKey(item) !== key);
+
+  // Cascading: theme selection affects subtheme options.
+  if (field === "theme") {
+    const itemsRaw = Array.isArray(state.northStarFindings?.items) ? state.northStarFindings.items : [];
+    updateNorthStarFindingsFilterOptions(itemsRaw);
+  }
+
+  persistNorthStarFindingsPreferences();
   renderNorthStarFindingsTagSelect(field);
+  if (field === "theme") renderNorthStarFindingsTagSelect("subtheme");
 }
 
 function findingsMatchRank(value) {
@@ -2130,22 +2949,35 @@ function renderNorthStarFindings() {
 
   const domain = state.filters.northStarFindings.domain || [];
   const topic = state.filters.northStarFindings.topic || [];
+  const theme = state.filters.northStarFindings.theme || [];
+  const subtheme = state.filters.northStarFindings.subtheme || [];
   const match = state.filters.northStarFindings.match || [];
   const catalog = state.filters.northStarFindings.catalog || [];
 
   let items = itemsRaw.map((item) => {
     const domains = normalizeNorthStarFindingDomains(item?.domains);
     const topicNorm = normalizeNorthStarFindingTopic(item?.topic);
+    const themeNorm = normalizeNorthStarFindingTheme(item);
+    const subthemeNorm = normalizeNorthStarFindingSubtheme(item);
     return {
       ...item,
       _domains_norm: domains,
       _domains_joined: domains.join(", "),
       _topic_norm: topicNorm,
+      _theme_norm: themeNorm,
+      _subtheme_norm: subthemeNorm,
       _match_rank: findingsMatchRank(item?.match_status),
       _reasons_count: Array.isArray(item?.reasons) ? item.reasons.length : 0,
       _evidence_count: Array.isArray(item?.evidence_pointers) ? item.evidence_pointers.length : 0,
     };
   });
+
+  const preset = getNorthStarFindingsPresetConfig(state.filters?.northStarFindings?.preset);
+  if (preset && normalizeNorthStarFindingsPresetKey(preset.key) !== "ALL") {
+    items = items.filter((item) => northStarFindingMatchesSubjectPreset(item, preset));
+  }
+  const subjectHeader = t("north_star.findings.preset_label");
+  const subjectLabel = preset && normalizeNorthStarFindingsPresetKey(preset.key) !== "ALL" ? t(String(preset.labelKey || "")) : "";
 
   if (domain.length) {
     const domainKeys = new Set(domain.map((val) => normalizeKey(val)));
@@ -2154,6 +2986,14 @@ function renderNorthStarFindings() {
   if (topic.length) {
     const topicKeys = new Set(topic.map((val) => normalizeKey(val)));
     items = items.filter((item) => topicKeys.has(normalizeKey(item._topic_norm)));
+  }
+  if (theme.length) {
+    const themeKeys = new Set(theme.map((val) => normalizeKey(val)));
+    items = items.filter((item) => themeKeys.has(normalizeKey(item._theme_norm)));
+  }
+  if (subtheme.length) {
+    const subthemeKeys = new Set(subtheme.map((val) => normalizeKey(val)));
+    items = items.filter((item) => subthemeKeys.has(normalizeKey(item._subtheme_norm)));
   }
   if (match.length) {
     const matchKeys = new Set(match.map((val) => normalizeKey(val)));
@@ -2172,6 +3012,8 @@ function renderNorthStarFindings() {
         item.title,
         item._topic_norm,
         item._domains_joined,
+        item._theme_norm,
+        item._subtheme_norm,
         Array.isArray(item.tags) ? item.tags.join(" ") : "",
         Array.isArray(item.reasons) ? item.reasons.join(" ") : "",
         includeLens ? String(item.lens || "") : "",
@@ -2192,6 +3034,10 @@ function renderNorthStarFindings() {
     }
     const t = String(a._topic_norm || "").localeCompare(String(b._topic_norm || ""));
     if (t !== 0) return t;
+    const th = String(a._theme_norm || "").localeCompare(String(b._theme_norm || ""));
+    if (th !== 0) return th;
+    const sth = String(a._subtheme_norm || "").localeCompare(String(b._subtheme_norm || ""));
+    if (sth !== 0) return sth;
     const d = String(a._domains_joined || "").localeCompare(String(b._domains_joined || ""));
     if (d !== 0) return d;
     const c = String(a.catalog || "").localeCompare(String(b.catalog || ""));
@@ -2230,8 +3076,11 @@ function renderNorthStarFindings() {
     const headers = [
       includeLens ? t("north_star.table.lens") : null,
       t("north_star.table.match"),
+      subjectHeader,
       t("north_star.table.topic"),
       t("north_star.table.domain"),
+      t("north_star.table.theme"),
+      t("north_star.table.subtheme"),
       t("north_star.table.title"),
       t("north_star.table.catalog"),
       t("north_star.table.id"),
@@ -2245,12 +3094,19 @@ function renderNorthStarFindings() {
       .slice(0, 250)
       .map((item) => {
         const key = encodeTag(getNorthStarFindingKey(item));
+        const taxonomyRequired = northStarFindingHasSubjectTag(item);
+        const subjectTags = extractNorthStarSubjectTags(item?.tags);
+        const subjectText =
+          subjectTags.length > 0 ? subjectTags.join(", ") : (subjectLabel || t("common.none"));
         return `
           <tr class="clickable" data-finding="${key}">
             ${includeLens ? `<td>${escapeHtml(String(item.lens || ""))}</td>` : ""}
             <td>${renderNorthStarFindingsBadge(item.match_status)}</td>
+            <td>${escapeHtml(subjectText)}</td>
             <td>${escapeHtml(item._topic_norm)}</td>
             <td>${escapeHtml(item._domains_joined)}</td>
+            <td>${renderNorthStarTaxonomyCell(item._theme_norm, taxonomyRequired)}</td>
+            <td>${renderNorthStarTaxonomyCell(item._subtheme_norm, taxonomyRequired)}</td>
             <td>${escapeHtml(String(item.title || ""))}</td>
             <td>${escapeHtml(String(item.catalog || ""))}</td>
             <td>${escapeHtml(String(item.id || ""))}</td>
@@ -2298,6 +3154,10 @@ function renderNorthStarFindingsDetail() {
 
   const domains = normalizeNorthStarFindingDomains(item.domains);
   const topic = normalizeNorthStarFindingTopic(item.topic);
+  const theme = normalizeNorthStarFindingTheme(item);
+  const subtheme = normalizeNorthStarFindingSubtheme(item);
+  const taxonomyRequired = northStarFindingHasSubjectTag(item);
+  const taxonomyMissing = taxonomyRequired && (!theme || !subtheme);
   const tags = Array.isArray(item.tags) ? item.tags.map((t) => String(t || "")).filter((t) => Boolean(t)) : [];
   const reasons = Array.isArray(item.reasons) ? item.reasons.map((r) => String(r || "")).filter((r) => Boolean(r)) : [];
   const evidence = Array.isArray(item.evidence_pointers)
@@ -2322,11 +3182,12 @@ function renderNorthStarFindingsDetail() {
     : `<span class="subtle">${escapeHtml(t("common.none"))}</span>`;
 
   const openExtra = String(item.match_status || "").toUpperCase() === "TRIGGERED";
+  const taxonomyBadge = taxonomyMissing ? ` | taxonomy=${renderNorthStarMissingBadge()}` : "";
 
   detailEl.innerHTML = `
     <div class="note-item">
       <div class="note-title">${escapeHtml(String(item.title || ""))}</div>
-      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | topic=${escapeHtml(topic)} | domains=${escapeHtml(domains.join(", "))} | catalog=${escapeHtml(String(item.catalog || ""))} | id=${escapeHtml(String(item.id || ""))}</div>
+      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | topic=${escapeHtml(topic)} | domains=${escapeHtml(domains.join(", "))} | theme=${escapeHtml(String(theme || t("common.none")))} | subtheme=${escapeHtml(String(subtheme || t("common.none")))}${taxonomyBadge} | catalog=${escapeHtml(String(item.catalog || ""))} | id=${escapeHtml(String(item.id || ""))}</div>
       <div class="note-tags">${tags.slice(0, 18).map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("")}</div>
       ${
         summary
@@ -2376,24 +3237,55 @@ function clearNorthStarFindingsFilters() {
   state.filters.northStarFindings.search = "";
   state.filters.northStarFindings.domain = [];
   state.filters.northStarFindings.topic = [];
+  state.filters.northStarFindings.theme = [];
+  state.filters.northStarFindings.subtheme = [];
   state.filters.northStarFindings.match = ["TRIGGERED"];
   state.filters.northStarFindings.catalog = [];
-  setNorthStarFindingsPresetKey("CUSTOM");
+  setNorthStarFindingsPresetKey("ALL");
   state.northStarFindingSelected = null;
+
+  const itemsRaw = Array.isArray(state.northStarFindings?.items) ? state.northStarFindings.items : [];
+  updateNorthStarFindingsFilterOptions(itemsRaw);
+  syncNorthStarFindingsTaxonomyUi();
+  persistNorthStarFindingsPreferences();
 
   const searchInput = $("#ns-findings-search");
   if (searchInput) searchInput.value = "";
 
-  ["domain", "topic", "match", "catalog"].forEach((field) => {
+  ["domain", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     const input = $(`#ns-findings-filter-${field}-input`);
     if (input) input.value = "";
     renderNorthStarFindingsTagSelect(field);
   });
 }
 
+function renderNorthStarFindingsAdvancedUi() {
+  const advancedWrap = $("#ns-findings-advanced");
+  const toggleBtn = $("#ns-findings-advanced-toggle");
+  const open = Boolean(state.northStarFindingsAdvancedOpen);
+
+  if (advancedWrap) {
+    advancedWrap.style.display = open ? "flex" : "none";
+  }
+
+  if (toggleBtn) {
+    toggleBtn.textContent = open ? t("north_star.findings.advanced_toggle_open") : t("north_star.findings.advanced_toggle_closed");
+    toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  if (!open) {
+    ["domain", "topic", "theme", "subtheme", "catalog"].forEach((field) => {
+      const wrap = $(`#ns-findings-filter-${field}`);
+      if (wrap) wrap.classList.remove("open");
+      const input = $(`#ns-findings-filter-${field}-input`);
+      if (input) setAriaExpanded(input, false);
+    });
+  }
+}
+
 function setupNorthStarFindingsTagSelects() {
   if (northStarFindingsUiAttached) return;
-  const fields = ["domain", "topic", "match", "catalog"];
+  const fields = ["domain", "topic", "theme", "subtheme", "match", "catalog"];
   const closeAll = (except) => {
     fields.forEach((field) => {
       if (field === except) return;
@@ -2404,27 +3296,29 @@ function setupNorthStarFindingsTagSelects() {
     });
   };
 
-  fields.forEach((field) => {
-    const wrap = $(`#ns-findings-filter-${field}`);
-    const input = $(`#ns-findings-filter-${field}-input`);
-    const options = $(`#ns-findings-filter-${field}-options`);
-    if (!wrap || !input || !options) return;
-    const toggle = wrap.querySelector(".tag-toggle");
+	  fields.forEach((field) => {
+	    const wrap = $(`#ns-findings-filter-${field}`);
+	    const input = $(`#ns-findings-filter-${field}-input`);
+	    const options = $(`#ns-findings-filter-${field}-options`);
+	    if (!wrap || !input || !options) return;
+	    const toggle = wrap.querySelector(".tag-toggle");
 
-    const openSelect = () => {
-      closeAll(field);
-      wrap.classList.add("open");
-      setTagSelectActiveIndex("northStarFindings", field, 0);
-      renderNorthStarFindingsTagSelect(field);
-      requestAnimationFrame(() => scrollTagSelectActiveOptionIntoView(options));
-    };
+	    const openSelect = () => {
+	      if (input.disabled) return;
+	      closeAll(field);
+	      wrap.classList.add("open");
+	      setTagSelectActiveIndex("northStarFindings", field, 0);
+	      renderNorthStarFindingsTagSelect(field);
+	      requestAnimationFrame(() => scrollTagSelectActiveOptionIntoView(options));
+	    };
 
-    input.addEventListener("focus", () => {
-      openSelect();
-    });
-    input.addEventListener("input", () => renderNorthStarFindingsTagSelect(field));
-    input.addEventListener("keydown", (event) => {
-      const key = event.key;
+	    input.addEventListener("focus", () => {
+	      if (input.disabled) return;
+	      openSelect();
+	    });
+	    input.addEventListener("input", () => renderNorthStarFindingsTagSelect(field));
+	    input.addEventListener("keydown", (event) => {
+	      const key = event.key;
       if (key === "Escape") {
         wrap.classList.remove("open");
         setAriaExpanded(input, false);
@@ -2450,18 +3344,17 @@ function setupNorthStarFindingsTagSelects() {
       }
 
       if (key === "Enter") {
-        event.preventDefault();
-        const target = optionEls[current];
-        const rawValue = target?.dataset?.value;
-        if (!rawValue) return;
-        addNorthStarFindingTag(field, decodeTag(rawValue));
-        if (field === "topic") setNorthStarFindingsPresetKey("CUSTOM");
-        input.value = "";
-        openSelect();
-        input.focus();
-        renderNorthStarFindings();
-      }
-    });
+	        event.preventDefault();
+	        const target = optionEls[current];
+	        const rawValue = target?.dataset?.value;
+	        if (!rawValue) return;
+	        addNorthStarFindingTag(field, decodeTag(rawValue));
+	        input.value = "";
+	        openSelect();
+	        input.focus();
+	        renderNorthStarFindings();
+	      }
+	    });
     input.addEventListener("blur", () => {
       setTimeout(() => {
         if (wrap.contains(document.activeElement)) return;
@@ -2470,39 +3363,39 @@ function setupNorthStarFindingsTagSelects() {
       }, 150);
     });
     options.addEventListener("mousedown", (event) => event.preventDefault());
-    if (toggle) {
-      toggle.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (wrap.classList.contains("open")) {
-          wrap.classList.remove("open");
-          setAriaExpanded(input, false);
-        } else {
-          openSelect();
+	    if (toggle) {
+	      toggle.addEventListener("click", (event) => {
+	        event.preventDefault();
+	        event.stopPropagation();
+	        if (input.disabled) return;
+	        if (wrap.classList.contains("open")) {
+	          wrap.classList.remove("open");
+	          setAriaExpanded(input, false);
+	        } else {
+	          openSelect();
         }
         input.focus();
       });
-    }
-    wrap.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target?.classList?.contains("tag-toggle")) return;
-      const rawValue = target?.dataset?.value;
-      const rawRemove = target?.dataset?.remove;
-      if (rawValue) {
-        addNorthStarFindingTag(field, decodeTag(rawValue));
-        if (field === "topic") setNorthStarFindingsPresetKey("CUSTOM");
-        input.value = "";
-        openSelect();
-        input.focus();
-        renderNorthStarFindings();
-      }
-      if (rawRemove) {
-        removeNorthStarFindingTag(field, decodeTag(rawRemove));
-        if (field === "topic") setNorthStarFindingsPresetKey("CUSTOM");
-        renderNorthStarFindings();
-      }
-      if (target && (target.classList?.contains("tag-select-input") || target.classList?.contains("tag-input"))) {
-        openSelect();
+	    }
+	    wrap.addEventListener("click", (event) => {
+	      if (input.disabled) return;
+	      const target = event.target;
+	      if (target?.classList?.contains("tag-toggle")) return;
+	      const rawValue = target?.dataset?.value;
+	      const rawRemove = target?.dataset?.remove;
+	      if (rawValue) {
+	        addNorthStarFindingTag(field, decodeTag(rawValue));
+	        input.value = "";
+	        openSelect();
+	        input.focus();
+	        renderNorthStarFindings();
+	      }
+	      if (rawRemove) {
+	        removeNorthStarFindingTag(field, decodeTag(rawRemove));
+	        renderNorthStarFindings();
+	      }
+	      if (target && (target.classList?.contains("tag-select-input") || target.classList?.contains("tag-input"))) {
+	        openSelect();
         input.focus();
       }
     });
@@ -2535,6 +3428,7 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
       : { version: "v1", summary: { total: 0, triggered: 0, not_triggered: 0, unknown: 0 }, items: [] };
 
   updateNorthStarFindingsFilterOptions(itemsRaw);
+  syncNorthStarFindingsTaxonomyUi();
   state.northStarFindingSelected = null;
 
   if (meta) {
@@ -2551,7 +3445,7 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
         const label = t(String(p.labelKey || "")) || String(p.key || "");
         return `<option value="${escapeHtml(p.key)}">${escapeHtml(label)}</option>`;
       }).join("");
-      const preferredPreset = String(state.filters.northStarFindings.preset || "CUSTOM");
+      const preferredPreset = normalizeNorthStarFindingsPresetKey(state.filters.northStarFindings.preset);
       presetSelect.value = preferredPreset;
       presetSelect.addEventListener("change", () => applyNorthStarFindingsPreset(presetSelect.value));
     }
@@ -2563,6 +3457,8 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
         const byLens = state.northStarFindingsByLens && typeof state.northStarFindingsByLens === "object" ? state.northStarFindingsByLens : {};
         const next = byLens[selectedKey];
         const label = selectedKey === NORTH_STAR_FINDINGS_ALL_LENSES_KEY ? t("north_star.all_lenses") : selectedKey;
+        state.northStarFindingsLensName = selectedKey;
+        persistNorthStarFindingsPreferences();
         setupNorthStarFindingsUi(next, { lensKey: selectedKey, lensLabel: label });
       });
     }
@@ -2570,6 +3466,16 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
     const searchInput = $("#ns-findings-search");
     if (searchInput) {
       searchInput.addEventListener("input", () => renderNorthStarFindings());
+    }
+
+    const advancedToggle = $("#ns-findings-advanced-toggle");
+  if (advancedToggle) {
+      advancedToggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        state.northStarFindingsAdvancedOpen = !state.northStarFindingsAdvancedOpen;
+        writeToStorage(NS_FINDINGS_ADVANCED_OPEN_STORAGE_KEY, state.northStarFindingsAdvancedOpen);
+        renderNorthStarFindingsAdvancedUi();
+      });
     }
 
     const clearBtn = $("#ns-findings-clear");
@@ -2585,12 +3491,14 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
     northStarFindingsControlsAttached = true;
   }
 
+  renderNorthStarFindingsAdvancedUi();
+
   const searchInput = $("#ns-findings-search");
   if (searchInput) {
     searchInput.value = state.filters.northStarFindings.search || "";
   }
 
-  ["domain", "topic", "match", "catalog"].forEach((field) => {
+  ["domain", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     renderNorthStarFindingsTagSelect(field);
   });
   renderNorthStarFindings();
@@ -2856,6 +3764,72 @@ function renderNorthStarRunnerBadges(meta) {
   return pieces.join("");
 }
 
+function renderNorthStarLlmLiveBadge(payload) {
+  const wrap = payload?.llm_live_readiness;
+  const data = unwrap(wrap || {});
+  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+    return `<span class="badge warn" title="LLM live readiness report missing (run llm-live-readiness)">LLM_LIVE=UNKNOWN</span>`;
+  }
+
+  const ready = data.ready === true;
+  const status = String(data.status || "").toUpperCase();
+  const reasons = Array.isArray(data.reasons) ? data.reasons.slice(0, 8).map(String) : [];
+  const readyProviders = Array.isArray(data.ready_providers) ? data.ready_providers.slice(0, 4).map(String) : [];
+  const providersHint = readyProviders.length ? ` providers=${readyProviders.join(",")}` : "";
+  const reasonHint = reasons.length ? ` reasons=${reasons.join(",")}` : "";
+  const pathHint = wrap?.path ? ` path=${wrap.path}` : "";
+
+  const title = `status=${status || "UNKNOWN"} ready=${ready ? "true" : "false"}${providersHint}${reasonHint}${pathHint}`;
+  const cls = ready ? "ok" : "warn";
+  const label = ready ? "READY" : "NOT_READY";
+  return `<span class="badge ${cls}" title="${escapeHtml(title)}">LLM_LIVE=${escapeHtml(label)}</span>`;
+}
+
+function setupNorthStarTopGapsControls() {
+  if (northStarTopGapsControlsAttached) return;
+  const btn = $("#north-star-gap-toggle");
+  if (!btn) return;
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    state.northStarTopGapsExpanded = !state.northStarTopGapsExpanded;
+    writeToStorage(NS_TOP_GAPS_EXPANDED_STORAGE_KEY, state.northStarTopGapsExpanded);
+    const payload = state.northStar || {};
+    const gapItems = Array.isArray(payload.top_gaps) ? payload.top_gaps : [];
+    renderNorthStarTopGaps(gapItems);
+  });
+  northStarTopGapsControlsAttached = true;
+}
+
+function renderNorthStarTopGaps(gapItems) {
+  const items = Array.isArray(gapItems) ? gapItems : [];
+  const limit = 5;
+  const total = items.length;
+  const canExpand = total > limit;
+  const expanded = Boolean(state.northStarTopGapsExpanded) && canExpand;
+  const visible = expanded ? items : items.slice(0, limit);
+
+  renderStaticTable("#north-star-gap-table", visible, [
+    { key: "id", label: t("table.gap_id") },
+    { key: "control_id", label: t("table.control") },
+    { key: "severity", label: t("table.severity") },
+    { key: "risk_class", label: t("table.risk") },
+    { key: "effort", label: t("table.effort") },
+    { key: "status", label: t("table.status") },
+  ]);
+
+  const meta = $("#north-star-gap-meta");
+  if (meta) {
+    meta.textContent = canExpand ? t("north_star.top_gaps.meta", { shown: visible.length, total }) : "";
+  }
+
+  const btn = $("#north-star-gap-toggle");
+  if (btn) {
+    btn.style.display = canExpand ? "" : "none";
+    btn.textContent = expanded ? t("north_star.top_gaps.show_top5") : t("north_star.top_gaps.show_all");
+    btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  }
+}
+
 function renderNorthStar() {
   const payload = state.northStar || {};
   const summary = payload.summary || {};
@@ -2875,7 +3849,7 @@ function renderNorthStar() {
 
   const runnerBadgesEl = $("#north-star-runner-badges");
   if (runnerBadgesEl) {
-    runnerBadgesEl.innerHTML = renderNorthStarRunnerBadges(payload.runner_meta || {});
+    runnerBadgesEl.innerHTML = renderNorthStarRunnerBadges(payload.runner_meta || {}) + renderNorthStarLlmLiveBadge(payload);
   }
 
   const evalLenses = evalData && typeof evalData === "object" ? evalData.lenses : null;
@@ -2935,16 +3909,8 @@ function renderNorthStar() {
   }
 
   const gapItems = Array.isArray(payload.top_gaps) ? payload.top_gaps : [];
-  renderStaticTable("#north-star-gap-table", gapItems, [
-    { key: "id", label: t("table.gap_id") },
-    { key: "control_id", label: t("table.control") },
-    { key: "severity", label: t("table.severity") },
-    { key: "risk_class", label: t("table.risk") },
-    { key: "effort", label: t("table.effort") },
-    { key: "status", label: t("table.status") },
-  ]);
-
-  renderNorthStarLensDetails(payload, evalData);
+  setupNorthStarTopGapsControls();
+  renderNorthStarTopGaps(gapItems);
 
   // Lens Findings (lens-by-lens explorer)
   const findingsByLens = {};
@@ -3068,7 +4034,9 @@ function renderHtmlTable(items, columns) {
       const tds = columns
         .map((col) => {
           const raw = col.render ? col.render(item) : item?.[col.key] ?? "";
-          return `<td>${escapeHtml(raw)}</td>`;
+          const val = raw === undefined || raw === null ? "" : String(raw);
+          if (col.html) return `<td>${val}</td>`;
+          return `<td>${escapeHtml(val)}</td>`;
         })
         .join("");
       return `<tr>${tds}</tr>`;
@@ -3116,6 +4084,8 @@ function renderNorthStarLensDetails(payload, evalData) {
     const reasons = Array.isArray(lens.reasons) ? lens.reasons.map((r) => String(r || "")) : [];
     const requirements = lens.requirements;
     const subscores = lens.subscores && typeof lens.subscores === "object" ? lens.subscores : null;
+    const findings = lens?.findings && typeof lens.findings === "object" ? lens.findings : null;
+    const findingsItems = Array.isArray(findings?.items) ? findings.items : null;
 
     let body = "";
     const metaRows = [
@@ -3132,13 +4102,11 @@ function renderNorthStarLensDetails(payload, evalData) {
       const bpRef = String(evalObj?.bp_catalog_ref || "");
       body += `<div class="subtle">trend_catalog_ref=${escapeHtml(trendRef || "-")} | bp_catalog_ref=${escapeHtml(bpRef || "-")}</div>`;
 
-      const findings = lens?.findings && typeof lens.findings === "object" ? lens.findings : null;
-      const findingsItems = Array.isArray(findings?.items) ? findings.items : null;
-        if (findingsItems) {
-          const summary = findings?.summary && typeof findings.summary === "object" ? findings.summary : {};
-          body += `<div class="subtle">findings_total=${escapeHtml(summary.total ?? "-")} triggered=${escapeHtml(summary.triggered ?? "-")} not_triggered=${escapeHtml(summary.not_triggered ?? "-")} unknown=${escapeHtml(summary.unknown ?? "-")}</div>`;
-          body += `<div class="subtle">${escapeHtml(t("north_star.detail.lens_findings_hint"))}</div>`;
-        }
+      if (findingsItems) {
+        const summary = findings?.summary && typeof findings.summary === "object" ? findings.summary : {};
+        body += `<div class="subtle">findings_total=${escapeHtml(summary.total ?? "-")} triggered=${escapeHtml(summary.triggered ?? "-")} not_triggered=${escapeHtml(summary.not_triggered ?? "-")} unknown=${escapeHtml(summary.unknown ?? "-")}</div>`;
+        body += `<div class="subtle">${escapeHtml(t("north_star.detail.lens_findings_hint"))}</div>`;
+      }
 
       const toRows = (items) => {
         const rows = [];
@@ -3180,6 +4148,57 @@ function renderNorthStarLensDetails(payload, evalData) {
       body += `<details><summary class="subtle">${escapeHtml(t("north_star.detail.bp_catalog"))} (${bpRows.length})</summary>${renderHtmlTable(bpRows, cols)}</details>`;
       body += `<details><summary class="subtle">${escapeHtml(t("north_star.detail.lens_json"))}</summary>${renderPrettyJson(lens)}</details>`;
       return `<details><summary>${escapeHtml(name)} | ${escapeHtml(status)} | score=${escapeHtml(score)}</summary>${body}</details>`;
+    }
+
+    // For non-trend lenses: if findings.items is present, show a compact "evidence-open" quick view.
+    if (findingsItems && findingsItems.length) {
+      const summary = findings?.summary && typeof findings.summary === "object" ? findings.summary : {};
+      body += `<div class="subtle">findings_total=${escapeHtml(summary.total ?? String(findingsItems.length))} triggered=${escapeHtml(summary.triggered ?? "-")} not_triggered=${escapeHtml(summary.not_triggered ?? "-")} unknown=${escapeHtml(summary.unknown ?? "-")}</div>`;
+      body += `<div class="subtle">${escapeHtml(t("north_star.detail.lens_findings_hint"))}</div>`;
+
+      const rows = stableSort(
+        findingsItems
+          .filter((it) => it && typeof it === "object")
+          .map((it) => {
+            const match = renderNorthStarFindingsBadge(it.match_status);
+            const topic = normalizeNorthStarFindingTopic(it.topic);
+            const title = String(it.title || it.id || "");
+            const evidence = Array.isArray(it.evidence_pointers)
+              ? it.evidence_pointers.map((p) => String(p || "").trim()).filter((p) => Boolean(p))
+              : [];
+            const chips = evidence.length
+              ? evidence
+                  .slice(0, 4)
+                  .map(
+                    (p) =>
+                      `<button class="btn small ghost" type="button" data-evidence-open="${encodeTag(p)}" title="${escapeHtml(t("evidence.open_in_evidence_title"))}">${escapeHtml(p)}</button>`
+                  )
+                  .join("")
+              : `<span class="subtle">${escapeHtml(t("common.none"))}</span>`;
+            const more = evidence.length > 4 ? `<span class="subtle">+${escapeHtml(String(evidence.length - 4))}</span>` : "";
+            return {
+              _match: match,
+              topic,
+              title,
+              _evidence: `<div class="path-chips">${chips}${more}</div>`,
+              _rank: findingsMatchRank(it.match_status),
+            };
+          }),
+        (a, b) => {
+          const mr = (a._rank || 9) - (b._rank || 9);
+          if (mr !== 0) return mr;
+          const t = String(a.topic || "").localeCompare(String(b.topic || ""));
+          if (t !== 0) return t;
+          return String(a.title || "").localeCompare(String(b.title || ""));
+        }
+      );
+
+      body += `<details><summary class="subtle">${escapeHtml(t("h.lens_findings"))} (${escapeHtml(String(rows.length))})</summary>${renderHtmlTable(rows, [
+        { key: "_match", label: t("north_star.table.match"), html: true },
+        { key: "topic", label: t("north_star.table.topic") },
+        { key: "title", label: t("north_star.table.title") },
+        { key: "_evidence", label: t("north_star.table.evidence"), html: true },
+      ])}</details>`;
     }
 
     if (requirements && typeof requirements === "object") {
@@ -3235,6 +4254,16 @@ function renderNorthStarLensDetails(payload, evalData) {
   });
 
   container.innerHTML = sections.join("");
+
+  // Evidence pointers inside lens details should open the Evidence tab and preview.
+  container.querySelectorAll("[data-evidence-open]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const path = decodeTag(btn.dataset.evidenceOpen || "");
+      if (path) openEvidencePreview(path);
+    });
+  });
 }
 
 function filterBySearch(items, text, keys) {
@@ -3441,8 +4470,21 @@ function renderInboxTable(items) {
   const bucket = $("#inbox-filter-bucket") ? $("#inbox-filter-bucket").value.trim() : "";
   const status = $("#inbox-filter-status") ? $("#inbox-filter-status").value.trim() : "";
   const triage = $("#inbox-filter-triage") ? $("#inbox-filter-triage").value.trim() : "";
+  const hideDismissed = $("#inbox-hide-dismissed") ? Boolean($("#inbox-hide-dismissed").checked) : true;
 
   let filtered = Array.isArray(items) ? items : [];
+
+  const dismissedCountEl = $("#inbox-dismissed-count");
+  if (dismissedCountEl) {
+    const summaryCount = Number(state.inbox?.summary?.by_triage_state?.DISMISSED);
+    const computed = filtered.filter((it) => normalizeKey(String(it?.triage?.state || "")) === normalizeKey("DISMISSED")).length;
+    const totalDismissed = Number.isFinite(summaryCount) ? summaryCount : computed;
+    const shouldMarkHidden = !triage && hideDismissed;
+    const labelKey = shouldMarkHidden ? "inbox.meta.dismissed_hidden" : "inbox.meta.dismissed_count";
+    dismissedCountEl.textContent = t(labelKey, { count: String(totalDismissed) });
+  }
+  const hideDismissedEl = $("#inbox-hide-dismissed");
+  if (hideDismissedEl) hideDismissedEl.disabled = normalizeKey(triage) === normalizeKey("DISMISSED");
 
   filtered = filtered.map((item) => {
     const effectiveBucket = String(item?.intake?.bucket || item?.suggested_route?.bucket || "").trim();
@@ -3471,6 +4513,10 @@ function renderInboxTable(items) {
   if (triage) {
     const key = normalizeKey(triage);
     filtered = filtered.filter((item) => normalizeKey(item.triage_state) === key);
+  }
+  if (!triage && hideDismissed) {
+    const dismissedKey = normalizeKey("DISMISSED");
+    filtered = filtered.filter((item) => normalizeKey(item.triage_state) !== dismissedKey);
   }
 
   if (search) {
@@ -3528,11 +4574,35 @@ function renderInboxTable(items) {
       } },
   ];
 
-  renderTable("#inbox-table", filtered, columns, state.sort.inbox.key, state.sort.inbox.dir, (key) => {
-    const dir = state.sort.inbox.key === key && state.sort.inbox.dir === "asc" ? "desc" : "asc";
-    state.sort.inbox = { key, dir };
-    renderInboxTable(filtered);
-  });
+  renderTable(
+    "#inbox-table",
+    filtered,
+    columns,
+    state.sort.inbox.key,
+    state.sort.inbox.dir,
+    (key) => {
+      const dir = state.sort.inbox.key === key && state.sort.inbox.dir === "asc" ? "desc" : "asc";
+      state.sort.inbox = { key, dir };
+      renderInboxTable(items);
+    },
+    {
+      rowClassName: (item) => {
+        const classes = ["clickable"];
+        const selectedId = String(state.inboxSelectedId || "").trim();
+        const id = String(item?.request_id || "").trim();
+        if (selectedId && id && id === selectedId) classes.push("selected");
+        return classes.join(" ");
+      },
+      onRowClick: (item) => {
+        if (!item) return;
+        const id = String(item.request_id || "").trim();
+        state.inboxSelectedId = id || null;
+        state.inboxSelected = item || null;
+        renderInboxDetail(item);
+        renderInboxTable(items);
+      },
+    }
+  );
 
   const tableEl = $("#inbox-table");
   if (tableEl) {
@@ -3545,6 +4615,521 @@ function renderInboxTable(items) {
       });
     });
   }
+}
+
+function isInboxManualRequest(item) {
+  const evidencePath = String(item?.evidence_path || "").trim();
+  if (evidencePath.startsWith(".cache/index/manual_requests/")) return true;
+  if (evidencePath.includes("/.cache/index/manual_requests/")) return true;
+  return String(item?.artifact_type || "").trim().toLowerCase() === "manual_request";
+}
+
+function inboxTextBlob(item) {
+  const parts = [
+    item?.request_id,
+    item?.artifact_type,
+    item?.kind,
+    item?.domain,
+    item?.impact_scope,
+    item?.suggested_route?.bucket,
+    item?.suggested_route?.reason,
+    Array.isArray(item?.suggested_route?.tags) ? item.suggested_route.tags.join(" ") : item?.suggested_route?.tags,
+    item?.intake?.title,
+    item?.intake?.bucket,
+    item?.intake?.status,
+    item?.intake?.closed_reason,
+    item?.text_preview,
+  ]
+    .map((p) => String(p || "").trim())
+    .filter((p) => Boolean(p));
+  return parts.join(" ").toLowerCase();
+}
+
+function suggestOwnerProjectForInboxItem(item) {
+  const text = inboxTextBlob(item);
+  if (!text) return "";
+  if (text.includes("work-intake") || text.includes("work intake") || text.includes("context-router")) return "PRJ-WORK-INTAKE";
+  if (text.includes("airunner") || text.includes("heartbeat") || text.includes("doer-loop")) return "PRJ-AIRUNNER";
+  if (text.includes("pm-suite") || text.includes("portfolio") || text.includes("roadmap")) return "PRJ-PM-SUITE";
+  if (text.includes("cockpit")) return "PRJ-UI-COCKPIT-LITE";
+  return "";
+}
+
+function suggestInboxTriage(item) {
+  if (!item) return null;
+  if (!isInboxManualRequest(item)) return null;
+
+  const triageState = String(item?.triage?.state || "").trim().toUpperCase();
+  if (triageState && triageState !== "NEW") return null;
+
+  const suggestedBucket = String(item?.suggested_route?.bucket || item?.intake?.bucket || "").trim().toUpperCase();
+  const suggestedReason = String(item?.suggested_route?.reason || "").trim();
+  const intakeStatus = String(item?.intake?.status || "").trim().toUpperCase();
+  const closedReason = String(item?.intake?.closed_reason || "").trim().toUpperCase();
+  const requiresCore = Boolean(item?.requires_core_change);
+
+  if (requiresCore || suggestedBucket === "ROADMAP") {
+    return {
+      state: "ROUTE_TO_ROADMAP",
+      classification: { route_bucket: "ROADMAP" },
+      rationale: suggestedReason ? `AI: ROADMAP (${suggestedReason})` : "AI: ROADMAP",
+    };
+  }
+
+  if (suggestedBucket === "PROJECT") {
+    const owner = suggestOwnerProjectForInboxItem(item);
+    const classification = owner ? { route_bucket: "PROJECT", owner_project: owner } : { route_bucket: "PROJECT" };
+    return {
+      state: "ROUTE_TO_PROJECT",
+      classification,
+      rationale: suggestedReason ? `AI: PROJECT (${suggestedReason})` : "AI: PROJECT",
+    };
+  }
+
+  if (suggestedBucket === "TICKET") {
+    if (intakeStatus === "DONE") {
+      const reason = closedReason ? ` (${closedReason})` : "";
+      return {
+        state: "DISMISSED",
+        classification: { route_bucket: "TICKET" },
+        rationale: `AI: intake DONE${reason}; dismiss`,
+      };
+    }
+    if (intakeStatus === "OPEN") {
+      return {
+        state: "ROUTE_TO_TICKET",
+        classification: { route_bucket: "TICKET" },
+        rationale: "AI: keep as ticket",
+      };
+    }
+  }
+
+  return null;
+}
+
+function suggestInboxOps(item) {
+  const ops = [];
+  const seen = new Set();
+  const text = inboxTextBlob(item);
+
+  const add = (op, args, reason) => {
+    const key = `${op}::${JSON.stringify(args || {})}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    ops.push({ op, args: args || {}, reason: String(reason || "") });
+  };
+
+  if (text.includes("airrunner_lock") || text.includes("doer_loop_lock") || text.includes("doer-loop-lock") || text.includes("locked_loop")) {
+    add("doer-loop-lock-status", {}, "lock related");
+    if (text.includes("stale") || text.includes("clear") || text.includes("owner null")) {
+      add("doer-loop-lock-clear", {}, "stale lock suspected");
+    }
+  }
+  if (text.includes("system-status")) {
+    add("system-status", {}, "mentions system-status");
+  }
+  if (text.includes("work-intake") || text.includes("work intake")) {
+    add("work-intake-check", {}, "intake related");
+  }
+  if (text.includes("decision") || text.includes("decision-inbox")) {
+    add("decision-inbox-show", {}, "decision related");
+  }
+  return ops;
+}
+
+function updateInboxBatchControls(items = null) {
+  const btn = $("#inbox-batch-ai-triage");
+  const meta = $("#inbox-batch-meta");
+  const draftsBtn = $("#inbox-batch-generate-drafts");
+  const draftsMeta = $("#inbox-batch-drafts-meta");
+
+  const list = Array.isArray(items)
+    ? items
+    : Array.isArray(state.inbox?.items)
+      ? state.inbox.items
+      : (unwrap(state.inbox || {}).items || []);
+
+  const eligible = list.filter((it) => {
+    if (!isInboxManualRequest(it)) return false;
+    const s = String(it?.triage?.state || "NEW").trim().toUpperCase();
+    return s === "NEW";
+  }).length;
+
+  if (meta) meta.textContent = t("inbox.batch.meta", { count: String(eligible) });
+
+  if (btn) {
+    const admin = isAdminModeEnabled();
+    btn.disabled = Boolean(state.actionPending) || !admin || eligible === 0;
+  }
+
+  const eligibleDrafts = list.filter((it) => {
+    if (!isInboxManualRequest(it)) return false;
+    const s = String(it?.triage?.state || "NEW").trim().toUpperCase();
+    return s === "ROUTE_TO_ROADMAP" || s === "ROUTE_TO_PROJECT" || s === "CONVERT_TO_PROJECT";
+  }).length;
+
+  if (draftsMeta) draftsMeta.textContent = t("inbox.batch_drafts.meta", { count: String(eligibleDrafts) });
+  if (draftsBtn) draftsBtn.disabled = Boolean(state.actionPending) || eligibleDrafts === 0;
+}
+
+function updateInboxDetailButtons() {
+  const item = state.inboxSelected;
+  const hasSelection = Boolean(item && typeof item === "object");
+  const requestId = hasSelection ? String(item?.request_id || "").trim() : "";
+  const evidencePath = hasSelection ? String(item?.evidence_path || "").trim() : "";
+  const intakeId = hasSelection ? String(item?.intake?.intake_id || "").trim() : "";
+  const isManual = hasSelection ? isInboxManualRequest(item) : false;
+  const admin = isAdminModeEnabled();
+  const canDraft = hasSelection && isManual && requestId;
+
+  const openBtn = $("#inbox-detail-open-evidence");
+  if (openBtn) openBtn.disabled = !hasSelection || !evidencePath;
+
+  const createDraftBtn = $("#inbox-detail-create-draft");
+  if (createDraftBtn) {
+    const hasV02 = String(state.inboxDraftVersion || "") === "v0.2";
+    createDraftBtn.disabled = Boolean(state.actionPending) || !canDraft || hasV02;
+  }
+  const regenDraftBtn = $("#inbox-detail-regenerate-draft");
+  if (regenDraftBtn) {
+    regenDraftBtn.disabled = Boolean(state.actionPending) || !canDraft;
+  }
+  const copyDraftBtn = $("#inbox-detail-copy-draft");
+  if (copyDraftBtn) {
+    copyDraftBtn.disabled =
+      Boolean(state.actionPending) || !hasSelection || !state.inboxDraftAvailable || !String(state.inboxDraftText || "").trim();
+  }
+  const openDraftBtn = $("#inbox-detail-open-draft");
+  if (openDraftBtn) openDraftBtn.disabled = Boolean(state.actionPending) || !hasSelection || !state.inboxDraftAvailable;
+  const jumpBtn = $("#inbox-detail-jump-intake");
+  if (jumpBtn) jumpBtn.disabled = !hasSelection || !intakeId;
+  const noteBtn = $("#inbox-detail-create-note");
+  if (noteBtn) noteBtn.disabled = !hasSelection;
+
+  const triageDisabled = !hasSelection || !isManual || !admin;
+  ["inbox-triage-apply-ai", "inbox-triage-ticket", "inbox-triage-roadmap", "inbox-triage-project", "inbox-triage-needs-info", "inbox-triage-dismiss"].forEach((id) => {
+    const el = $("#" + id);
+    if (el) el.disabled = triageDisabled;
+  });
+}
+
+async function applyInboxTriage(update) {
+  const item = state.inboxSelected;
+  if (!item) {
+    showToast(t("toast.select_inbox_first"), "warn");
+    return null;
+  }
+  if (!isInboxManualRequest(item)) {
+    showToast(t("toast.action_failed", { error: "REQUEST_NOT_TRIAGEABLE" }), "warn");
+    return null;
+  }
+  const requestId = String(item.request_id || "").trim();
+  if (!requestId) {
+    showToast(t("toast.action_failed", { error: "REQUEST_ID_MISSING" }), "warn");
+    return null;
+  }
+  const payload = {
+    request_id: requestId,
+    state: String(update?.state || "").trim(),
+    classification: update?.classification && typeof update.classification === "object" ? update.classification : {},
+    rationale: String(update?.rationale || "").trim(),
+  };
+  return postAction("inbox-triage-set", endpoints.inboxTriageSet, payload);
+}
+
+async function jumpToInboxIntake(item) {
+  const intakeId = String(item?.intake?.intake_id || "").trim();
+  if (!intakeId) {
+    showToast(t("toast.inbox_intake_missing"), "warn");
+    return;
+  }
+  state.intakeSelectedId = intakeId;
+  navigateToTab("intake");
+  await refreshIntake();
+}
+
+async function createInboxTriageNote(item) {
+  const requestId = String(item?.request_id || "").trim();
+  if (!requestId) {
+    showToast(t("toast.action_failed", { error: "REQUEST_ID_MISSING" }), "warn");
+    return;
+  }
+  const intakeId = String(item?.intake?.intake_id || "").trim();
+  const evidencePath = String(item?.evidence_path || "").trim();
+  const kind = String(item?.kind || "").trim();
+  const domain = String(item?.domain || "").trim();
+  const triageState = String(item?.triage?.state || "").trim();
+  const suggestedBucket = String(item?.suggested_route?.bucket || "").trim();
+  const suggestedReason = String(item?.suggested_route?.reason || "").trim();
+
+  const title = `Inbox triage: ${requestId}${kind ? ` (${kind})` : ""}`;
+  const bodyParts = [
+    `request_id: ${requestId}`,
+    `kind: ${kind || "-"}`,
+    `domain: ${domain || "-"}`,
+    `triage_state: ${triageState || "-"}`,
+    `suggested_route: ${suggestedBucket || "-"}${suggestedReason ? ` (${suggestedReason})` : ""}`,
+    `intake_id: ${intakeId || "-"}`,
+    `evidence_path: ${evidencePath || "-"}`,
+    "",
+    "text_preview:",
+    String(item?.text_preview || "").trim(),
+  ];
+  const body = bodyParts.join("\n").trim() + "\n";
+
+  const links = [];
+  if (intakeId) links.push({ kind: "intake", id_or_path: intakeId });
+  if (requestId) links.push({ kind: "request", id_or_path: requestId });
+  if (evidencePath) links.push({ kind: "evidence", id_or_path: evidencePath });
+
+  const args = {
+    thread: String(state.plannerThread || "default"),
+    title,
+    body,
+    tags: ["inbox", "triage"],
+    links_json: JSON.stringify(links),
+  };
+  await postOp("planner-chat-send", args);
+}
+
+function getInboxDraftRelPath(requestId, version = "v0.2") {
+  const id = String(requestId || "").trim();
+  if (!id) return "";
+  const v = String(version || "v0.2").trim();
+  return `.cache/reports/inbox_drafts/${id}.${v}.md`;
+}
+
+function getInboxDraftCandidateRelPaths(requestId) {
+  const id = String(requestId || "").trim();
+  if (!id) return [];
+  return [getInboxDraftRelPath(id, "v0.2"), getInboxDraftRelPath(id, "v0.1")].filter((p) => Boolean(p));
+}
+
+async function refreshInboxDraft(item) {
+  const draftMeta = $("#inbox-detail-draft-meta");
+  const draftRender = $("#inbox-detail-draft-render");
+
+  state.inboxDraftAvailable = false;
+  state.inboxDraftRequestId = null;
+  state.inboxDraftPath = null;
+  state.inboxDraftRelPath = null;
+  state.inboxDraftVersion = null;
+  state.inboxDraftText = "";
+  if (draftMeta) draftMeta.textContent = "";
+  if (draftRender) clearElement(draftRender);
+
+  if (!item) {
+    if (draftMeta) draftMeta.textContent = t("common.no_selection");
+    updateInboxDetailButtons();
+    return;
+  }
+
+  const requestId = String(item?.request_id || "").trim();
+  if (!requestId) {
+    if (draftMeta) draftMeta.textContent = t("common.no_selection");
+    updateInboxDetailButtons();
+    return;
+  }
+
+  state.inboxDraftRequestId = requestId;
+  state.inboxDraftPath = null;
+
+  const token = (state.inboxDraftToken = Number(state.inboxDraftToken || 0) + 1);
+
+  const candidates = getInboxDraftCandidateRelPaths(requestId);
+  const primary = candidates.length ? candidates[0] : getInboxDraftRelPath(requestId, "v0.2");
+  if (draftMeta) draftMeta.textContent = t("inbox.draft.loading", { path: primary });
+  updateInboxDetailButtons();
+
+  try {
+    let foundText = null;
+    let foundRelPath = "";
+    let foundAbsPath = "";
+    for (const relPath of candidates) {
+      const absPath = resolveEvidencePathForApi(relPath);
+      const url = `${endpoints.evidenceRaw}?path=${encodeURIComponent(absPath)}`;
+      const resp = await fetch(url);
+      if (token !== state.inboxDraftToken) return;
+      if (resp.status === 404) continue;
+      if (!resp.ok) {
+        const error = `HTTP ${resp.status}`;
+        if (draftMeta) draftMeta.textContent = t("inbox.draft.failed", { error });
+        state.inboxDraftAvailable = false;
+        updateInboxDetailButtons();
+        return;
+      }
+      foundText = await resp.text();
+      foundRelPath = relPath;
+      foundAbsPath = absPath;
+      break;
+    }
+
+    if (token !== state.inboxDraftToken) return;
+
+    if (foundText === null) {
+      if (draftMeta) draftMeta.textContent = t("inbox.draft.not_found", { path: primary });
+      state.inboxDraftAvailable = false;
+      updateInboxDetailButtons();
+      return;
+    }
+
+    state.inboxDraftAvailable = true;
+    state.inboxDraftPath = foundAbsPath;
+    state.inboxDraftRelPath = foundRelPath;
+    state.inboxDraftVersion = foundRelPath.includes(".v0.2.") ? "v0.2" : foundRelPath.includes(".v0.1.") ? "v0.1" : null;
+    if (draftMeta) draftMeta.textContent = t("inbox.draft.loaded", { path: foundRelPath });
+
+    const out = String(foundText || "");
+    const max = 20000;
+    state.inboxDraftText = out.length > max ? out.slice(0, max) + "\n…" : out;
+    if (draftRender) renderMarkdownSafe(draftRender, state.inboxDraftText);
+  } catch (err) {
+    if (token !== state.inboxDraftToken) return;
+    if (draftMeta) draftMeta.textContent = t("inbox.draft.failed", { error: formatError(err) });
+    state.inboxDraftAvailable = false;
+  } finally {
+    if (token === state.inboxDraftToken) updateInboxDetailButtons();
+  }
+}
+
+function renderInboxDetail(item) {
+  const meta = $("#inbox-detail-meta");
+  const empty = $("#inbox-detail-empty");
+  const grid = $("#inbox-detail-grid");
+  const suggestions = $("#inbox-detail-suggestions");
+  const preview = $("#inbox-detail-preview");
+  const draftMeta = $("#inbox-detail-draft-meta");
+  const draftRender = $("#inbox-detail-draft-render");
+
+  if (suggestions) suggestions.innerHTML = "";
+  if (meta) meta.textContent = "";
+  if (preview) preview.textContent = "";
+  if (draftMeta) draftMeta.textContent = "";
+  if (draftRender) clearElement(draftRender);
+
+  if (!item) {
+    if (empty) empty.style.display = "block";
+    if (grid) grid.style.display = "none";
+    refreshInboxDraft(null);
+    updateInboxDetailButtons();
+    return;
+  }
+
+  if (empty) empty.style.display = "none";
+  if (grid) grid.style.display = "grid";
+
+  const requestId = String(item?.request_id || "").trim();
+  const triageState = String(item?.triage?.state || "").trim();
+  const effectiveBucket = String(item?.intake?.bucket || item?.suggested_route?.bucket || "").trim();
+  const intakeId = String(item?.intake?.intake_id || "").trim();
+  const intakeStatus = String(item?.intake?.status || "").trim();
+  const closedReason = String(item?.intake?.closed_reason || "").trim();
+  const suggestedReason = String(item?.suggested_route?.reason || "").trim();
+
+  if (meta) {
+    const parts = [
+      requestId ? `request_id=${requestId}` : "",
+      effectiveBucket ? `bucket=${effectiveBucket}` : "",
+      triageState ? `triage=${triageState}` : "",
+      intakeStatus ? `intake=${intakeStatus}` : "",
+    ].filter((p) => Boolean(p));
+    meta.textContent = parts.join(" · ");
+  }
+
+  if (grid) {
+    renderKeyValueGrid(grid, [
+      ["request_id", requestId],
+      ["artifact_type", String(item?.artifact_type || "").trim()],
+      ["kind", String(item?.kind || "").trim()],
+      ["domain", String(item?.domain || "").trim()],
+      ["impact_scope", String(item?.impact_scope || "").trim()],
+      ["requires_core_change", String(Boolean(item?.requires_core_change))],
+      ["suggested_bucket", String(item?.suggested_route?.bucket || "").trim()],
+      ["suggested_reason", suggestedReason],
+      ["intake_id", intakeId],
+      ["intake_bucket", String(item?.intake?.bucket || "").trim()],
+      ["intake_status", intakeStatus],
+      ["intake_closed_reason", closedReason],
+      ["triage_state", triageState],
+      ["triage_rationale", String(item?.triage?.rationale || "").trim()],
+      ["route_bucket", String(item?.triage?.classification?.route_bucket || "").trim()],
+      ["milestone", String(item?.triage?.classification?.milestone || "").trim()],
+      ["owner_project", String(item?.triage?.classification?.owner_project || "").trim()],
+      ["decision", String(item?.triage?.classification?.decision || "").trim()],
+      ["evidence_path", String(item?.evidence_path || "").trim()],
+    ]);
+  }
+
+  if (preview) preview.textContent = String(item?.text_preview || "").trim();
+
+  const triageSuggestion = suggestInboxTriage(item);
+  const ops = suggestInboxOps(item);
+  if (suggestions) {
+    const triageText = triageSuggestion
+      ? `${triageSuggestion.state} · ${JSON.stringify(triageSuggestion.classification || {})}`
+      : "-";
+    const triageHint = triageSuggestion ? String(triageSuggestion.rationale || "") : "";
+    const triageHintHtml = triageHint ? `<div class="note-meta">${escapeHtml(triageHint)}</div>` : "";
+
+    const opsHtml = ops.length
+      ? `<div class="note-list">${ops
+          .map((op) => {
+            const opName = String(op.op || "").trim();
+            const argsJson = JSON.stringify(op.args || {});
+            const adminRequired = ADMIN_REQUIRED_OPS.has(opName);
+            const disabled = adminRequired && !isAdminModeEnabled();
+            const btnClass = adminRequired ? "btn danger small" : "btn small";
+            const btnDisabledAttr = disabled ? "disabled" : "";
+            const reason = String(op.reason || "").trim();
+            return `
+              <div class="note-item">
+                <div class="note-meta">${escapeHtml(reason || "-")}</div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                  <button class="${btnClass}" type="button" data-inbox-op="${encodeTag(opName)}" data-inbox-args="${encodeTag(argsJson)}" ${btnDisabledAttr}>${escapeHtml(t("inbox.action.run_op"))}</button>
+                  <span class="subtle">${escapeHtml(opName)} ${escapeHtml(argsJson)}</span>
+                </div>
+              </div>
+            `;
+          })
+          .join("")}</div>`
+      : `<div class="subtle">-</div>`;
+
+    suggestions.innerHTML = `
+      <details open>
+        <summary class="subtle">${escapeHtml(t("inbox.detail.suggestions"))}</summary>
+        <div style="margin-top: 10px;">
+          <div class="subtle">${escapeHtml(t("inbox.detail.suggested_triage"))}: ${escapeHtml(triageText)}</div>
+          ${triageHintHtml}
+        </div>
+        <div style="margin-top: 10px;">
+          <div class="subtle">${escapeHtml(t("inbox.detail.suggested_ops"))} (${ops.length})</div>
+          ${opsHtml}
+        </div>
+      </details>
+    `;
+
+    suggestions.querySelectorAll("[data-inbox-op]").forEach((btn) => {
+      btn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const opName = decodeTag(btn.dataset.inboxOp || "");
+        const rawArgs = decodeTag(btn.dataset.inboxArgs || "");
+        let args = {};
+        if (rawArgs) {
+          try {
+            args = JSON.parse(rawArgs);
+          } catch (err) {
+            showToast(t("toast.invalid_json", { error: formatError(err) }), "fail");
+            return;
+          }
+        }
+        await postOp(opName, args);
+      });
+    });
+  }
+
+  refreshInboxDraft(item);
+  updateInboxDetailButtons();
 }
 
 function renderDecisionTable(items) {
@@ -3591,18 +5176,70 @@ function renderDecisionTable(items) {
   });
 }
 
+function getJobStableId(job) {
+  const candidates = [
+    job?.job_id,
+    job?.id,
+    job?.run_id,
+    job?.tick_id,
+    job?.work_item_id,
+  ];
+  for (const value of candidates) {
+    const s = String(value || "").trim();
+    if (s) return s;
+  }
+  return "";
+}
+
+function renderJobDetailPanel() {
+  const meta = $("#github-job-detail-meta");
+  const viewer = $("#github-job-detail-json");
+  if (!meta || !viewer) return;
+
+  const job = state.jobSelected;
+  if (!job) {
+    meta.textContent = "Select a job row to view details.";
+    viewer.textContent = "";
+    return;
+  }
+
+  const jobId = getJobStableId(job);
+  const status = String(job?.status || job?.state || "").trim();
+  const kind = String(job?.kind || job?.job_type || "").trim();
+  const failure = String(job?.failure_class || job?.error_code || "").trim();
+  const bits = [`job_id=${jobId || "-"}`, `status=${status || "-"}`, `kind=${kind || "-"}`];
+  if (failure) bits.push(`failure=${failure}`);
+  meta.textContent = bits.join(" ");
+  viewer.textContent = JSON.stringify(job || {}, null, 2);
+}
+
 function renderJobsTable(items, targetId) {
+  const list = Array.isArray(items) ? items : [];
   const columns = [
     { key: "kind", label: t("table.kind"), render: (job) => job.kind || job.job_type || "" },
     { key: "status", label: t("table.status") },
-    { key: "job_id", label: t("table.job_id") },
+    { key: "job_id", label: t("table.job_id"), render: (job) => job.job_id || job.id || job.tick_id || "" },
     { key: "failure_class", label: t("table.failure"), render: (job) => job.failure_class || job.error_code || "" },
   ];
 
-  renderTable(targetId, items, columns, state.sort.jobs.key, state.sort.jobs.dir, (key) => {
+  renderTable(targetId, list, columns, state.sort.jobs.key, state.sort.jobs.dir, (key) => {
     const dir = state.sort.jobs.key === key && state.sort.jobs.dir === "asc" ? "desc" : "asc";
     state.sort.jobs = { key, dir };
-    renderJobsTable(items, targetId);
+    renderJobsTable(list, targetId);
+  }, {
+    rowClassName: (job) => {
+      const classes = ["clickable"];
+      const jobId = getJobStableId(job);
+      if (state.jobSelectedId && jobId && jobId === state.jobSelectedId) classes.push("selected");
+      return classes.join(" ");
+    },
+    onRowClick: (job) => {
+      const jobId = getJobStableId(job);
+      state.jobSelectedId = jobId || null;
+      state.jobSelected = job || null;
+      renderJobDetailPanel();
+      renderJobsTable(list, targetId);
+    },
   });
 }
 
@@ -3880,6 +5517,30 @@ function renderChatLog() {
     list.innerHTML = `<div class="empty">${escapeHtml(t("empty.no_chat_messages"))}</div>`;
     return;
   }
+
+  function parseVariantPrefix(text) {
+    const raw = String(text || "");
+    // Accept either "[LABEL] ...", "— [LABEL] — ...", or "**[LABEL]** ..." on the first line.
+    const m = raw.match(/^\s*(?:\*\*)?(?:—\s*)?\[([^\]]+)\](?:\s*—)?(?:\*\*)?\s*/);
+    if (!m) return null;
+    const label = String(m[1] || "").trim();
+    const rest = raw.slice(m[0].length);
+    const map = {
+      "İSTİŞARE": { css: "variant-istisare" },
+      SERBEST: { css: "variant-serbest" },
+      PLAN: { css: "variant-plan" },
+      "PLAN-ONLY": { css: "variant-plan" },
+      UYGULAMA: { css: "variant-uygulama" },
+      APPLY: { css: "variant-uygulama" },
+      DEBUG: { css: "variant-debug" },
+      UX: { css: "variant-ux" },
+    };
+    const key = label.toUpperCase();
+    const hit = map[key];
+    if (!hit) return null;
+    return { label, rest, css: hit.css };
+  }
+
   list.innerHTML = items
     .map((entry) => {
       const kind = String(entry.type || "NOTE");
@@ -3897,10 +5558,14 @@ function renderChatLog() {
       if (!body && status) {
         body = `status=${status}`;
       }
+      const parsed = parseVariantPrefix(body);
+      const bodyHtml = parsed
+        ? `<div>${`<span class="variant-pill ${parsed.css}">${escapeHtml(`[${parsed.label}]`)}</span>`}</div><div>${escapeHtml(parsed.rest)}</div>`
+        : escapeHtml(body);
       return `
         <div class="chat-message ${kindClass}">
           <div class="chat-meta">${escapeHtml(meta)}</div>
-          <div class="chat-body">${escapeHtml(body)}</div>
+          <div class="chat-body">${bodyHtml}</div>
         </div>
       `;
     })
@@ -3934,9 +5599,25 @@ function renderNoteLinks() {
 function renderNoteDetail(notePayload) {
   const metaEl = $("#note-view-meta");
   const bodyEl = $("#note-view-body");
+  const variantEl = $("#note-view-variant");
+  const sectionsEl = $("#note-view-sections");
+  const innerSectionsEl = $("#note-view-inner-sections");
   if (!notePayload || !notePayload.data) {
     if (metaEl) metaEl.textContent = t("notes.no_note_selected");
     if (bodyEl) bodyEl.textContent = "";
+    if (variantEl) {
+      variantEl.style.display = "none";
+      variantEl.textContent = "";
+      variantEl.className = "variant-pill";
+    }
+    if (sectionsEl) {
+      sectionsEl.style.display = "none";
+      sectionsEl.innerHTML = "";
+    }
+    if (innerSectionsEl) {
+      innerSectionsEl.style.display = "none";
+      innerSectionsEl.innerHTML = "";
+    }
     return;
   }
   const note = notePayload.data || {};
@@ -3947,6 +5628,94 @@ function renderNoteDetail(notePayload) {
   }
   if (bodyEl) {
     bodyEl.textContent = note.body || "";
+  }
+  if (variantEl) {
+    const raw = String(note.body || "");
+    const m = raw.match(/^\s*(?:\*\*)?(?:—\s*)?\[([^\]]+)\](?:\s*—)?(?:\*\*)?\s*/);
+    const label = m ? String(m[1] || "").trim() : "";
+    const map = {
+      "İSTİŞARE": "variant-istisare",
+      SERBEST: "variant-serbest",
+      PLAN: "variant-plan",
+      "PLAN-ONLY": "variant-plan",
+      UYGULAMA: "variant-uygulama",
+      APPLY: "variant-uygulama",
+      DEBUG: "variant-debug",
+      UX: "variant-ux",
+    };
+    const css = map[label.toUpperCase()] || "";
+    if (label && css) {
+      variantEl.style.display = "inline-flex";
+      variantEl.className = `variant-pill ${css}`;
+      variantEl.textContent = `[${label}]`;
+    } else {
+      variantEl.style.display = "none";
+      variantEl.textContent = "";
+      variantEl.className = "variant-pill";
+    }
+  }
+
+  if (sectionsEl) {
+    const raw = String(note.body || "");
+    const hasSection = (id) => {
+      // Support:
+      // - bracket-only headings: "[PREVIEW]"
+      // - decorated headings: "— [PREVIEW] —" (em-dash)
+      // - legacy variants: "PREVIEW:" or "PREVIEW "
+      const re = new RegExp(
+        String.raw`(?:^|\r?\n)\s*(?:—\s*)?\[${id}\](?:\s*—)?\s*(?:\r?\n|$)|(?:^|\r?\n)\s*${id}\s*:|(?:^|\r?\n)\s*${id}\s+`,
+        "i",
+      );
+      return re.test(raw);
+    };
+    const sections = [
+      { id: "PREVIEW", css: "preview" },
+      { id: "RESULT", css: "result" },
+      { id: "EVIDENCE", css: "evidence" },
+      { id: "ACTIONS", css: "actions" },
+      { id: "NEXT", css: "next" },
+    ];
+    const present = sections.filter((s) => hasSection(s.id));
+    if (present.length) {
+      sectionsEl.style.display = "flex";
+      sectionsEl.innerHTML = present.map((s) => `<span class="section-pill ${s.css}">[${escapeHtml(s.id)}]</span>`).join("");
+    } else {
+      sectionsEl.style.display = "none";
+      sectionsEl.innerHTML = "";
+    }
+  }
+
+  if (innerSectionsEl) {
+    const raw = String(note.body || "");
+    const lines = raw.split(/\r?\n/).map((l) => String(l || "").trim());
+    const isBracketHeading = (s) => /^\[[^\]]+\]$/.test(s);
+    const uniq = [];
+    for (const l of lines) {
+      if (!l) continue;
+      if (!isBracketHeading(l)) continue;
+      if (!uniq.includes(l)) uniq.push(l);
+      if (uniq.length >= 12) break;
+    }
+    // Only show if we have inner headings beyond the outer section pills.
+    const outerSet = new Set(["[PREVIEW]", "[RESULT]", "[EVIDENCE]", "[ACTIONS]", "[NEXT]"]);
+    const inner = uniq.filter((x) => !outerSet.has(x));
+    // reuse variant css if present
+    let variantCss = "";
+    if (variantEl && variantEl.style.display !== "none") {
+      variantCss =
+        ["variant-istisare", "variant-serbest", "variant-plan", "variant-uygulama", "variant-debug", "variant-ux"].find((c) =>
+          variantEl.className.includes(c),
+        ) || "";
+    }
+    if (inner.length) {
+      innerSectionsEl.style.display = "flex";
+      innerSectionsEl.innerHTML = inner
+        .map((h) => `<span class="inner-pill ${escapeHtml(variantCss)}">${escapeHtml(h)}</span>`)
+        .join("");
+    } else {
+      innerSectionsEl.style.display = "none";
+      innerSectionsEl.innerHTML = "";
+    }
   }
 }
 
@@ -4211,7 +5980,15 @@ async function refreshInbox() {
     const doneHint = done !== undefined ? ` done=${done}` : "";
     meta.textContent = `generated_at=${generated} total=${total}${openHint}${doneHint}`;
   }
+  if (state.inboxSelectedId) {
+    const id = String(state.inboxSelectedId || "").trim();
+    const match = Array.isArray(items) ? items.find((it) => String(it?.request_id || "").trim() === id) : null;
+    state.inboxSelected = match || null;
+    if (!match) state.inboxSelectedId = null;
+  }
   renderInboxTable(items);
+  renderInboxDetail(state.inboxSelected);
+  updateInboxBatchControls(items);
 }
 
 async function refreshIntake() {
@@ -4271,12 +6048,26 @@ async function refreshSettings() {
 async function refreshJobs() {
   state.jobs = await fetchJson(endpoints.jobs);
   state.airunnerJobs = await fetchJson(endpoints.airunnerJobs);
-  renderJobsTable((state.jobs || {}).jobs || [], "#github-jobs-table");
-  renderJobsTable((state.airunnerJobs || {}).jobs || [], "#airunner-jobs-table");
+  const githubJobs = Array.isArray((state.jobs || {}).jobs) ? (state.jobs || {}).jobs : [];
+  const airunnerJobs = Array.isArray((state.airunnerJobs || {}).jobs) ? (state.airunnerJobs || {}).jobs : [];
+
+  if (state.jobSelectedId) {
+    const id = String(state.jobSelectedId || "").trim();
+    const all = [...githubJobs, ...airunnerJobs];
+    const match = all.find((job) => getJobStableId(job) === id) || null;
+    state.jobSelected = match;
+    if (!match) state.jobSelectedId = null;
+  }
+
+  renderJobsTable(githubJobs, "#github-jobs-table");
+  renderJobsTable(airunnerJobs, "#airunner-jobs-table");
+  renderJobDetailPanel();
   const smokeId = latestSmokeJobId();
   const smokeEl = $("#smoke-fast-last");
   if (smokeEl) {
-    smokeEl.textContent = smokeId ? `last smoke job: ${smokeId}` : "last smoke job: -";
+    smokeEl.textContent = smokeId
+      ? t("jobs.meta.last_smoke_job", { id: smokeId })
+      : t("jobs.meta.last_smoke_job_none");
   }
 }
 
@@ -4500,6 +6291,9 @@ function setActionDisabled(disabled) {
     "planner-send",
     "composer-run",
     "download-evidence",
+    "inbox-batch-ai-triage",
+    "inbox-batch-generate-drafts",
+    "inbox-detail-regenerate-draft",
   ].forEach((id) => {
     const el = $("#" + id);
     if (el) el.disabled = disabled;
@@ -4989,7 +6783,7 @@ function setupOps() {
   if (openNotesBtn) {
     openNotesBtn.addEventListener("click", (event) => {
       event.preventDefault();
-      navigateToTab("notes");
+      navigateToTab("planner-chat");
     });
   }
   const claimBtn = $("#intake-claim");
@@ -5049,12 +6843,213 @@ function setupOps() {
     const el = $(`#${id}`);
     if (!el) return;
     el.addEventListener("change", () => {
+      if (id === "inbox-filter-triage") writeToStorage(INBOX_TRIAGE_FILTER_STORAGE_KEY, el.value);
+      const items = Array.isArray(state.inbox?.items)
+        ? state.inbox.items
+        : (unwrap(state.inbox || {}).items || []);
+      renderInboxTable(items);
+      updateInboxBatchControls(items);
+    });
+  });
+
+  const inboxHideDismissed = $("#inbox-hide-dismissed");
+  if (inboxHideDismissed) {
+    inboxHideDismissed.addEventListener("change", () => {
+      writeToStorage(INBOX_HIDE_DISMISSED_STORAGE_KEY, inboxHideDismissed.checked ? "true" : "false");
       const items = Array.isArray(state.inbox?.items)
         ? state.inbox.items
         : (unwrap(state.inbox || {}).items || []);
       renderInboxTable(items);
     });
-  });
+  }
+
+  const inboxBatchAiBtn = $("#inbox-batch-ai-triage");
+  if (inboxBatchAiBtn) {
+    inboxBatchAiBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await postAction("inbox-triage-apply-ai-batch", endpoints.inboxTriageApplyAi, { mode: "new_manual_request" });
+    });
+  }
+
+  const inboxBatchDraftsBtn = $("#inbox-batch-generate-drafts");
+  if (inboxBatchDraftsBtn) {
+    inboxBatchDraftsBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await postOp("inbox-draft-batch-generate", {});
+      await refreshInboxDraft(state.inboxSelected);
+    });
+  }
+
+  const inboxOpenEvidenceBtn = $("#inbox-detail-open-evidence");
+  if (inboxOpenEvidenceBtn) {
+    inboxOpenEvidenceBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const item = state.inboxSelected;
+      if (!item) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      const path = String(item?.evidence_path || "").trim();
+      if (!path) {
+        showToast(t("toast.inbox_evidence_missing"), "warn");
+        return;
+      }
+      openEvidencePreview(path);
+    });
+  }
+
+  const inboxOpenDraftBtn = $("#inbox-detail-open-draft");
+  if (inboxOpenDraftBtn) {
+    inboxOpenDraftBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const requestId = String(state.inboxSelected?.request_id || "").trim();
+      const relPath = getInboxDraftRelPath(requestId);
+      const absPath = String(state.inboxDraftPath || "").trim() || resolveEvidencePathForApi(relPath);
+      if (!requestId || !relPath || !absPath) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      if (!state.inboxDraftAvailable) {
+        showToast(t("inbox.draft.not_found", { path: relPath }), "warn");
+        return;
+      }
+      const url = `${endpoints.evidenceRaw}?path=${encodeURIComponent(absPath)}`;
+      window.open(url, "_blank");
+    });
+  }
+
+  const inboxCopyDraftBtn = $("#inbox-detail-copy-draft");
+  if (inboxCopyDraftBtn) {
+    inboxCopyDraftBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const requestId = String(state.inboxSelected?.request_id || "").trim();
+      const relPath = getInboxDraftRelPath(requestId);
+      if (!requestId) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      if (!state.inboxDraftAvailable) {
+        showToast(t("inbox.draft.not_found", { path: relPath }), "warn");
+        return;
+      }
+      const text = String(state.inboxDraftText || "");
+      if (!text.trim()) return;
+      copyText(text);
+    });
+  }
+
+  const inboxCreateDraftBtn = $("#inbox-detail-create-draft");
+  if (inboxCreateDraftBtn) {
+    inboxCreateDraftBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const requestId = String(state.inboxSelected?.request_id || "").trim();
+      if (!requestId) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      await postOp("inbox-draft-create", { request_id: requestId });
+      await refreshInboxDraft(state.inboxSelected);
+    });
+  }
+
+  const inboxRegenerateDraftBtn = $("#inbox-detail-regenerate-draft");
+  if (inboxRegenerateDraftBtn) {
+    inboxRegenerateDraftBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const requestId = String(state.inboxSelected?.request_id || "").trim();
+      if (!requestId) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      await postOp("inbox-draft-create", { request_id: requestId, mode: "force" });
+      await refreshInboxDraft(state.inboxSelected);
+    });
+  }
+
+  const inboxJumpBtn = $("#inbox-detail-jump-intake");
+  if (inboxJumpBtn) {
+    inboxJumpBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const item = state.inboxSelected;
+      if (!item) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      await jumpToInboxIntake(item);
+    });
+  }
+
+  const inboxCreateNoteBtn = $("#inbox-detail-create-note");
+  if (inboxCreateNoteBtn) {
+    inboxCreateNoteBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const item = state.inboxSelected;
+      if (!item) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      await createInboxTriageNote(item);
+      navigateToTab("planner-chat");
+      await refreshNotes();
+    });
+  }
+
+  const inboxApplyAiBtn = $("#inbox-triage-apply-ai");
+  if (inboxApplyAiBtn) {
+    inboxApplyAiBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const item = state.inboxSelected;
+      if (!item) {
+        showToast(t("toast.select_inbox_first"), "warn");
+        return;
+      }
+      const suggestion = suggestInboxTriage(item);
+      if (!suggestion) {
+        showToast(t("toast.inbox_no_ai_triage"), "warn");
+        return;
+      }
+      await applyInboxTriage(suggestion);
+    });
+  }
+
+  const triageTicketBtn = $("#inbox-triage-ticket");
+  if (triageTicketBtn) {
+    triageTicketBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await applyInboxTriage({ state: "ROUTE_TO_TICKET", classification: { route_bucket: "TICKET" }, rationale: "UI: ROUTE_TO_TICKET" });
+    });
+  }
+  const triageRoadmapBtn = $("#inbox-triage-roadmap");
+  if (triageRoadmapBtn) {
+    triageRoadmapBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await applyInboxTriage({ state: "ROUTE_TO_ROADMAP", classification: { route_bucket: "ROADMAP" }, rationale: "UI: ROUTE_TO_ROADMAP" });
+    });
+  }
+  const triageProjectBtn = $("#inbox-triage-project");
+  if (triageProjectBtn) {
+    triageProjectBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const item = state.inboxSelected;
+      const owner = suggestOwnerProjectForInboxItem(item);
+      const classification = owner ? { route_bucket: "PROJECT", owner_project: owner } : { route_bucket: "PROJECT" };
+      await applyInboxTriage({ state: "ROUTE_TO_PROJECT", classification, rationale: "UI: ROUTE_TO_PROJECT" });
+    });
+  }
+  const triageNeedsInfoBtn = $("#inbox-triage-needs-info");
+  if (triageNeedsInfoBtn) {
+    triageNeedsInfoBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await applyInboxTriage({ state: "NEEDS_INFO", classification: {}, rationale: "UI: NEEDS_INFO" });
+    });
+  }
+  const triageDismissBtn = $("#inbox-triage-dismiss");
+  if (triageDismissBtn) {
+    triageDismissBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await applyInboxTriage({ state: "DISMISSED", classification: { route_bucket: "TICKET" }, rationale: "UI: DISMISSED" });
+    });
+  }
 
   const lockRefresh = $("#lock-refresh");
   if (lockRefresh) {
@@ -5321,16 +7316,34 @@ function setupStream() {
   };
 }
 
-applySidebarCollapsedState(readSidebarCollapsedFromStorage(), { persist: false });
+const _sidebarInit = computeSidebarCollapsedInitial();
+applySidebarCollapsedState(_sidebarInit.collapsed, { persist: false });
 state.claimOwnerTag = getOrCreateClaimOwnerTag();
 state.lang = readLangFromStorage(LANG_STORAGE_KEY, "tr");
+state.northStarTopGapsExpanded = readBoolFromStorage(NS_TOP_GAPS_EXPANDED_STORAGE_KEY, false);
+state.northStarFindingsAdvancedOpen = readBoolFromStorage(NS_FINDINGS_ADVANCED_OPEN_STORAGE_KEY, false);
+state.northStarFindingsLensName = readStringFromStorage(NS_FINDINGS_LENS_STORAGE_KEY, "");
+{
+  const saved = readJsonFromStorage(NS_FINDINGS_FILTER_STATE_STORAGE_KEY, null);
+  if (saved && typeof saved === "object" && saved.v === 2) {
+    if (typeof saved.preset === "string") state.filters.northStarFindings.preset = normalizeNorthStarFindingsPresetKey(saved.preset);
+    if (Array.isArray(saved.domain)) state.filters.northStarFindings.domain = normalizeTagList(saved.domain);
+    if (Array.isArray(saved.topic)) state.filters.northStarFindings.topic = normalizeTagList(saved.topic);
+    if (Array.isArray(saved.theme)) state.filters.northStarFindings.theme = normalizeTagList(saved.theme);
+    if (Array.isArray(saved.subtheme)) state.filters.northStarFindings.subtheme = normalizeTagList(saved.subtheme);
+    if (Array.isArray(saved.match)) state.filters.northStarFindings.match = normalizeTagList(saved.match);
+    if (Array.isArray(saved.catalog)) state.filters.northStarFindings.catalog = normalizeTagList(saved.catalog);
+  }
+}
 state.adminModeEnabled = readBoolFromStorage("cockpit_admin_mode.v1", false);
 state.lockClaimsLimit = readIntFromStorage("cockpit_lock_claims_limit.v1", 20, [10, 20, 50]);
 state.lockClaimsGroupByOwner = readBoolFromStorage("cockpit_lock_claims_group_owner.v1", false);
 setupLanguageSelector();
 applyI18n();
+applyInboxFilterDefaultsFromStorage();
 setupNav();
 setupOps();
+setupSidebarAutoCollapse();
 setupStream();
 refreshAll();
 refreshEvidence();

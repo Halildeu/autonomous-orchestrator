@@ -252,6 +252,136 @@
         background: rgba(61, 214, 176, 0.12);
         font-size: 11px;
       }
+      .variant-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        user-select: none;
+        white-space: nowrap;
+      }
+      .variant-pill.variant-istisare {
+        border-color: rgba(18, 209, 181, 0.5);
+        color: rgba(18, 209, 181, 0.95);
+        background: rgba(18, 209, 181, 0.1);
+      }
+      .variant-pill.variant-serbest {
+        border-color: rgba(103, 209, 255, 0.55);
+        color: rgba(103, 209, 255, 0.98);
+        background: rgba(103, 209, 255, 0.1);
+      }
+      .variant-pill.variant-plan {
+        border-color: rgba(138, 166, 255, 0.55);
+        color: rgba(138, 166, 255, 0.98);
+        background: rgba(138, 166, 255, 0.1);
+      }
+      .variant-pill.variant-uygulama {
+        border-color: rgba(51, 227, 154, 0.55);
+        color: rgba(51, 227, 154, 0.98);
+        background: rgba(51, 227, 154, 0.1);
+      }
+      .variant-pill.variant-debug {
+        border-color: rgba(255, 176, 32, 0.6);
+        color: rgba(255, 176, 32, 0.98);
+        background: rgba(255, 176, 32, 0.1);
+      }
+      .variant-pill.variant-ux {
+        border-color: rgba(195, 140, 255, 0.6);
+        color: rgba(195, 140, 255, 0.98);
+        background: rgba(195, 140, 255, 0.1);
+      }
+
+      .section-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        user-select: none;
+        white-space: nowrap;
+      }
+      .section-pill.preview {
+        border-color: rgba(18, 209, 181, 0.5);
+        color: rgba(18, 209, 181, 0.95);
+        background: rgba(18, 209, 181, 0.08);
+      }
+      .section-pill.result {
+        border-color: rgba(51, 227, 154, 0.55);
+        color: rgba(51, 227, 154, 0.98);
+        background: rgba(51, 227, 154, 0.08);
+      }
+      .section-pill.evidence {
+        border-color: rgba(138, 166, 255, 0.55);
+        color: rgba(138, 166, 255, 0.98);
+        background: rgba(138, 166, 255, 0.08);
+      }
+      .section-pill.actions {
+        border-color: rgba(255, 176, 32, 0.6);
+        color: rgba(255, 176, 32, 0.98);
+        background: rgba(255, 176, 32, 0.08);
+      }
+      .section-pill.next {
+        border-color: rgba(195, 140, 255, 0.6);
+        color: rgba(195, 140, 255, 0.98);
+        background: rgba(195, 140, 255, 0.08);
+      }
+
+      .inner-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        user-select: none;
+        white-space: nowrap;
+      }
+      .inner-pill.variant-istisare {
+        border-color: rgba(18, 209, 181, 0.45);
+        color: rgba(18, 209, 181, 0.92);
+        background: rgba(18, 209, 181, 0.07);
+      }
+      .inner-pill.variant-serbest {
+        border-color: rgba(103, 209, 255, 0.5);
+        color: rgba(103, 209, 255, 0.95);
+        background: rgba(103, 209, 255, 0.07);
+      }
+      .inner-pill.variant-plan {
+        border-color: rgba(138, 166, 255, 0.5);
+        color: rgba(138, 166, 255, 0.95);
+        background: rgba(138, 166, 255, 0.07);
+      }
+      .inner-pill.variant-uygulama {
+        border-color: rgba(51, 227, 154, 0.5);
+        color: rgba(51, 227, 154, 0.95);
+        background: rgba(51, 227, 154, 0.07);
+      }
+      .inner-pill.variant-debug {
+        border-color: rgba(255, 176, 32, 0.55);
+        color: rgba(255, 176, 32, 0.96);
+        background: rgba(255, 176, 32, 0.07);
+      }
+      .inner-pill.variant-ux {
+        border-color: rgba(195, 140, 255, 0.55);
+        color: rgba(195, 140, 255, 0.96);
+        background: rgba(195, 140, 255, 0.07);
+      }
       .empty {
         padding: 16px;
         border: 1px dashed var(--border);
@@ -287,6 +417,22 @@
       }
       .checkbox input {
         accent-color: var(--accent);
+      }
+      .checkbox .checkbox-icon {
+        width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+      }
+      .checkbox .checkbox-icon svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+      }
+      .checkbox input:checked + .checkbox-icon {
+        color: var(--accent);
       }
       .tag-select {
         position: relative;
@@ -432,6 +578,17 @@
         display: grid;
         gap: 6px;
       }
+      .note-item.clickable {
+        cursor: pointer;
+      }
+      .note-item.clickable:hover {
+        border-color: rgba(61, 214, 176, 0.45);
+        background: rgba(61, 214, 176, 0.06);
+      }
+      .note-item.clickable:focus {
+        outline: 2px solid rgba(61, 214, 176, 0.55);
+        outline-offset: 2px;
+      }
       .note-title {
         font-weight: 600;
       }
@@ -550,19 +707,143 @@
         font: inherit;
         cursor: pointer;
       }
-      pre {
-        margin: 8px 0 0;
-        padding: 10px;
-        background: #0f1415;
-        border-radius: 8px;
-        border: 1px solid #1b2628;
+	      pre {
+	        margin: 8px 0 0;
+	        padding: 10px;
+	        background: #0f1415;
+	        border-radius: 8px;
+	        border: 1px solid #1b2628;
+	        overflow: auto;
+	        max-height: 260px;
+	        font-size: 12px;
+	        line-height: 1.4;
+	        white-space: pre-wrap;
+	        overflow-wrap: anywhere;
+	        word-break: break-word;
+	      }
+	      .markdown {
+	        margin: 8px 0 0;
+	        padding: 10px;
+	        background: #0f1415;
+	        border-radius: 8px;
+	        border: 1px solid #1b2628;
+	        overflow: auto;
+	        max-height: 260px;
+	        font-size: 12px;
+	        line-height: 1.4;
+	        overflow-wrap: anywhere;
+	        word-break: break-word;
+	      }
+	      .markdown h1,
+	      .markdown h2,
+	      .markdown h3,
+	      .markdown h4 {
+	        margin: 10px 0 6px;
+	        font-size: 13px;
+	        color: var(--text);
+	      }
+	      .markdown p {
+	        margin: 6px 0;
+	        white-space: pre-wrap;
+	      }
+	      .markdown ul {
+	        margin: 6px 0 6px 18px;
+	        padding: 0;
+	      }
+	      .markdown li {
+	        margin: 2px 0;
+	      }
+	      .markdown code {
+	        padding: 1px 4px;
+	        border-radius: 6px;
+	        border: 1px solid #1b2628;
+	        background: #0b1011;
+	        font-size: 12px;
+	      }
+	      .markdown a {
+	        color: var(--accent);
+	      }
+	      /* Split (scrollable list + sticky preview) */
+	      .split.split-scroll {
+	        align-items: start;
+	      }
+      .split.split-scroll > .pane {
+        min-width: 0;
+      }
+      .split.split-scroll > .pane.pane-sticky {
+        position: sticky;
+        top: 12px;
+        align-self: start;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .evidence-split {
+        grid-template-columns: 1.3fr 1fr;
+      }
+      .intake-split {
+        grid-template-columns: 1.6fr 1fr;
+      }
+      .inbox-split {
+        grid-template-columns: 1.6fr 1fr;
+      }
+      .jobs-split {
+        grid-template-columns: 1.6fr 1fr;
+      }
+      .planner-chat-split {
+        grid-template-columns: 1.4fr 1fr;
+      }
+      #intake-detail-panel {
+        max-height: 68vh;
         overflow: auto;
-        max-height: 260px;
-        font-size: 12px;
-        line-height: 1.4;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+        scrollbar-gutter: stable;
+      }
+      .inbox-detail-pane {
+        max-height: 68vh;
+        overflow: auto;
+        scrollbar-gutter: stable;
+      }
+      .jobs-detail-pane {
+        max-height: 68vh;
+        overflow: auto;
+        scrollbar-gutter: stable;
+      }
+      .planner-chat-lists {
+        max-height: 68vh;
+        overflow: auto;
+        padding-right: 6px;
+        scrollbar-gutter: stable;
+      }
+      .planner-chat-detail {
+        max-height: 68vh;
+        overflow: auto;
+        scrollbar-gutter: stable;
+      }
+      /* More-visible scroll affordance (best-effort, OS may still auto-hide) */
+      .table-wrap,
+      .evidence-tree,
+      pre {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+      }
+      .table-wrap::-webkit-scrollbar,
+      .evidence-tree::-webkit-scrollbar,
+      pre::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      .table-wrap::-webkit-scrollbar-thumb,
+      .evidence-tree::-webkit-scrollbar-thumb,
+      pre::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+      }
+      .table-wrap::-webkit-scrollbar-thumb:hover,
+      .evidence-tree::-webkit-scrollbar-thumb:hover,
+      pre::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.24);
       }
       .split {
         display: grid;
@@ -694,10 +975,16 @@
         to { opacity: 1; transform: translateY(0); }
       }
       @media (max-width: 960px) {
-        .app { grid-template-columns: 1fr; }
-        .sidebar { flex-direction: row; overflow-x: auto; }
-        .nav { flex-direction: row; }
         .split { grid-template-columns: 1fr; }
+        .split.split-scroll > .pane.pane-sticky { position: static; top: auto; }
+        #intake-detail-panel { max-height: none; }
+        .inbox-detail-pane,
+        .jobs-detail-pane,
+        .planner-chat-lists,
+        .planner-chat-detail {
+          max-height: none;
+          overflow: visible;
+        }
         .table-wrap { max-height: 40vh; }
         .evidence-tree { max-height: 40vh; }
         #evidence-viewer { max-height: 40vh; }
@@ -706,10 +993,20 @@
     <script>
       (function () {
         try {
-          const raw = localStorage.getItem("cockpit_lite_sidebar_collapsed_v1");
-          const v = String(raw || "").trim().toLowerCase();
-          const collapsed = v === "1" || v === "true" || v === "yes" || v === "on";
-          if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+          const key = "cockpit_lite_sidebar_collapsed_v1";
+          const raw = localStorage.getItem(key);
+          const hasPref = raw !== null && raw !== undefined;
+          let collapsed = false;
+          if (hasPref) {
+            const v = String(raw || "").trim().toLowerCase();
+            collapsed = v === "1" || v === "true" || v === "yes" || v === "on";
+          } else {
+            const mq = window.matchMedia ? window.matchMedia("(max-width: 960px)") : null;
+            collapsed = Boolean(mq && mq.matches);
+          }
+          if (collapsed) {
+            document.documentElement.classList.add("sidebar-collapsed");
+          }
         } catch (_) {
           // ignore
         }
@@ -881,78 +1178,94 @@
                 <div class="subtle" id="north-star-gap-breakdown"></div>
               </div>
             </div>
-	            <div class="card">
-	              <h3 data-i18n="h.top_gaps">Top Gaps</h3>
-	              <div id="north-star-gap-table" class="table-wrap"></div>
-	            </div>
-	            <div class="card">
-	              <h3 data-i18n="h.lens_details">Lens Details</h3>
-	              <div class="subtle">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
-	              <div id="north-star-lens-details"></div>
-	            </div>
 		            <div class="card">
-			              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
-			              <div class="subtle" id="ns-findings-meta">Select a lens to explore findings.</div>
-			              <div class="row" style="margin-top: 10px;">
-			                <div class="field-stack">
-			                  <label class="subtle" for="ns-findings-preset">Preset</label>
-			                  <select class="input" id="ns-findings-preset" aria-label="Select preset"></select>
-			                </div>
-			                <div class="field-stack">
-			                  <label class="subtle" for="ns-findings-lens">Lens</label>
-			                  <select class="input" id="ns-findings-lens" aria-label="Select lens"></select>
-			                </div>
-		                <input class="input" id="ns-findings-search" placeholder="Search findings (id/title/topic/tags/reasons)" aria-label="Search findings" />
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-domain-input">Domain</label>
-		                  <div class="tag-select" id="ns-findings-filter-domain">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-domain-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-domain-input" placeholder="Select domain" aria-label="Filter by domain" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-domain-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle domain options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-domain-options" role="listbox" aria-label="Domain options"></div>
-		                  </div>
-		                </div>
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-topic-input">Topic</label>
-		                  <div class="tag-select" id="ns-findings-filter-topic">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-topic-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-topic-input" placeholder="Select topic" aria-label="Filter by topic" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-topic-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle topic options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-topic-options" role="listbox" aria-label="Topic options"></div>
-		                  </div>
-		                </div>
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-match-input">Match</label>
-		                  <div class="tag-select" id="ns-findings-filter-match">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Triggered only (default)" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle match options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
-		                  </div>
-		                </div>
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-catalog-input">Catalog</label>
-		                  <div class="tag-select" id="ns-findings-filter-catalog">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-catalog-input" placeholder="(optional)" aria-label="Filter by catalog" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-catalog-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle catalog options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-catalog-options" role="listbox" aria-label="Catalog options"></div>
-		                  </div>
-		                </div>
-		                <button class="btn small" id="ns-findings-clear" type="button">Reset</button>
+		              <div class="row" style="justify-content: space-between; align-items: center;">
+		                <h3 data-i18n="h.top_gaps" style="margin: 0;">Top Gaps</h3>
+		                <button class="btn small ghost" id="north-star-gap-toggle" type="button" data-i18n="north_star.top_gaps.show_all">Show all</button>
 		              </div>
-	              <div class="subtle" id="ns-findings-summary" style="margin-top: 8px;"></div>
-	              <div id="ns-findings-table" style="margin-top: 10px;"></div>
-	              <div id="ns-findings-detail" style="margin-top: 10px;"></div>
-	            </div>
+		              <div class="subtle" id="north-star-gap-meta"></div>
+		              <div id="north-star-gap-table" class="table-wrap"></div>
+		            </div>
+			            <div class="card">
+				              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
+				              <div class="subtle" id="ns-findings-meta">Select a lens to explore findings.</div>
+				              <div class="row" style="margin-top: 10px;">
+				                <div class="field-stack">
+				                  <select class="input" id="ns-findings-lens" aria-label="Select lens" data-i18n-aria-label="aria.select_lens"></select>
+				                </div>
+					                <input class="input" id="ns-findings-search" placeholder="Search findings (id/title/axis/tags/reasons)" aria-label="Search findings" data-i18n-placeholder="placeholder.search_findings" data-i18n-aria-label="aria.search_findings" />
+				                <div class="field-stack">
+				                  <div class="tag-select" id="ns-findings-filter-match">
+				                    <div class="tag-select-input">
+				                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
+				                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Triggered only (default)" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" data-i18n-placeholder="placeholder.triggered_only" data-i18n-aria-label="aria.filter_by_match" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle match options" data-i18n-aria-label="aria.toggle_options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
+			                  </div>
+			                </div>
+			                <button class="btn small" id="ns-findings-advanced-toggle" type="button" aria-expanded="false" data-i18n="north_star.findings.advanced_toggle_closed">Advanced</button>
+			                <button class="btn small" id="ns-findings-clear" type="button" data-i18n="actions.reset">Reset</button>
+				              </div>
+				              <div class="row" id="ns-findings-advanced" style="margin-top: 10px; display: none;">
+				                <div class="field-stack">
+				                  <select class="input" id="ns-findings-preset" aria-label="Select preset" data-i18n-aria-label="aria.select_preset"></select>
+				                </div>
+				                <div class="field-stack">
+				                  <div class="tag-select" id="ns-findings-filter-domain">
+				                    <div class="tag-select-input">
+				                      <div class="tag-list" id="ns-findings-filter-domain-tags"></div>
+				                      <input class="tag-input" id="ns-findings-filter-domain-input" placeholder="Select domain" aria-label="Filter by domain" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-domain-options" data-i18n-placeholder="placeholder.select_domain" data-i18n-aria-label="aria.filter_by_domain" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle domain options" data-i18n-aria-label="aria.toggle_options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-domain-options" role="listbox" aria-label="Domain options"></div>
+				                  </div>
+				                </div>
+				                <div class="field-stack">
+				                  <div class="tag-select" id="ns-findings-filter-topic">
+				                    <div class="tag-select-input">
+				                      <div class="tag-list" id="ns-findings-filter-topic-tags"></div>
+					                      <input class="tag-input" id="ns-findings-filter-topic-input" placeholder="Select axis" aria-label="Filter by axis" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-topic-options" data-i18n-placeholder="placeholder.select_topic" data-i18n-aria-label="aria.filter_by_topic" />
+				                      <button class="tag-toggle" type="button" aria-label="Toggle axis options" data-i18n-aria-label="aria.toggle_options">v</button>
+				                    </div>
+				                    <div class="tag-dropdown" id="ns-findings-filter-topic-options" role="listbox" aria-label="Axis options"></div>
+					                  </div>
+					                </div>
+				                <div class="field-stack">
+				                  <div class="tag-select" id="ns-findings-filter-theme">
+				                    <div class="tag-select-input">
+				                      <div class="tag-list" id="ns-findings-filter-theme-tags"></div>
+				                      <input class="tag-input" id="ns-findings-filter-theme-input" placeholder="Select theme" aria-label="Filter by theme" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-theme-options" data-i18n-placeholder="placeholder.select_theme" data-i18n-aria-label="aria.filter_by_theme" />
+				                      <button class="tag-toggle" type="button" aria-label="Toggle theme options" data-i18n-aria-label="aria.toggle_options">v</button>
+				                    </div>
+				                    <div class="tag-dropdown" id="ns-findings-filter-theme-options" role="listbox" aria-label="Theme options"></div>
+				                  </div>
+				                </div>
+				                <div class="field-stack">
+				                  <div class="tag-select" id="ns-findings-filter-subtheme">
+				                    <div class="tag-select-input">
+				                      <div class="tag-list" id="ns-findings-filter-subtheme-tags"></div>
+				                      <input class="tag-input" id="ns-findings-filter-subtheme-input" placeholder="Select subtheme" aria-label="Filter by subtheme" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-subtheme-options" data-i18n-placeholder="placeholder.select_subtheme" data-i18n-aria-label="aria.filter_by_subtheme" />
+				                      <button class="tag-toggle" type="button" aria-label="Toggle subtheme options" data-i18n-aria-label="aria.toggle_options">v</button>
+				                    </div>
+				                    <div class="tag-dropdown" id="ns-findings-filter-subtheme-options" role="listbox" aria-label="Subtheme options"></div>
+				                  </div>
+				                </div>
+				                <div class="field-stack">
+				                  <div class="tag-select" id="ns-findings-filter-catalog">
+				                    <div class="tag-select-input">
+				                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
+				                      <input class="tag-input" id="ns-findings-filter-catalog-input" placeholder="(optional)" aria-label="Filter by catalog" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-catalog-options" data-i18n-placeholder="placeholder.optional" data-i18n-aria-label="aria.filter_by_catalog" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle catalog options" data-i18n-aria-label="aria.toggle_options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-catalog-options" role="listbox" aria-label="Catalog options"></div>
+			                  </div>
+			                </div>
+			              </div>
+		              <div class="subtle" id="ns-findings-summary" style="margin-top: 8px;"></div>
+		              <div id="ns-findings-table" style="margin-top: 10px;"></div>
+		              <div id="ns-findings-detail" style="margin-top: 10px;"></div>
+		            </div>
 	            <div class="card">
 	              <h3 data-i18n="h.raw_json">Raw JSON</h3>
 	              <details>
@@ -982,131 +1295,203 @@
 	            </div>
 	          </section>
 
-          <section id="tab-inbox" class="tab">
-            <div class="card">
-              <h3 data-i18n="h.input_inbox">Input Inbox</h3>
-              <div class="row">
-                <input class="input" id="inbox-search" placeholder="Search inbox" />
-                <select class="input" id="inbox-filter-bucket" aria-label="Filter by bucket">
-                  <option value="">Bucket (all)</option>
-                  <option value="TICKET">TICKET</option>
-                  <option value="PROJECT">PROJECT</option>
-                  <option value="ROADMAP">ROADMAP</option>
-                </select>
-                <select class="input" id="inbox-filter-status" aria-label="Filter by intake status">
-                  <option value="">Status (all)</option>
-                  <option value="OPEN">OPEN</option>
-                  <option value="DONE">DONE</option>
-                </select>
-                <select class="input" id="inbox-filter-triage" aria-label="Filter by triage state">
-                  <option value="">Triage (all)</option>
-                  <option value="NEW">NEW</option>
-                  <option value="ROUTE_TO_ROADMAP">ROUTE_TO_ROADMAP</option>
-                  <option value="ROUTE_TO_PROJECT">ROUTE_TO_PROJECT</option>
-                  <option value="CONVERT_TO_PROJECT">CONVERT_TO_PROJECT</option>
-                  <option value="NEEDS_INFO">NEEDS_INFO</option>
-                </select>
-                <button class="btn" id="inbox-refresh" type="button">Refresh</button>
-              </div>
-              <div class="subtle" id="inbox-meta"></div>
-              <div class="subtle" id="inbox-count"></div>
-              <div id="inbox-table" class="table-wrap"></div>
-            </div>
-          </section>
+	          <section id="tab-inbox" class="tab">
+	            <div class="split split-scroll inbox-split">
+	              <div class="card pane">
+	                <h3 data-i18n="h.input_inbox">Input Inbox</h3>
+	                <div class="row">
+	                  <input class="input" id="inbox-search" placeholder="Search inbox" aria-label="Search inbox" data-i18n-placeholder="placeholder.search_inbox" data-i18n-aria-label="aria.search_inbox" />
+	                  <select class="input" id="inbox-filter-bucket" aria-label="Filter by bucket" data-i18n-aria-label="aria.filter_by_bucket">
+	                    <option value="" data-i18n="filters.bucket_all">Bucket (all)</option>
+	                    <option value="TICKET">TICKET</option>
+	                    <option value="PROJECT">PROJECT</option>
+	                    <option value="ROADMAP">ROADMAP</option>
+	                  </select>
+	                  <select class="input" id="inbox-filter-status" aria-label="Filter by intake status" data-i18n-aria-label="aria.filter_by_intake_status">
+	                    <option value="" data-i18n="filters.status_all">Status (all)</option>
+	                    <option value="OPEN">OPEN</option>
+	                    <option value="DONE">DONE</option>
+	                  </select>
+		                  <select class="input" id="inbox-filter-triage" aria-label="Filter by triage state" data-i18n-aria-label="aria.filter_by_triage_state">
+		                    <option value="" data-i18n="filters.triage_all">Triage (all)</option>
+		                    <option value="NEW">NEW</option>
+		                    <option value="NEEDS_INFO">NEEDS_INFO</option>
+		                    <option value="DISMISSED">DISMISSED</option>
+		                    <option value="ROUTE_TO_TICKET">ROUTE_TO_TICKET</option>
+		                    <option value="ROUTE_TO_ROADMAP">ROUTE_TO_ROADMAP</option>
+		                    <option value="ROUTE_TO_PROJECT">ROUTE_TO_PROJECT</option>
+		                    <option value="CONVERT_TO_PROJECT">CONVERT_TO_PROJECT</option>
+		                  </select>
+		                  <button class="btn" id="inbox-refresh" type="button" data-i18n="actions.refresh">Refresh</button>
+		                </div>
+			                <div class="row" style="margin-top: 8px;">
+			                  <button class="btn warn" id="inbox-batch-ai-triage" type="button" data-i18n="inbox.action.batch_ai_triage">Batch AI triage (admin)</button>
+			                  <div class="subtle" id="inbox-batch-meta"></div>
+			                </div>
+			                <div class="row" style="margin-top: 8px;">
+			                  <button class="btn warn" id="inbox-batch-generate-drafts" type="button" data-i18n="inbox.action.batch_generate_drafts">Batch generate v0.2 drafts</button>
+			                  <div class="subtle" id="inbox-batch-drafts-meta"></div>
+			                </div>
+				                <div class="row" style="margin-top: 8px;">
+				                  <label class="checkbox" title="Hide dismissed" data-i18n-title="inbox.filter.hide_dismissed">
+				                    <input type="checkbox" id="inbox-hide-dismissed" checked aria-label="Hide dismissed" data-i18n-aria-label="inbox.filter.hide_dismissed" />
+				                    <span class="checkbox-icon" aria-hidden="true">
+				                      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				                        <path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"></path>
+				                        <circle cx="12" cy="12" r="2.5"></circle>
+				                        <path d="M4 4l16 16"></path>
+				                      </svg>
+				                    </span>
+				                  </label>
+				                  <div class="subtle" id="inbox-dismissed-count"></div>
+				                </div>
+			                <div class="subtle" id="inbox-meta"></div>
+			                <div class="subtle" id="inbox-count"></div>
+			                <div id="inbox-table" class="table-wrap"></div>
+			              </div>
+
+	              <div class="card pane pane-sticky inbox-detail-pane">
+	                <h3 data-i18n="h.inbox_detail">Inbox Detail</h3>
+	                <div class="subtle" id="inbox-detail-meta"></div>
+	                <div class="toolbar" style="margin-top: 10px;">
+	                  <button class="btn" id="inbox-detail-open-evidence" type="button" data-i18n="inbox.action.open_evidence">Open evidence</button>
+	                  <button class="btn" id="inbox-detail-jump-intake" type="button" data-i18n="inbox.action.jump_to_intake">Jump to Intake</button>
+	                  <button class="btn" id="inbox-detail-create-note" type="button" data-i18n="inbox.action.create_note">Create triage note</button>
+	                </div>
+	                <div class="toolbar" style="margin-top: 8px;">
+	                  <button class="btn warn" id="inbox-triage-apply-ai" type="button" data-i18n="inbox.action.apply_ai_triage">Apply AI triage (admin)</button>
+	                  <button class="btn" id="inbox-triage-ticket" type="button" data-i18n="inbox.action.accept_ticket">Accept as Ticket</button>
+	                  <button class="btn" id="inbox-triage-roadmap" type="button" data-i18n="inbox.action.accept_roadmap">Accept as Roadmap</button>
+	                  <button class="btn" id="inbox-triage-project" type="button" data-i18n="inbox.action.accept_project">Accept as Project</button>
+	                  <button class="btn" id="inbox-triage-needs-info" type="button" data-i18n="inbox.action.needs_info">Needs info</button>
+	                  <button class="btn danger" id="inbox-triage-dismiss" type="button" data-i18n="inbox.action.dismiss">Dismiss</button>
+	                </div>
+	
+		                <div class="empty" id="inbox-detail-empty" data-i18n="inbox.detail.none" style="margin-top: 12px;"></div>
+		                <div id="inbox-detail-grid" class="intake-detail-grid" style="display: none;"></div>
+		                <div id="inbox-detail-suggestions" style="margin-top: 12px;"></div>
+		
+		                <details open style="margin-top: 10px;" id="inbox-detail-draft-panel">
+		                  <summary class="subtle" data-i18n="inbox.detail.draft">Draft</summary>
+		                  <div class="subtle" id="inbox-detail-draft-meta"></div>
+		                  <div class="toolbar" style="margin-top: 8px;">
+		                    <button class="btn warn" id="inbox-detail-create-draft" type="button" data-i18n="inbox.action.create_draft">Create draft</button>
+		                    <button class="btn danger" id="inbox-detail-regenerate-draft" type="button" data-i18n="inbox.action.regenerate_draft">Regenerate v0.2</button>
+		                    <button class="btn" id="inbox-detail-copy-draft" type="button" data-i18n="inbox.action.copy_draft">Copy draft</button>
+		                    <button class="btn ghost" id="inbox-detail-open-draft" type="button" data-i18n="inbox.action.open_draft">Open draft</button>
+		                  </div>
+		                  <div id="inbox-detail-draft-render" class="markdown"></div>
+		                </details>
+		
+		                <details open style="margin-top: 10px;">
+		                  <summary class="subtle" data-i18n="inbox.detail.preview">Preview</summary>
+		                  <pre id="inbox-detail-preview"></pre>
+		                </details>
+	              </div>
+	            </div>
+	          </section>
 
           <section id="tab-intake" class="tab">
             <div class="card">
-              <h3 data-i18n="h.intake_strict">Intake (strict)</h3>
-              <div class="row">
-                <input class="input" id="intake-search" placeholder="Quick search" />
-	                <div class="field-stack">
-	                  <label class="subtle" for="filter-bucket-input">Bucket</label>
-	                  <div class="tag-select" id="filter-bucket">
-	                    <div class="tag-select-input">
-	                      <div class="tag-list" id="filter-bucket-tags"></div>
-	                      <input class="tag-input" id="filter-bucket-input" placeholder="Select bucket" aria-label="Filter by bucket" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-bucket-options" />
-	                      <button class="tag-toggle" type="button" aria-label="Toggle bucket options">v</button>
-	                    </div>
-	                    <div class="tag-dropdown" id="filter-bucket-options" role="listbox" aria-label="Bucket options"></div>
-	                  </div>
-	                </div>
-	                <div class="field-stack">
-	                  <label class="subtle" for="filter-status-input">Status</label>
-	                  <div class="tag-select" id="filter-status">
-	                    <div class="tag-select-input">
-	                      <div class="tag-list" id="filter-status-tags"></div>
-	                      <input class="tag-input" id="filter-status-input" placeholder="Select status" aria-label="Filter by status" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-status-options" />
-	                      <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
-	                    </div>
-	                    <div class="tag-dropdown" id="filter-status-options" role="listbox" aria-label="Status options"></div>
-	                  </div>
-	                </div>
-	                <div class="field-stack">
-	                  <label class="subtle" for="filter-source-input">Source</label>
-	                  <div class="tag-select" id="filter-source">
-	                    <div class="tag-select-input">
-	                      <div class="tag-list" id="filter-source-tags"></div>
-	                      <input class="tag-input" id="filter-source-input" placeholder="Select source" aria-label="Filter by source" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-source-options" />
-	                      <button class="tag-toggle" type="button" aria-label="Toggle source options">v</button>
-	                    </div>
-	                    <div class="tag-dropdown" id="filter-source-options" role="listbox" aria-label="Source options"></div>
-	                  </div>
-	                </div>
-	                <div class="field-stack">
-	                  <label class="subtle" for="filter-extension-input">Extension</label>
-	                  <div class="tag-select" id="filter-extension">
-	                    <div class="tag-select-input">
-	                      <div class="tag-list" id="filter-extension-tags"></div>
-	                      <input class="tag-input" id="filter-extension-input" placeholder="Select extension" aria-label="Filter by extension" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-extension-options" />
-	                      <button class="tag-toggle" type="button" aria-label="Toggle extension options">v</button>
-	                    </div>
-	                    <div class="tag-dropdown" id="filter-extension-options" role="listbox" aria-label="Extension options"></div>
-	                  </div>
-	                </div>
-                <label class="checkbox">
-                  <input type="checkbox" id="filter-hide-done" checked />
-                  Hide DONE
+	              <h3 data-i18n="h.intake_strict">Intake (strict)</h3>
+	              <div class="row">
+	                <input class="input" id="intake-search" placeholder="Quick search" data-i18n-placeholder="placeholder.search_intake" data-i18n-aria-label="aria.search_intake" />
+		                <div class="field-stack">
+		                  <div class="tag-select" id="filter-bucket">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="filter-bucket-tags"></div>
+		                      <input class="tag-input" id="filter-bucket-input" placeholder="Select bucket" aria-label="Filter by bucket" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-bucket-options" data-i18n-placeholder="placeholder.select_bucket" data-i18n-aria-label="aria.filter_by_bucket" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle bucket options" data-i18n-aria-label="aria.toggle_options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="filter-bucket-options" role="listbox" aria-label="Bucket options"></div>
+		                  </div>
+		                </div>
+		                <div class="field-stack">
+		                  <div class="tag-select" id="filter-status">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="filter-status-tags"></div>
+		                      <input class="tag-input" id="filter-status-input" placeholder="Select status" aria-label="Filter by status" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-status-options" data-i18n-placeholder="placeholder.select_status" data-i18n-aria-label="aria.filter_by_status" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle status options" data-i18n-aria-label="aria.toggle_options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="filter-status-options" role="listbox" aria-label="Status options"></div>
+		                  </div>
+		                </div>
+		                <div class="field-stack">
+		                  <div class="tag-select" id="filter-source">
+		                    <div class="tag-select-input">
+		                      <div class="tag-list" id="filter-source-tags"></div>
+		                      <input class="tag-input" id="filter-source-input" placeholder="Select source" aria-label="Filter by source" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-source-options" data-i18n-placeholder="placeholder.select_source" data-i18n-aria-label="aria.filter_by_source" />
+		                      <button class="tag-toggle" type="button" aria-label="Toggle source options" data-i18n-aria-label="aria.toggle_options">v</button>
+		                    </div>
+		                    <div class="tag-dropdown" id="filter-source-options" role="listbox" aria-label="Source options"></div>
+		                  </div>
+		                </div>
+                <div class="field-stack">
+                  <div class="tag-select" id="filter-extension">
+                    <div class="tag-select-input">
+                      <div class="tag-list" id="filter-extension-tags"></div>
+                      <input class="tag-input" id="filter-extension-input" placeholder="Select extension" aria-label="Filter by extension" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-extension-options" data-i18n-placeholder="placeholder.select_extension" data-i18n-aria-label="aria.filter_by_extension" />
+                      <button class="tag-toggle" type="button" aria-label="Toggle extension options" data-i18n-aria-label="aria.toggle_options">v</button>
+                    </div>
+                    <div class="tag-dropdown" id="filter-extension-options" role="listbox" aria-label="Extension options"></div>
+                  </div>
+                </div>
+                <label class="checkbox" title="Hide DONE" data-i18n-title="intake.filter.hide_done">
+                  <input type="checkbox" id="filter-hide-done" checked aria-label="Hide DONE" data-i18n-aria-label="intake.filter.hide_done" />
+                  <span class="checkbox-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"></path>
+                      <circle cx="12" cy="12" r="2.5"></circle>
+                      <path d="M4 4l16 16"></path>
+                    </svg>
+                  </span>
                 </label>
-                <button class="btn" id="apply-intake-filter">Apply</button>
-                <button class="btn" id="clear-intake-filter">Clear</button>
+                <button class="btn" id="apply-intake-filter" data-i18n="actions.apply">Apply</button>
+                <button class="btn" id="clear-intake-filter" data-i18n="actions.clear">Clear</button>
               </div>
               <div class="subtle" id="intake-count"></div>
-              <div id="intake-table" class="table-wrap"></div>
-	              <details id="intake-detail-panel">
-	                <summary class="subtle">Selected item details</summary>
-	                <div class="row" style="margin-top: 10px;">
-	                  <div class="subtle" id="intake-detail-meta">no selection</div>
-	                  <button class="btn ghost" id="intake-clear-selection" type="button">Clear</button>
-	                </div>
-                <div id="intake-detail-fields" class="intake-detail-grid"></div>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-claim-meta" data-i18n="intake.claim.meta_none">Claim: -</div>
-                  <button class="btn" id="intake-claim" type="button" data-i18n="intake.claim.btn_claim">Claim</button>
-                  <button class="btn ghost" id="intake-claim-release" type="button" data-i18n="intake.claim.btn_release">Release</button>
-                  <button class="btn danger" id="intake-claim-force-release" type="button" data-i18n="intake.claim.btn_force_release">Force release</button>
+              <div class="split split-scroll intake-split">
+                <div class="pane">
+                  <div id="intake-table" class="table-wrap"></div>
                 </div>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-close-meta" data-i18n="intake.close.meta_none">Close: -</div>
-                  <button class="btn warn" id="intake-close" type="button" data-i18n="intake.close.btn_close">Close</button>
+                <div class="pane pane-sticky">
+                  <details id="intake-detail-panel">
+                    <summary class="subtle" data-i18n="common.selected_item_details">Selected item details</summary>
+                    <div class="row" style="margin-top: 10px;">
+                      <div class="subtle" id="intake-detail-meta" data-i18n="common.no_selection">no selection</div>
+                      <button class="btn ghost" id="intake-clear-selection" type="button" data-i18n="actions.clear">Clear</button>
+                    </div>
+                    <div id="intake-detail-fields" class="intake-detail-grid"></div>
+                    <div class="row" style="margin-top: 10px;">
+                      <div class="subtle" id="intake-claim-meta" data-i18n="intake.claim.meta_none">Claim: -</div>
+                      <button class="btn" id="intake-claim" type="button" data-i18n="intake.claim.btn_claim">Claim</button>
+                      <button class="btn ghost" id="intake-claim-release" type="button" data-i18n="intake.claim.btn_release">Release</button>
+                      <button class="btn danger" id="intake-claim-force-release" type="button" data-i18n="intake.claim.btn_force_release">Force release</button>
+                    </div>
+                    <div class="row" style="margin-top: 10px;">
+                      <div class="subtle" id="intake-close-meta" data-i18n="intake.close.meta_none">Close: -</div>
+                      <button class="btn warn" id="intake-close" type="button" data-i18n="intake.close.btn_close">Close</button>
+                    </div>
+                    <div class="row" style="margin-top: 10px;">
+                      <div class="subtle" id="intake-notes-meta">Notes for this item: -</div>
+                      <button class="btn accent" id="intake-create-note" type="button" data-i18n="notes.action.create_note">Create note</button>
+                      <button class="btn ghost" id="intake-open-notes" type="button" data-i18n="notes.action.open_notes_tab">Open Notes tab</button>
+                    </div>
+                    <div id="intake-notes-list" class="note-list"></div>
+                    <div class="subtle" style="margin-top: 10px;" data-i18n="intake.evidence.paths_hint">Evidence paths (click to preview)</div>
+                    <div id="intake-evidence-paths" class="path-chips"></div>
+                    <details id="intake-evidence-preview-panel" style="margin-top: 10px;">
+                      <summary class="subtle" data-i18n="intake.evidence.preview_summary">Evidence preview</summary>
+                      <div class="subtle" id="intake-evidence-preview-meta"></div>
+                      <pre id="intake-evidence-preview"></pre>
+                    </details>
+                    <details style="margin-top: 10px;">
+                      <summary class="subtle" data-i18n="intake.detail.raw_json_summary">Raw intake item JSON (redacted)</summary>
+                      <pre id="intake-detail-json"></pre>
+                    </details>
+                  </details>
                 </div>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-notes-meta">Notes for this item: -</div>
-                  <button class="btn accent" id="intake-create-note" type="button">Create note</button>
-                  <button class="btn ghost" id="intake-open-notes" type="button">Open Notes tab</button>
-                </div>
-                <div id="intake-notes-list" class="note-list"></div>
-                <div class="subtle" style="margin-top: 10px;">Evidence paths (click to preview)</div>
-                <div id="intake-evidence-paths" class="path-chips"></div>
-                <details id="intake-evidence-preview-panel" style="margin-top: 10px;">
-                  <summary class="subtle">Evidence preview</summary>
-                  <div class="subtle" id="intake-evidence-preview-meta"></div>
-                  <pre id="intake-evidence-preview"></pre>
-                </details>
-                <details style="margin-top: 10px;">
-                  <summary class="subtle">Raw intake item JSON (redacted)</summary>
-                  <pre id="intake-detail-json"></pre>
-                </details>
-              </details>
+              </div>
             </div>
           </section>
 
@@ -1114,8 +1499,8 @@
             <div class="card">
               <h3 data-i18n="h.decision_inbox">Decision Inbox</h3>
               <div class="row">
-                <input class="input" id="decision-search" placeholder="Search decisions" />
-                <button class="btn" data-op="decision-inbox-show">Refresh Inbox</button>
+                <input class="input" id="decision-search" placeholder="Search decisions" data-i18n-placeholder="placeholder.search_decisions" data-i18n-aria-label="aria.search_decisions" />
+                <button class="btn" data-op="decision-inbox-show" data-i18n="actions.refresh_inbox">Refresh Inbox</button>
               </div>
               <div class="subtle" id="decision-meta"></div>
               <div id="decision-table" class="table-wrap"></div>
@@ -1127,7 +1512,7 @@
               <div class="card">
                 <h3 data-i18n="h.extensions">Extensions</h3>
                 <div class="row">
-                  <button class="btn" id="extensions-refresh">Refresh</button>
+                  <button class="btn" id="extensions-refresh" data-i18n="actions.refresh">Refresh</button>
                 </div>
                 <div id="extensions-list" class="table-wrap"></div>
               </div>
@@ -1144,17 +1529,17 @@
               <div class="card">
                 <h3 data-i18n="h.safe_overrides">Safe Overrides</h3>
                 <div class="row">
-                  <button class="btn" id="settings-refresh">Refresh</button>
+                  <button class="btn" id="settings-refresh" data-i18n="actions.refresh">Refresh</button>
                 </div>
                 <div id="overrides-list" class="table-wrap"></div>
               </div>
               <div class="card">
                 <h3 data-i18n="h.edit_override">Edit Override</h3>
                 <div class="subtle" id="settings-meta"></div>
-                <textarea class="input" id="settings-editor" placeholder="Select an override to edit..."></textarea>
+                <textarea class="input" id="settings-editor" placeholder="Select an override to edit..." data-i18n-placeholder="placeholder.override_editor" data-i18n-aria-label="aria.override_editor"></textarea>
                 <div class="row">
-                  <button class="btn accent" id="settings-save">Save Override</button>
-                  <button class="btn ghost" id="settings-clear">Clear</button>
+                  <button class="btn accent" id="settings-save" data-i18n="overrides.action.save">Save Override</button>
+                  <button class="btn ghost" id="settings-clear" data-i18n="actions.clear">Clear</button>
                 </div>
               </div>
             </div>
@@ -1165,8 +1550,8 @@
               <div class="card">
                 <h3 data-i18n="h.auto_loop">Auto-loop</h3>
                 <div class="row">
-                  <button class="btn warn" data-op="auto-loop">Run auto-loop</button>
-                  <button class="btn" data-op="airrunner-run">Run airrunner (ticks=2)</button>
+                  <button class="btn warn" data-op="auto-loop" data-i18n="auto_loop.action.run_auto_loop">Run auto-loop</button>
+                  <button class="btn" data-op="airrunner-run" data-i18n="auto_loop.action.run_airrunner_ticks2">Run airrunner (ticks=2)</button>
                 </div>
                 <pre id="auto-loop-json"></pre>
               </div>
@@ -1178,12 +1563,17 @@
           </section>
 
           <section id="tab-jobs" class="tab">
-            <div class="grid">
-              <div class="card">
+            <div class="split split-scroll jobs-split">
+              <div class="card pane">
                 <h3 data-i18n="h.github_ops_jobs">GitHub Ops Jobs</h3>
-                <div class="subtle">Jobs list is read-only in strict allowlist mode.</div>
-                <div class="subtle" id="smoke-fast-last">last smoke job: -</div>
+                <div class="subtle" data-i18n="jobs.note.read_only_allowlist">Jobs list is read-only in strict allowlist mode.</div>
+                <div class="subtle" id="smoke-fast-last" data-i18n="jobs.meta.last_smoke_job_none">last smoke job: -</div>
                 <div id="github-jobs-table" class="table-wrap"></div>
+              </div>
+              <div class="card pane pane-sticky jobs-detail-pane">
+                <h3>Job Detail</h3>
+                <div class="subtle" id="github-job-detail-meta">Select a job row to view details.</div>
+                <pre id="github-job-detail-json"></pre>
               </div>
             </div>
           </section>
@@ -1192,23 +1582,22 @@
             <div class="card">
               <h3 data-i18n="h.loop_lock">Loop Lock</h3>
               <div class="row">
-                <button class="btn" id="lock-refresh">Refresh</button>
+                <button class="btn" id="lock-refresh" data-i18n="actions.refresh">Refresh</button>
               </div>
               <div class="subtle" id="lock-detail"></div>
-              <div class="subtle" id="lock-leases"></div>
-              <div class="subtle" id="lock-claims"></div>
-              <div class="row" style="margin-top: 10px; align-items: flex-end;">
-                <div class="field-stack" style="min-width: 140px;">
-                  <label class="subtle">Active claims limit</label>
-                  <select class="input" id="lock-claims-limit">
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                  </select>
-                </div>
-                <button class="btn" id="lock-claims-group-owner" type="button">Group by owner: off</button>
-                <button class="btn warn" id="admin-mode-toggle" type="button" data-i18n-title="admin.title_sidebar">Admin mode: off</button>
-              </div>
+	              <div class="subtle" id="lock-leases"></div>
+	              <div class="subtle" id="lock-claims"></div>
+	              <div class="row" style="margin-top: 10px; align-items: flex-end;">
+	                <div class="field-stack" style="min-width: 140px;">
+	                  <select class="input" id="lock-claims-limit" title="Active claims limit" data-i18n-title="locks.claims_limit_label" aria-label="Active claims limit" data-i18n-aria-label="locks.claims_limit_label">
+	                    <option value="10" data-i18n="locks.claims_limit_opt_10">Claims limit: 10</option>
+	                    <option value="20" data-i18n="locks.claims_limit_opt_20">Claims limit: 20</option>
+	                    <option value="50" data-i18n="locks.claims_limit_opt_50">Claims limit: 50</option>
+	                  </select>
+	                </div>
+	                <button class="btn" id="lock-claims-group-owner" type="button">Group by owner: off</button>
+	                <button class="btn warn" id="admin-mode-toggle" type="button" data-i18n-title="admin.title_sidebar">Admin mode: off</button>
+	              </div>
               <div class="subtle" id="lock-claims-list-meta" style="margin-top: 6px;"></div>
               <div id="lock-claims-list" class="table-wrap"></div>
               <pre id="lock-json"></pre>
@@ -1219,63 +1608,80 @@
             <div class="card">
               <h3 data-i18n="h.run_card">Run-Card</h3>
               <div class="row">
-                <button class="btn" id="run-card-refresh">Refresh</button>
-                <button class="btn warn" id="run-card-save">Save Run-Card</button>
+                <button class="btn" id="run-card-refresh" data-i18n="actions.refresh">Refresh</button>
+                <button class="btn warn" id="run-card-save" data-i18n="run_card.action.save">Save Run-Card</button>
               </div>
               <div class="subtle" id="run-card-summary"></div>
-              <textarea class="input" id="run-card-editor" placeholder="Run-Card JSON"></textarea>
+              <textarea class="input" id="run-card-editor" placeholder="Run-Card JSON" data-i18n-placeholder="placeholder.run_card_editor" data-i18n-aria-label="aria.run_card_editor"></textarea>
               <pre id="run-card-json"></pre>
             </div>
           </section>
 
           <section id="tab-planner-chat" class="tab">
-            <div class="grid">
-              <div class="card">
-                <h3 data-i18n="h.planner_threads">Planner Threads</h3>
-                <div class="row">
-                  <input class="input" id="planner-thread" placeholder="thread id (default)" />
-                  <button class="btn" id="planner-thread-refresh">Refresh</button>
-                </div>
-                <div id="planner-thread-list" class="note-list"></div>
-              </div>
-              <div class="card">
-                <h3 data-i18n="h.thread_messages">Thread Messages</h3>
-                <div class="row">
-                  <input class="input" id="notes-search" placeholder="Search title/body/tags" />
-                  <input class="input" id="notes-tag-filter" placeholder="Tag filter" />
-                  <button class="btn" id="notes-refresh">Refresh</button>
-                </div>
-                <div class="subtle" id="notes-count"></div>
-                <div id="notes-list" class="note-list"></div>
-              </div>
-              <div class="card">
-                <h3 data-i18n="h.compose_message">Compose Message</h3>
-                <div class="row">
-                  <input class="input" id="note-title" placeholder="Title" />
-                  <input class="input" id="note-tags" placeholder="tags (comma separated)" />
-                </div>
-                <textarea class="input" id="note-body" placeholder="Write message..."></textarea>
-                <div class="row">
-                  <select class="input" id="note-link-kind">
-                    <option value="intake">intake</option>
-                    <option value="decision">decision</option>
-                    <option value="job">job</option>
-                    <option value="run_card">run_card</option>
-                  </select>
-                  <input class="input" id="note-link-id" placeholder="id or path" />
-                  <button class="btn" id="note-link-add">Add link</button>
-                  <button class="btn ghost" id="note-link-clear">Clear links</button>
-                </div>
-                <div class="subtle" id="note-links-list"></div>
-                <div class="row">
-                  <button class="btn accent" id="note-save">Send</button>
-                  <button class="btn ghost" id="note-clear">Clear</button>
+            <div class="split split-scroll planner-chat-split">
+              <div class="pane planner-chat-lists">
+                <div class="stack">
+                  <div class="card">
+                    <h3 data-i18n="h.planner_threads">Planner Threads</h3>
+                    <div class="row">
+                      <input class="input" id="planner-thread" placeholder="thread id (default)" data-i18n-placeholder="placeholder.thread_id" data-i18n-aria-label="aria.thread_id" />
+                      <button class="btn" id="planner-thread-refresh" data-i18n="actions.refresh">Refresh</button>
+                    </div>
+                    <div id="planner-thread-list" class="note-list"></div>
+                  </div>
+                  <div class="card">
+                    <h3 data-i18n="h.thread_messages">Thread Messages</h3>
+                    <div class="row">
+                      <input class="input" id="notes-search" placeholder="Search title/body/tags" data-i18n-placeholder="placeholder.search_notes" data-i18n-aria-label="aria.search_notes" />
+                      <input class="input" id="notes-tag-filter" placeholder="Tag filter" data-i18n-placeholder="placeholder.tag_filter" data-i18n-aria-label="aria.tag_filter" />
+                      <button class="btn" id="notes-refresh" data-i18n="actions.refresh">Refresh</button>
+                    </div>
+                    <div class="subtle" id="notes-count"></div>
+                    <div id="notes-list" class="note-list"></div>
+                  </div>
                 </div>
               </div>
-              <div class="card">
-                <h3 data-i18n="h.message_detail">Message Detail</h3>
-                <div class="subtle" id="note-view-meta"></div>
-                <pre id="note-view-body"></pre>
+              <div class="pane pane-sticky planner-chat-detail">
+                <div class="stack">
+                  <div class="card">
+                    <h3 data-i18n="h.compose_message">Compose Message</h3>
+                    <div class="row">
+                      <input class="input" id="note-title" placeholder="Title" data-i18n-placeholder="placeholder.note_title" data-i18n-aria-label="aria.note_title" />
+                      <input class="input" id="note-tags" placeholder="tags (comma separated)" data-i18n-placeholder="placeholder.note_tags" data-i18n-aria-label="aria.note_tags" />
+                    </div>
+                    <textarea class="input" id="note-body" placeholder="Write message..." data-i18n-placeholder="placeholder.note_body" data-i18n-aria-label="aria.note_body"></textarea>
+                    <div class="row">
+                      <select class="input" id="note-link-kind">
+                        <option value="intake">intake</option>
+                        <option value="decision">decision</option>
+                        <option value="job">job</option>
+                        <option value="run_card">run_card</option>
+                      </select>
+                      <input class="input" id="note-link-id" placeholder="id or path" data-i18n-placeholder="placeholder.id_or_path" data-i18n-aria-label="aria.id_or_path" />
+                      <button class="btn" id="note-link-add" data-i18n="notes.action.add_link">Add link</button>
+                      <button class="btn ghost" id="note-link-clear" data-i18n="notes.action.clear_links">Clear links</button>
+                    </div>
+                    <div class="subtle" id="note-links-list"></div>
+                    <div class="row">
+                      <button class="btn accent" id="note-save" data-i18n="notes.action.send">Send</button>
+                      <button class="btn ghost" id="note-clear" data-i18n="actions.clear">Clear</button>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <h3 data-i18n="h.message_detail">Message Detail</h3>
+                    <div class="subtle" id="note-view-meta"></div>
+                    <div class="row" style="margin-top:6px;margin-bottom:6px;">
+                      <div class="variant-pill" id="note-view-variant" style="display:none;"></div>
+                    </div>
+                    <div class="row" style="margin-top:6px;margin-bottom:6px;">
+                      <div class="row" id="note-view-sections" style="display:none;"></div>
+                    </div>
+                    <div class="row" style="margin-top:6px;margin-bottom:6px;">
+                      <div class="row" id="note-view-inner-sections" style="display:none;"></div>
+                    </div>
+                    <pre id="note-view-body"></pre>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -1284,19 +1690,19 @@
             <div class="card">
               <h3 data-i18n="h.evidence_browser">Evidence Browser</h3>
               <div class="row">
-                <input class="input" id="evidence-filter" placeholder="filter path (default closeout)" />
-                <input class="input" id="evidence-search" placeholder="quick search" />
-                <button class="btn" id="evidence-refresh">Refresh</button>
+                <input class="input" id="evidence-filter" placeholder="filter path (default closeout)" data-i18n-placeholder="placeholder.evidence_filter" data-i18n-aria-label="aria.evidence_filter" />
+                <input class="input" id="evidence-search" placeholder="quick search" data-i18n-placeholder="placeholder.evidence_search" data-i18n-aria-label="aria.evidence_search" />
+                <button class="btn" id="evidence-refresh" data-i18n="actions.refresh">Refresh</button>
               </div>
-              <div class="split">
-                <div>
+              <div class="split split-scroll evidence-split">
+                <div class="pane">
                   <div class="evidence-tree" id="evidence-tree"></div>
                 </div>
-                <div>
+                <div class="pane pane-sticky">
                   <div class="json-actions">
-                    <button class="btn" id="copy-evidence-path">Copy path</button>
-                    <button class="btn" id="copy-evidence-json">Copy JSON</button>
-                    <button class="btn" id="download-evidence">Download</button>
+                    <button class="btn" id="copy-evidence-path" data-i18n="evidence.action.copy_path">Copy path</button>
+                    <button class="btn" id="copy-evidence-json" data-i18n="evidence.action.copy_json">Copy JSON</button>
+                    <button class="btn" id="download-evidence" data-i18n="evidence.action.download">Download</button>
                   </div>
                   <pre id="evidence-viewer"></pre>
                 </div>
