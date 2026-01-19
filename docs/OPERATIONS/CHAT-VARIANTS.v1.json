@@ -1,0 +1,155 @@
+{
+  "id": "CHAT-VARIANTS",
+  "version": "v1",
+  "ts_policy": "UTC_Z",
+  "outer_format": {
+    "required_sections": ["PREVIEW", "RESULT", "EVIDENCE", "ACTIONS", "NEXT"],
+    "note": "Outer AUTOPILOT CHAT is kept stable for evidence-first operation; variants only change the inner structure/content."
+  },
+  "rendering": {
+    "variant_heading_style": "BRACKET_UPPERCASE",
+    "variant_heading_examples_tr": [
+      "[İSTİŞARE] ...",
+      "[SERBEST] ...",
+      "[PLAN] ...",
+      "[UYGULAMA] ...",
+      "[DEBUG] ...",
+      "[UX] ..."
+    ],
+    "variant_heading_decor": "MARKDOWN_BOLD",
+    "variant_heading_decor_examples_tr": ["**[İSTİŞARE]**", "**[SERBEST]**", "**[PLAN]**", "**[UYGULAMA]**", "**[DEBUG]**", "**[UX]**"],
+    "variant_heading_rules": {
+      "content_starts_next_line": true,
+      "prefix_is_single_line": true
+    },
+    "variant_ui_styles": {
+      "ISTISARE": { "css_class": "variant-istisare", "color": "#15d1b5" },
+      "SERBEST": { "css_class": "variant-serbest", "color": "#67d1ff" },
+      "PLAN_ONLY": { "css_class": "variant-plan", "color": "#8aa6ff" },
+      "APPLY": { "css_class": "variant-uygulama", "color": "#33e39a" },
+      "DEBUG": { "css_class": "variant-debug", "color": "#ffb020" },
+      "UX": { "css_class": "variant-ux", "color": "#c38cff" }
+    },
+    "autopilot_section_heading_style": "BRACKET_UPPERCASE",
+    "autopilot_section_heading_examples": [
+      "[PREVIEW] ...",
+      "[RESULT] ...",
+      "[EVIDENCE] ...",
+      "[ACTIONS] ...",
+      "[NEXT] ..."
+    ],
+    "autopilot_section_heading_decor": "EM_DASH",
+    "autopilot_section_heading_decor_examples": ["— [PREVIEW] —", "— [RESULT] —", "— [EVIDENCE] —", "— [ACTIONS] —", "— [NEXT] —"],
+    "autopilot_section_heading_rules": {
+      "content_starts_next_line": true,
+      "heading_isolated_line": true
+    },
+    "section_mixing_policy": {
+      "do_not_mix_variant_inner_sections_with_autopilot_sections": true,
+      "guidance_tr": "İSTİŞARE gibi konuşmalarda PREVIEW/RESULT/EVIDENCE/ACTIONS/NEXT kullanma. İlgili varyantın inner_sections_tr başlıklarını kullan. PREVIEW/RESULT/EVIDENCE/ACTIONS/NEXT sadece kanıt/ops odaklı (AUTOPILOT CHAT) raporlarda kullanılmalı."
+    },
+    "note": "Variant heading is a short, single-line prefix used at the start of the assistant message to make the current mode obvious."
+  },
+  "variants": [
+    {
+      "id": "ISTISARE",
+      "title_tr": "İstişare",
+      "intent": "Mimari/ürün tasarımı kararlarını netleştirme; apply yok.",
+      "inner_sections_tr": [
+        "[AMAÇ & KAPSAM]",
+        "[KAVRAMLAR (SÖZLÜK)]",
+        "[SEÇENEKLER]",
+        "[ÖNERİLEN TASARIM]",
+        "[RİSK/DRIFT NOTLARI]",
+        "[KİLİT SORULAR]"
+      ]
+    },
+    {
+      "id": "SERBEST",
+      "title_tr": "Serbest",
+      "intent": "Özel durumlarda serbest format; kullanıcı ile birlikte yapılandırma. (Explicit opt-in: kullanıcı açıkça 'serbest' ister.)",
+      "rules": {
+        "explicit_opt_in_only": true,
+        "allow_freeform_body": true,
+        "inner_sections_optional": true
+      },
+      "inner_sections_tr": ["[SERBEST NOTLAR]"]
+    },
+    {
+      "id": "PLAN_ONLY",
+      "title_tr": "Plan",
+      "intent": "Plan-only CHG; apply yok; drift-free.",
+      "inner_sections_tr": [
+        "[HEDEF]",
+        "[KANIT/GİRDİLER]",
+        "[PLAN]",
+        "[GATE’LER]",
+        "[DOD/REPROOF]"
+      ]
+    },
+    {
+      "id": "APPLY",
+      "title_tr": "Uygulama",
+      "intent": "Core/workspace değişikliği; test/reproof; fail-closed.",
+      "inner_sections_tr": [
+        "[DEĞİŞİKLİK ÖZETİ]",
+        "[KAPSAM/DOSYALAR]",
+        "[GÜVENLİK & DRIFT KONTROLÜ]",
+        "[TESTLER]",
+        "[REPROOF]",
+        "[ROLLBACK/FAIL-CLOSED]"
+      ]
+    },
+    {
+      "id": "DEBUG",
+      "title_tr": "Debug",
+      "intent": "Belirti→neden analizi; deterministik deney planı.",
+      "inner_sections_tr": [
+        "[BELİRTİ]",
+        "[BEKLENEN]",
+        "[GÖZLEM/KANIT]",
+        "[OLASI NEDENLER]",
+        "[DENEY PLANI]",
+        "[SONRAKİ ADIM]"
+      ]
+    },
+    {
+      "id": "UX",
+      "title_tr": "UX",
+      "intent": "UI/UX iyileştirme; etkileşim tasarımı ve doğrulama listesi.",
+      "inner_sections_tr": [
+        "[KULLANICI SORUNU]",
+        "[HEDEF DAVRANIŞ]",
+        "[ETKİLEŞİM KARARI]",
+        "[EDGE CASE’LER]",
+        "[DOĞRULAMA]"
+      ]
+    }
+  ],
+  "selection_rules": {
+    "order": ["APPLY", "PLAN_ONLY", "UX", "DEBUG", "SERBEST", "ISTISARE"],
+    "match_any_of_tokens": {
+      "APPLY": [
+        "uygula",
+        "apply",
+        "core_unlock",
+        "one_shot",
+        "contract test",
+        "reproof"
+      ],
+      "PLAN_ONLY": ["plan-only", "plan only", "chg", "apply yok", "drift-free"],
+      "UX": ["ui", "ux", "taşıyor", "dropdown", "filtre", "cockpit", "sidebar", "layout", "tasarım"],
+      "DEBUG": ["neden", "niye", "hata", "bug", "boş", "veri yok", "çelişki", "log", "timeout"],
+      "SERBEST": ["serbest", "freeform", "free chat", "serbest mod", "özgür mod"],
+      "ISTISARE": ["mimari", "tasarım", "model", "intent", "kriter", "ekseni", "tema", "alt tema"]
+    },
+    "fallback": "ISTISARE"
+  },
+  "invariants": {
+    "no_network": true,
+    "deterministic_ordering": true,
+    "evidence_first": true,
+    "no_shell_commands_in_user_text": true,
+    "secrets_logged": false
+  }
+}

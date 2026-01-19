@@ -20,7 +20,10 @@ def build_http_request(
         body["temperature"] = temperature
     if max_tokens is not None:
         body["max_tokens"] = max_tokens
-    if request_id:
+    # Some providers reject unknown top-level request fields. Keep request_id for
+    # internal correlation only (audit/response), and avoid sending it to these
+    # provider APIs.
+    if request_id and provider_id not in {"google", "openai", "qwen", "xai"}:
         body["request_id"] = request_id
 
     return {

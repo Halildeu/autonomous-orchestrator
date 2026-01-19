@@ -7,6 +7,12 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from src.benchmark.eval_runner_tagging import (
+    _extract_domains_from_tags,
+    _extract_topic_from_tags,
+    _infer_topic_from_tags,
+    _normalize_tag_list,
+)
 from src.benchmark.integrity_utils import load_policy_integrity
 from src.benchmark.operability_check_details_v1 import OPERABILITY_CHECK_DETAILS_V1, OPERABILITY_REASON_MAP_V1
 
@@ -40,53 +46,6 @@ def _write_if_missing(path: Path, payload: dict[str, Any]) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-
-
-def _normalize_tag_list(value: Any) -> list[str]:
-    tags_raw = value if isinstance(value, list) else []
-    tags = [str(t).strip() for t in tags_raw if isinstance(t, str) and t.strip()]
-    return sorted(set(tags))
-
-
-def _extract_topic_from_tags(tags: list[str]) -> str:
-    for tag in tags:
-        if tag.startswith("topic:"):
-            return tag.split(":", 1)[1].strip()
-    return ""
-
-
-def _extract_domains_from_tags(tags: list[str]) -> list[str]:
-    domains = [t for t in tags if t.startswith("domain_")]
-    if "core" in tags:
-        domains.append("core")
-    return sorted(set(domains))
-
-
-def _infer_topic_from_tags(tags: list[str]) -> str:
-    # Best-effort mapping for non-core items that don't carry explicit topic:* tag.
-    # This is intentionally conservative and should be extended as more signals become available.
-    tag_set = set(tags)
-    if "doc_nav" in tag_set or "jobify" in tag_set:
-        return "gozlemlenebilirlik_izleme_olcme"
-    if {"alignment", "context", "drift", "boundary", "scope"} & tag_set:
-        return "baglam_uyum"
-    if "integration" in tag_set:
-        return "entegrasyon_birlikte_calisabilirlik"
-    if {"determinism", "io", "safety"} & tag_set:
-        return "deterministiklik_tekrarlanabilirlik"
-    if {"privacy", "pii", "secret", "secrets"} & tag_set:
-        return "gizlilik"
-    if "security" in tag_set:
-        return "guvenlik"
-    if {"policy", "compliance", "gates"} & tag_set:
-        return "uygunluk_risk_guvence_kontrol"
-    if {"triage", "ops", "pipeline"} & tag_set:
-        return "surec_etkinligi_olgunluk"
-    if {"intake", "stale", "pdca", "gaps"} & tag_set:
-        return "surec_etkinligi_olgunluk"
-    if "offline" in tag_set or "seed" in tag_set:
-        return "surec_etkinligi_olgunluk"
-    return ""
 
 
 def _rel_evidence_pointer(workspace_root: Path, path_value: Any) -> str:
@@ -168,7 +127,6 @@ def _safe_load_catalog_items(path: Path) -> list[dict[str, Any]]:
 
 def _finalize_findings_v1(items: list[dict[str, Any]]) -> dict[str, Any]:
     from src.benchmark.eval_runner_finalize_findings import _finalize_findings_v1_impl
-
     return _finalize_findings_v1_impl(items)
 
 

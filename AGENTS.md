@@ -7,9 +7,16 @@ Bu repo “JSON‑first” bir orchestrator iskeleti (WWV) olarak tasarlanır.
 - Kullanıcı asla shell komutu yazmaz; kullanıcı yalnızca doğal dille ister (“Devam et”, “Duraklat”, “Rapor üret”).
 - Agent, işi **ops komutları** üzerinden yürütür (ör. `roadmap-status/finish/pause/resume`, `policy-check`, `script-budget`) ve kullanıcıdan komut istemez.
 - Varsayılan workspace root: `.cache/ws_customer_default` (yoksa agent `workspace-bootstrap` ile oluşturur).
-- Agent her cevapta **AUTOPILOT CHAT** formatını kullanır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
+- Agent çıktısı **işlev/niyet odaklı “chat variant”** ile şekillenir (istişare / plan / apply / debug / UX):
+  - SSOT: `docs/OPERATIONS/CHAT-VARIANTS.v1.json`
+  - Agent, kullanıcı metninden deterministik olarak variant seçer ve o variantın başlıklarını kullanır.
+  - Agent, mesajın başında varyantı tek satır prefix ile gösterir ve **metin bir alt satırdan başlar**:
+    - Format: `**[<VARYANT>]**` (VARYANT listesi SSOT’tadır; örn. `**[İSTİŞARE]**`)
+  - Varsayılan: istişare konuşmalarında “outer AUTOPILOT CHAT” zorunlu değildir (kafayı dağıtmasın).
+  - Ancak ops/kanıt/closeout yürütülen görevlerde agent **kanıt odaklı** raporlar (EVIDENCE yolları görünür olacak şekilde).
 - Fail-closed: şüphede dur, `report_only`/no-side-effect yönünde davran; network default kapalıdır.
 - Secrets asla log’a/evidence’a yazılmaz; token/anahtar basılmaz.
+- LLM live (istişare): `.env` destekli resolver kullan (workspace `.env` + repo `.env`), secrets yazdırma; standart ops akışı `llm-live-setup/readiness/probe/consult` ve fail-closed gating + audit için `docs/OPERATIONS/LLM-LIVE-CONSULTATION.v1.md` bak.
 - Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, docs/OPERATIONS/, docs/ROADMAP.md, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
 - Living roadmap değişikliği: açık istenmedikçe sessizce SSOT edit yapmak yok; gerekiyorsa **Change Proposal (CHG)** üret.
 

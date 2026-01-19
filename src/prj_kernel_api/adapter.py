@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import time
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -13,6 +15,7 @@ from typing import Any, Dict, List, Tuple
 
 from jsonschema import Draft202012Validator
 
+from src.prj_kernel_api.adapter_llm_actions import maybe_handle_llm_actions
 from src.prj_kernel_api.api_guardrails import (
     GuardrailsError,
     acquire_concurrency,
@@ -24,17 +27,8 @@ from src.prj_kernel_api.api_guardrails import (
     release_concurrency,
     verify_auth,
 )
-from src.prj_kernel_api.dotenv_loader import resolve_env_presence
-from src.prj_kernel_api.llm_clients import build_http_request
 from src.prj_kernel_api.llm_live_probe import run_live_probe
 from src.prj_kernel_api.m0_plan import ensure_manage_split_plan
-from src.prj_kernel_api.provider_guardrails import (
-    live_call_allowed,
-    load_guardrails,
-    model_allowed,
-    provider_settings,
-)
-from src.prj_kernel_api.providers_registry import ensure_providers_registry, read_policy, read_registry
 
 DEFAULT_ROADMAP = "roadmaps/SSOT/roadmap.v1.json"
 REQUEST_SCHEMA = "schemas/kernel-api-request.schema.v1.json"
@@ -77,25 +71,6 @@ def _effective_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "project_doc_fallback_filenames": fallback if isinstance(fallback, list) else None,
         "model": model,
     }
-
-
-def _estimate_request_bytes(
-    *,
-    model: str,
-    messages: List[Dict[str, Any]],
-    temperature: float | None,
-    max_tokens: int | None,
-    request_id: str | None,
-) -> int:
-    payload: Dict[str, Any] = {"model": model, "messages": messages}
-    if temperature is not None:
-        payload["temperature"] = temperature
-    if max_tokens is not None:
-        payload["max_tokens"] = max_tokens
-    if request_id:
-        payload["request_id"] = request_id
-    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
-    return len(encoded)
 
 
 def _compare_configs(
@@ -220,7 +195,18 @@ def _validate_schema(schema: Dict[str, Any], instance: Dict[str, Any]) -> List[s
 
 def _redact(text: str) -> str:
     redacted = text
-    for key in ("OPENAI_API_KEY", "GITHUB_TOKEN", "SUPPLY_CHAIN_SIGNING_KEY"):
+    for key in (
+        "KERNEL_API_TOKEN",
+        "OPENAI_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "QWEN_API_KEY",
+        "XAI_API_KEY",
+        "GITHUB_TOKEN",
+        "SUPPLY_CHAIN_SIGNING_KEY",
+    ):
         val = os.environ.get(key)
         if val:
             redacted = redacted.replace(val, "***REDACTED***")
@@ -252,6 +238,81 @@ def _run_manage(args: List[str], repo_root: Path) -> subprocess.CompletedProcess
         text=True,
         capture_output=True,
     )
+
+
+def _now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _intake_create_plan_from_work_intake(
+    *,
+    workspace_root: str | Path,
+    work_intake_path: str,
+) -> tuple[str | None, list[str]]:
+    notes: list[str] = []
+    ws_root = Path(workspace_root).resolve()
+    intake_path = Path(work_intake_path)
+    if not intake_path.is_absolute():
+        intake_path = (ws_root / intake_path).resolve()
+    else:
+        intake_path = intake_path.resolve()
+
+    try:
+        intake_path.relative_to(ws_root)
+    except Exception:
+        notes.append("work_intake_path_outside_workspace")
+        return None, notes
+
+    if not intake_path.exists():
+        notes.append("work_intake_path_missing")
+        return None, notes
+
+    try:
+        data = json.loads(intake_path.read_text(encoding="utf-8"))
+    except Exception:
+        notes.append("work_intake_unreadable")
+        return None, notes
+
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list) or not items:
+        return None, notes
+
+    intake_ids: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        intake_id = item.get("intake_id")
+        if isinstance(intake_id, str) and intake_id:
+            intake_ids.append(intake_id)
+
+    intake_ids = sorted(set(intake_ids))
+    if not intake_ids:
+        return None, notes
+
+    hash_id = hashlib.sha256(",".join(intake_ids).encode("utf-8")).hexdigest()[:8]
+    chg_dir = ws_root / ".cache" / "reports" / "chg"
+    chg_dir.mkdir(parents=True, exist_ok=True)
+    chg_id = f"CHG-INTAKE-{hash_id}"
+
+    plan_path = chg_dir / f"{chg_id}.plan.json"
+    plan_md_path = chg_dir / f"{chg_id}.plan.md"
+    plan = {
+        "chg_id": chg_id,
+        "generated_at": _now_iso(),
+        "intake_ids": intake_ids,
+        "plan_only": True,
+        "scope": "work_intake",
+    }
+
+    tmp_path = plan_path.with_suffix(".tmp")
+    tmp_path.write_text(
+        json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    tmp_path.replace(plan_path)
+    plan_md_path.write_text(f"CHG PLAN: {chg_id}\n\nItems: {len(intake_ids)}\n", encoding="utf-8")
+
+    return str(plan_path), notes
 
 
 def _build_response(
@@ -562,354 +623,20 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 auth_checked=auth_checked,
                 rate_limited=rate_limited,
             )
-        if action in {"llm_providers_init", "llm_list_providers", "llm_call"}:
-            try:
-                paths = ensure_providers_registry(str(workspace_root))
-                providers_path = Path(paths["providers_path"])
-                policy_path = Path(paths["policy_path"])
-                registry = read_registry(providers_path)
-                provider_policy = read_policy(policy_path)
-            except ValueError as exc:
-                code = str(exc).split(":", 1)[0]
-                error_code = code if code.startswith("PROVIDER_") else "PROVIDER_REGISTRY_INVALID"
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code=error_code,
-                    message="Provider registry validation failed.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-            except Exception:
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="PROVIDER_REGISTRY_INVALID",
-                    message="Provider registry load failed.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-            try:
-                guardrails = load_guardrails(str(workspace_root))
-            except ValueError as exc:
-                code = str(exc).strip()
-                error_code = code if code.startswith("PROVIDER_GUARDRAILS_") else "PROVIDER_GUARDRAILS_INVALID"
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code=error_code,
-                    message="Provider guardrails missing or invalid.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            if action == "llm_providers_init":
-                return _build_response(
-                    status="OK",
-                    payload={"providers_path": str(providers_path), "policy_path": str(policy_path)},
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code=None,
-                    message="Provider registry initialized.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            allow = provider_policy.get("allow_providers") if isinstance(provider_policy.get("allow_providers"), list) else []
-            providers = registry.get("providers") if isinstance(registry.get("providers"), list) else []
-
-            if action == "llm_list_providers":
-                summary = []
-                for p in providers:
-                    if not isinstance(p, dict):
-                        continue
-                    provider_id = p.get("id")
-                    if not isinstance(provider_id, str):
-                        continue
-                    api_key_env = p.get("api_key_env") if isinstance(p.get("api_key_env"), str) else ""
-                    guard = provider_settings(guardrails, provider_id)
-                    expected_env_keys = guard.get("expected_env_keys", [])
-                    if not expected_env_keys and api_key_env:
-                        expected_env_keys = [api_key_env]
-                    api_key_present = False
-                    found_in = "none"
-                    for key_name in expected_env_keys:
-                        api_key_present, found_in = resolve_env_presence(
-                            key_name,
-                            str(workspace_root),
-                            env_mode=env_mode,
-                        )
-                        if api_key_present:
-                            break
-                    default_model = guard.get("default_model")
-                    if not isinstance(default_model, str):
-                        default_model = p.get("default_model") if isinstance(p.get("default_model"), str) else None
-                    summary.append(
-                        {
-                            "id": provider_id,
-                            "enabled": bool(p.get("enabled", False)) and bool(guard.get("enabled", False)),
-                            "allow_models": guard.get("allow_models", []),
-                            "base_url_present": bool(p.get("base_url")),
-                            "default_model_present": bool(default_model),
-                            "default_model": default_model,
-                            "api_key_env": api_key_env,
-                            "expected_env_keys": expected_env_keys,
-                            "api_key_present": bool(api_key_present),
-                            "found_in": found_in,
-                        }
-                    )
-                return _build_response(
-                    status="OK",
-                    payload={"providers_summary": summary},
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code=None,
-                    message="Providers listed.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            provider_id = params.get("provider_id") if isinstance(params.get("provider_id"), str) else None
-            if not provider_id:
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="PROVIDER_NOT_FOUND",
-                    message="provider_id is required.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-            if provider_id not in allow:
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="PROVIDER_NOT_ALLOWED",
-                    message="Provider not allowed.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            provider = next((p for p in providers if isinstance(p, dict) and p.get("id") == provider_id), None)
-            if provider is None:
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="PROVIDER_NOT_FOUND",
-                    message="Provider not found.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-            guard = provider_settings(guardrails, provider_id)
-            if not bool(provider.get("enabled", False)) or not bool(guard.get("enabled", False)):
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="PROVIDER_DISABLED",
-                    message="Provider disabled.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            base_url = provider.get("base_url")
-            model = params.get("model") if isinstance(params.get("model"), str) else guard.get("default_model")
-            if not isinstance(model, str):
-                model = provider.get("default_model") if isinstance(provider.get("default_model"), str) else None
-            if not isinstance(base_url, str):
-                return _build_response(
-                    status="FAIL",
-                    payload=None,
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="PROVIDER_CONFIG_MISSING",
-                    message="Provider config missing required fields.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-            if not isinstance(model, str):
-                return _build_response(
-                    status="FAIL",
-                    payload={"provider_id": provider_id},
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="MODEL_REQUIRED",
-                    message="Model is required or must be set by policy default.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            timeout = provider.get("timeout_seconds")
-            timeout_value = guard.get("timeout_seconds", 20)
-            if isinstance(timeout, int) and timeout > 0:
-                timeout_value = min(timeout_value, timeout) if timeout_value > 0 else timeout
-
-            dry_run = params.get("dry_run")
-            if not isinstance(dry_run, bool):
-                dry_run = bool(provider_policy.get("default_dry_run", True))
-
-            messages = params.get("messages") if isinstance(params.get("messages"), list) else []
-            temperature = params.get("temperature") if isinstance(params.get("temperature"), (int, float)) else None
-            max_tokens = params.get("max_tokens") if isinstance(params.get("max_tokens"), int) else None
-            req_id = params.get("request_id") if isinstance(params.get("request_id"), str) else request_id
-
-            api_key_env = provider.get("api_key_env") if isinstance(provider.get("api_key_env"), str) else ""
-            expected_env_keys = guard.get("expected_env_keys", [])
-            if not expected_env_keys and api_key_env:
-                expected_env_keys = [api_key_env]
-            api_key_present = False
-            found_in = "none"
-            for key_name in expected_env_keys:
-                api_key_present, found_in = resolve_env_presence(
-                    key_name,
-                    str(workspace_root),
-                    env_mode=env_mode,
-                )
-                if api_key_present:
-                    break
-
-            if not isinstance(model, str) or not model_allowed(model, guard.get("allow_models", ["*"])):
-                return _build_response(
-                    status="FAIL",
-                    payload={
-                        "provider_id": provider_id,
-                        "model": model if isinstance(model, str) else None,
-                        "allow_models": guard.get("allow_models", []),
-                    },
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="MODEL_NOT_ALLOWED",
-                    message="Model not allowed by guardrails.",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            max_request_bytes = guard.get("max_request_bytes", 0)
-            if isinstance(max_request_bytes, int) and max_request_bytes > 0:
-                req_bytes = _estimate_request_bytes(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    request_id=req_id,
-                )
-                if req_bytes > max_request_bytes:
-                    return _build_response(
-                        status="FAIL",
-                        payload={
-                            "provider_id": provider_id,
-                            "model": model,
-                            "request_bytes": req_bytes,
-                            "max_request_bytes": max_request_bytes,
-                        },
-                        notes=["PROGRAM_LED=true", "no_secrets=true"],
-                        request_id=request_id,
-                        error_code="REQUEST_TOO_LARGE",
-                        message="LLM request exceeds guardrails limit.",
-                        auth_checked=auth_checked,
-                        rate_limited=rate_limited,
-                    )
-
-            if not dry_run:
-                if not llm_live_allowed(policy):
-                    return _build_response(
-                        status="FAIL",
-                        payload={
-                            "provider_id": provider_id,
-                            "model": model,
-                            "dry_run": False,
-                            "api_key_present": bool(api_key_present),
-                        },
-                        notes=["PROGRAM_LED=true", "no_secrets=true"],
-                        request_id=request_id,
-                        error_code="LIVE_CALL_DISABLED",
-                        message="Live calls disabled by policy.",
-                        auth_checked=auth_checked,
-                        rate_limited=rate_limited,
-                    )
-                allowed, reason = live_call_allowed(
-                    policy=guardrails,
-                    workspace_root=str(workspace_root),
-                    env_mode=env_mode,
-                    api_key_present=bool(api_key_present),
-                )
-                if not allowed:
-                    return _build_response(
-                        status="FAIL",
-                        payload={
-                            "provider_id": provider_id,
-                            "model": model,
-                            "dry_run": False,
-                            "api_key_present": bool(api_key_present),
-                            "live_gate_reason": reason,
-                        },
-                        notes=["PROGRAM_LED=true", "no_secrets=true"],
-                        request_id=request_id,
-                        error_code="LIVE_CALL_DISABLED",
-                        message="Live calls disabled by provider guardrails.",
-                        auth_checked=auth_checked,
-                        rate_limited=rate_limited,
-                    )
-                return _build_response(
-                    status="FAIL",
-                    payload={
-                        "provider_id": provider_id,
-                        "model": model,
-                        "dry_run": False,
-                        "api_key_present": bool(api_key_present),
-                    },
-                    notes=["PROGRAM_LED=true", "no_secrets=true"],
-                    request_id=request_id,
-                    error_code="LIVE_CALL_DISABLED",
-                    message="Live calls disabled (offline mode).",
-                    auth_checked=auth_checked,
-                    rate_limited=rate_limited,
-                )
-
-            preview = build_http_request(
-                provider_id=provider_id,
-                base_url=base_url,
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                request_id=req_id,
-            )
-            payload = {
-                "provider_id": provider_id,
-                "model": model,
-                "dry_run": True,
-                "timeout_seconds": timeout_value,
-                "api_key_present": bool(api_key_present),
-                "key_source": found_in,
-                "allow_models": guard.get("allow_models", []),
-                "max_request_bytes": guard.get("max_request_bytes", 0),
-                "max_response_bytes": guard.get("max_response_bytes", 0),
-                "retry_count": guard.get("retry_count", 0),
-                "llm_request_preview": preview,
-            }
-            return _build_response(
-                status="OK",
-                payload=payload,
-                notes=["PROGRAM_LED=true", "no_secrets=true", "dry_run=true"],
-                request_id=request_id,
-                error_code=None,
-                message="LLM request preview generated.",
-                auth_checked=auth_checked,
-                rate_limited=rate_limited,
-            )
+        llm_response = maybe_handle_llm_actions(
+            action=action,
+            params=params,
+            workspace_root=workspace_root,
+            repo_root=repo_root,
+            env_mode=env_mode,
+            request_id=request_id,
+            auth_checked=auth_checked,
+            rate_limited=rate_limited,
+            policy=policy,
+            build_response=_build_response,
+        )
+        if llm_response is not None:
+            return llm_response
         if action == "llm_live_probe":
             detail = bool(params.get("detail", False))
             try:
@@ -1012,24 +739,18 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 "work-intake-build",
                 "--workspace-root",
                 str(workspace_root),
-                "--mode",
-                "build",
             ]
         elif action == "intake_next":
             args = [
                 "work-intake-build",
                 "--workspace-root",
                 str(workspace_root),
-                "--mode",
-                "next",
             ]
         elif action == "intake_create_plan":
             args = [
                 "work-intake-build",
                 "--workspace-root",
                 str(workspace_root),
-                "--mode",
-                "create_plan",
             ]
         elif action == "project_status":
             args = [
@@ -1137,6 +858,26 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 status_str = "OK"
             elif raw in {"FAIL"}:
                 status_str = "WARN"
+
+        # Backward-compatible reshaping for work-intake endpoints.
+        # `work-intake-build` returns `top_next_actions`, but the API contract expects `top_next`.
+        if action == "intake_next" and isinstance(payload, dict):
+            if "top_next" not in payload:
+                top_next_actions = payload.get("top_next_actions")
+                payload["top_next"] = top_next_actions if isinstance(top_next_actions, list) else []
+
+        # `intake_create_plan` is implemented as a thin wrapper over `work-intake-build` output
+        # to generate a deterministic CHG plan file (workspace-only).
+        if action == "intake_create_plan" and isinstance(payload, dict):
+            plan_path = None
+            work_intake_path = payload.get("work_intake_path")
+            if isinstance(work_intake_path, str) and work_intake_path:
+                plan_path, plan_notes = _intake_create_plan_from_work_intake(
+                    workspace_root=Path(workspace_root).resolve(),
+                    work_intake_path=work_intake_path,
+                )
+                notes.extend(plan_notes)
+            payload["plan_path"] = plan_path
         response = _build_response(
             status=status_str,
             payload=payload,

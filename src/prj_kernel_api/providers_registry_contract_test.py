@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
-
-from src.prj_kernel_api.provider_guardrails import load_guardrails, model_allowed, provider_settings
-from src.prj_kernel_api.providers_registry import ensure_providers_registry, read_policy, read_registry
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -23,6 +21,12 @@ def _load_json(path: Path) -> dict:
 
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from src.prj_kernel_api.provider_guardrails import load_guardrails, model_allowed, provider_settings
+    from src.prj_kernel_api.providers_registry import ensure_providers_registry, read_policy, read_registry
+
     ws = repo_root / ".cache" / "ws_providers_demo"
     if ws.exists():
         shutil.rmtree(ws)
@@ -39,11 +43,11 @@ def main() -> None:
         raise SystemExit("Providers registry test failed: providers list missing.")
 
     allow = policy.get("allow_providers")
-    if not isinstance(allow, list) or set(allow) != {"openai", "google", "deepseek", "qwen"}:
+    if not isinstance(allow, list) or set(allow) != {"openai", "google", "deepseek", "qwen", "xai"}:
         raise SystemExit("Providers registry test failed: allow_providers mismatch.")
 
     guardrails = load_guardrails(str(ws))
-    for provider_id in ["deepseek", "google", "openai", "qwen"]:
+    for provider_id in ["deepseek", "google", "openai", "qwen", "xai"]:
         guard = provider_settings(guardrails, provider_id)
         if not bool(guard.get("enabled", False)):
             continue

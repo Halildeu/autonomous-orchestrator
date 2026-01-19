@@ -14,6 +14,18 @@ def _find_repo_root(start: Path) -> Path | None:
     return None
 
 
+def _is_placeholder_value(value: str) -> bool:
+    v = str(value or "").strip()
+    if not v:
+        return True
+    u = v.upper()
+    if u in {"REDACTED", "CHANGE_ME", "CHANGEME", "REPLACE_ME", "TODO", "TBD"}:
+        return True
+    if u.startswith("YOUR_") and u.endswith("_HERE"):
+        return True
+    return False
+
+
 def _parse_env_file(path: Path, *, source_label: str) -> Tuple[Dict[str, str], list[str]]:
     data: Dict[str, str] = {}
     errors: list[str] = []
@@ -60,7 +72,7 @@ def load_env_presence(
 ) -> Dict[str, object]:
     if env_mode == "process":
         keys = sorted(expected_keys) if expected_keys else []
-        present_keys = {k for k in keys if os.environ.get(k)}
+        present_keys = {k for k in keys if os.environ.get(k) and not _is_placeholder_value(os.environ.get(k) or "")}
         missing_expected = [k for k in keys if k not in present_keys]
         return {
             "present_keys": present_keys,
@@ -75,9 +87,9 @@ def load_env_presence(
 
     present_keys: set[str] = set()
     for key in keys:
-        if ws_data.get(key):
+        if ws_data.get(key) and not _is_placeholder_value(ws_data.get(key) or ""):
             present_keys.add(key)
-        elif repo_data.get(key):
+        elif repo_data.get(key) and not _is_placeholder_value(repo_data.get(key) or ""):
             present_keys.add(key)
 
     missing_expected = [k for k in keys if k not in present_keys]
@@ -104,13 +116,15 @@ def resolve_env_presence(
 ) -> Tuple[bool, str]:
     if env_mode == "process":
         value = os.environ.get(key_name)
-        return (value is not None and value != ""), "process_env" if value else "none"
+        if value is None or value == "" or _is_placeholder_value(value):
+            return False, "none"
+        return True, "process_env"
 
     repo_root = repo_root or _find_repo_root(Path(__file__).resolve())
     ws_data, repo_data, _errors = _load_env_sources(workspace_root, repo_root=repo_root)
-    if ws_data.get(key_name):
+    if ws_data.get(key_name) and not _is_placeholder_value(ws_data.get(key_name) or ""):
         return True, "workspace_env"
-    if repo_data.get(key_name):
+    if repo_data.get(key_name) and not _is_placeholder_value(repo_data.get(key_name) or ""):
         return True, "repo_env"
     return False, "none"
 
@@ -124,12 +138,14 @@ def resolve_env_value(
 ) -> Tuple[bool, str | None]:
     if env_mode == "process":
         value = os.environ.get(key_name)
-        return (value is not None and value != ""), value
+        if value is None or value == "" or _is_placeholder_value(value):
+            return False, None
+        return True, value
 
     repo_root = repo_root or _find_repo_root(Path(__file__).resolve())
     ws_data, repo_data, _errors = _load_env_sources(workspace_root, repo_root=repo_root)
-    if ws_data.get(key_name):
+    if ws_data.get(key_name) and not _is_placeholder_value(ws_data.get(key_name) or ""):
         return True, ws_data.get(key_name)
-    if repo_data.get(key_name):
+    if repo_data.get(key_name) and not _is_placeholder_value(repo_data.get(key_name) or ""):
         return True, repo_data.get(key_name)
     return False, None

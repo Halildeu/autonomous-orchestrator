@@ -38,6 +38,11 @@ def _validate(schema: dict, instance: dict, label: str) -> None:
 
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
+    # Allow running as a script (`python src/.../adapter_contract_test.py`) as well as
+    # a module (`python -m src.prj_kernel_api.adapter_contract_test`).
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
     ws = repo_root / ".cache" / "ws_api_demo"
     if ws.exists():
         shutil.rmtree(ws)
@@ -133,7 +138,7 @@ def main() -> None:
         raise SystemExit("Adapter test failed: intake_status missing work_intake_path.")
     intake_path = Path(str(intake_payload.get("work_intake_path")))
     if not intake_path.is_absolute():
-        intake_path = (repo_root / intake_path).resolve()
+        intake_path = (ws / intake_path).resolve()
     if not intake_path.exists():
         raise SystemExit("Adapter test failed: intake_status work_intake file missing.")
 
@@ -170,7 +175,7 @@ def main() -> None:
     if isinstance(plan_path, str) and plan_path:
         resolved = Path(plan_path)
         if not resolved.is_absolute():
-            resolved = (repo_root / resolved).resolve()
+            resolved = (ws / resolved).resolve()
         if not resolved.exists():
             raise SystemExit("Adapter test failed: intake_create_plan plan_path missing.")
 
@@ -416,7 +421,7 @@ def main() -> None:
     llm_call_live_req = {
         "version": "v1",
         "request_id": "REQ-LLM-LIVE",
-        "kind": "llm_call",
+        "kind": "llm_call_live",
         "workspace_root": str(ws),
         "params": {
             "provider_id": "deepseek",
@@ -431,7 +436,7 @@ def main() -> None:
     llm_live = handle_request(llm_call_live_req)
     _validate(resp_schema, llm_live, "response")
     if llm_live.get("error_code") != "LIVE_CALL_DISABLED":
-        raise SystemExit("Adapter test failed: llm_call live should return LIVE_CALL_DISABLED.")
+        raise SystemExit("Adapter test failed: llm_call_live should return LIVE_CALL_DISABLED by default.")
 
     llm_default_model_req = {
         "version": "v1",

@@ -319,6 +319,19 @@ class KernelApiHandler(BaseHTTPRequestHandler):
                                         )
                                 if summary:
                                     record["probe_summary"] = summary
+                if action_name == "llm_call_live" and isinstance(response, dict):
+                    payload = response.get("payload")
+                    if isinstance(payload, dict):
+                        provider_id = payload.get("provider_id")
+                        model = payload.get("model")
+                        http_status = payload.get("http_status")
+                        elapsed_ms = payload.get("elapsed_ms")
+                        record["llm_call_live"] = {
+                            "provider_id": provider_id if isinstance(provider_id, str) else None,
+                            "model": model if isinstance(model, str) else None,
+                            "http_status": int(http_status) if isinstance(http_status, int) else None,
+                            "elapsed_ms": int(elapsed_ms) if isinstance(elapsed_ms, int) else None,
+                        }
                 audit = policy.get("audit") if isinstance(policy.get("audit"), dict) else {}
                 if bool(audit.get("store_request_preview", True)):
                     record["request_preview"] = {
