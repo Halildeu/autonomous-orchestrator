@@ -1,0 +1,66 @@
+{
+  "notes_tr": [
+    "Tema (A) üst seviye akış adımlarını temsil eder (Intake/Triage/İnceleme/Koruma/Ölçüm/AI-Governance).",
+    "Alt tema (B) daha analist detayıdır (COI, misilleme, closure quality, case mailbox, audit/view log...).",
+    "Alt tema listesi açık uçludur; yeni alt temalar eklenebilir. Ancak her item theme_id+subtheme_id taşımalıdır."
+  ],
+  "open_ended_subthemes": true,
+  "subtheme_kind": "B",
+  "subthemes": [
+    {
+      "subtheme_id": "coi",
+      "subtheme_title_tr": "Çıkar çatışması (COI)",
+      "theme_id": "triage"
+    },
+    {
+      "subtheme_id": "retaliation",
+      "subtheme_title_tr": "Misilleme koruması",
+      "theme_id": "protection"
+    },
+    {
+      "subtheme_id": "closure_quality",
+      "subtheme_title_tr": "Kapanış kalite skoru",
+      "theme_id": "measurement"
+    },
+    {
+      "subtheme_id": "case_mailbox",
+      "subtheme_title_tr": "Güvenli iki yönlü iletişim (case mailbox)",
+      "theme_id": "intake"
+    },
+    {
+      "subtheme_id": "audit_view_log",
+      "subtheme_title_tr": "Audit trail + view log",
+      "theme_id": "investigation"
+    }
+  ],
+  "subject_id": "ethics",
+  "subject_title_tr": "Etik & Uyum",
+  "theme_kind": "A",
+  "themes": [
+    {
+      "theme_id": "intake",
+      "theme_title_tr": "Intake"
+    },
+    {
+      "theme_id": "triage",
+      "theme_title_tr": "Triage"
+    },
+    {
+      "theme_id": "investigation",
+      "theme_title_tr": "İnceleme"
+    },
+    {
+      "theme_id": "protection",
+      "theme_title_tr": "Koruma"
+    },
+    {
+      "theme_id": "measurement",
+      "theme_title_tr": "Ölçüm"
+    },
+    {
+      "theme_id": "ai_governance",
+      "theme_title_tr": "AI-Governance"
+    }
+  ],
+  "version": "v1"
+}

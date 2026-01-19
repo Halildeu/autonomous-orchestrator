@@ -48,6 +48,10 @@
         "summary": { "type": "string" },
         "evidence_expectations": { "type": "array", "items": { "type": "string" } },
         "remediation": { "type": "array", "items": { "type": "string" } },
+        "theme_id": { "type": "string" },
+        "theme_title_tr": { "type": "string" },
+        "subtheme_id": { "type": "string" },
+        "subtheme_title_tr": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } },
         "domains": { "type": "array", "items": { "type": "string" } },
         "topic": { "type": "string" },
@@ -134,7 +138,8 @@
             "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
             "score": { "type": "number", "minimum": 0, "maximum": 1 },
             "integrity_status": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
-            "notes": { "type": "array", "items": { "type": "string" } }
+            "notes": { "type": "array", "items": { "type": "string" } },
+            "findings": { "$ref": "#/$defs/findings" }
           }
         },
         "integration_coherence": {

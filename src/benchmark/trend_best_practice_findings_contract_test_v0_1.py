@@ -132,12 +132,20 @@ def main() -> None:
                     "id": "trend-obs-001",
                     "title": "Doc navigation placeholders should stay low",
                     "source": "seed",
+                    "theme_id": "ops_observability",
+                    "theme_title_tr": "Gözlemlenebilirlik",
+                    "subtheme_id": "doc_nav_health",
+                    "subtheme_title_tr": "Doc-nav sağlığı",
                     "tags": ["core", "topic:gozlemlenebilirlik_izleme_olcme", "doc_nav"],
                 },
                 {
                     "id": "trend-ctx-001",
                     "title": "Context alignment / drift control",
                     "source": "seed",
+                    "theme_id": "context_alignment",
+                    "theme_title_tr": "Bağlam ve uyum",
+                    "subtheme_id": "contract_drift_detection",
+                    "subtheme_title_tr": "Kontrat drift tespiti",
                     "tags": ["core", "topic:baglam_uyum", "drift"],
                 },
             ],
@@ -154,6 +162,10 @@ def main() -> None:
                     "id": "bp-ops-001",
                     "title": "Soft budget should stay under control",
                     "source": "seed",
+                    "theme_id": "ops_cost",
+                    "theme_title_tr": "Maliyet ve verimlilik",
+                    "subtheme_id": "script_budget_contract",
+                    "subtheme_title_tr": "Script-budget sözleşmesi",
                     "tags": ["core", "topic:maliyet_verimlilik_kaynak", "budget"],
                 }
             ],
@@ -193,6 +205,22 @@ def main() -> None:
 
     trend_items_1 = findings_by_lens_1["trend_best_practice"].get("items")
     _assert(isinstance(trend_items_1, list) and len(trend_items_1) >= 3, "trend_best_practice must include catalog items")
+
+    def _find_item(items: list[dict], *, catalog: str, item_id: str) -> dict | None:
+        for entry in items:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("catalog") or "") == catalog and str(entry.get("id") or "") == item_id:
+                return entry
+        return None
+
+    # Theme/subtheme must be preserved from catalog -> findings.
+    obs_item = _find_item(trend_items_1, catalog="trend", item_id="trend-obs-001")
+    _assert(isinstance(obs_item, dict), "trend-obs-001 must be present in findings")
+    _assert(obs_item.get("theme_id") == "ops_observability", "theme_id must be preserved for trend-obs-001")
+    _assert(obs_item.get("theme_title_tr") == "Gözlemlenebilirlik", "theme_title_tr must be preserved for trend-obs-001")
+    _assert(obs_item.get("subtheme_id") == "doc_nav_health", "subtheme_id must be preserved for trend-obs-001")
+    _assert(obs_item.get("subtheme_title_tr") == "Doc-nav sağlığı", "subtheme_title_tr must be preserved for trend-obs-001")
 
     # Evidence pointers must be workspace-relative (no absolute leakage).
     for lens, findings in findings_by_lens_1.items():
