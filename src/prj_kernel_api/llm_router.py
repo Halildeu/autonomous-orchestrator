@@ -56,7 +56,14 @@ def _merge_state(provider_map: Dict[str, Any], probe_state: Dict[str, Any]) -> D
                 if not isinstance(mp_entry, dict):
                     continue
                 # Overlay probe fields
-                for key in ("probe_status", "probe_last_at", "probe_latency_ms_p95", "probe_error_code", "verified_at"):
+                for key in (
+                    "probe_status",
+                    "probe_last_at",
+                    "probe_latency_ms_p95",
+                    "probe_error_code",
+                    "verified_at",
+                    "probe_kind",
+                ):
                     if key in st:
                         mp_entry[key] = st[key]
     return merged
@@ -129,6 +136,14 @@ def resolve(request: Dict[str, Any], repo_root: Optional[Path] = None, now: Opti
         if not model_entry:
             attempts.append({"provider": prov, "status": "PINNED_NOT_FOUND"})
             continue
+        if intent == "APPLY" and target_class == "CODE_AGENTIC":
+            probe_kind = model_entry.get("probe_kind")
+            if not isinstance(probe_kind, str) or not probe_kind.strip():
+                attempts.append({"provider": prov, "status": "NOT_READY_PROBE_KIND_UNKNOWN"})
+                continue
+            if probe_kind.startswith("synthetic"):
+                attempts.append({"provider": prov, "status": "NOT_READY_SYNTHETIC_PROBE"})
+                continue
         if not _eligible(model_entry, ttl_hours, now):
             attempts.append({"provider": prov, "status": "NOT_ELIGIBLE"})
             continue
