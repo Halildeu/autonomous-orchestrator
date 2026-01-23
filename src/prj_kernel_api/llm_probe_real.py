@@ -114,6 +114,7 @@ def main() -> None:
                 "probe_latency_ms_p95": latency_ms,
                 "probe_error_code": probe_error,
                 "verified_at": verified_at,
+                "probe_kind": "live_probe",
             }
 
     _write_json(state_path, new_state)
