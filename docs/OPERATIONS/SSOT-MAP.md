@@ -276,6 +276,15 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - extensions/PRJ-UI-COCKPIT-LITE/tests/evidence_browser_path_traversal_contract_test.py
 - extensions/PRJ-UI-COCKPIT-LITE/tests/dashboard_endpoints_contract_test.py
 - extensions/PRJ-WORK-INTAKE/extension.manifest.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/extension.manifest.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/README.md
+- extensions/PRJ-ENFORCEMENT-PACK/contract/enforcement-check.schema.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/contract/enforcement-check.example.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep001_boundary_breach.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep002_structure_align.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep003_contract_drift.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep004_allow_paths_hitchhiking.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep005_evidence_check.yaml
 
 ## Contract Tests (SSOT-bound)
 - src/ops/system_status_release_apply_proof_contract_test.py

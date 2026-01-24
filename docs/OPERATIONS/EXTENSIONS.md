@@ -116,3 +116,10 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Single gate: cockpit-serve.
 - Outputs: .cache/reports/ui_cockpit_lite_status.v1.json
 - Policies: none (read-only).
+
+<a id="ext-PRJ-ENFORCEMENT-PACK"></a>
+### PRJ-ENFORCEMENT-PACK
+- Purpose: Enforcement Pack v1 (vendor-neutral; Semgrep OSS adapter skeleton + canonical JSON contract).
+- Single gate: none in V1 (wiring deferred to V2).
+- Outputs: contract-only in V1 (runner deferred).
+- Policies: none (V1).
