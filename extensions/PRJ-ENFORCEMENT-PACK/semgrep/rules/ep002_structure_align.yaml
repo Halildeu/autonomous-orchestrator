@@ -1,0 +1,11 @@
+rules:
+  - id: enf.v1.ep002.structure_align
+    languages: [generic]
+    message: "EP-002 Structure Align (skeleton): replace placeholder regex with real rule(s)."
+    severity: WARNING
+    pattern-regex: "ENF_V1_TODO_EP002_STRUCTURE_ALIGN"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-002"
+      stage: skeleton
+      rationale: "Detect structural/path convention violations (repo layout)."

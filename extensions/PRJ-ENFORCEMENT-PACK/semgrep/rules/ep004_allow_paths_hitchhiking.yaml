@@ -1,0 +1,11 @@
+rules:
+  - id: enf.v1.ep004.allow_paths_hitchhiking
+    languages: [generic]
+    message: "EP-004 Allow-Paths Hitchhiking (skeleton): replace placeholder regex with real rule(s)."
+    severity: WARNING
+    pattern-regex: "ENF_V1_TODO_EP004_ALLOW_PATHS_HITCHHIKING"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-004"
+      stage: skeleton
+      rationale: "Detect scope creep where changes/fetches happen outside declared allow_paths/delta set."
