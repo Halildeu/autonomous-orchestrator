@@ -1,9 +1,10 @@
 # SSOT Yol Haritası (Kilitli) — v1.0.0 sonrası
 ## “ISO Sırası Çekirdek + Genel Platform + Katalog‑Temelli Üretim + Learning (Suggest‑Only) + Autopilot (İnsansız)”
 
-> **CANONICAL:** Bu dosya tek SSOT yol haritasıdır. Legacy arşiv: `ROADMAP_v2.7_legacy.md` (archive only).
+> **MIRROR:** Human summary. Canonical roadmap is `roadmaps/SSOT/roadmap.v1.json` (`RM-SSOT-001`).  
+> Sync: This file mirrors key milestones; source of truth is `roadmaps/SSOT/roadmap.v1.json`.
 
-> Bu doküman artık **tek doğru** (SSOT) yol haritamızdır.  
+> Bu doküman artık **mirror** (insan-okur) yol haritasıdır.  
 > Amaç: Mevcut v1.0.0 çekirdeğimizden sapmadan, ürünün “genel platform” kimliğini tamamlamak ve insansız otomasyonu sürdürülebilir şekilde büyütmek.
 
 ### Değişiklik yönetimi (kilit)
