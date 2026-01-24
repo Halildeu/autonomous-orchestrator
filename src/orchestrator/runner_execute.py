@@ -8,11 +8,11 @@ from typing import Any
 
 from src.evidence.writer import EvidenceWriter
 from src.orchestrator import autonomy, budget_runtime, dlq, idempotency, quota, runner_config, validation
+from src.orchestrator.executor_adapters import resolve_executor_port
 from src.orchestrator.route import load_strategy_table, route_intent
 from src.orchestrator.runner_inputs import ReplayContext
 from src.orchestrator.runner_utils import hash_json_dir, print_error, replay_forced_run_id, safe_float
-from src.orchestrator.workflow_exec import BudgetTracker, execute_workflow, read_approval_threshold
-from src.providers.openai_provider import DeterministicStubProvider
+from src.orchestrator.workflow_exec import BudgetTracker, read_approval_threshold
 from src.tools.gateway import PolicyViolation
 from src.utils.jsonio import load_json
 
@@ -585,17 +585,16 @@ def run_envelope(
         evidence = EvidenceWriter(out_dir=out_dir, run_id=run_id)
         evidence.write_request(envelope)
 
-        provider = DeterministicStubProvider()
+        executor = resolve_executor_port(workspace=workspace)
         provider_used_default = "stub"
         model_used_default = None
 
         try:
             exec_started_at = dlq.iso_utc_now()
             exec_t0 = time.perf_counter()
-            exec_summary = execute_workflow(
+            exec_summary = executor.execute_workflow(
                 envelope=envelope,
                 workflow=workflow,
-                provider=provider,
                 workspace=workspace,
                 evidence=evidence,
                 approval_threshold=approval_threshold_used,
