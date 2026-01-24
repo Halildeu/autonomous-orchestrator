@@ -1,0 +1,96 @@
+{
+  "version": "v1",
+  "generated_at": "2026-01-24T17:22:47Z",
+  "intake_id": "INTAKE-26b464cfd80237334aca096ec3a58a00eecd73e75c5c4fb570bf15a85af4d7d6",
+  "run_id": "ENFCHK-652f02bb0907",
+  "status": "WARN",
+  "rule_set_version": "enfpack.v1.semgrep_oss@0.1.0",
+  "stats": {
+    "baseline": {
+      "dirty_count": 12,
+      "source": {
+        "kind": "git_commit",
+        "ref": "git:HEAD~1"
+      }
+    },
+    "delta": {
+      "dirty_count": 1,
+      "changed_files_count": 3,
+      "source": {
+        "kind": "git_diff",
+        "ref": "git:HEAD~1..HEAD"
+      }
+    },
+    "out_of_scope": {
+      "violations_count": 0,
+      "notes": []
+    },
+    "totals": {
+      "violations_count": 13
+    }
+  },
+  "violations": [
+    {
+      "violation_id": "V-0001",
+      "rule_id": "EP-003",
+      "engine": "semgrep",
+      "engine_rule_id": "enf.ep003.forbidden_libs",
+      "classification": "DELTA",
+      "severity": "HIGH",
+      "message": "Forbidden library usage detected (example).",
+      "file_path": "src/example_module.py",
+      "start_line": 10,
+      "end_line": 10,
+      "fingerprint": "1200f7e24308697d",
+      "help": "Replace with approved library or add an explicit waiver decision.",
+      "references": [
+        "EP-003"
+      ],
+      "evidence_paths": []
+    },
+    {
+      "violation_id": "V-0002",
+      "rule_id": "EP-004",
+      "engine": "semgrep",
+      "engine_rule_id": "enf.ep004.structure_align",
+      "classification": "BASELINE",
+      "severity": "LOW",
+      "message": "Repo structure alignment issue (example).",
+      "file_path": "docs/legacy/old_file.md",
+      "start_line": 1,
+      "end_line": 1,
+      "fingerprint": "10f2969b4caaabcf",
+      "help": "Move/rename to canonical path or add a migration plan.",
+      "references": [
+        "EP-004"
+      ],
+      "evidence_paths": []
+    }
+  ],
+  "evidence_bundle": {
+    "bundle_id": "BUNDLE-37eecc7bc6",
+    "evidence_paths": [
+      ".cache/index/manual_requests/REQ-ENFORCEMENT-PACK-V1.v1.json",
+      ".cache/index/decisions/SELECTED_DEC-ENF-V1-ENGINE.v1.json",
+      ".cache/index/decisions/SELECTED_DEC-ENF-V1-CONTRACT.v1.json",
+      ".cache/index/decisions/SELECTED_DEC-ENF-V1-DELTA.v1.json"
+    ],
+    "baseline_snapshot_path": ".cache/baselines/enforcement_pack/enfpack.v1.semgrep_oss@0.1.0/baseline.v1.json",
+    "delta_input_paths": [
+      ".cache/reports/git_diff_paths.v1.txt"
+    ],
+    "raw_tool_outputs": [
+      ".cache/reports/semgrep_output.v1.json"
+    ],
+    "notes": [
+      "Example payload only; real paths produced by adapter execution."
+    ]
+  },
+  "reasons": [],
+  "notes": [
+    "Example only: baseline/delta refs are illustrative.",
+    "Engine decision: SEMGRP_OSS_ADAPTER",
+    "Contract decision: CANONICAL_JSON_SCHEMA",
+    "Delta decision: BASELINE_VS_DELTA_REQUIRED"
+  ]
+}

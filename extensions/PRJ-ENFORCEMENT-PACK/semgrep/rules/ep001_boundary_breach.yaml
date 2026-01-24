@@ -1,0 +1,11 @@
+rules:
+  - id: enf.v1.ep001.boundary_breach
+    languages: [generic]
+    message: "EP-001 Boundary Breach (skeleton): replace placeholder regex with real rule(s)."
+    severity: WARNING
+    pattern-regex: "ENF_V1_TODO_EP001_BOUNDARY_BREACH"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-001"
+      stage: skeleton
+      rationale: "Detect cross-domain boundary violations (imports/depends)."
