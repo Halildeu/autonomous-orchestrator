@@ -9,6 +9,7 @@ from typing import Any
 from src.evidence.writer import EvidenceWriter
 from src.orchestrator import autonomy, budget_runtime, dlq, idempotency, quota, runner_config, validation
 from src.orchestrator.executor_adapters import resolve_executor_port
+from src.orchestrator.observability.otel_bridge import attach_trace_meta
 from src.orchestrator.route import load_strategy_table, route_intent
 from src.orchestrator.runner_inputs import ReplayContext
 from src.orchestrator.runner_utils import hash_json_dir, print_error, replay_forced_run_id, safe_float
@@ -308,6 +309,7 @@ def run_envelope(
             if replay_of is not None:
                 summary["replay_of"] = replay_of
                 summary["replay_warnings"] = list(replay_warnings)
+            attach_trace_meta(summary, workspace=workspace, out_dir=out_dir, run_id=run_id)
             evidence.write_summary(summary)
             evidence.write_provenance(workspace=workspace, summary=summary)
             evidence.write_integrity_manifest()
@@ -560,6 +562,7 @@ def run_envelope(
             if replay_of is not None:
                 summary["replay_of"] = replay_of
                 summary["replay_warnings"] = list(replay_warnings)
+            attach_trace_meta(summary, workspace=workspace, out_dir=out_dir, run_id=run_id)
             evidence.write_summary(summary)
             evidence.write_provenance(workspace=workspace, summary=summary)
             evidence.write_integrity_manifest()
@@ -772,6 +775,7 @@ def run_envelope(
             "mode": autonomy_record.get("mode"),
         }
 
+        attach_trace_meta(summary, workspace=workspace, out_dir=out_dir, run_id=run_id)
         evidence.write_summary(summary)
         if summary.get("result_state") == "SUSPENDED":
             resume_path = evidence.run_dir
