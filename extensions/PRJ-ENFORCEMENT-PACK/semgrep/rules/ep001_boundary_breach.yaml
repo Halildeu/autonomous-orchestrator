@@ -1,11 +1,14 @@
 rules:
   - id: enf.v1.ep001.boundary_breach
-    languages: [generic]
-    message: "EP-001 Boundary Breach (skeleton): replace placeholder regex with real rule(s)."
+    languages: [python]
+    message: "EP-001 Boundary Breach: prj_github_ops must not import prj_kernel_api (use adapter/port boundary)."
     severity: WARNING
-    pattern-regex: "ENF_V1_TODO_EP001_BOUNDARY_BREACH"
+    paths:
+      include:
+        - src/prj_github_ops/**/*.py
+    pattern-regex: "from\\s+src\\.prj_kernel_api\\.|import\\s+src\\.prj_kernel_api"
     metadata:
       enforcement_pack: ENF_V1
       ep_id: "EP-001"
-      stage: skeleton
-      rationale: "Detect cross-domain boundary violations (imports/depends)."
+      stage: "v1_real"
+      rationale: "Deterministic minimal boundary breach demo: prj_github_ops -> prj_kernel_api import."
