@@ -1,0 +1,58 @@
+{
+  "ai_context_refs": [
+    "AGENTS.md",
+    "docs/OPERATIONS/EXTENSIONS.md",
+    "docs/OPERATIONS/SSOT-MAP.md",
+    "schemas/extension-manifest.schema.v1.json",
+    "extensions/PRJ-ENFORCEMENT-PACK/README.md",
+    "extensions/PRJ-ENFORCEMENT-PACK/contract/enforcement-check.schema.v1.json",
+    "extensions/PRJ-ENFORCEMENT-PACK/contract/enforcement-check.example.v1.json",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep001_boundary_breach.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep002_structure_align.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep003_contract_drift.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep004_allow_paths_hitchhiking.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep005_evidence_check.yaml"
+  ],
+  "compat": {
+    "core_max": "",
+    "core_min": "0.0.0",
+    "notes": []
+  },
+  "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-ENFORCEMENT-PACK",
+  "enabled": false,
+  "entrypoints": {
+    "cockpit_sections": [],
+    "kernel_api_actions": [],
+    "ops": [],
+    "ops_single_gate": []
+  },
+  "extension_id": "PRJ-ENFORCEMENT-PACK",
+  "guardrails": {
+    "network_default": false,
+    "offline": true
+  },
+  "layer_contract": {
+    "notes": [
+      "extension_only",
+      "no_ci_precommit_v1"
+    ],
+    "read_roots_allowlist": [
+      "extensions/PRJ-ENFORCEMENT-PACK/"
+    ],
+    "write_roots_allowlist": [
+      ".cache/"
+    ]
+  },
+  "model_kind": "governance_model",
+  "notes": [
+    "Enforcement Pack v1: Semgrep OSS adapter skeleton + canonical enforcement-check contract.",
+    "V1 mode: extension-only; no src/** entrypoints; no CI/pre-commit wiring (defer to V2).",
+    "Decisions are workspace-bound: .cache/ws_customer_default/.cache/index/decisions/SELECTED_DEC-ENF-V1-*.v1.json"
+  ],
+  "origin": "CORE",
+  "owner": "CORE",
+  "policies": [],
+  "semver": "0.1.0",
+  "ui_surfaces": [],
+  "version": "v1"
+}
