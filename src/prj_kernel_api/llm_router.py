@@ -28,11 +28,24 @@ def _is_stale(ts: Optional[str], ttl_hours: int, now: datetime) -> bool:
     return now - dt > timedelta(hours=ttl_hours)
 
 
-def _policy_paths(repo_root: Path) -> Tuple[Path, Path, Path, Path]:
+def _resolve_workspace_root(repo_root: Path, workspace_root: str | Path | None) -> Path:
+    if isinstance(workspace_root, Path):
+        ws_root = workspace_root
+    elif isinstance(workspace_root, str) and workspace_root.strip():
+        ws_root = Path(workspace_root)
+    else:
+        ws_root = repo_root / ".cache" / "ws_customer_default"
+    if not ws_root.is_absolute():
+        ws_root = (repo_root / ws_root).resolve()
+    return ws_root
+
+
+def _policy_paths(repo_root: Path, workspace_root: str | Path | None = None) -> Tuple[Path, Path, Path, Path]:
     class_registry = repo_root / "docs" / "OPERATIONS" / "llm_class_registry.v1.json"
     resolver_rules = repo_root / "docs" / "OPERATIONS" / "llm_resolver_rules.v1.json"
     provider_map = repo_root / "docs" / "OPERATIONS" / "llm_provider_map.v1.json"
-    probe_state = repo_root / ".cache" / "ws_customer_default" / ".cache" / "state" / "llm_probe_state.v1.json"
+    ws_root = _resolve_workspace_root(repo_root, workspace_root)
+    probe_state = ws_root / ".cache" / "state" / "llm_probe_state.v1.json"
     return class_registry, resolver_rules, provider_map, probe_state
 
 
@@ -81,7 +94,12 @@ def _eligible(model: Dict[str, Any], ttl_hours: int, now: datetime) -> bool:
     return True
 
 
-def resolve(request: Dict[str, Any], repo_root: Optional[Path] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+def resolve(
+    request: Dict[str, Any],
+    repo_root: Optional[Path] = None,
+    now: Optional[datetime] = None,
+    workspace_root: str | Path | None = None,
+) -> Dict[str, Any]:
     """Resolve provider/model deterministically. Returns manifest-like dict with status."""
     repo_root = repo_root or Path(__file__).resolve().parents[2]
     now = now or datetime.now(timezone.utc)
@@ -95,7 +113,9 @@ def resolve(request: Dict[str, Any], repo_root: Optional[Path] = None, now: Opti
     perspective = request.get("perspective")
     provider_priority: List[str] = request.get("provider_priority") or []
 
-    class_registry_path, resolver_rules_path, provider_map_path, probe_state_path = _policy_paths(repo_root)
+    class_registry_path, resolver_rules_path, provider_map_path, probe_state_path = _policy_paths(
+        repo_root, workspace_root=workspace_root
+    )
     class_registry = _load_json(class_registry_path)
     resolver_rules = _load_json(resolver_rules_path)
     provider_map = _load_json(provider_map_path)

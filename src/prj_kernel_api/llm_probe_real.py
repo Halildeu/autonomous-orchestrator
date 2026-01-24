@@ -26,9 +26,22 @@ def _find_repo_root(start: Path) -> Path:
     return Path.cwd()
 
 
-def _policy_paths(repo_root: Path):
+def _resolve_workspace_root(repo_root: Path, workspace_root: str | Path | None) -> Path:
+    if isinstance(workspace_root, Path):
+        ws_root = workspace_root
+    elif isinstance(workspace_root, str) and workspace_root.strip():
+        ws_root = Path(workspace_root)
+    else:
+        ws_root = repo_root / ".cache" / "ws_customer_default"
+    if not ws_root.is_absolute():
+        ws_root = (repo_root / ws_root).resolve()
+    return ws_root
+
+
+def _policy_paths(repo_root: Path, workspace_root: str | Path | None = None):
     provider_map = repo_root / "docs" / "OPERATIONS" / "llm_provider_map.v1.json"
-    state_path = repo_root / ".cache" / "ws_customer_default" / ".cache" / "state" / "llm_probe_state.v1.json"
+    ws_root = _resolve_workspace_root(repo_root, workspace_root)
+    state_path = ws_root / ".cache" / "state" / "llm_probe_state.v1.json"
     return provider_map, state_path
 
 
@@ -44,15 +57,16 @@ def _results_by_provider(probe_report: Dict[str, Any]) -> Dict[str, Dict[str, An
     return out
 
 
-def main() -> None:
+def main(workspace_root: str | Path | None = None) -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
-    workspace_root = str(repo_root / ".cache" / "ws_customer_default")
+    ws_root = _resolve_workspace_root(repo_root, workspace_root)
+    workspace_root_str = str(ws_root)
 
     # 1) Run live probe (network). If disabled, this will skip with LIVE_DISABLED.
-    status, _, report = run_live_probe(workspace_root=workspace_root, detail=False, env_mode="dotenv")
+    status, _, report = run_live_probe(workspace_root=workspace_root_str, detail=False, env_mode="dotenv")
 
     # 2) Load provider map (SSOT) and current state (if any).
-    provider_map_path, state_path = _policy_paths(repo_root)
+    provider_map_path, state_path = _policy_paths(repo_root, workspace_root=ws_root)
     provider_map = _load_json(provider_map_path)
     existing_state = state_path.exists() and _load_json(state_path) or {"state_version": "v0.1", "classes": {}}
 
