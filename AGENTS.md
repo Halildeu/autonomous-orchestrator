@@ -22,7 +22,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - docs/OPERATIONS/CODEX-UX.md (customer-friendly ops akışı)
 - docs/OPERATIONS/CODEX-CONFIG-CONTRACT.v1.md (Codex config contract)
 - docs/LAYER-MODEL-LOCK.v1.md (L0/L1/L2/L3 + core_lock protokolü)
-- docs/ROADMAP.md (canonical roadmap)
+- docs/ROADMAP.md (MIRROR human summary; canonical is `roadmaps/SSOT/roadmap.v1.json` — RM-SSOT-001)
 - `docs/ROADMAP_v2.7_legacy.md` (archive only; do not follow)
 - docs/OPERATIONS/repo-layout.md
 - docs/OPERATIONS/repo-layout.v1.json
@@ -30,7 +30,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - docs/OPERATIONS/tags-registry.md (AUTOPILOT CHAT + status/action registry)
 - docs/OPERATIONS/SSOT-MAP.md (kritik SSOT haritası)
 - docs/OPERATIONS/EXTENSIONS.md (extension canonical doküman)
-- roadmaps/SSOT/roadmap.v1.json (SSOT roadmap)
+- roadmaps/SSOT/roadmap.v1.json (CANONICAL roadmap — RM-SSOT-001)
 - roadmaps/PROJECTS/README.md (project roadmaps)
 - roadmaps/PROJECTS/project-roadmap.template.v1.json (project template)
 - roadmaps/PROJECTS/PRJ-KERNEL-API/contract.v1.md (project contract)
