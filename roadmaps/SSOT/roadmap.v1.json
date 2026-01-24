@@ -1410,6 +1410,37 @@
         }
       ],
       "title": "System status projects section"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Router master closeout pack exists and is reviewed.",
+        "Router E2E smoke v3 (pytest-free, post-guardrails) is PASS.",
+        "FIX-PR-ROUTER-01/03/02A commits are recorded in evidence pack.",
+        "LLM router drift gate is OK (no vocab mismatch / unknown provider)."
+      ],
+      "gates": [],
+      "id": "M11.4",
+      "notes": [
+        "CHECKPOINT (COMPLETED): provider router integration + drift gate + workspace_root parameterization.",
+        "Evidence pack: .cache/ws_customer_default/.cache/reports/ROUTER_MASTER_CLOSEOUT_PACK.v1.json",
+        "Smoke PASS: .cache/ws_customer_default/.cache/reports/router_e2e_smoke_result.v3.post_guardrails.json",
+        "Commits (from evidence pack): FIX_PR_ROUTER_01_FINAL=0c419c2500a51633f931538ac1cc577d68d153ae, FIX_PR_ROUTER_03_FINAL=50acdb646c2336d71c8b4cdfb13301521278ad5e, FIX_PR_ROUTER_02A=16c0621175da20aaac55aacc9208d4d4dca0e75f"
+      ],
+      "steps": [
+        {
+          "text": "Checkpoint milestone: no new SSOT work to apply. This milestone records completed Router lane evidence.",
+          "type": "note"
+        }
+      ],
+      "title": "Router core lane completed (checkpoint)"
     }
   ],
   "roadmap_id": "RM-SSOT-001",
