@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,24 +20,35 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _resolve_workspace_root(repo_root: Path) -> Path:
+    env_value = os.environ.get("WWV_WORKSPACE_ROOT", "").strip()
+    if env_value:
+        ws_root = Path(env_value)
+        if not ws_root.is_absolute():
+            ws_root = (repo_root / ws_root).resolve()
+        return ws_root
+    return repo_root / ".cache" / "ws_customer_default"
+
+
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    state_path = repo_root / ".cache" / "ws_customer_default" / ".cache" / "state" / "llm_probe_state.v1.json"
+    ws_root = _resolve_workspace_root(repo_root)
+    state_path = ws_root / ".cache" / "state" / "llm_probe_state.v1.json"
     prior_state_text = state_path.read_text(encoding="utf-8") if state_path.exists() else None
 
     # 1) Run synthetic probe to mark pinned models as ok (no network).
     from src.prj_kernel_api.llm_probe_runner import main as probe_main
 
-    probe_main()
+    probe_main(workspace_root=ws_root)
 
     # 2) Resolve DISCOVERY (BALANCED_TEXT) and ensure a provider/model is selected.
     from src.prj_kernel_api.llm_router import resolve
 
     req = {"intent": "DISCOVERY", "perspective": "demo"}
-    result = resolve(req, repo_root=repo_root, now=datetime.now(timezone.utc))
+    result = resolve(req, repo_root=repo_root, now=datetime.now(timezone.utc), workspace_root=ws_root)
     if result.get("status") != "OK":
         raise SystemExit(f"Router test failed: DISCOVERY did not resolve: {result}")
     if not result.get("selected_provider") or not result.get("selected_model"):
@@ -45,7 +57,7 @@ def main() -> None:
     # 2b) Resolve APPLY (CODE_AGENTIC) should be NOT READY unless a verified code
     # promotion workflow has pinned an eligible model.
     apply_req = {"intent": "APPLY", "perspective": "demo"}
-    apply_result = resolve(apply_req, repo_root=repo_root, now=datetime.now(timezone.utc))
+    apply_result = resolve(apply_req, repo_root=repo_root, now=datetime.now(timezone.utc), workspace_root=ws_root)
     if apply_result.get("status") != "FAIL":
         raise SystemExit(f"Router test failed: APPLY expected FAIL(not-ready): {apply_result}")
     if apply_result.get("reason") != "APPLY_BLOCKED_NO_VERIFIED_CODE_AGENTIC":
@@ -54,7 +66,7 @@ def main() -> None:
         raise SystemExit(f"Router test failed: APPLY selected_class mismatch: {apply_result}")
 
     # 3) Ensure model/param override is rejected.
-    bad = resolve({"intent": "DISCOVERY", "model": "hack"}, repo_root=repo_root)
+    bad = resolve({"intent": "DISCOVERY", "model": "hack"}, repo_root=repo_root, workspace_root=ws_root)
     if bad.get("status") != "FAIL" or bad.get("reason") != "MODEL_OVERRIDE_NOT_ALLOWED":
         raise SystemExit("Router test failed: model override not rejected.")
 

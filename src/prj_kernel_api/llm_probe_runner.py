@@ -17,17 +17,35 @@ def _write_json(path: Path, data: Dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def _policy_paths(repo_root: Path):
+def _resolve_workspace_root(repo_root: Path, workspace_root: str | Path | None) -> Path:
+    if isinstance(workspace_root, Path):
+        ws_root = workspace_root
+    elif isinstance(workspace_root, str) and workspace_root.strip():
+        ws_root = Path(workspace_root)
+    else:
+        ws_root = repo_root / ".cache" / "ws_customer_default"
+    if not ws_root.is_absolute():
+        ws_root = (repo_root / ws_root).resolve()
+    return ws_root
+
+
+def _policy_paths(repo_root: Path, workspace_root: str | Path | None = None):
     provider_map = repo_root / "docs" / "OPERATIONS" / "llm_provider_map.v1.json"
-    state_path = repo_root / ".cache" / "ws_customer_default" / ".cache" / "state" / "llm_probe_state.v1.json"
+    ws_root = _resolve_workspace_root(repo_root, workspace_root)
+    state_path = ws_root / ".cache" / "state" / "llm_probe_state.v1.json"
     return provider_map, state_path
 
 
-def main() -> None:
+def main(workspace_root: str | Path | None = None) -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    provider_map_path, state_path = _policy_paths(repo_root)
+    provider_map_path, state_path = _policy_paths(repo_root, workspace_root=workspace_root)
     provider_map = _load_json(provider_map_path)
     now = datetime.now(timezone.utc).isoformat()
+
+    # Synthetic probes are "availability-only" (no network). Keep this strictly limited
+    # to low-risk text classes. Never synthesize readiness for APPLY/CODE, vision, OCR,
+    # image/audio/video/realtime families.
+    allowed_classes = {"FAST_TEXT", "BALANCED_TEXT", "REASONING_TEXT", "GOVERNANCE_ASSURANCE"}
 
     # Merge-only: never clobber existing state (semantic probes may have populated it).
     state: Dict[str, Any]
@@ -47,6 +65,8 @@ def main() -> None:
         state["classes"] = {}
 
     for cls_id, cls_data in provider_map.get("classes", {}).items():
+        if cls_id not in allowed_classes:
+            continue
         providers = cls_data.get("providers", {}) if isinstance(cls_data, dict) else {}
         st_providers: Dict[str, Any] = {}
         for prov_id, prov_data in providers.items():
