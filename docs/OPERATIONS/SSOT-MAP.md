@@ -4,7 +4,8 @@ Bu doküman, kritik SSOT artefact’ların tek canonical haritasıdır.
 Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu deterministik hale getirmek.
 
 ## Roadmaps
-- roadmaps/SSOT/roadmap.v1.json
+- roadmaps/SSOT/roadmap.v1.json (RM-SSOT-001) — CANONICAL
+- docs/ROADMAP.md — MIRROR (derived/human summary)
 - roadmaps/SSOT/changes/.gitkeep
 - roadmaps/SSOT/changes/debt/README.md
 - roadmaps/PROJECTS/README.md
