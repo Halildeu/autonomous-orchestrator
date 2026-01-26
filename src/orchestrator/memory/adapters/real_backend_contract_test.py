@@ -139,6 +139,101 @@ def main() -> None:
             port = resolve_memory_port(workspace=ws)
             _assert(getattr(port, "adapter_id", None) == "pgvector_driver", "pgvector_driver expected when deps are installed")
 
+    # Qdrant driver internals: deterministic u64 point-id conversion + API feature-detect.
+    from src.orchestrator.memory.adapters.qdrant_driver import _qdrant_query_points, _to_u64_point_id
+
+    rid = "record_id_example.v1"
+    u1 = _to_u64_point_id(rid)
+    u2 = _to_u64_point_id(rid)
+    _assert(isinstance(u1, int), "qdrant point-id conversion must return int")
+    _assert(u1 == u2, "qdrant point-id conversion must be deterministic")
+    _assert(0 <= u1 < (2**64), "qdrant point-id conversion must fit uint64")
+
+    class _Resp:
+        def __init__(self, points):
+            self.points = points
+
+    class _ClientQueryPoints:
+        def __init__(self):
+            self.called: list[str] = []
+
+        def query_points(self, **kwargs):
+            self.called.append("query_points")
+            return _Resp(points=[{"id": 1}])
+
+    c1 = _ClientQueryPoints()
+    got = _qdrant_query_points(
+        c1,
+        collection_name="c",
+        query_vector=[0.0],
+        limit=1,
+        with_payload=True,
+        with_vectors=True,
+    )
+    _assert(c1.called == ["query_points"], "qdrant query must prefer query_points when present")
+    _assert(isinstance(got, list) and len(got) == 1, "qdrant query_points must return list")
+
+    class _Resp2:
+        def __init__(self, result):
+            self.result = result
+
+    class _ClientSearchPoints:
+        def __init__(self):
+            self.called: list[str] = []
+
+        def search_points(self, **kwargs):
+            self.called.append("search_points")
+            return _Resp2(result=[{"id": 2}])
+
+    c2 = _ClientSearchPoints()
+    got2 = _qdrant_query_points(
+        c2,
+        collection_name="c",
+        query_vector=[0.0],
+        limit=1,
+        with_payload=True,
+        with_vectors=True,
+    )
+    _assert(c2.called == ["search_points"], "qdrant query must use search_points when query_points missing")
+    _assert(isinstance(got2, list) and len(got2) == 1, "qdrant search_points must return list")
+
+    class _ClientSearch:
+        def __init__(self):
+            self.called: list[str] = []
+
+        def search(self, **kwargs):
+            self.called.append("search")
+            return [{"id": 3}]
+
+    c3 = _ClientSearch()
+    got3 = _qdrant_query_points(
+        c3,
+        collection_name="c",
+        query_vector=[0.0],
+        limit=1,
+        with_payload=True,
+        with_vectors=True,
+    )
+    _assert(c3.called == ["search"], "qdrant query must fall back to search when available")
+    _assert(isinstance(got3, list) and len(got3) == 1, "qdrant search must return list")
+
+    class _ClientNone:
+        pass
+
+    try:
+        _qdrant_query_points(
+            _ClientNone(),
+            collection_name="c",
+            query_vector=[0.0],
+            limit=1,
+            with_payload=True,
+            with_vectors=True,
+        )
+    except Exception as e:
+        _assert("QDRANT_API_MISSING_QUERY_METHOD" in str(e), "missing query method must fail-closed with reason_code")
+    else:
+        raise SystemExit("memoryport real_backend_contract_test: FAIL (expected QDRANT_API_MISSING_QUERY_METHOD)")
+
     print("memoryport real_backend_contract_test: PASS")
 
 

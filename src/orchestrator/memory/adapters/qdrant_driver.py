@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+from hashlib import sha256
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,101 @@ def _collection_name(workspace: Path, namespace: str) -> str:
     return f"{base}_{suffix}"
 
 
+def _to_u64_point_id(record_id: str) -> int:
+    """
+    Qdrant point IDs must be either an unsigned 64-bit integer or a UUID.
+    Our MemoryPort record_id is a string; map it deterministically to u64.
+    """
+
+    rid = str(record_id or "").strip()
+    digest = sha256(rid.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big", signed=False)
+
+
+def _qdrant_client_has_query_method() -> bool:
+    try:
+        from qdrant_client import QdrantClient  # type: ignore
+    except Exception:
+        return False
+    return any(hasattr(QdrantClient, name) for name in ("query_points", "search_points", "search"))
+
+
+def _qdrant_query_points(
+    client,
+    *,
+    collection_name: str,
+    query_vector: list[float],
+    limit: int,
+    with_payload: bool,
+    with_vectors: bool,
+) -> list[Any]:
+    """
+    Feature-detect query method across qdrant-client versions.
+
+    - Newer versions: client.query_points(...) -> QueryResponse(points=[...])
+    - Some versions: client.search_points(...)
+    - Older versions: client.search(...)
+
+    Fail-closed if none are present.
+    """
+
+    k = int(limit) if isinstance(limit, int) else 5
+    if k < 1:
+        k = 1
+
+    if hasattr(client, "query_points"):
+        resp = client.query_points(  # type: ignore[attr-defined]
+            collection_name=collection_name,
+            query=query_vector,
+            limit=k,
+            with_payload=with_payload,
+            with_vectors=with_vectors,
+        )
+        points = getattr(resp, "points", None)
+        if isinstance(points, list):
+            return points
+        # Some clients may return list-like directly.
+        return list(resp or [])
+
+    if hasattr(client, "search_points"):
+        fn = getattr(client, "search_points")
+        try:
+            resp = fn(  # type: ignore[misc]
+                collection_name=collection_name,
+                query_vector=query_vector,
+                limit=k,
+                with_payload=with_payload,
+                with_vectors=with_vectors,
+            )
+        except TypeError:
+            resp = fn(  # type: ignore[misc]
+                collection_name=collection_name,
+                vector=query_vector,
+                limit=k,
+                with_payload=with_payload,
+                with_vectors=with_vectors,
+            )
+        result = getattr(resp, "result", None)
+        if isinstance(result, list):
+            return result
+        points = getattr(resp, "points", None)
+        if isinstance(points, list):
+            return points
+        return list(resp or [])
+
+    if hasattr(client, "search"):
+        hits = client.search(  # type: ignore[attr-defined]
+            collection_name=collection_name,
+            query_vector=query_vector,
+            limit=k,
+            with_payload=with_payload,
+            with_vectors=with_vectors,
+        )
+        return list(hits or [])
+
+    raise RuntimeError("QDRANT_API_MISSING_QUERY_METHOD: expected query_points/search_points/search on qdrant client")
+
+
 @dataclass(frozen=True)
 class QdrantDriverMemoryPort:
     workspace: Path
@@ -82,6 +178,8 @@ class QdrantDriverMemoryPort:
         if str(network_mode or "").strip().upper() != "ON":
             return False
         if importlib.util.find_spec("qdrant_client") is None:
+            return False
+        if not _qdrant_client_has_query_method():
             return False
         return _is_localhost_url(_qdrant_url(self.workspace))
 
@@ -95,6 +193,8 @@ class QdrantDriverMemoryPort:
             return f"qdrant_driver unavailable: endpoint must be localhost-only; got url={url!r}."
         if importlib.util.find_spec("qdrant_client") is None:
             return "qdrant_driver unavailable: dependency qdrant-client is not installed."
+        if not _qdrant_client_has_query_method():
+            return "qdrant_driver unavailable: QDRANT_API_MISSING_QUERY_METHOD (need query_points/search_points/search)."
         return "qdrant_driver unavailable: UNKNOWN"
 
     def _client(self):
@@ -150,12 +250,13 @@ class QdrantDriverMemoryPort:
 
         dim = _vector_size(self.workspace)
         vec = _embed(text, dim=dim)
-        payload = {"namespace": ns, "text": str(text or ""), "metadata": meta}
+        payload = {"namespace": ns, "record_id": rid, "text": str(text or ""), "metadata": meta}
+        pid = _to_u64_point_id(rid)
 
         models = self._models()
         client = self._client()
         collection = self._ensure_collection(namespace=ns)
-        point = models.PointStruct(id=rid, vector=vec, payload=payload)
+        point = models.PointStruct(id=pid, vector=vec, payload=payload)
         client.upsert(collection_name=collection, points=[point])  # type: ignore[attr-defined]
         return MemoryRecord(record_id=rid, text=payload["text"], vector=[float(x) for x in vec], metadata=dict(meta))
 
@@ -166,10 +267,11 @@ class QdrantDriverMemoryPort:
 
         client = self._client()
         collection = self._ensure_collection(namespace=ns)
-        hits = client.search(  # type: ignore[attr-defined]
+        hits = _qdrant_query_points(
+            client,
             collection_name=collection,
-            query_vector=qv,
             limit=int(top_k) if isinstance(top_k, int) else 5,
+            query_vector=qv,
             with_payload=True,
             with_vectors=True,
         )
@@ -184,7 +286,7 @@ class QdrantDriverMemoryPort:
             hv = getattr(hit, "vector", None)
             vec = hv if isinstance(hv, list) and all(isinstance(x, (int, float)) for x in hv) else _embed(text, dim=dim)
             score = float(getattr(hit, "score", 0.0) or 0.0)
-            rid = str(getattr(hit, "id", "") or "")
+            rid = str(raw.get("record_id") or getattr(hit, "id", "") or "")
             results.append(
                 MemoryQueryResult(
                     record=MemoryRecord(record_id=rid, text=text, vector=[float(x) for x in vec], metadata=dict(meta)),
@@ -202,5 +304,6 @@ class QdrantDriverMemoryPort:
         models = self._models()
         client = self._client()
         collection = self._ensure_collection(namespace=ns)
-        client.delete(collection_name=collection, points_selector=models.PointIdsList(points=ids))  # type: ignore[attr-defined]
+        pids = [_to_u64_point_id(rid) for rid in ids]
+        client.delete(collection_name=collection, points_selector=models.PointIdsList(points=pids))  # type: ignore[attr-defined]
         return len(ids)
