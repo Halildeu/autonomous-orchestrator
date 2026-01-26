@@ -24,6 +24,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/LAYER-MODEL-LOCK.v1.md
 - docs/OPERATIONS/EXTENSIONS.md
 - docs/OPERATIONS/NORTH-STAR-EVAL-LENSES.v1.md
+- docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules/tiers/demos; vendor-neutral)
 - docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
 
 ## Operations SSOT (Kalıcı)
