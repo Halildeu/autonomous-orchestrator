@@ -1,0 +1,206 @@
+{
+  "version": "v1",
+  "strategy_id": "installer-bundle-strategy",
+  "canonical_ssot_target": "docs/OPERATIONS/installer_bundle_strategy.v1.json",
+  "notes": [
+    "V1 policy: only Semgrep (darwin/arm64) is declared SUPPORTED. Everything else is PLANNED placeholder (no overclaim).",
+    "Artifacts with sha256_status!=VERIFIED MUST NOT be treated as shippable.",
+    "Network default is OFF. Network ON is allowed only for bundle-build download phase (explicit).",
+    "This file describes strategy + contract; it is not a produced vendor_pack instance."
+  ],
+  "vendor_pack": {
+    "format_version": "v1",
+    "container": "zip",
+    "deterministic_zip": true,
+    "layout": {
+      "manifest_path": "VENDOR_PACK_MANIFEST.json",
+      "provenance_path": "PROVENANCE.json",
+      "sha256sums_path": "SHA256SUMS.txt",
+      "tools_dir": "tools/",
+      "docs_dir": "docs/",
+      "extensions_dir": "extensions/"
+    },
+    "notes": [
+      "Deterministic zip timestamp pattern can reuse src/ops/promotion_bundle.py (FIXED_ZIP_TIME).",
+      "Root-level manifest/provenance/sha256sums are required in every vendor_pack."
+    ]
+  },
+  "platform_matrix": [
+    {
+      "os": "darwin",
+      "arch": "arm64",
+      "status": "SUPPORTED",
+      "notes": ["V1 scope: only this platform is supported for Semgrep bundle."]
+    },
+    {
+      "os": "linux",
+      "arch": "amd64",
+      "status": "PLANNED",
+      "notes": ["Planned placeholder. Do not claim support until artifacts are verified and bundled."]
+    }
+  ],
+  "artifacts": [
+    {
+      "artifact_id": "tool.semgrep.darwin-arm64",
+      "name": "semgrep",
+      "kind": "binary",
+      "version": "TBD",
+      "platform": { "os": "darwin", "arch": "arm64", "status": "SUPPORTED", "notes": [] },
+      "source": {
+        "kind": "upstream_release",
+        "ref": "upstream:semgrep",
+        "network_required": true,
+        "notes": [
+          "Download is allowed only during bundle build when network_mode is explicitly ON.",
+          "Verify/install/run must remain network OFF."
+        ]
+      },
+      "license": "UNKNOWN",
+      "sha256_status": "UNVERIFIED",
+      "sha256": "UNVERIFIED",
+      "pack_paths": ["tools/semgrep/darwin/arm64/semgrep"],
+      "required_for_modules": ["PRJ-ENFORCEMENT-PACK", "ENF-V2-WIRING"],
+      "notes": [
+        "V1 supported artifact (darwin/arm64 only).",
+        "Set sha256_status=VERIFIED only after a real bundle build records the upstream hash."
+      ]
+    },
+    {
+      "artifact_id": "runtime.qdrant.docker_image.linux-amd64",
+      "name": "qdrant",
+      "kind": "docker_image",
+      "version": "TBD",
+      "platform": { "os": "linux", "arch": "amd64", "status": "PLANNED", "notes": [] },
+      "source": {
+        "kind": "docker_registry",
+        "ref": "docker:qdrant/qdrant:<tag>",
+        "network_required": true,
+        "notes": [
+          "PLANNED placeholder only (heavy artifact).",
+          "Bundling docker images may be optional; do not overclaim multi-arch support."
+        ]
+      },
+      "license": "UNKNOWN",
+      "sha256_status": "UNVERIFIED",
+      "sha256": "UNVERIFIED",
+      "pack_paths": ["runtime/docker_images/qdrant/qdrant_image.tar"],
+      "required_for_modules": ["MEMORY-QDRANT-HTTP-ADAPTER"],
+      "notes": [
+        "Placeholder only; do not treat as shippable.",
+        "If included later, record image digest + provenance and compute sha256 for the tarball payload."
+      ]
+    },
+    {
+      "artifact_id": "runtime.postgres_pgvector.docker_image.linux-amd64",
+      "name": "postgres+pgvector",
+      "kind": "docker_image",
+      "version": "TBD",
+      "platform": { "os": "linux", "arch": "amd64", "status": "PLANNED", "notes": [] },
+      "source": {
+        "kind": "docker_registry",
+        "ref": "docker:postgres:<tag> (with pgvector enabled)",
+        "network_required": true,
+        "notes": [
+          "PLANNED placeholder only (heavy artifact).",
+          "pgvector backend is enterprise/optional; deps and licensing must be governed."
+        ]
+      },
+      "license": "UNKNOWN",
+      "sha256_status": "UNVERIFIED",
+      "sha256": "UNVERIFIED",
+      "pack_paths": ["runtime/docker_images/postgres_pgvector/postgres_pgvector_image.tar"],
+      "required_for_modules": ["MEMORY-PGVECTOR-ADAPTER"],
+      "notes": [
+        "Placeholder only; do not treat as shippable.",
+        "Consider separate adapter install path vs bundling the full DB image."
+      ]
+    }
+  ],
+  "provenance": {
+    "build_host": "<REQUIRED_AT_BUNDLE_BUILD_TIME>",
+    "build_time_utc": "<REQUIRED_AT_BUNDLE_BUILD_TIME>",
+    "git_sha": "<REQUIRED_AT_BUNDLE_BUILD_TIME>",
+    "sbom_ref": null,
+    "notes": [
+      "Bundle build must record core repo git SHA (and extension commits if applicable).",
+      "SBOM is optional in v1; recommended for enterprise tier."
+    ]
+  },
+  "install_flows": [
+    {
+      "flow_id": "offline_install",
+      "mode": "offline",
+      "steps": [
+        { "step_id": "verify_sha256", "action": "verify_sha256", "network_mode": "OFF", "notes": [] },
+        { "step_id": "extract", "action": "extract", "network_mode": "OFF", "notes": [] },
+        { "step_id": "install", "action": "install", "network_mode": "OFF", "notes": [] },
+        { "step_id": "run_smoke", "action": "run_smoke", "network_mode": "OFF", "notes": ["e.g., enforcement-check demo run"] }
+      ],
+      "notes": ["Default path: offline-only. No network should be required."]
+    },
+    {
+      "flow_id": "verify_only",
+      "mode": "verify_only",
+      "steps": [
+        { "step_id": "verify_sha256", "action": "verify_sha256", "network_mode": "OFF", "notes": [] }
+      ],
+      "notes": ["Used to validate a delivered vendor_pack without installing."]
+    },
+    {
+      "flow_id": "online_fallback_build_pack",
+      "mode": "online_fallback",
+      "steps": [
+        {
+          "step_id": "download",
+          "action": "download",
+          "network_mode": "ON",
+          "notes": ["Only allowed during bundle creation (explicit enable)."]
+        },
+        { "step_id": "write_provenance", "action": "write_provenance", "network_mode": "OFF", "notes": [] },
+        { "step_id": "verify_sha256", "action": "verify_sha256", "network_mode": "OFF", "notes": [] }
+      ],
+      "notes": ["This flow builds a vendor_pack; it is not used for customer runtime."]
+    }
+  ],
+  "module_mapping": [
+    {
+      "module_id": "PRJ-ENFORCEMENT-PACK",
+      "requires_artifacts": ["tool.semgrep.darwin-arm64"],
+      "notes": ["Semgrep binary is required to run the Semgrep adapter ruleset."]
+    },
+    {
+      "module_id": "ENF-V2-WIRING",
+      "requires_artifacts": ["tool.semgrep.darwin-arm64"],
+      "notes": ["Wiring calls enforcement-check; enforcement-check requires semgrep."]
+    },
+    {
+      "module_id": "OFFLINE-INSTALLER-BUNDLE",
+      "requires_artifacts": [],
+      "notes": ["This module defines bundling strategy; it does not require runtime artifacts by itself."]
+    },
+    {
+      "module_id": "MEMORY-QDRANT-HTTP-ADAPTER",
+      "requires_artifacts": ["runtime.qdrant.docker_image.linux-amd64"],
+      "notes": ["Planned placeholder. Adapter must remain network-gated and fail-closed when OFF."]
+    },
+    {
+      "module_id": "MEMORY-PGVECTOR-ADAPTER",
+      "requires_artifacts": ["runtime.postgres_pgvector.docker_image.linux-amd64"],
+      "notes": ["Planned placeholder. Backend requires explicit dependency governance and safe defaults."]
+    }
+  ],
+  "network_rules": {
+    "network_default": "OFF",
+    "allowed_network_use": [
+      {
+        "purpose": "bundle_build_download_only",
+        "network_mode": "ON",
+        "notes": [
+          "Network ON is allowed only to download upstream artifacts while building a vendor_pack.",
+          "Verify/install/run must remain OFF."
+        ]
+      }
+    ]
+  }
+}
+
