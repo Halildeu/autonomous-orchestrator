@@ -88,15 +88,15 @@ class PgvectorDriverMemoryPort:
             return "pgvector_driver unavailable: VECTOR_BACKEND_ENABLE must be 1 (explicit opt-in)."
         if str(network_mode or "").strip().upper() != "ON":
             return "pgvector_driver unavailable: ORCH_NETWORK_MODE must be ON (offline-first; no auto-connect under OFF)."
-        if importlib.util.find_spec("psycopg") is None:
-            return "pgvector_driver unavailable: postgres driver psycopg is not installed."
-        if importlib.util.find_spec("pgvector") is None:
-            return "pgvector_driver unavailable: dependency pgvector is not installed."
         dsn = _pgvector_dsn(self.workspace)
         if not isinstance(dsn, str) or not dsn.strip():
             return "pgvector_driver unavailable: DSN is missing (set ORCH_PGVECTOR_DSN or PGVECTOR_POSTGRES_PASSWORD for local config)."
         if not _is_localhost_dsn(dsn):
             return "pgvector_driver unavailable: endpoint must be localhost-only (DSN host must be localhost)."
+        if importlib.util.find_spec("psycopg") is None:
+            return "pgvector_driver unavailable: postgres driver psycopg is not installed."
+        if importlib.util.find_spec("pgvector") is None:
+            return "pgvector_driver unavailable: dependency pgvector is not installed."
         return "pgvector_driver unavailable: UNKNOWN"
 
     def _connect(self):
@@ -235,4 +235,3 @@ LIMIT %s
         finally:
             conn.close()
         return removed
-
