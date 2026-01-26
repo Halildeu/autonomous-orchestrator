@@ -53,6 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
         register_heartbeat_rule_source_diff_subcommand,
     )
     from src.ops.commands.enforcement_cmds import register_enforcement_subcommands
+    from src.ops.commands.vendor_pack_verify import register_vendor_pack_verify_subcommand
 
     register_status_subcommands(sub)
     register_hygiene_subcommands(sub)
@@ -77,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_policy_thresholds_map_subcommand(sub)
     register_heartbeat_rule_source_diff_subcommand(sub)
     register_enforcement_subcommands(sub)
+    register_vendor_pack_verify_subcommand(sub)
 
     return parser
 
