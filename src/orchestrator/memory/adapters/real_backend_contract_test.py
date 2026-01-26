@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import sys
 from contextlib import contextmanager
@@ -29,6 +30,16 @@ def _patched_env(values: dict[str, str | None]):
 def _assert(condition: bool, message: str) -> None:
     if not condition:
         raise SystemExit(f"memoryport real_backend_contract_test: FAIL ({message})")
+
+
+def _expect_unavailable(fn, *, must_contain: str) -> None:
+    try:
+        fn()
+    except Exception as e:
+        msg = str(e)
+        _assert(must_contain in msg, f"expected error to contain {must_contain!r}, got {msg!r}")
+        return
+    raise SystemExit("memoryport real_backend_contract_test: FAIL (expected MemoryAdapterUnavailable)")
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -73,8 +84,7 @@ def main() -> None:
             "VECTOR_BACKEND_ENABLE": "1",
         }
     ):
-        port = resolve_memory_port(workspace=ws)
-        _assert(getattr(port, "adapter_id", None) == "local_first", "qdrant_driver must not connect under network OFF")
+        _expect_unavailable(lambda: resolve_memory_port(workspace=ws), must_contain="ORCH_NETWORK_MODE")
 
     with _patched_env(
         {
@@ -84,8 +94,7 @@ def main() -> None:
             "VECTOR_BACKEND_ENABLE": "0",
         }
     ):
-        port = resolve_memory_port(workspace=ws)
-        _assert(getattr(port, "adapter_id", None) == "local_first", "qdrant_driver must require VECTOR_BACKEND_ENABLE=1")
+        _expect_unavailable(lambda: resolve_memory_port(workspace=ws), must_contain="VECTOR_BACKEND_ENABLE")
 
     with _patched_env(
         {
@@ -96,8 +105,11 @@ def main() -> None:
             "ORCH_QDRANT_URL": "http://localhost:6333",
         }
     ):
-        port = resolve_memory_port(workspace=ws)
-        _assert(getattr(port, "adapter_id", None) in {"qdrant_driver", "local_first"}, "qdrant_driver selection logic invalid")
+        if importlib.util.find_spec("qdrant_client") is None:
+            _expect_unavailable(lambda: resolve_memory_port(workspace=ws), must_contain="qdrant-client")
+        else:
+            port = resolve_memory_port(workspace=ws)
+            _assert(getattr(port, "adapter_id", None) == "qdrant_driver", "qdrant_driver expected when deps are installed")
 
     with _patched_env(
         {
@@ -108,8 +120,7 @@ def main() -> None:
             "ORCH_QDRANT_URL": "http://example.com:6333",
         }
     ):
-        port = resolve_memory_port(workspace=ws)
-        _assert(getattr(port, "adapter_id", None) == "local_first", "qdrant_driver must be localhost-only")
+        _expect_unavailable(lambda: resolve_memory_port(workspace=ws), must_contain="localhost-only")
 
     with _patched_env(
         {
@@ -120,12 +131,16 @@ def main() -> None:
             "ORCH_PGVECTOR_DSN": "postgresql://postgres:dummy@localhost:5433/vector_db",
         }
     ):
-        port = resolve_memory_port(workspace=ws)
-        _assert(getattr(port, "adapter_id", None) in {"pgvector_driver", "local_first"}, "pgvector_driver selection logic invalid")
+        if importlib.util.find_spec("psycopg") is None:
+            _expect_unavailable(lambda: resolve_memory_port(workspace=ws), must_contain="psycopg")
+        elif importlib.util.find_spec("pgvector") is None:
+            _expect_unavailable(lambda: resolve_memory_port(workspace=ws), must_contain="pgvector")
+        else:
+            port = resolve_memory_port(workspace=ws)
+            _assert(getattr(port, "adapter_id", None) == "pgvector_driver", "pgvector_driver expected when deps are installed")
 
     print("memoryport real_backend_contract_test: PASS")
 
 
 if __name__ == "__main__":
     main()
-

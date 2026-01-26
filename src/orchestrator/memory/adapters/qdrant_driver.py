@@ -90,11 +90,11 @@ class QdrantDriverMemoryPort:
             return "qdrant_driver unavailable: VECTOR_BACKEND_ENABLE must be 1 (explicit opt-in)."
         if str(network_mode or "").strip().upper() != "ON":
             return "qdrant_driver unavailable: ORCH_NETWORK_MODE must be ON (offline-first; no auto-connect under OFF)."
-        if importlib.util.find_spec("qdrant_client") is None:
-            return "qdrant_driver unavailable: dependency qdrant-client is not installed."
         url = _qdrant_url(self.workspace)
         if not _is_localhost_url(url):
             return f"qdrant_driver unavailable: endpoint must be localhost-only; got url={url!r}."
+        if importlib.util.find_spec("qdrant_client") is None:
+            return "qdrant_driver unavailable: dependency qdrant-client is not installed."
         return "qdrant_driver unavailable: UNKNOWN"
 
     def _client(self):
@@ -204,4 +204,3 @@ class QdrantDriverMemoryPort:
         collection = self._ensure_collection(namespace=ns)
         client.delete(collection_name=collection, points_selector=models.PointIdsList(points=ids))  # type: ignore[attr-defined]
         return len(ids)
-
