@@ -1,0 +1,335 @@
+{
+  "version": "v1",
+  "generated_at_utc": "2026-01-26T00:14:15Z",
+  "catalog_id": "product-catalog",
+  "notes": [
+    "status reflects availability: DONE is implemented; OPEN/PARKED are roadmap intents.",
+    "install_modes are declared as intended delivery/activation modes; vendor_pack should only be added once an offline installer/bundler exists."
+  ],
+  "modules": [
+    {
+      "module_id": "PRJ-ENFORCEMENT-PACK",
+      "title": "Enforcement Pack v1 (contract + severity matrix + rules)",
+      "summary": "Contract-first enforcement-check schema + severity governance + Semgrep rule set. V1 is extension-only; wiring lives in V2.",
+      "status": "DONE",
+      "lifecycle_state": "active",
+      "risk_class": "RISK_LOW",
+      "install_modes": ["embedded"],
+      "tier_availability": ["community", "pro", "enterprise"],
+      "dependencies": [],
+      "links": {
+        "extension_id": "PRJ-ENFORCEMENT-PACK",
+        "docs_refs": ["docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-ENFORCEMENT-PACK"],
+        "repo_paths": ["extensions/PRJ-ENFORCEMENT-PACK/"]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "closeout",
+          "description": "Master demo pack + closeout exists for ENF v1 (contract+matrix+EP rules)."
+        }
+      ]
+    },
+    {
+      "module_id": "ENF-V2-WIRING",
+      "title": "ENF v2 wiring (ops command + pre-commit + CI)",
+      "summary": "Single-source-of-truth runner is wired into local advisory + CI staged enforcement.",
+      "status": "DONE",
+      "lifecycle_state": "active",
+      "risk_class": "RISK_MEDIUM",
+      "install_modes": ["embedded"],
+      "tier_availability": ["pro", "enterprise"],
+      "dependencies": ["PRJ-ENFORCEMENT-PACK"],
+      "links": {
+        "docs_refs": [
+          "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-ENFORCEMENT-PACK",
+          "docs/OPERATIONS/PROJECT-SSOT.md"
+        ],
+        "repo_paths": [
+          "src/ops/manage.py",
+          "src/ops/commands/enforcement_cmds.py",
+          "src/ops/commands/enforcement_check.py",
+          ".pre-commit-config.yaml",
+          ".github/workflows/gate-enforcement-check.yml"
+        ]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "closeout",
+          "description": "Ops command, pre-commit, and CI wiring are applied and marked DONE in work_item_state (staged enforcement)."
+        }
+      ]
+    },
+    {
+      "module_id": "PRJ-EXECUTORPORT",
+      "title": "ExecutorPort (vendor-neutral execution adapters)",
+      "summary": "ExecutorPort abstraction with local/manual default adapter; optional Codex adapter; offline-first.",
+      "status": "DONE",
+      "lifecycle_state": "active",
+      "risk_class": "RISK_LOW",
+      "install_modes": ["embedded"],
+      "tier_availability": ["community", "pro", "enterprise"],
+      "dependencies": [],
+      "links": {
+        "extension_id": "PRJ-EXECUTORPORT",
+        "docs_refs": ["docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-EXECUTORPORT"],
+        "repo_paths": ["extensions/PRJ-EXECUTORPORT/", "src/orchestrator/executor_port.py"]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "contract_test",
+          "description": "Contract test exists and is expected to PASS under network OFF."
+        }
+      ]
+    },
+    {
+      "module_id": "PRJ-OBSERVABILITY-OTEL",
+      "title": "Observability Pack (OTel optional)",
+      "summary": "trace_meta correlation (run_id) + optional OTel bridge; offline-first defaults.",
+      "status": "DONE",
+      "lifecycle_state": "active",
+      "risk_class": "RISK_LOW",
+      "install_modes": ["embedded"],
+      "tier_availability": ["community", "pro", "enterprise"],
+      "dependencies": [],
+      "links": {
+        "extension_id": "PRJ-OBSERVABILITY-OTEL",
+        "docs_refs": ["docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-OBSERVABILITY-OTEL"],
+        "repo_paths": ["extensions/PRJ-OBSERVABILITY-OTEL/", "schemas/trace-meta.schema.v1.json"]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "contract_test",
+          "description": "Contract test exists and is expected to PASS under network OFF."
+        }
+      ]
+    },
+    {
+      "module_id": "PRJ-MEMORYPORT",
+      "title": "MemoryPort baseline (local-first; optional adapters)",
+      "summary": "Local-first persistence is default; optional Qdrant/pgvector adapters are placeholders and never auto-connect under network OFF.",
+      "status": "DONE",
+      "lifecycle_state": "active",
+      "risk_class": "RISK_LOW",
+      "install_modes": ["embedded"],
+      "tier_availability": ["community", "pro", "enterprise"],
+      "dependencies": [],
+      "links": {
+        "extension_id": "PRJ-MEMORYPORT",
+        "docs_refs": ["docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-MEMORYPORT"],
+        "repo_paths": ["extensions/PRJ-MEMORYPORT/", "src/orchestrator/memory/"]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "contract_test",
+          "description": "Contract test exists and is expected to PASS under network OFF."
+        }
+      ]
+    },
+    {
+      "module_id": "OFFLINE-INSTALLER-BUNDLE",
+      "title": "Offline-first installer/bundle (vendor_pack + provenance) — v1",
+      "summary": "Offline-first bundling strategy + installer semantics for vendor_pack delivery. This enables portable product distribution (no network).",
+      "status": "OPEN",
+      "lifecycle_state": "experimental",
+      "risk_class": "RISK_MEDIUM",
+      "install_modes": ["embedded"],
+      "tier_availability": ["pro", "enterprise"],
+      "dependencies": [],
+      "links": {
+        "request_id": "REQ-OFFLINE-INSTALLER-BUNDLE-STRATEGY",
+        "docs_refs": ["docs/OPERATIONS/EXTENSIONS.md"],
+        "repo_paths": ["src/ops/commands/maintenance_cmds.py"]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "closeout",
+          "description": "Must produce a deterministic offline bundle + verification evidence (sha256/provenance) without enabling network."
+        }
+      ]
+    },
+    {
+      "module_id": "MEMORY-QDRANT-HTTP-ADAPTER",
+      "title": "MemoryPort backend: Qdrant HTTP adapter (no-deps, network-gated)",
+      "summary": "Real Qdrant adapter via stdlib HTTP; must be network_mode-gated and fail-closed when OFF.",
+      "status": "OPEN",
+      "lifecycle_state": "experimental",
+      "risk_class": "RISK_MEDIUM",
+      "install_modes": ["online"],
+      "tier_availability": ["pro", "enterprise"],
+      "dependencies": ["PRJ-MEMORYPORT"],
+      "links": {
+        "request_id": "REQ-VECTOR-QDRANT-HTTP-ADAPTER"
+      },
+      "evidence_hooks": [
+        {
+          "kind": "contract_test",
+          "description": "Must PASS contract test with network OFF (adapter unavailable + local_first ok) and network ON (adapter works when configured)."
+        }
+      ]
+    },
+    {
+      "module_id": "MEMORY-PGVECTOR-ADAPTER",
+      "title": "MemoryPort backend: pgvector adapter (optional; deps-governed)",
+      "summary": "Optional Postgres/pgvector backend; requires dependency governance and deterministic SKIP/fail-closed when deps missing.",
+      "status": "OPEN",
+      "lifecycle_state": "experimental",
+      "risk_class": "RISK_HIGH",
+      "install_modes": ["online"],
+      "tier_availability": ["enterprise"],
+      "dependencies": ["PRJ-MEMORYPORT"],
+      "links": {
+        "request_id": "REQ-VECTOR-PGVECTOR-ADAPTER"
+      },
+      "evidence_hooks": [
+        {
+          "kind": "closeout",
+          "description": "Requires dependency policy decision + adapter contract test PASS when deps/config present."
+        }
+      ]
+    },
+    {
+      "module_id": "UPSELL-TEMPORAL",
+      "title": "Workflow adapter (Temporal) — PARKED/upsell",
+      "summary": "External workflow engine integration behind a vendor-neutral interface. Activate only when durable long-running workflows are needed.",
+      "status": "PARKED",
+      "lifecycle_state": "parked",
+      "risk_class": "RISK_HIGH",
+      "install_modes": ["online"],
+      "tier_availability": ["enterprise"],
+      "dependencies": ["PRJ-EXECUTORPORT"],
+      "links": {
+        "request_id": "REQ-TEMPORAL-INTEGRATION"
+      },
+      "evidence_hooks": [
+        {
+          "kind": "closeout",
+          "description": "Activation signals: durable long-running workflows, retries/compensation, scheduling, distributed workers."
+        }
+      ]
+    },
+    {
+      "module_id": "UPSELL-BENTHOS",
+      "title": "Data bridge adapter (Benthos) — PARKED/upsell",
+      "summary": "Streaming ingestion/connectors behind a vendor-neutral interface. Activate only when repeatable ingestion pipelines are needed.",
+      "status": "PARKED",
+      "lifecycle_state": "parked",
+      "risk_class": "RISK_MEDIUM",
+      "install_modes": ["online"],
+      "tier_availability": ["enterprise"],
+      "dependencies": ["PRJ-MEMORYPORT"],
+      "links": {
+        "request_id": "REQ-BENTHOS-DATA-BRIDGE"
+      },
+      "evidence_hooks": [
+        {
+          "kind": "closeout",
+          "description": "Activation signals: connector demand, backpressure-aware pipelines, repeatable ETL feeding memory/index stores."
+        }
+      ]
+    }
+  ],
+  "tiers": [
+    {
+      "tier_id": "community",
+      "title": "Community",
+      "description": "Offline-first developer experience; core extensions and local baselines.",
+      "included_module_ids": ["PRJ-ENFORCEMENT-PACK", "PRJ-EXECUTORPORT", "PRJ-OBSERVABILITY-OTEL", "PRJ-MEMORYPORT"]
+    },
+    {
+      "tier_id": "pro",
+      "title": "Pro",
+      "description": "Adds staged enforcement wiring + productization foundation + optional online adapters.",
+      "included_module_ids": [
+        "PRJ-ENFORCEMENT-PACK",
+        "ENF-V2-WIRING",
+        "PRJ-EXECUTORPORT",
+        "PRJ-OBSERVABILITY-OTEL",
+        "PRJ-MEMORYPORT",
+        "OFFLINE-INSTALLER-BUNDLE",
+        "MEMORY-QDRANT-HTTP-ADAPTER"
+      ]
+    },
+    {
+      "tier_id": "enterprise",
+      "title": "Enterprise",
+      "description": "Adds higher-risk integrations (DB backends, workflow engines, data bridges) when explicitly activated.",
+      "included_module_ids": [
+        "PRJ-ENFORCEMENT-PACK",
+        "ENF-V2-WIRING",
+        "PRJ-EXECUTORPORT",
+        "PRJ-OBSERVABILITY-OTEL",
+        "PRJ-MEMORYPORT",
+        "OFFLINE-INSTALLER-BUNDLE",
+        "MEMORY-QDRANT-HTTP-ADAPTER",
+        "MEMORY-PGVECTOR-ADAPTER",
+        "UPSELL-TEMPORAL",
+        "UPSELL-BENTHOS"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "product_id": "prod-core-offline",
+      "title": "Core Offline Orchestrator",
+      "tier_id": "community",
+      "module_ids": ["PRJ-EXECUTORPORT", "PRJ-OBSERVABILITY-OTEL", "PRJ-MEMORYPORT"],
+      "recommended_demo_ids": ["demo-5min-onboarding"],
+      "notes": ["No network required; focuses on deterministic evidence + contracts."]
+    },
+    {
+      "product_id": "prod-enforcement-pro",
+      "title": "Enforcement Pack (Pro)",
+      "tier_id": "pro",
+      "module_ids": ["PRJ-ENFORCEMENT-PACK", "ENF-V2-WIRING", "PRJ-EXECUTORPORT", "PRJ-OBSERVABILITY-OTEL"],
+      "recommended_demo_ids": ["demo-5min-enforcement"],
+      "notes": ["Staged enforcement: default (onboarding) vs strict (blocking in CI)."]
+    }
+  ],
+  "demos": [
+    {
+      "demo_id": "demo-5min-onboarding",
+      "title": "5-minute onboarding: system status + intake focus",
+      "duration_minutes": 5,
+      "demo_kind": "5-min",
+      "module_ids": ["PRJ-EXECUTORPORT", "PRJ-OBSERVABILITY-OTEL", "PRJ-MEMORYPORT"],
+      "ops_actions": [
+        "system-status --workspace-root .cache/ws_customer_default",
+        "work-intake-check --workspace-root .cache/ws_customer_default"
+      ],
+      "evidence_paths": []
+    },
+    {
+      "demo_id": "demo-5min-enforcement",
+      "title": "5-minute ENF demo: enforcement-check default vs strict",
+      "duration_minutes": 5,
+      "demo_kind": "5-min",
+      "module_ids": ["PRJ-ENFORCEMENT-PACK", "ENF-V2-WIRING"],
+      "ops_actions": [
+        "enforcement-check --profile default --outdir .cache/ws_customer_default/.cache/reports/demo/enf_default",
+        "enforcement-check --profile strict --outdir .cache/ws_customer_default/.cache/reports/demo/enf_strict"
+      ],
+      "evidence_paths": []
+    },
+    {
+      "demo_id": "demo-30min-productization",
+      "title": "30-minute productization walkthrough: roadmap + extensions + status",
+      "duration_minutes": 30,
+      "demo_kind": "30-min",
+      "module_ids": [
+        "PRJ-ENFORCEMENT-PACK",
+        "ENF-V2-WIRING",
+        "PRJ-EXECUTORPORT",
+        "PRJ-OBSERVABILITY-OTEL",
+        "PRJ-MEMORYPORT",
+        "OFFLINE-INSTALLER-BUNDLE"
+      ],
+      "ops_actions": [
+        "project-status --roadmap roadmaps/SSOT/roadmap.v1.json --workspace-root .cache/ws_customer_default",
+        "extension-registry --workspace-root .cache/ws_customer_default --mode report",
+        "system-status --workspace-root .cache/ws_customer_default"
+      ],
+      "evidence_paths": []
+    }
+  ]
+}
+
