@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -20,6 +21,31 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from server_utils import *  # noqa: F403
+
+
+def _short_str(value: Any, limit: int = 300) -> str:
+    text = str(value)
+    if len(text) <= limit:
+        return text
+    return f"{text[: max(0, limit - 3)]}..."
+
+
+def _normalize_jsonable(obj: Any, depth: int = 0, max_depth: int = 6) -> Any:
+    if depth > max_depth:
+        return _short_str(obj)
+    if isinstance(obj, dict):
+        return {str(key): _normalize_jsonable(value, depth + 1, max_depth) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_jsonable(item, depth + 1, max_depth) for item in obj]
+    if isinstance(obj, (tuple, set)):
+        return [_normalize_jsonable(item, depth + 1, max_depth) for item in obj]
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, bytes):
+        return base64.b64encode(obj).decode("ascii")
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return _short_str(obj)
 
 
 class CockpitHandler(BaseHTTPRequestHandler):
@@ -542,112 +568,124 @@ class CockpitHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/locks":
-            lock_path = ws_root / ".cache" / "doer" / "doer_loop_lock.v1.json"
-            lock_data: dict[str, Any] = {}
-            lock_state = "MISSING"
-            owner_tag = ""
-            owner_session = ""
-            expires_at = ""
-            run_id = ""
-            if lock_path.exists():
-                try:
-                    lock_data = json.loads(lock_path.read_text(encoding="utf-8"))
-                except Exception:
-                    lock_state = "INVALID"
-                else:
-                    owner_tag = str(lock_data.get("owner_tag") or "")
-                    owner_session = str(lock_data.get("owner_session") or "")
-                    expires_at = str(lock_data.get("expires_at") or "")
-                    run_id = str(lock_data.get("run_id") or "")
-                    expires_dt = _parse_iso(expires_at)
-                    now = datetime.now(timezone.utc)
-                    lock_state = "LOCKED"
-                    if expires_dt and now > expires_dt:
-                        lock_state = "STALE"
-            lease_summary = {
-                "lease_count": 0,
-                "active_count": 0,
-                "owners_sample": [],
-                "path": "",
-            }
-            leases_json = ws_root / ".cache" / "index" / "work_item_leases.v1.json"
-            leases_jsonl = ws_root / ".cache" / "index" / "work_item_leases.v1.jsonl"
-            leases_payload = []
-            if leases_json.exists():
-                try:
-                    obj = json.loads(leases_json.read_text(encoding="utf-8"))
-                    if isinstance(obj, dict):
-                        leases_payload = obj.get("leases") if isinstance(obj.get("leases"), list) else []
-                        lease_summary["path"] = str(leases_json)
-                except Exception:
-                    leases_payload = []
-            elif leases_jsonl.exists():
-                try:
-                    lines = [line for line in leases_jsonl.read_text(encoding="utf-8").splitlines() if line.strip()]
-                    leases_payload = [json.loads(line) for line in lines if line.strip()]
-                    lease_summary["path"] = str(leases_jsonl)
-                except Exception:
-                    leases_payload = []
-            if isinstance(leases_payload, list) and leases_payload:
-                lease_summary["lease_count"] = len(leases_payload)
-                active = [l for l in leases_payload if isinstance(l, dict) and l.get("expires_at")]
-                lease_summary["active_count"] = len(active)
-                owners = sorted({str(l.get("owner") or "") for l in leases_payload if isinstance(l, dict)})
-                lease_summary["owners_sample"] = [o for o in owners if o][:5]
+            try:
+                lock_path = ws_root / ".cache" / "doer" / "doer_loop_lock.v1.json"
+                lock_data: dict[str, Any] = {}
+                lock_state = "MISSING"
+                owner_tag = ""
+                owner_session = ""
+                expires_at = ""
+                run_id = ""
+                if lock_path.exists():
+                    try:
+                        lock_data = json.loads(lock_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        lock_state = "INVALID"
+                    else:
+                        owner_tag = str(lock_data.get("owner_tag") or "")
+                        owner_session = str(lock_data.get("owner_session") or "")
+                        expires_at = str(lock_data.get("expires_at") or "")
+                        run_id = str(lock_data.get("run_id") or "")
+                        expires_dt = _parse_iso(expires_at)
+                        now = datetime.now(timezone.utc)
+                        lock_state = "LOCKED"
+                        if expires_dt and now > expires_dt:
+                            lock_state = "STALE"
+                lease_summary = {
+                    "lease_count": 0,
+                    "active_count": 0,
+                    "owners_sample": [],
+                    "path": "",
+                }
+                leases_json = ws_root / ".cache" / "index" / "work_item_leases.v1.json"
+                leases_jsonl = ws_root / ".cache" / "index" / "work_item_leases.v1.jsonl"
+                leases_payload = []
+                if leases_json.exists():
+                    try:
+                        obj = json.loads(leases_json.read_text(encoding="utf-8"))
+                        if isinstance(obj, dict):
+                            leases_payload = obj.get("leases") if isinstance(obj.get("leases"), list) else []
+                            lease_summary["path"] = str(leases_json)
+                    except Exception:
+                        leases_payload = []
+                elif leases_jsonl.exists():
+                    try:
+                        lines = [line for line in leases_jsonl.read_text(encoding="utf-8").splitlines() if line.strip()]
+                        leases_payload = [json.loads(line) for line in lines if line.strip()]
+                        lease_summary["path"] = str(leases_jsonl)
+                    except Exception:
+                        leases_payload = []
+                if isinstance(leases_payload, list) and leases_payload:
+                    lease_summary["lease_count"] = len(leases_payload)
+                    active = [l for l in leases_payload if isinstance(l, dict) and l.get("expires_at")]
+                    lease_summary["active_count"] = len(active)
+                    owners = sorted({str(l.get("owner") or "") for l in leases_payload if isinstance(l, dict)})
+                    lease_summary["owners_sample"] = [o for o in owners if o][:5]
 
-            claim_summary = {"claim_count": 0, "active_count": 0, "owners_sample": [], "path": ""}
-            active_claims_sample: list[dict[str, Any]] = []
-            claims_json = ws_root / ".cache" / "index" / "work_item_claims.v1.json"
-            claims_payload = []
-            if claims_json.exists():
-                try:
-                    obj = json.loads(claims_json.read_text(encoding="utf-8"))
-                    if isinstance(obj, dict):
-                        claims_payload = obj.get("claims") if isinstance(obj.get("claims"), list) else []
-                        claim_summary["path"] = str(claims_json)
-                except Exception:
-                    claims_payload = []
-            if isinstance(claims_payload, list) and claims_payload:
-                claim_summary["claim_count"] = len(claims_payload)
-                now = datetime.now(timezone.utc)
-                active = []
-                for claim in claims_payload:
-                    if not isinstance(claim, dict):
-                        continue
-                    expires_at = _parse_iso(str(claim.get("expires_at") or ""))
-                    if not expires_at:
-                        continue
-                    if now >= expires_at:
-                        continue
-                    active.append(claim)
-                claim_summary["active_count"] = len(active)
-                owners = sorted({str(c.get("owner_tag") or "") for c in claims_payload if isinstance(c, dict)})
-                claim_summary["owners_sample"] = [o for o in owners if o][:5]
-                active_sorted = sorted(active, key=lambda c: (str(c.get("expires_at") or ""), str(c.get("work_item_id") or "")))
-                for claim in active_sorted[:50]:
-                    active_claims_sample.append(
-                        {
-                            "work_item_id": str(claim.get("work_item_id") or ""),
-                            "owner_tag": str(claim.get("owner_tag") or ""),
-                            "owner_session": str(claim.get("owner_session") or ""),
-                            "acquired_at": str(claim.get("acquired_at") or ""),
-                            "expires_at": str(claim.get("expires_at") or ""),
-                            "ttl_seconds": claim.get("ttl_seconds"),
-                        }
+                claim_summary = {"claim_count": 0, "active_count": 0, "owners_sample": [], "path": ""}
+                active_claims_sample: list[dict[str, Any]] = []
+                claims_json = ws_root / ".cache" / "index" / "work_item_claims.v1.json"
+                claims_payload = []
+                if claims_json.exists():
+                    try:
+                        obj = json.loads(claims_json.read_text(encoding="utf-8"))
+                        if isinstance(obj, dict):
+                            claims_payload = obj.get("claims") if isinstance(obj.get("claims"), list) else []
+                            claim_summary["path"] = str(claims_json)
+                    except Exception:
+                        claims_payload = []
+                if isinstance(claims_payload, list) and claims_payload:
+                    claim_summary["claim_count"] = len(claims_payload)
+                    now = datetime.now(timezone.utc)
+                    active = []
+                    for claim in claims_payload:
+                        if not isinstance(claim, dict):
+                            continue
+                        claim_expires_dt = _parse_iso(str(claim.get("expires_at") or ""))
+                        if not claim_expires_dt:
+                            continue
+                        if now >= claim_expires_dt:
+                            continue
+                        active.append(claim)
+                    claim_summary["active_count"] = len(active)
+                    owners = sorted({str(c.get("owner_tag") or "") for c in claims_payload if isinstance(c, dict)})
+                    claim_summary["owners_sample"] = [o for o in owners if o][:5]
+                    active_sorted = sorted(
+                        active, key=lambda c: (str(c.get("expires_at") or ""), str(c.get("work_item_id") or ""))
                     )
-            payload = {
-                "lock_state": lock_state,
-                "lock_path": str(Path(".cache") / "doer" / "doer_loop_lock.v1.json"),
-                "owner_tag": owner_tag,
-                "owner_session": owner_session,
-                "expires_at": expires_at,
-                "run_id": run_id,
-                "lock": _redact(lock_data) if lock_data else {},
-                "leases_summary": lease_summary,
-                "claims_summary": claim_summary,
-                "claims_active_sample": active_claims_sample,
-            }
-            self._send_json(200, payload)
+                    for claim in active_sorted[:50]:
+                        active_claims_sample.append(
+                            {
+                                "work_item_id": str(claim.get("work_item_id") or ""),
+                                "owner_tag": str(claim.get("owner_tag") or ""),
+                                "owner_session": str(claim.get("owner_session") or ""),
+                                "acquired_at": str(claim.get("acquired_at") or ""),
+                                "expires_at": str(claim.get("expires_at") or ""),
+                                "ttl_seconds": claim.get("ttl_seconds"),
+                            }
+                        )
+                payload = {
+                    "lock_state": lock_state,
+                    "lock_path": str(Path(".cache") / "doer" / "doer_loop_lock.v1.json"),
+                    "owner_tag": owner_tag,
+                    "owner_session": owner_session,
+                    "expires_at": expires_at,
+                    "run_id": run_id,
+                    "lock": _redact(lock_data) if lock_data else {},
+                    "leases_summary": lease_summary,
+                    "claims_summary": claim_summary,
+                    "claims_active_sample": active_claims_sample,
+                }
+                self._send_json(200, _normalize_jsonable(payload))
+            except Exception as exc:
+                self._send_json(
+                    500,
+                    {
+                        "ok": False,
+                        "error": "LOCKS_SERIALIZE_FAIL",
+                        "detail": _short_str(exc),
+                    },
+                )
             return
 
         if parsed.path == "/api/planner_chat/threads":
