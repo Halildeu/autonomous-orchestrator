@@ -247,7 +247,7 @@ const I18N = {
     "intake.compat.banner_missing": "Compatibility summary unavailable (missing compat artifacts).",
     "intake.compat.blockers": "Top blockers",
     "intake.compat.none": "No blockers.",
-    "intake.compat.meta": "Last updated: {ts} · Source: {source}",
+    "intake.compat.meta": "Last updated: {ts} · Source: {source} · Loaded: {loaded}",
     "notes.for_item.none": "Notes for this item: -",
     "notes.for_item.loading": "Notes for this item: loading…",
     "notes.for_item.error": "Notes for this item: error",
@@ -563,7 +563,7 @@ const I18N = {
     "intake.compat.banner_missing": "Uyumluluk özeti alınamadı (compat artefaktları eksik).",
     "intake.compat.blockers": "En sık engeller",
     "intake.compat.none": "Engel yok.",
-    "intake.compat.meta": "Son güncelleme: {ts} · Kaynak: {source}",
+    "intake.compat.meta": "Son güncelleme: {ts} · Kaynak: {source} · Yüklendi: {loaded}",
     "notes.for_item.none": "Bu öğe için notlar: -",
     "notes.for_item.loading": "Bu öğe için notlar: yükleniyor…",
     "notes.for_item.error": "Bu öğe için notlar: hata",
@@ -772,6 +772,7 @@ const state = {
     top_blockers: [],
     updated_at_iso: null,
     source_name: null,
+    loaded_at_iso: null,
     error: null,
     source: null,
   },
@@ -2032,6 +2033,7 @@ function normalizeCompatSummaryFromOverlay(payload) {
     source: "overlay",
     source_name: "overlay",
     updated_at_iso: updatedAt || "unknown",
+    loaded_at_iso: new Date().toISOString(),
     error: null,
   };
 }
@@ -2060,6 +2062,7 @@ function normalizeCompatSummaryFromReproof(payload) {
     source: "reproof",
     source_name: "reproof",
     updated_at_iso: pickTimestamp(reproof, ["updated_at", "generated_at", "created_at", "ts", "timestamp"]) || "unknown",
+    loaded_at_iso: new Date().toISOString(),
     error: null,
   };
 }
@@ -2088,7 +2091,13 @@ function renderIntakeCompatSummaryCard() {
   const sourceName = meta.source_name || meta.source || "unknown";
   const updatedRaw = meta.updated_at_iso || "unknown";
   const updatedLabel = formatTimestamp(updatedRaw) || String(updatedRaw || "unknown");
-  const metaLine = t("intake.compat.meta", { ts: updatedLabel || "unknown", source: sourceName || "unknown" });
+  const loadedRaw = meta.loaded_at_iso || meta.loaded_at || "unknown";
+  const loadedLabel = formatTimestamp(loadedRaw) || String(loadedRaw || "unknown");
+  const metaLine = t("intake.compat.meta", {
+    ts: updatedLabel || "unknown",
+    source: sourceName || "unknown",
+    loaded: loadedLabel || "unknown",
+  });
   const blockersList = blockers.length
     ? blockers
         .map((row) => `<li>${escapeHtml(String(row.reason || ""))} (${escapeHtml(String(row.count || 0))})</li>`)
@@ -2119,6 +2128,7 @@ async function refreshIntakeCompatSummary() {
     top_blockers: [],
     updated_at_iso: null,
     source_name: null,
+    loaded_at_iso: null,
     error: null,
     source: null,
   };
