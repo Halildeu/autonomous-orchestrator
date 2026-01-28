@@ -247,6 +247,7 @@ const I18N = {
     "intake.compat.banner_missing": "Compatibility summary unavailable (missing compat artifacts).",
     "intake.compat.blockers": "Top blockers",
     "intake.compat.none": "No blockers.",
+    "intake.compat.meta": "Last updated: {ts} · Source: {source}",
     "notes.for_item.none": "Notes for this item: -",
     "notes.for_item.loading": "Notes for this item: loading…",
     "notes.for_item.error": "Notes for this item: error",
@@ -562,6 +563,7 @@ const I18N = {
     "intake.compat.banner_missing": "Uyumluluk özeti alınamadı (compat artefaktları eksik).",
     "intake.compat.blockers": "En sık engeller",
     "intake.compat.none": "Engel yok.",
+    "intake.compat.meta": "Son güncelleme: {ts} · Kaynak: {source}",
     "notes.for_item.none": "Bu öğe için notlar: -",
     "notes.for_item.loading": "Bu öğe için notlar: yükleniyor…",
     "notes.for_item.error": "Bu öğe için notlar: hata",
@@ -768,6 +770,8 @@ const state = {
     loaded_at: null,
     counts: null,
     top_blockers: [],
+    updated_at_iso: null,
+    source_name: null,
     error: null,
     source: null,
   },
@@ -2019,12 +2023,15 @@ function normalizeCompatSummaryFromOverlay(payload) {
   const items = overlay.items && typeof overlay.items === "object" ? overlay.items : {};
   const counts = computeCompatCounts(items);
   const topBlockers = computeCompatTopBlockers(items);
+  const updatedAt = pickTimestamp(overlay, ["updated_at", "generated_at", "created_at", "ts", "timestamp"]);
   return {
     ok: true,
     loaded_at: new Date().toISOString(),
     counts,
     top_blockers: topBlockers,
     source: "overlay",
+    source_name: "overlay",
+    updated_at_iso: updatedAt || "unknown",
     error: null,
   };
 }
@@ -2051,6 +2058,8 @@ function normalizeCompatSummaryFromReproof(payload) {
     counts,
     top_blockers: topBlockers,
     source: "reproof",
+    source_name: "reproof",
+    updated_at_iso: pickTimestamp(reproof, ["updated_at", "generated_at", "created_at", "ts", "timestamp"]) || "unknown",
     error: null,
   };
 }
@@ -2076,6 +2085,10 @@ function renderIntakeCompatSummaryCard() {
     .map((status) => `<div class="pill">${escapeHtml(status)}=${escapeHtml(String(counts[status] || 0))}</div>`)
     .join("");
   const blockers = Array.isArray(meta.top_blockers) ? meta.top_blockers : [];
+  const sourceName = meta.source_name || meta.source || "unknown";
+  const updatedRaw = meta.updated_at_iso || "unknown";
+  const updatedLabel = formatTimestamp(updatedRaw) || String(updatedRaw || "unknown");
+  const metaLine = t("intake.compat.meta", { ts: updatedLabel || "unknown", source: sourceName || "unknown" });
   const blockersList = blockers.length
     ? blockers
         .map((row) => `<li>${escapeHtml(String(row.reason || ""))} (${escapeHtml(String(row.count || 0))})</li>`)
@@ -2088,6 +2101,7 @@ function renderIntakeCompatSummaryCard() {
       <div class="row" style="gap:6px; flex-wrap:wrap;">${pills}</div>
       <div class="subtle" style="margin-top:6px;">${escapeHtml(t("intake.compat.blockers"))}</div>
       <ul class="subtle" style="margin:4px 0 0 16px;">${blockersList}</ul>
+      <div class="subtle" style="margin-top:6px;">${escapeHtml(metaLine)}</div>
     </div>
   `;
   cardEl.style.display = "block";
@@ -2103,6 +2117,8 @@ async function refreshIntakeCompatSummary() {
     loaded_at: new Date().toISOString(),
     counts: null,
     top_blockers: [],
+    updated_at_iso: null,
+    source_name: null,
     error: null,
     source: null,
   };
