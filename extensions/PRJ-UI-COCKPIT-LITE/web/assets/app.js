@@ -115,6 +115,11 @@ const I18N = {
     "table.updated": "Updated",
     "table.extension": "Extension",
     "table.claim": "Claim",
+    "table.recommended_action": "Recommendation",
+    "table.confidence": "Confidence",
+    "table.execution_mode": "Regime",
+    "table.evidence_ready": "Evidence",
+    "table.decision": "Decision",
     "table.intake": "Intake",
     "table.triage": "Triage",
     "table.request": "Request",
@@ -171,6 +176,8 @@ const I18N = {
     "toast.select_intake_first": "Select an intake item first.",
     "toast.notes_composer_unavailable": "Notes composer not available.",
     "toast.note_composer_prefilled": "Note composer prefilled for selected intake item.",
+    "toast.decision_saved": "Decision saved.",
+    "toast.decision_save_failed": "Failed to save decision: {error}",
     "toast.claim_failed": "Claim failed: {error}",
     "toast.admin_required_force_release": "Admin mode required for force release.",
     "prompt.force_release_confirm": "Type FORCE to confirm force release.\n\n- intake_id: {id}\n\nThis clears the claim even if owned by another session.",
@@ -230,6 +237,12 @@ const I18N = {
     "intake.item_fallback": "intake item",
     "intake.why.derived_from": "Derived from {source}",
     "intake.why.no_rationale": "No explicit rationale field; inspect evidence paths for provenance.",
+    "intake.decision.banner_missing": "Decision data unavailable (missing decision artifacts). Intake still usable.",
+    "intake.inline.tab_decision": "Decision",
+    "intake.inline.tab_technical": "Technical",
+    "intake.decision.save": "Save",
+    "intake.decision.note_placeholder": "Optional note…",
+    "intake.decision.no_overlay": "No decision card available for this item.",
     "notes.for_item.none": "Notes for this item: -",
     "notes.for_item.loading": "Notes for this item: loading…",
     "notes.for_item.error": "Notes for this item: error",
@@ -407,6 +420,11 @@ const I18N = {
     "table.updated": "Güncelleme",
     "table.extension": "Eklenti",
     "table.claim": "Claim",
+    "table.recommended_action": "Öneri",
+    "table.confidence": "Güven",
+    "table.execution_mode": "Rejim",
+    "table.evidence_ready": "Kanıt",
+    "table.decision": "Karar",
     "table.intake": "İş Alımı",
     "table.triage": "Triage",
     "table.request": "İstek",
@@ -463,6 +481,8 @@ const I18N = {
     "toast.select_intake_first": "Önce bir iş alımı öğesi seçin.",
     "toast.notes_composer_unavailable": "Not editörü mevcut değil.",
     "toast.note_composer_prefilled": "Not editörü seçili öğeye göre dolduruldu.",
+    "toast.decision_saved": "Karar kaydedildi.",
+    "toast.decision_save_failed": "Karar kaydı başarısız: {error}",
     "toast.claim_failed": "Sahiplenme başarısız: {error}",
     "toast.admin_required_force_release": "Zorla bırakma için Admin modu gerekli.",
     "prompt.force_release_confirm": "Zorla bırakmayı onaylamak için FORCE yazın.\n\n- intake_id: {id}\n\nBu işlem, başka bir oturuma ait olsa bile claim'i temizler.",
@@ -522,6 +542,12 @@ const I18N = {
     "intake.item_fallback": "intake öğesi",
     "intake.why.derived_from": "Kaynak: {source}",
     "intake.why.no_rationale": "Açık bir gerekçe alanı yok; köken için kanıt yollarını inceleyin.",
+    "intake.decision.banner_missing": "Karar verisi yüklenemedi (decision artefact'ları yok). Intake yine de kullanılabilir.",
+    "intake.inline.tab_decision": "Karar",
+    "intake.inline.tab_technical": "Teknik",
+    "intake.decision.save": "Kaydet",
+    "intake.decision.note_placeholder": "İsteğe bağlı not…",
+    "intake.decision.no_overlay": "Bu öğe için karar kartı yok.",
     "notes.for_item.none": "Bu öğe için notlar: -",
     "notes.for_item.loading": "Bu öğe için notlar: yükleniyor…",
     "notes.for_item.error": "Bu öğe için notlar: hata",
@@ -648,6 +674,7 @@ const endpoints = {
   inbox: "/api/inbox",
   intake: "/api/intake",
   decisions: "/api/decisions",
+  decisionMark: "/api/decision_mark",
   extensions: "/api/extensions",
   overridesList: "/api/overrides/list",
   overridesGet: "/api/overrides/get",
@@ -686,6 +713,8 @@ const state = {
   intake: null,
   intakeSelectedId: null,
   intakeSelected: null,
+  intakeExpandedId: null,
+  intakeInlineTab: {},
   intakeEvidencePath: null,
   intakeEvidencePreview: null,
   intakeLinkedNotes: null,
@@ -703,6 +732,15 @@ const state = {
   jobs: null,
   airunnerJobs: null,
   locks: null,
+  cockpitDecisionArtifacts: {
+    ok: false,
+    loaded_at: null,
+    index: null,
+    queue: null,
+    overlay: null,
+    userMarks: null,
+    error: null,
+  },
   adminModeEnabled: false,
   lockClaimsLimit: 20,
   lockClaimsGroupByOwner: false,
@@ -1792,6 +1830,294 @@ function encodeTag(value) {
 
 function decodeTag(value) {
   return decodeURIComponent(value || "");
+}
+
+const DEFAULT_COCKPIT_DECISION_ARTIFACTS = {
+  index: ".cache/ws_customer_default/.cache/index/cockpit_decisions_index.v1.json",
+  queue: ".cache/ws_customer_default/.cache/reports/cockpit_decision_queue.v1.json",
+  overlay: ".cache/ws_customer_default/.cache/index/cockpit_decision_overlay.v1.json",
+  userMarks: ".cache/ws_customer_default/.cache/index/cockpit_decision_user_marks.v1.json",
+};
+
+function _extractFileData(payload) {
+  if (payload && typeof payload === "object" && "data" in payload) return payload.data;
+  return payload;
+}
+
+async function fetchWorkspaceFile(path) {
+  const p = String(path || "").trim();
+  if (!p) return null;
+  return await fetchJson(`${endpoints.file}?path=${encodeURIComponent(p)}`);
+}
+
+function normalizeCockpitDecisionQueue(queuePayload) {
+  const queue = unwrap(queuePayload || {});
+  const items = Array.isArray(queue.items) ? queue.items : [];
+  const byId = {};
+  items.forEach((row) => {
+    const id = String(row?.intake_id || "").trim();
+    if (!id) return;
+    byId[id] = row;
+  });
+  return { queue, items, byId };
+}
+
+function normalizeCockpitDecisionOverlay(overlayPayload) {
+  const overlay = unwrap(overlayPayload || {});
+  const items = overlay.items && typeof overlay.items === "object" ? overlay.items : {};
+  return { overlay, byId: items };
+}
+
+function normalizeCockpitDecisionUserMarks(marksPayload) {
+  const marks = unwrap(marksPayload || {});
+  const items = marks.items && typeof marks.items === "object" ? marks.items : {};
+  return { marks, byId: items };
+}
+
+async function refreshCockpitDecisionArtifacts() {
+  const out = {
+    ok: false,
+    loaded_at: new Date().toISOString(),
+    index: null,
+    queue: null,
+    overlay: null,
+    userMarks: null,
+    queueById: {},
+    overlayById: {},
+    userMarksById: {},
+    error: null,
+  };
+
+  try {
+    const indexPayload = await fetchWorkspaceFile(DEFAULT_COCKPIT_DECISION_ARTIFACTS.index);
+    out.index = indexPayload;
+    const indexData = _extractFileData(indexPayload);
+    const artifacts = indexData && typeof indexData === "object" ? indexData.artifacts : null;
+    const paths = artifacts && typeof artifacts === "object"
+      ? {
+          queue: String(artifacts.decision_queue_json || DEFAULT_COCKPIT_DECISION_ARTIFACTS.queue),
+          overlay: String(artifacts.decision_overlay_json || DEFAULT_COCKPIT_DECISION_ARTIFACTS.overlay),
+          userMarks: String(artifacts.decision_user_marks_json || DEFAULT_COCKPIT_DECISION_ARTIFACTS.userMarks),
+        }
+      : {
+          queue: DEFAULT_COCKPIT_DECISION_ARTIFACTS.queue,
+          overlay: DEFAULT_COCKPIT_DECISION_ARTIFACTS.overlay,
+          userMarks: DEFAULT_COCKPIT_DECISION_ARTIFACTS.userMarks,
+        };
+
+    const [queuePayload, overlayPayload, marksPayload] = await Promise.all([
+      fetchWorkspaceFile(paths.queue),
+      fetchWorkspaceFile(paths.overlay),
+      fetchWorkspaceFile(paths.userMarks),
+    ]);
+
+    out.queue = queuePayload;
+    out.overlay = overlayPayload;
+    out.userMarks = marksPayload;
+
+    const q = normalizeCockpitDecisionQueue(_extractFileData(queuePayload));
+    const o = normalizeCockpitDecisionOverlay(_extractFileData(overlayPayload));
+    const m = normalizeCockpitDecisionUserMarks(_extractFileData(marksPayload));
+
+    out.queueById = q.byId;
+    out.overlayById = o.byId;
+    out.userMarksById = m.byId;
+
+    out.ok = Boolean(queuePayload && queuePayload.exists && queuePayload.json_valid);
+  } catch (err) {
+    out.ok = false;
+    out.error = formatError(err);
+  }
+
+  state.cockpitDecisionArtifacts = out;
+  renderIntakeDecisionBanner();
+}
+
+function renderIntakeDecisionBanner() {
+  const el = $("#intake-decision-banner");
+  if (!el) return;
+  const meta = state.cockpitDecisionArtifacts || {};
+  if (meta.ok) {
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  const err = meta.error ? ` (${meta.error})` : "";
+  el.textContent = `${t("intake.decision.banner_missing")}${err}`;
+  el.style.display = "block";
+}
+
+function getDecisionForIntake(intakeId) {
+  const id = String(intakeId || "").trim();
+  const meta = state.cockpitDecisionArtifacts || {};
+  const queue = meta.queueById && typeof meta.queueById === "object" ? meta.queueById[id] : null;
+  const overlay = meta.overlayById && typeof meta.overlayById === "object" ? meta.overlayById[id] : null;
+  const mark = meta.userMarksById && typeof meta.userMarksById === "object" ? meta.userMarksById[id] : null;
+
+  const recommended = String((overlay && overlay.recommended_action) || (queue && queue.recommended_action) || "").trim();
+  const confidence = String((overlay && overlay.confidence) || (queue && queue.confidence) || "").trim();
+  const executionMode = String((queue && queue.execution_mode) || "").trim();
+  const evidenceReady = String((queue && queue.evidence_ready) || "").trim();
+  const reasonCode = String((overlay && overlay.reason_code) || (queue && queue.reason_code) || "").trim();
+  const selectedOption = String((mark && mark.selected_option) || "").trim().toUpperCase();
+
+  return {
+    intake_id: id,
+    queue,
+    overlay,
+    mark,
+    recommended_action: recommended,
+    confidence,
+    execution_mode: executionMode,
+    evidence_ready: evidenceReady,
+    reason_code: reasonCode,
+    selected_option: selectedOption,
+  };
+}
+
+function decisionBadgeClass(action) {
+  const a = String(action || "").toUpperCase();
+  if (!a) return "badge";
+  if (a === "EXECUTE") return "badge ok";
+  if (a === "KEEP") return "badge";
+  if (a === "NOOP") return "badge";
+  if (a === "REFRESH" || a === "REFRAME" || a === "DECISION_REQUIRED" || a === "NEEDS_INFO") return "badge warn";
+  return "badge";
+}
+
+function renderIntakeInlineDecisionDetailHtml(item) {
+  const intakeId = String(item?.intake_id || "").trim();
+  const decision = getDecisionForIntake(intakeId);
+  const title = String(decision.overlay?.user_title_tr || decision.queue?.user_title_tr || item?.title || "").trim();
+  const titleEn = String(decision.overlay?.user_title_en || decision.queue?.user_title_en || "").trim();
+  const summaryTr = String(decision.overlay?.summary_tr || "").trim();
+  const summaryEn = String(decision.overlay?.summary_en || "").trim();
+  const qTr = String(decision.overlay?.decision_question_tr || "").trim();
+  const qEn = String(decision.overlay?.decision_question_en || "").trim();
+  const options = Array.isArray(decision.overlay?.options) ? decision.overlay.options : [];
+
+  const activeTab = state.intakeInlineTab && state.intakeInlineTab[intakeId] ? state.intakeInlineTab[intakeId] : "decision";
+
+  const badgeRec = decision.recommended_action
+    ? `<span class="${decisionBadgeClass(decision.recommended_action)}">${escapeHtml(decision.recommended_action)}</span>`
+    : `<span class="subtle">-</span>`;
+  const badgeConf = decision.confidence ? `<span class="badge">${escapeHtml(decision.confidence)}</span>` : `<span class="subtle">-</span>`;
+  const badgeExec = decision.execution_mode ? `<span class="badge">${escapeHtml(decision.execution_mode)}</span>` : `<span class="subtle">-</span>`;
+  const badgeEv = decision.evidence_ready
+    ? `<span class="badge">${escapeHtml(decision.evidence_ready)}</span>`
+    : `<span class="subtle">-</span>`;
+  const badgeSel = decision.selected_option ? `<span class="badge ok">${escapeHtml(decision.selected_option)}</span>` : `<span class="subtle">-</span>`;
+
+  const tabs = `
+    <div class="inline-tabs">
+      <button class="btn ${activeTab === "decision" ? "accent" : ""}" type="button" data-intake-inline-tab="${encodeTag(intakeId)}" data-tab="decision">${escapeHtml(t("intake.inline.tab_decision"))}</button>
+      <button class="btn ${activeTab === "technical" ? "accent" : ""}" type="button" data-intake-inline-tab="${encodeTag(intakeId)}" data-tab="technical">${escapeHtml(t("intake.inline.tab_technical"))}</button>
+    </div>
+  `;
+
+  const decisionCardMissing = `<div class="subtle">${escapeHtml(t("intake.decision.no_overlay"))}</div>`;
+
+  const optionCards = options.length
+    ? `<div class="decision-options">` +
+      options
+        .map((opt) => {
+          const id = String(opt?.id || "").trim().toUpperCase();
+          const titleTr = String(opt?.title_tr || "").trim();
+          const titleEn = String(opt?.title_en || "").trim();
+          const notesTr = String(opt?.notes_tr || "").trim();
+          const notesEn = String(opt?.notes_en || "").trim();
+          const isChecked = decision.selected_option && decision.selected_option === id;
+          const checkedAttr = isChecked ? "checked" : "";
+          const label = titleEn ? `${titleTr} (${titleEn})` : titleTr;
+          const notes = notesEn ? `${notesTr} (${notesEn})` : notesTr;
+          return `
+            <label class="decision-option">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <div class="opt-title">${escapeHtml(label || id)}</div>
+                <input type="radio" name="decision-opt-${encodeTag(intakeId)}" value="${escapeHtml(id)}" ${checkedAttr} />
+              </div>
+              <div class="opt-notes">${escapeHtml(notes)}</div>
+            </label>
+          `;
+        })
+        .join("") +
+      `</div>`
+    : decisionCardMissing;
+
+  const noteValue = decision.mark?.note ? String(decision.mark.note || "") : "";
+
+  const decisionBody = `
+    <div class="inline-section" style="${activeTab === "decision" ? "" : "display:none;"}">
+      <div class="subtle">${escapeHtml(summaryEn ? `${summaryTr} (${summaryEn})` : (summaryTr || ""))}</div>
+      <div style="margin-top: 8px; font-weight: 600;">${escapeHtml(qEn ? `${qTr} (${qEn})` : (qTr || ""))}</div>
+      <div class="subtle" style="margin-top: 6px;">${escapeHtml(decision.reason_code ? `reason_code=${decision.reason_code}` : "")}</div>
+      ${optionCards}
+      <div style="margin-top: 10px;">
+        <textarea class="input" data-decision-note="${encodeTag(intakeId)}" placeholder="${escapeHtml(t("intake.decision.note_placeholder"))}">${escapeHtml(noteValue)}</textarea>
+      </div>
+      <div class="row" style="margin-top: 10px;">
+        <button class="btn accent" type="button" data-decision-save="${encodeTag(intakeId)}">${escapeHtml(t("intake.decision.save"))}</button>
+        <div class="subtle">Öneri: ${badgeRec} ${badgeConf}</div>
+      </div>
+    </div>
+  `;
+
+  const evidencePaths = Array.isArray(item?.evidence_paths) ? item.evidence_paths.map(String) : [];
+  const evidenceChips = evidencePaths.length
+    ? `<div class="path-chips">` +
+      evidencePaths
+        .slice(0, 12)
+        .map((p) => `<button class="path-chip" type="button" data-intake-evidence="${encodeTag(p)}">${escapeHtml(p)}</button>`)
+        .join(" ") +
+      `</div>`
+    : `<span class="subtle">${escapeHtml(t("common.none"))}</span>`;
+
+  const technicalBody = `
+    <div class="inline-section" style="${activeTab === "technical" ? "" : "display:none;"}">
+      <div class="subtle">Evidence paths (click to preview)</div>
+      ${evidenceChips}
+      <details style="margin-top: 10px;">
+        <summary class="subtle">Raw intake item JSON (redacted)</summary>
+        <pre>${escapeHtml(JSON.stringify(item || {}, null, 2))}</pre>
+      </details>
+    </div>
+  `;
+
+  return `
+    <div class="intake-inline-detail" data-inline-intake="${encodeTag(intakeId)}">
+      <div class="inline-header">
+        <div class="inline-title">${escapeHtml(titleEn ? `${title} (${titleEn})` : title)}</div>
+        <div class="row" style="gap: 8px;">
+          ${badgeRec}
+          ${badgeConf}
+          ${badgeExec}
+          ${badgeEv}
+          ${badgeSel}
+        </div>
+      </div>
+      ${tabs}
+      ${decisionBody}
+      ${technicalBody}
+    </div>
+  `;
+}
+
+async function saveCockpitDecisionMark(intakeId, selectedOption, note) {
+  const id = String(intakeId || "").trim();
+  const opt = String(selectedOption || "").trim().toUpperCase();
+  const bodyNote = String(note || "").trim();
+  if (!id || !opt) return null;
+  const res = await fetch(endpoints.decisionMark, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: true, intake_id: id, selected_option: opt, note: bodyNote }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = data?.error || data?.status || "UNKNOWN";
+    throw new Error(String(err));
+  }
+  return data;
 }
 
 function updateIntakeFilterOptions(items) {
@@ -3264,6 +3590,8 @@ function renderTable(containerId, items, columns, sortKey, sortDir, onSort, opts
   const options = opts && typeof opts === "object" ? opts : {};
   const onRowClick = typeof options.onRowClick === "function" ? options.onRowClick : null;
   const rowClassName = typeof options.rowClassName === "function" ? options.rowClassName : null;
+  const expandedRow = typeof options.expandedRow === "function" ? options.expandedRow : null;
+  const isExpanded = typeof options.isExpanded === "function" ? options.isExpanded : null;
 
   const rows = sorted
     .slice(0, 120)
@@ -3279,7 +3607,12 @@ function renderTable(containerId, items, columns, sortKey, sortDir, onSort, opts
       const cls = rowClassName ? String(rowClassName(item) || "").trim() : "";
       const clsAttr = cls ? ` class="${cls}"` : "";
       const clickAttr = onRowClick ? ` data-row-index="${idx}"` : "";
-      return `<tr${clsAttr}${clickAttr}>${tds}</tr>`;
+      let html = `<tr${clsAttr}${clickAttr}>${tds}</tr>`;
+      if (expandedRow && isExpanded && isExpanded(item)) {
+        const inner = String(expandedRow(item) || "");
+        html += `<tr class="expanded-row"><td colspan="${columns.length}">${inner}</td></tr>`;
+      }
+      return html;
     })
     .join("");
 
@@ -3340,6 +3673,8 @@ function renderIntakeTable(items) {
   const ext = state.filters.intake.extension || [];
   const hideDone = $("#filter-hide-done") ? $("#filter-hide-done").checked : false;
 
+  renderIntakeDecisionBanner();
+
   let filtered = Array.isArray(items) ? items : [];
   if (bucket.length) {
     const bucketKeys = new Set(bucket.map((val) => normalizeKey(val)));
@@ -3371,12 +3706,34 @@ function renderIntakeTable(items) {
 
   $("#intake-count").textContent = t("meta.showing_items", { count: String(filtered.length) });
 
+  const decisionCell = (intakeId, field, fallback = "-") => {
+    const d = getDecisionForIntake(intakeId);
+    const v = String(d?.[field] || "").trim();
+    if (!v) return `<span class="subtle">${escapeHtml(fallback)}</span>`;
+    if (field === "recommended_action") {
+      return `<span class="${decisionBadgeClass(v)}">${escapeHtml(v)}</span>`;
+    }
+    if (field === "evidence_ready") {
+      const cls = v.toUpperCase() === "YES" ? "badge ok" : "badge warn";
+      return `<span class="${cls}">${escapeHtml(v)}</span>`;
+    }
+    if (field === "selected_option") {
+      return `<span class="badge ok">${escapeHtml(v)}</span>`;
+    }
+    return `<span class="badge">${escapeHtml(v)}</span>`;
+  };
+
   const columns = [
     { key: "bucket", label: t("table.bucket") },
     { key: "status", label: t("table.status") },
     { key: "priority", label: t("table.priority") },
     { key: "severity", label: t("table.severity") },
     { key: "title", label: t("table.title") },
+    { key: "recommended_action", label: t("table.recommended_action"), html: true, render: (item) => decisionCell(item?.intake_id, "recommended_action") },
+    { key: "confidence", label: t("table.confidence"), html: true, render: (item) => decisionCell(item?.intake_id, "confidence") },
+    { key: "execution_mode", label: t("table.execution_mode"), html: true, render: (item) => decisionCell(item?.intake_id, "execution_mode") },
+    { key: "evidence_ready", label: t("table.evidence_ready"), html: true, render: (item) => decisionCell(item?.intake_id, "evidence_ready") },
+    { key: "selected_option", label: t("table.decision"), html: true, render: (item) => decisionCell(item?.intake_id, "selected_option") },
     { key: "created_at", label: t("table.created"), render: (item) => {
         const keys = ["created_at", "created", "created_ts", "ts", "timestamp", "ingested_at"];
         return formatTimestamp(pickTimestamp(item, keys)) || "-";
@@ -3416,12 +3773,23 @@ function renderIntakeTable(items) {
         const myTag = String(state.claimOwnerTag || "").trim();
         if (status === "CLAIMED" && owner && myTag && owner !== myTag) classes.push("blocked");
         if (state.intakeSelectedId && item?.intake_id === state.intakeSelectedId) classes.push("selected");
+        if (state.intakeExpandedId && item?.intake_id === state.intakeExpandedId) classes.push("selected");
         return classes.join(" ");
+      },
+      isExpanded: (item) => {
+        return Boolean(state.intakeExpandedId && item?.intake_id === state.intakeExpandedId);
+      },
+      expandedRow: (item) => {
+        return renderIntakeInlineDecisionDetailHtml(item);
       },
       onRowClick: (item) => {
         if (!item) return;
-        state.intakeSelectedId = item.intake_id || null;
+        const id = item.intake_id || null;
+        state.intakeSelectedId = id;
         state.intakeSelected = item;
+        if (state.intakeExpandedId && id && state.intakeExpandedId === id) state.intakeExpandedId = null;
+        else state.intakeExpandedId = id;
+        if (id && !state.intakeInlineTab[id]) state.intakeInlineTab[id] = "decision";
         state.intakeEvidencePath = null;
         state.intakeEvidencePreview = null;
         state.intakeLinkedNotes = null;
@@ -3434,6 +3802,63 @@ function renderIntakeTable(items) {
       },
     }
   );
+
+  // Inline handlers (decision tab)
+  $$("[data-intake-inline-tab]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const intakeId = decodeTag(btn.dataset.intakeInlineTab || "");
+      const tab = String(btn.dataset.tab || "").trim();
+      if (!intakeId || !tab) return;
+      state.intakeInlineTab[intakeId] = tab;
+      renderIntakeTable((unwrap(state.intake || {}).items || []));
+    });
+  });
+
+  $$("[data-decision-save]").forEach((btn) => {
+    btn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const intakeId = decodeTag(btn.dataset.decisionSave || "");
+      if (!intakeId) return;
+      const name = `decision-opt-${encodeTag(intakeId)}`;
+      const selected = document.querySelector(`input[name=\"${CSS.escape(name)}\"]:checked`);
+      const option = selected ? String(selected.value || "").trim() : "";
+      const noteEl = document.querySelector(`[data-decision-note=\"${CSS.escape(encodeTag(intakeId))}\"]`);
+      const note = noteEl ? String(noteEl.value || "") : "";
+      if (!option) {
+        showToast(t("toast.action_failed", { error: "OPTION_REQUIRED" }), "warn");
+        return;
+      }
+      try {
+        await saveCockpitDecisionMark(intakeId, option, note);
+        if (!state.cockpitDecisionArtifacts.userMarksById || typeof state.cockpitDecisionArtifacts.userMarksById !== "object") {
+          state.cockpitDecisionArtifacts.userMarksById = {};
+        }
+        state.cockpitDecisionArtifacts.userMarksById[intakeId] = {
+          selected_option: option,
+          note,
+          at: new Date().toISOString(),
+          user: "local",
+        };
+        showToast(t("toast.decision_saved"), "ok");
+        renderIntakeTable((unwrap(state.intake || {}).items || []));
+      } catch (err) {
+        showToast(t("toast.decision_save_failed", { error: formatError(err) }), "fail");
+      }
+    });
+  });
+
+  $$("[data-intake-evidence]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const path = decodeTag(btn.dataset.intakeEvidence || "");
+      if (!path) return;
+      previewIntakeEvidence(path);
+    });
+  });
 }
 
 function renderInboxTable(items) {
@@ -4215,6 +4640,7 @@ async function refreshInbox() {
 }
 
 async function refreshIntake() {
+  await refreshCockpitDecisionArtifacts();
   state.intake = await fetchJson(endpoints.intake);
   const items = Array.isArray(state.intake.items)
     ? state.intake.items

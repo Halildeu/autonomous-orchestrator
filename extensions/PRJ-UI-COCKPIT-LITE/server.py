@@ -1004,6 +1004,65 @@ class CockpitHandler(BaseHTTPRequestHandler):
         repo_root = self.server.repo_root
         ws_root = self.server.workspace_root
 
+        if parsed.path == "/api/decision_mark":
+            if payload.get("confirm") is not True:
+                self._send_json(400, {"status": "FAIL", "error": "CONFIRM_REQUIRED"})
+                return
+            intake_id = str(payload.get("intake_id") or "").strip()
+            selected_option = str(payload.get("selected_option") or "").strip().upper()
+            note = str(payload.get("note") or "").strip()
+            if not intake_id or not intake_id.startswith("INTAKE-") or len(intake_id) > 120:
+                self._send_json(400, {"status": "FAIL", "error": "INTAKE_ID_INVALID"})
+                return
+            if selected_option not in {"A", "B", "C", "D"}:
+                self._send_json(400, {"status": "FAIL", "error": "SELECTED_OPTION_INVALID"})
+                return
+            if len(note) > 800:
+                self._send_json(400, {"status": "FAIL", "error": "NOTE_TOO_LONG"})
+                return
+
+            user_marks_path = ws_root / ".cache" / "index" / "cockpit_decision_user_marks.v1.json"
+            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            try:
+                obj: dict[str, Any] = {}
+                if user_marks_path.exists():
+                    try:
+                        obj = json.loads(user_marks_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        obj = {}
+                if not isinstance(obj, dict):
+                    obj = {}
+                items = obj.get("items")
+                if not isinstance(items, dict):
+                    items = {}
+                items[intake_id] = {
+                    "selected_option": selected_option,
+                    "note": note,
+                    "at": now,
+                    "user": "local",
+                }
+                obj["schema"] = "cockpit_decision_user_marks.v1"
+                obj["generated_at"] = now
+                obj["workspace_root"] = str(Path(".cache") / "ws_customer_default")
+                obj["items"] = {k: items[k] for k in sorted(items.keys())}
+                _atomic_write_text(user_marks_path, _json_dumps_pretty(obj))
+            except Exception as exc:
+                self._send_json(500, {"status": "FAIL", "error": "USER_MARKS_WRITE_FAIL", "detail": _short_str(exc)})
+                return
+
+            self._send_json(
+                200,
+                {
+                    "status": "OK",
+                    "ok": True,
+                    "saved": True,
+                    "intake_id": intake_id,
+                    "selected_option": selected_option,
+                    "path": str(user_marks_path),
+                },
+            )
+            return
+
         if parsed.path == "/api/op":
             op = str(payload.get("op") or "").strip()
             op_cfg = _effective_op_job_config(ws_root)

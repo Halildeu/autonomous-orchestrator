@@ -399,6 +399,66 @@
       .table-wrap tbody tr.blocked {
         background: rgba(255, 193, 7, 0.05);
       }
+      .table-wrap tbody tr.expanded-row td {
+        padding: 0;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .intake-inline-detail {
+        padding: 12px 14px;
+      }
+
+      .intake-inline-detail .inline-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .intake-inline-detail .inline-title {
+        font-weight: 600;
+        color: #e6edf3;
+      }
+
+      .intake-inline-detail .inline-tabs {
+        display: flex;
+        gap: 8px;
+        margin: 8px 0 10px;
+      }
+
+      .intake-inline-detail .inline-tabs .btn {
+        padding: 6px 10px;
+      }
+
+      .intake-inline-detail .inline-section {
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 10px;
+      }
+
+      .intake-inline-detail .decision-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .intake-inline-detail .decision-option {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.16);
+      }
+
+      .intake-inline-detail .decision-option .opt-title {
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .intake-inline-detail .decision-option .opt-notes {
+        color: #b9c3cf;
+        font-size: 12px;
+      }
       .intake-detail-grid {
         display: grid;
         grid-template-columns: 160px 1fr;
@@ -1017,10 +1077,11 @@
           <section id="tab-intake" class="tab">
             <div class="card">
               <h3 data-i18n="h.intake_strict">Intake (strict)</h3>
+              <div class="status-banner warn" id="intake-decision-banner" style="display:none; margin-top: 10px;"></div>
               <div class="row">
                 <input class="input" id="intake-search" placeholder="Quick search" />
-	                <div class="field-stack">
-	                  <label class="subtle" for="filter-bucket-input">Bucket</label>
+		                <div class="field-stack">
+		                  <label class="subtle" for="filter-bucket-input">Bucket</label>
 	                  <div class="tag-select" id="filter-bucket">
 	                    <div class="tag-select-input">
 	                      <div class="tag-list" id="filter-bucket-tags"></div>
