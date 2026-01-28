@@ -248,6 +248,9 @@ const I18N = {
     "intake.compat.blockers": "Top blockers",
     "intake.compat.none": "No blockers.",
     "intake.compat.meta": "Last updated: {ts} · Source: {source} · Loaded: {loaded}",
+    "intake.compat.source_badge": "Source: {source}",
+    "intake.compat.updated_badge": "Updated: {ts}",
+    "intake.compat.loaded_badge": "Loaded: {ts}",
     "notes.for_item.none": "Notes for this item: -",
     "notes.for_item.loading": "Notes for this item: loading…",
     "notes.for_item.error": "Notes for this item: error",
@@ -564,6 +567,9 @@ const I18N = {
     "intake.compat.blockers": "En sık engeller",
     "intake.compat.none": "Engel yok.",
     "intake.compat.meta": "Son güncelleme: {ts} · Kaynak: {source} · Yüklendi: {loaded}",
+    "intake.compat.source_badge": "Kaynak: {source}",
+    "intake.compat.updated_badge": "Güncellendi: {ts}",
+    "intake.compat.loaded_badge": "Yüklendi: {ts}",
     "notes.for_item.none": "Bu öğe için notlar: -",
     "notes.for_item.loading": "Bu öğe için notlar: yükleniyor…",
     "notes.for_item.error": "Bu öğe için notlar: hata",
@@ -2098,6 +2104,11 @@ function renderIntakeCompatSummaryCard() {
     source: sourceName || "unknown",
     loaded: loadedLabel || "unknown",
   });
+  const metaBadges = `
+    <span class="pill muted">${escapeHtml(t("intake.compat.source_badge", { source: sourceName || "unknown" }))}</span>
+    <span class="pill muted">${escapeHtml(t("intake.compat.updated_badge", { ts: updatedLabel || "unknown" }))}</span>
+    <span class="pill muted">${escapeHtml(t("intake.compat.loaded_badge", { ts: loadedLabel || "unknown" }))}</span>
+  `;
   const blockersList = blockers.length
     ? blockers
         .map((row) => `<li>${escapeHtml(String(row.reason || ""))} (${escapeHtml(String(row.count || 0))})</li>`)
@@ -2110,7 +2121,7 @@ function renderIntakeCompatSummaryCard() {
       <div class="row" style="gap:6px; flex-wrap:wrap;">${pills}</div>
       <div class="subtle" style="margin-top:6px;">${escapeHtml(t("intake.compat.blockers"))}</div>
       <ul class="subtle" style="margin:4px 0 0 16px;">${blockersList}</ul>
-      <div class="subtle" style="margin-top:6px;">${escapeHtml(metaLine)}</div>
+      <div class="subtle" style="margin-top:6px;">${metaBadges}</div>
     </div>
   `;
   cardEl.style.display = "block";
