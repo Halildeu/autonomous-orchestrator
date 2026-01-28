@@ -1774,8 +1774,9 @@ function renderIntakeDetail(item) {
   const topic = summarizeIntakeTopic(item);
   const why = summarizeIntakeWhy(item);
   const evidencePaths = Array.isArray(item.evidence_paths) ? item.evidence_paths.map(String) : [];
+  const shortId = shortIntakeId(item.intake_id);
 
-  meta.textContent = `${item.intake_id || "-"} | ${topic}`;
+  meta.innerHTML = `${`<span class="intake-short-id">ID: ${escapeHtml(shortId || "-")}</span>`} | ${`<span class="intake-short-id">intake_id: ${escapeHtml(item.intake_id || "-")}</span>`} | ${escapeHtml(topic)}`;
   renderKeyValueGrid(fields, [
     [t("intake.field.topic"), topic],
     [t("intake.field.why"), why],
@@ -1866,6 +1867,16 @@ function normalizeKey(value) {
 
 function normalizeValue(value) {
   return String(value || "").trim();
+}
+
+function shortIntakeId(intakeId) {
+  const raw = String(intakeId || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/^INTAKE-([a-f0-9]+)$/i);
+  if (match) return match[1].slice(0, 8).toUpperCase();
+  const cleaned = raw.replace(/[^a-z0-9]/gi, "");
+  if (cleaned.length >= 8) return cleaned.slice(-8).toUpperCase();
+  return cleaned ? cleaned.toUpperCase() : raw.slice(-8).toUpperCase();
 }
 
 function encodeTag(value) {
@@ -2252,6 +2263,7 @@ function renderIntakeInlineDecisionDetailHtml(item) {
     ? `<span class="badge">${escapeHtml(decision.evidence_ready)}</span>`
     : `<span class="subtle">-</span>`;
   const badgeSel = decision.selected_option ? `<span class="badge ok">${escapeHtml(decision.selected_option)}</span>` : `<span class="subtle">-</span>`;
+  const shortId = shortIntakeId(intakeId);
 
   const tabs = `
     <div class="inline-tabs">
@@ -2340,6 +2352,7 @@ function renderIntakeInlineDecisionDetailHtml(item) {
           ${badgeSel}
         </div>
       </div>
+      <div class="subtle intake-short-id">ID: ${escapeHtml(shortId || "-")} | intake_id: ${escapeHtml(intakeId || "-")}</div>
       ${tabs}
       ${decisionBody}
       ${technicalBody}
@@ -4095,6 +4108,12 @@ function renderIntakeTable(items) {
   };
 
   const columns = [
+    { key: "short_id", label: "ID", html: true, render: (item) => {
+        const full = String(item?.intake_id || "").trim();
+        const short = shortIntakeId(full);
+        if (!full) return `<span class="subtle">-</span>`;
+        return `<button class="btn small ghost intake-short-id" type="button" data-copy-intake-id="${encodeTag(full)}" title="Copy full intake_id">${escapeHtml(short || full)}</button>`;
+      } },
     { key: "bucket", label: t("table.bucket") },
     { key: "status", label: t("table.status") },
     { key: "priority", label: t("table.priority") },
@@ -4173,6 +4192,18 @@ function renderIntakeTable(items) {
       },
     }
   );
+
+  const tableEl = $("#intake-table");
+  if (tableEl) {
+    tableEl.querySelectorAll("[data-copy-intake-id]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const full = decodeTag(btn.dataset.copyIntakeId || "");
+        if (full) copyText(full);
+      });
+    });
+  }
 
   // Inline handlers (decision tab)
   $$("[data-intake-inline-tab]").forEach((btn) => {
