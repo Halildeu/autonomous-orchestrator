@@ -248,6 +248,7 @@ const I18N = {
     "intake.compat.blockers": "Top blockers",
     "intake.compat.none": "No blockers.",
     "intake.compat.meta": "Last updated: {ts} · Source: {source} · Loaded: {loaded}",
+    "intake.compat.status_badge": "Status: {status}",
     "intake.compat.source_badge": "Source: {source}",
     "intake.compat.updated_badge": "Updated: {ts}",
     "intake.compat.loaded_badge": "Loaded: {ts}",
@@ -567,6 +568,7 @@ const I18N = {
     "intake.compat.blockers": "En sık engeller",
     "intake.compat.none": "Engel yok.",
     "intake.compat.meta": "Son güncelleme: {ts} · Kaynak: {source} · Yüklendi: {loaded}",
+    "intake.compat.status_badge": "Durum: {status}",
     "intake.compat.source_badge": "Kaynak: {source}",
     "intake.compat.updated_badge": "Güncellendi: {ts}",
     "intake.compat.loaded_badge": "Yüklendi: {ts}",
@@ -2025,6 +2027,18 @@ function computeCompatTopBlockers(items) {
     .map(([reason, count]) => ({ reason, count }));
 }
 
+function deriveCompatOverallStatus(counts) {
+  if (!counts || typeof counts !== "object") return "MISSING";
+  const blocked = Number(counts.BLOCKED_BY_REGIME || 0);
+  const refresh = Number(counts.REFRESH_REQUIRED || 0);
+  const needs = Number(counts.NEEDS_EXEC_PACK || 0);
+  const ok = Number(counts.OK || 0);
+  if (blocked > 0) return "BLOCKED";
+  if (refresh > 0 || needs > 0) return "WARN";
+  if (ok > 0) return "OK";
+  return "MISSING";
+}
+
 function normalizeCompatSummaryFromOverlay(payload) {
   const overlay = unwrap(payload || {});
   const items = overlay.items && typeof overlay.items === "object" ? overlay.items : {};
@@ -2040,6 +2054,7 @@ function normalizeCompatSummaryFromOverlay(payload) {
     source_name: "overlay",
     updated_at_iso: updatedAt || "unknown",
     loaded_at_iso: new Date().toISOString(),
+    overall_status: deriveCompatOverallStatus(counts),
     error: null,
   };
 }
@@ -2069,6 +2084,7 @@ function normalizeCompatSummaryFromReproof(payload) {
     source_name: "reproof",
     updated_at_iso: pickTimestamp(reproof, ["updated_at", "generated_at", "created_at", "ts", "timestamp"]) || "unknown",
     loaded_at_iso: new Date().toISOString(),
+    overall_status: deriveCompatOverallStatus(counts),
     error: null,
   };
 }
@@ -2080,8 +2096,14 @@ function renderIntakeCompatSummaryCard() {
 
   const meta = state.intakeCompatSummary || {};
   if (!meta.ok) {
-    cardEl.style.display = "none";
-    cardEl.innerHTML = "";
+    const statusBadge = `<span class="pill miss">${escapeHtml(t("intake.compat.status_badge", { status: "MISSING" }))}</span>`;
+    cardEl.innerHTML = `
+      <div class="note-item">
+        <div class="note-title">${escapeHtml(t("intake.compat.title"))}</div>
+        <div class="row" style="gap:6px; flex-wrap:wrap;">${statusBadge}</div>
+      </div>
+    `;
+    cardEl.style.display = "block";
     const err = meta.error ? ` (${meta.error})` : "";
     warnEl.textContent = `${t("intake.compat.banner_missing")}${err}`;
     warnEl.style.display = "block";
@@ -2099,12 +2121,17 @@ function renderIntakeCompatSummaryCard() {
   const updatedLabel = formatTimestamp(updatedRaw) || String(updatedRaw || "unknown");
   const loadedRaw = meta.loaded_at_iso || meta.loaded_at || "unknown";
   const loadedLabel = formatTimestamp(loadedRaw) || String(loadedRaw || "unknown");
-  const metaLine = t("intake.compat.meta", {
-    ts: updatedLabel || "unknown",
-    source: sourceName || "unknown",
-    loaded: loadedLabel || "unknown",
-  });
+  const overallStatus = String(meta.overall_status || "MISSING").toUpperCase();
+  const statusClass =
+    overallStatus === "OK"
+      ? "ok"
+      : overallStatus === "WARN"
+        ? "warn"
+        : overallStatus === "BLOCKED"
+          ? "block"
+          : "miss";
   const metaBadges = `
+    <span class="pill ${statusClass}">${escapeHtml(t("intake.compat.status_badge", { status: overallStatus }))}</span>
     <span class="pill muted">${escapeHtml(t("intake.compat.source_badge", { source: sourceName || "unknown" }))}</span>
     <span class="pill muted">${escapeHtml(t("intake.compat.updated_badge", { ts: updatedLabel || "unknown" }))}</span>
     <span class="pill muted">${escapeHtml(t("intake.compat.loaded_badge", { ts: loadedLabel || "unknown" }))}</span>
@@ -2140,6 +2167,7 @@ async function refreshIntakeCompatSummary() {
     updated_at_iso: null,
     source_name: null,
     loaded_at_iso: null,
+    overall_status: "MISSING",
     error: null,
     source: null,
   };
