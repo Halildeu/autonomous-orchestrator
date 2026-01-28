@@ -277,10 +277,16 @@ const I18N = {
     "north_star.table.topic": "Topic",
     "north_star.table.domain": "Domain",
     "north_star.table.title": "Title",
+    "north_star.table.theme": "Tema (Theme)",
+    "north_star.table.subtheme": "Alt Tema (Subtheme)",
     "north_star.table.catalog": "Catalog",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Reasons",
     "north_star.table.evidence": "Evidence",
+    "north_star.join.banner": "Theme/Subtheme join missing for {miss} findings (title fallback {fallback}){reason}",
+    "north_star.catalog.reference": "Referans (Reference)",
+    "north_star.catalog.capability": "Yapı Taşı (Capability)",
+    "north_star.catalog.criterion": "Kriter (Criterion)",
     "north_star.preset.custom": "Custom (manual selection)",
     "north_star.preset.all": "All (no topic filter)",
     "north_star.preset.ethics_compliance": "Ethics & Compliance",
@@ -582,10 +588,16 @@ const I18N = {
     "north_star.table.topic": "Konu",
     "north_star.table.domain": "Alan",
     "north_star.table.title": "Başlık",
+    "north_star.table.theme": "Tema (Theme)",
+    "north_star.table.subtheme": "Alt Tema (Subtheme)",
     "north_star.table.catalog": "Katalog",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Gerekçeler",
     "north_star.table.evidence": "Kanıt",
+    "north_star.join.banner": "Tema/Alt tema eşleşmesi {miss} bulguda yok (başlık eşleşmesi: {fallback}){reason}",
+    "north_star.catalog.reference": "Referans (Reference)",
+    "north_star.catalog.capability": "Yapı Taşı (Capability)",
+    "north_star.catalog.criterion": "Kriter (Criterion)",
     "north_star.preset.custom": "Özel (manuel seçim)",
     "north_star.preset.all": "Tümü (konu filtresi yok)",
     "north_star.preset.ethics_compliance": "Etik & Uyum",
@@ -707,6 +719,8 @@ const state = {
   northStarFindingsByLens: null,
   northStarFindingsLensName: "",
   northStarFindingSelected: null,
+  northStarCatalogIndex: null,
+  northStarFindingsJoinStats: null,
   status: null,
   snapshot: null,
   inbox: null,
@@ -2431,6 +2445,102 @@ function renderNorthStarFindingsBadge(status) {
   return `<span class="badge ${cls}">${escapeHtml(norm)}</span>`;
 }
 
+function formatNorthStarCatalogLabel(raw) {
+  const norm = normalizeKey(raw);
+  if (["REFERENCE", "TREND", "TREND_CATALOG", "TREND_CATALOG_V1"].includes(norm)) return t("north_star.catalog.reference");
+  if (["CAPABILITY", "BP", "BEST_PRACTICE", "BP_CATALOG", "BP_CATALOG_V1"].includes(norm)) return t("north_star.catalog.capability");
+  if (["CRITERION", "LENS", "LENS_REQUIREMENT"].includes(norm)) return t("north_star.catalog.criterion");
+  return String(raw || "");
+}
+
+function pickCatalogField(item, keys) {
+  for (const key of keys) {
+    const value = item ? item[key] : null;
+    if (value) return String(value).trim();
+  }
+  return "";
+}
+
+function buildNorthStarCatalogIndex(payload) {
+  const trend = unwrap(payload?.trend_catalog || {});
+  const bp = unwrap(payload?.bp_catalog || {});
+  const trendItems = Array.isArray(trend?.items) ? trend.items : [];
+  const bpItems = Array.isArray(bp?.items) ? bp.items : [];
+  const byId = {};
+  const byTitle = {};
+
+  const addItem = (item, source) => {
+    if (!item || typeof item !== "object") return;
+    const id = pickCatalogField(item, ["id", "item_id", "itemId"]);
+    const title = pickCatalogField(item, ["title"]);
+    const theme_tr = pickCatalogField(item, ["theme_title_tr", "theme_tr", "theme_title", "theme"]);
+    const subtheme_tr = pickCatalogField(item, ["subtheme_title_tr", "subtheme_tr", "subtheme_title", "subtheme"]);
+    const theme_en = pickCatalogField(item, ["theme_title_en", "theme_en"]);
+    const subtheme_en = pickCatalogField(item, ["subtheme_title_en", "subtheme_en"]);
+    const entry = { id, title, theme_tr, theme_en, subtheme_tr, subtheme_en, source };
+    if (id && !byId[id]) byId[id] = entry;
+    if (title) {
+      const key = normalizeKey(title);
+      if (key && !byTitle[key]) byTitle[key] = entry;
+    }
+  };
+
+  trendItems.forEach((item) => addItem(item, "trend_catalog"));
+  bpItems.forEach((item) => addItem(item, "bp_catalog"));
+
+  return {
+    byId,
+    byTitle,
+    sources: {
+      trend_count: trendItems.length,
+      bp_count: bpItems.length,
+    },
+    available: trendItems.length + bpItems.length > 0,
+  };
+}
+
+function formatThemeSubthemeLabel(entry, kind) {
+  if (!entry) return "—";
+  const tr = kind === "theme" ? entry.theme_tr : entry.subtheme_tr;
+  const en = kind === "theme" ? entry.theme_en : entry.subtheme_en;
+  if (tr && en && tr !== en) return `${tr} (${en})`;
+  return tr || en || "—";
+}
+
+function getNorthStarJoinForItem(item) {
+  const index = state.northStarCatalogIndex || { byId: {}, byTitle: {}, available: false };
+  const id = String(item?.id || "").trim();
+  const title = String(item?.title || "").trim();
+  let entry = id ? index.byId?.[id] : null;
+  let fallback = false;
+  if (!entry && title) {
+    const key = normalizeKey(title);
+    entry = key ? index.byTitle?.[key] : null;
+    fallback = Boolean(entry);
+  }
+  const miss = !entry;
+  return {
+    entry,
+    theme_label: formatThemeSubthemeLabel(entry, "theme"),
+    subtheme_label: formatThemeSubthemeLabel(entry, "subtheme"),
+    miss,
+    fallback,
+  };
+}
+
+function renderNorthStarJoinBanner(stats) {
+  const el = $("#ns-findings-join-banner");
+  if (!el) return;
+  if (!stats || !stats.miss_count) {
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  const reason = stats.reason ? ` reason_code=${stats.reason}` : "";
+  el.textContent = t("north_star.join.banner", { miss: String(stats.miss_count), fallback: String(stats.fallback_count || 0), reason });
+  el.style.display = "block";
+}
+
 function getNorthStarFindingKey(item) {
   const lens = String(item?.lens || "");
   const catalog = String(item?.catalog || "");
@@ -2444,6 +2554,7 @@ function renderNorthStarFindings() {
   const findings = state.northStarFindings;
   const itemsRaw = Array.isArray(findings?.items) ? findings.items : [];
   const includeLens = itemsRaw.some((item) => Boolean(item && item.lens));
+  const catalogIndex = state.northStarCatalogIndex || { available: false };
 
   const summaryEl = $("#ns-findings-summary");
   const tableEl = $("#ns-findings-table");
@@ -2462,6 +2573,8 @@ function renderNorthStarFindings() {
   let items = itemsRaw.map((item) => {
     const domains = normalizeNorthStarFindingDomains(item?.domains);
     const topicNorm = normalizeNorthStarFindingTopic(item?.topic);
+    const join = getNorthStarJoinForItem(item);
+    const catalogLabel = formatNorthStarCatalogLabel(item?.catalog);
     return {
       ...item,
       _domains_norm: domains,
@@ -2470,6 +2583,11 @@ function renderNorthStarFindings() {
       _match_rank: findingsMatchRank(item?.match_status),
       _reasons_count: Array.isArray(item?.reasons) ? item.reasons.length : 0,
       _evidence_count: Array.isArray(item?.evidence_pointers) ? item.evidence_pointers.length : 0,
+      _theme_label: join.theme_label,
+      _subtheme_label: join.subtheme_label,
+      _join_miss: join.miss,
+      _join_fallback: join.fallback,
+      _catalog_label: catalogLabel,
     };
   });
 
@@ -2494,10 +2612,13 @@ function renderNorthStarFindings() {
     items = items.filter((item) => {
       const hay = [
         item.catalog,
+        item._catalog_label,
         item.id,
         item.title,
         item._topic_norm,
         item._domains_joined,
+        item._theme_label,
+        item._subtheme_label,
         Array.isArray(item.tags) ? item.tags.join(" ") : "",
         Array.isArray(item.reasons) ? item.reasons.join(" ") : "",
         includeLens ? String(item.lens || "") : "",
@@ -2550,6 +2671,15 @@ function renderNorthStarFindings() {
     summaryEl.textContent = `items_total=${total} filtered=${filtered} triggered=${counts.triggered} not_triggered=${counts.not_triggered} unknown=${counts.unknown}${extra}`;
   }
 
+  const joinStats = {
+    total: items.length,
+    miss_count: items.filter((x) => x._join_miss).length,
+    fallback_count: items.filter((x) => x._join_fallback).length,
+    reason: catalogIndex.available ? "" : "CATALOG_MISSING",
+  };
+  state.northStarFindingsJoinStats = joinStats;
+  renderNorthStarJoinBanner(joinStats);
+
   if (items.length === 0) {
     tableEl.innerHTML = `<div class="empty">${escapeHtml(t("empty.no_findings_match"))}</div>`;
   } else {
@@ -2559,6 +2689,8 @@ function renderNorthStarFindings() {
       t("north_star.table.topic"),
       t("north_star.table.domain"),
       t("north_star.table.title"),
+      t("north_star.table.theme"),
+      t("north_star.table.subtheme"),
       t("north_star.table.catalog"),
       t("north_star.table.id"),
       t("north_star.table.reasons"),
@@ -2578,7 +2710,9 @@ function renderNorthStarFindings() {
             <td>${escapeHtml(item._topic_norm)}</td>
             <td>${escapeHtml(item._domains_joined)}</td>
             <td>${escapeHtml(String(item.title || ""))}</td>
-            <td>${escapeHtml(String(item.catalog || ""))}</td>
+            <td>${escapeHtml(String(item._theme_label || "—"))}</td>
+            <td>${escapeHtml(String(item._subtheme_label || "—"))}</td>
+            <td>${escapeHtml(String(item._catalog_label || item.catalog || ""))}</td>
             <td>${escapeHtml(String(item.id || ""))}</td>
             <td>${escapeHtml(String(item._reasons_count))}</td>
             <td>${escapeHtml(String(item._evidence_count))}</td>
@@ -2599,7 +2733,7 @@ function renderNorthStarFindings() {
     tableEl.querySelectorAll("[data-finding]").forEach((row) => {
       row.addEventListener("click", () => {
         const key = decodeTag(row.dataset.finding || "");
-        const picked = itemsRaw.find((it) => getNorthStarFindingKey(it) === key) || null;
+        const picked = items.find((it) => getNorthStarFindingKey(it) === key) || null;
         state.northStarFindingSelected = picked;
         renderNorthStarFindingsDetail();
       });
@@ -2636,6 +2770,9 @@ function renderNorthStarFindingsDetail() {
   const remediation = Array.isArray(item.remediation)
     ? item.remediation.map((x) => String(x || "").trim()).filter((x) => Boolean(x))
     : [];
+  const themeLabel = String(item._theme_label || "");
+  const subthemeLabel = String(item._subtheme_label || "");
+  const catalogLabel = String(item._catalog_label || formatNorthStarCatalogLabel(item.catalog || "") || "");
 
   const evidenceButtons = evidence.length
     ? evidence
@@ -2652,7 +2789,7 @@ function renderNorthStarFindingsDetail() {
   detailEl.innerHTML = `
     <div class="note-item">
       <div class="note-title">${escapeHtml(String(item.title || ""))}</div>
-      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | topic=${escapeHtml(topic)} | domains=${escapeHtml(domains.join(", "))} | catalog=${escapeHtml(String(item.catalog || ""))} | id=${escapeHtml(String(item.id || ""))}</div>
+      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | topic=${escapeHtml(topic)} | domains=${escapeHtml(domains.join(", "))} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | catalog=${escapeHtml(catalogLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
       <div class="note-tags">${tags.slice(0, 18).map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("")}</div>
       ${
         summary
@@ -3188,6 +3325,9 @@ function renderNorthStar() {
   const scores = summary.scores || {};
   const status = summary.status || "UNKNOWN";
   const evalData = unwrap(payload.assessment_eval || {});
+
+  state.northStarCatalogIndex = buildNorthStarCatalogIndex(payload);
+  state.northStarFindingsJoinStats = null;
 
   setBadge($("#north-star-status"), status);
   const summaryEl = $("#north-star-summary");
