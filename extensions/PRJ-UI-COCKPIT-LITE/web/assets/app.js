@@ -243,6 +243,10 @@ const I18N = {
     "intake.decision.save": "Save",
     "intake.decision.note_placeholder": "Optional note…",
     "intake.decision.no_overlay": "No decision card available for this item.",
+    "intake.compat.title": "Compatibility Summary",
+    "intake.compat.banner_missing": "Compatibility summary unavailable (missing compat artifacts).",
+    "intake.compat.blockers": "Top blockers",
+    "intake.compat.none": "No blockers.",
     "notes.for_item.none": "Notes for this item: -",
     "notes.for_item.loading": "Notes for this item: loading…",
     "notes.for_item.error": "Notes for this item: error",
@@ -554,6 +558,10 @@ const I18N = {
     "intake.decision.save": "Kaydet",
     "intake.decision.note_placeholder": "İsteğe bağlı not…",
     "intake.decision.no_overlay": "Bu öğe için karar kartı yok.",
+    "intake.compat.title": "Uyumluluk Özeti",
+    "intake.compat.banner_missing": "Uyumluluk özeti alınamadı (compat artefaktları eksik).",
+    "intake.compat.blockers": "En sık engeller",
+    "intake.compat.none": "Engel yok.",
     "notes.for_item.none": "Bu öğe için notlar: -",
     "notes.for_item.loading": "Bu öğe için notlar: yükleniyor…",
     "notes.for_item.error": "Bu öğe için notlar: hata",
@@ -755,6 +763,15 @@ const state = {
     userMarks: null,
     error: null,
   },
+  intakeCompatSummary: {
+    ok: false,
+    loaded_at: null,
+    counts: null,
+    top_blockers: [],
+    error: null,
+    source: null,
+  },
+  intakeCompatSummaryLoading: false,
   adminModeEnabled: false,
   lockClaimsLimit: 20,
   lockClaimsGroupByOwner: false,
@@ -1852,6 +1869,10 @@ const DEFAULT_COCKPIT_DECISION_ARTIFACTS = {
   overlay: ".cache/ws_customer_default/.cache/index/cockpit_decision_overlay.v1.json",
   userMarks: ".cache/ws_customer_default/.cache/index/cockpit_decision_user_marks.v1.json",
 };
+const DEFAULT_COCKPIT_COMPAT_ARTIFACTS = {
+  overlay: ".cache/ws_customer_default/.cache/index/cockpit_decision_overlay.compat.v1.json",
+  reproof: ".cache/ws_customer_default/.cache/reports/all_open_compat_reproof.v1.json",
+};
 
 function _extractFileData(payload) {
   if (payload && typeof payload === "object" && "data" in payload) return payload.data;
@@ -1959,6 +1980,151 @@ function renderIntakeDecisionBanner() {
   const err = meta.error ? ` (${meta.error})` : "";
   el.textContent = `${t("intake.decision.banner_missing")}${err}`;
   el.style.display = "block";
+}
+
+function computeCompatCounts(items) {
+  const counts = {
+    OK: 0,
+    REFRESH_REQUIRED: 0,
+    NEEDS_EXEC_PACK: 0,
+    BLOCKED_BY_REGIME: 0,
+  };
+  if (!items || typeof items !== "object") return counts;
+  Object.values(items).forEach((row) => {
+    const status = String(row?.compat_status || "").trim().toUpperCase();
+    if (status && counts[status] !== undefined) counts[status] += 1;
+  });
+  return counts;
+}
+
+function computeCompatTopBlockers(items) {
+  const counts = {};
+  if (!items || typeof items !== "object") return [];
+  Object.values(items).forEach((row) => {
+    const blockers = Array.isArray(row?.blockers) ? row.blockers : [];
+    blockers.forEach((b) => {
+      const key = String(b || "").trim();
+      if (!key) return;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+  });
+  return Object.entries(counts)
+    .sort((a, b) => (b[1] - a[1] !== 0 ? b[1] - a[1] : String(a[0]).localeCompare(String(b[0]))))
+    .slice(0, 5)
+    .map(([reason, count]) => ({ reason, count }));
+}
+
+function normalizeCompatSummaryFromOverlay(payload) {
+  const overlay = unwrap(payload || {});
+  const items = overlay.items && typeof overlay.items === "object" ? overlay.items : {};
+  const counts = computeCompatCounts(items);
+  const topBlockers = computeCompatTopBlockers(items);
+  return {
+    ok: true,
+    loaded_at: new Date().toISOString(),
+    counts,
+    top_blockers: topBlockers,
+    source: "overlay",
+    error: null,
+  };
+}
+
+function normalizeCompatSummaryFromReproof(payload) {
+  const reproof = unwrap(payload || {});
+  const summary = reproof.summary && typeof reproof.summary === "object" ? reproof.summary : {};
+  const counts = summary.status_counts && typeof summary.status_counts === "object" ? summary.status_counts : {};
+  let topBlockers = [];
+  const raw = summary.top_blockers;
+  if (Array.isArray(raw)) {
+    topBlockers = raw
+      .map((row) => {
+        if (Array.isArray(row) && row.length >= 2) return { reason: String(row[0]), count: Number(row[1]) || 0 };
+        if (row && typeof row === "object") return { reason: String(row.reason || row[0] || ""), count: Number(row.count || row[1]) || 0 };
+        return null;
+      })
+      .filter(Boolean)
+      .slice(0, 5);
+  }
+  return {
+    ok: Boolean(Object.keys(counts).length || topBlockers.length),
+    loaded_at: new Date().toISOString(),
+    counts,
+    top_blockers: topBlockers,
+    source: "reproof",
+    error: null,
+  };
+}
+
+function renderIntakeCompatSummaryCard() {
+  const cardEl = $("#intake-compat-summary");
+  const warnEl = $("#intake-compat-summary-warn");
+  if (!cardEl || !warnEl) return;
+
+  const meta = state.intakeCompatSummary || {};
+  if (!meta.ok) {
+    cardEl.style.display = "none";
+    cardEl.innerHTML = "";
+    const err = meta.error ? ` (${meta.error})` : "";
+    warnEl.textContent = `${t("intake.compat.banner_missing")}${err}`;
+    warnEl.style.display = "block";
+    return;
+  }
+
+  const counts = meta.counts || {};
+  const statuses = ["OK", "REFRESH_REQUIRED", "NEEDS_EXEC_PACK", "BLOCKED_BY_REGIME"];
+  const pills = statuses
+    .map((status) => `<div class="pill">${escapeHtml(status)}=${escapeHtml(String(counts[status] || 0))}</div>`)
+    .join("");
+  const blockers = Array.isArray(meta.top_blockers) ? meta.top_blockers : [];
+  const blockersList = blockers.length
+    ? blockers
+        .map((row) => `<li>${escapeHtml(String(row.reason || ""))} (${escapeHtml(String(row.count || 0))})</li>`)
+        .join("")
+    : `<li class="subtle">${escapeHtml(t("intake.compat.none"))}</li>`;
+
+  cardEl.innerHTML = `
+    <div class="note-item">
+      <div class="note-title">${escapeHtml(t("intake.compat.title"))}</div>
+      <div class="row" style="gap:6px; flex-wrap:wrap;">${pills}</div>
+      <div class="subtle" style="margin-top:6px;">${escapeHtml(t("intake.compat.blockers"))}</div>
+      <ul class="subtle" style="margin:4px 0 0 16px;">${blockersList}</ul>
+    </div>
+  `;
+  cardEl.style.display = "block";
+  warnEl.style.display = "none";
+  warnEl.textContent = "";
+}
+
+async function refreshIntakeCompatSummary() {
+  if (state.intakeCompatSummaryLoading) return;
+  state.intakeCompatSummaryLoading = true;
+  const out = {
+    ok: false,
+    loaded_at: new Date().toISOString(),
+    counts: null,
+    top_blockers: [],
+    error: null,
+    source: null,
+  };
+  try {
+    const overlayPayload = await fetchWorkspaceFile(DEFAULT_COCKPIT_COMPAT_ARTIFACTS.overlay);
+    if (overlayPayload && overlayPayload.exists && overlayPayload.json_valid) {
+      Object.assign(out, normalizeCompatSummaryFromOverlay(_extractFileData(overlayPayload)));
+    } else {
+      const reproofPayload = await fetchWorkspaceFile(DEFAULT_COCKPIT_COMPAT_ARTIFACTS.reproof);
+      if (reproofPayload && reproofPayload.exists && reproofPayload.json_valid) {
+        Object.assign(out, normalizeCompatSummaryFromReproof(_extractFileData(reproofPayload)));
+      } else {
+        out.ok = false;
+      }
+    }
+  } catch (err) {
+    out.ok = false;
+    out.error = formatError(err);
+  }
+  state.intakeCompatSummary = out;
+  renderIntakeCompatSummaryCard();
+  state.intakeCompatSummaryLoading = false;
 }
 
 function getDecisionForIntake(intakeId) {
@@ -4781,6 +4947,7 @@ async function refreshInbox() {
 
 async function refreshIntake() {
   await refreshCockpitDecisionArtifacts();
+  scheduleRefresh("intake_compat", refreshIntakeCompatSummary, 160);
   state.intake = await fetchJson(endpoints.intake);
   const items = Array.isArray(state.intake.items)
     ? state.intake.items
