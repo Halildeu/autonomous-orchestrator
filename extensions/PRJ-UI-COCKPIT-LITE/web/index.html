@@ -732,6 +732,14 @@
         margin-right: 6px;
       }
       .pill.muted { opacity: 0.85; }
+      .pill.ok { border-color: var(--accent); color: var(--accent); }
+      .pill.warn { border-color: var(--accent-2); color: var(--accent-2); }
+      .pill.block { border-color: var(--danger); color: var(--danger); }
+      .pill.miss { border-color: rgba(0, 0, 0, 0.35); color: var(--text-muted); }
+      .pill.ok::before { content: "✅"; margin-right: 4px; }
+      .pill.warn::before { content: "⚠️"; margin-right: 4px; }
+      .pill.block::before { content: "⛔"; margin-right: 4px; }
+      .pill.miss::before { content: "—"; margin-right: 4px; }
       .sidebar-collapsed .app,
       .app.sidebar-collapsed { --sidebar-width: 72px; }
       .sidebar-collapsed { --sidebar-width: 72px; }
