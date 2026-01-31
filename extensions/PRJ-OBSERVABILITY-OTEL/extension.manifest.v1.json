@@ -4,7 +4,7 @@
   "semver": "0.1.0",
   "origin": "CORE",
   "owner": "CORE",
-  "enabled": false,
+  "enabled": true,
   "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-OBSERVABILITY-OTEL",
   "ai_context_refs": [
     "AGENTS.md",
