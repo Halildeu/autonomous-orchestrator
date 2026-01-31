@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import ssl
 import time
 from functools import lru_cache
@@ -34,6 +35,10 @@ _XAI_USER_AGENT = (
 
 
 BuildResponseFn = Callable[..., Dict[str, Any]]
+
+
+def _sanitize_name(text: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_.-]+", "_", text).strip("_.")[:120] or "item"
 
 
 def _estimate_request_bytes(
@@ -469,10 +474,40 @@ def _extract_llm_output_text(resp_bytes: bytes) -> str:
         first = choices[0] if isinstance(choices[0], dict) else None
         if isinstance(first, dict):
             msg = first.get("message")
-            if isinstance(msg, dict) and isinstance(msg.get("content"), str):
-                return msg.get("content", "").strip()
+            if isinstance(msg, dict):
+                content_val = msg.get("content")
+                if isinstance(content_val, str):
+                    return content_val.strip()
+                if isinstance(content_val, list) and content_val:
+                    parts = []
+                    for block in content_val:
+                        if not isinstance(block, dict):
+                            continue
+                        text = block.get("text")
+                        if isinstance(text, str) and text.strip():
+                            parts.append(text)
+                    if parts:
+                        return "\n".join(parts).strip()
             if isinstance(first.get("text"), str):
                 return first.get("text", "").strip()
+
+    output = obj.get("output")
+    if isinstance(output, list) and output:
+        texts = []
+        for item in output:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                text = block.get("text")
+                if isinstance(text, str) and text.strip():
+                    texts.append(text)
+        if texts:
+            return "\n".join(texts).strip()
 
     if isinstance(obj.get("output_text"), str):
         return str(obj.get("output_text", "")).strip()
@@ -1569,6 +1604,20 @@ def maybe_handle_llm_actions(
         output_text = _extract_llm_output_text(resp_bytes) if resp_bytes else ""
         output_sha256 = _sha256_hex(resp_bytes) if resp_bytes else _sha256_hex(b"")
 
+        output_full_path = None
+        if output_text:
+            try:
+                ws_root = Path(workspace_root).resolve()
+                out_dir = ws_root / ".cache" / "reports" / "llm_live_outputs"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                safe_request = _sanitize_name(str(request_id or "request"))
+                safe_provider = _sanitize_name(str(provider_id or "provider"))
+                out_path = out_dir / f"{safe_request}_{safe_provider}.txt"
+                out_path.write_text(output_text)
+                output_full_path = str(out_path)
+            except Exception:
+                output_full_path = None
+
         output_preview = ""
         output_truncated = False
         if max_output_chars_value > 0:
@@ -1595,6 +1644,7 @@ def maybe_handle_llm_actions(
             "output_sha256": output_sha256,
             "output_preview": output_preview,
             "output_truncated": output_truncated,
+            "output_full_path": output_full_path,
             "nondeterministic": True,
         }
 

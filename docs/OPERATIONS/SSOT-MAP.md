@@ -37,6 +37,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/OPERATIONS/CHATGPT-PLANNER-INSTRUCTIONS.v1.md
 - docs/OPERATIONS/RUN-CARD-TEMPLATE.v1.md
 - docs/OPERATIONS/NEW-CHAT-BOOTSTRAP.v1.md
+- docs/OPERATIONS/north_star_criteria_packs.v1.json
 ## Schemas (SSOT)
 - schemas/advisor-suggestions.schema.json
 - schemas/airunner-heartbeat.schema.v1.json

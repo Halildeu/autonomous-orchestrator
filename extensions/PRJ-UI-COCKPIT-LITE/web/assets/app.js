@@ -4,12 +4,33 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const SIDEBAR_STORAGE_KEY = "cockpit_lite_sidebar_collapsed_v1";
 const SIDEBAR_COLLAPSED_CLASS = "sidebar-collapsed";
 const NORTH_STAR_FINDINGS_ALL_LENSES_KEY = "__ALL_LENSES__";
-const ADMIN_REQUIRED_OPS = new Set(["overrides-write"]);
+const ADMIN_REQUIRED_OPS = new Set(["overrides-write", "work-intake-purpose-generate", "planner-chat-send-llm"]);
 const ADMIN_REQUIRED_ACTIONS = new Set(["run-card-set", "extension-toggle", "settings-set-override"]);
 const ADMIN_REQUIRED_ELEMENT_IDS = new Set(["settings-save", "run-card-save"]);
 const LANG_STORAGE_KEY = "cockpit_lang.v1";
+const CHAT_SELECTION_STORAGE_KEY = "cockpit_planner_chat_selection.v1";
 const SUPPORTED_LANGS = ["en", "tr"];
 const OP_JOB_POLLING = new Set();
+const GITHUB_OPS_POLL_ACTIVE_MS = 15000;
+const GITHUB_OPS_POLL_IDLE_MS = 60000;
+const GITHUB_OPS_STALE_MS = 3 * 60 * 1000;
+const CHAT_MODEL_GROUPS = {
+  FAST_TEXT: { label: "FAST_TEXT", provider_order: ["openai", "google", "claude", "deepseek", "qwen", "xai"] },
+  BALANCED_TEXT: { label: "BALANCED_TEXT", provider_order: ["qwen", "deepseek", "openai", "google", "claude", "xai"] },
+  REASONING_TEXT: { label: "REASONING_TEXT", provider_order: ["xai", "openai", "google", "claude", "deepseek", "qwen"] },
+  CODE_AGENTIC: { label: "CODE_AGENTIC", provider_order: ["openai", "xai", "qwen", "deepseek"] },
+  GOVERNANCE_ASSURANCE: { label: "GOVERNANCE_ASSURANCE", provider_order: ["claude", "openai", "google", "qwen", "deepseek"] },
+  VISION_MM: { label: "VISION_MM", provider_order: ["openai", "google", "claude", "qwen", "xai"] },
+  OCR_DOC: { label: "OCR_DOC", provider_order: ["qwen", "google", "openai"] },
+  VISION_REASONING: { label: "VISION_REASONING", provider_order: ["qwen", "openai", "google", "claude"] },
+  IMAGE_GEN: { label: "IMAGE_GEN", provider_order: ["openai", "google", "xai", "qwen"] },
+  VIDEO_GEN: { label: "VIDEO_GEN", provider_order: ["openai", "google", "xai"] },
+  AUDIO: { label: "AUDIO", provider_order: ["openai", "google", "xai"] },
+  REALTIME_STREAMING: { label: "REALTIME_STREAMING", provider_order: ["openai", "google", "xai"] },
+  EMBEDDINGS: { label: "EMBEDDINGS", provider_order: ["openai", "google", "qwen", "xai"] },
+  MODERATION_SAFETY: { label: "MODERATION_SAFETY", provider_order: ["openai", "google"] },
+  DEEP_RESEARCH: { label: "DEEP_RESEARCH", provider_order: ["openai", "google"] },
+};
 
 const I18N = {
   en: {
@@ -60,6 +81,10 @@ const I18N = {
     "h.auto_loop": "Auto-loop",
     "h.airunner_jobs": "Airrunner Jobs",
     "h.github_ops_jobs": "GitHub Ops Jobs",
+    "jobs.freshness_fresh": "GitHub Ops updated {age} ago",
+    "jobs.freshness_stale": "GitHub Ops stale ({age} ago)",
+    "jobs.freshness_missing": "GitHub Ops freshness unknown",
+    "jobs.freshness_unknown": "unknown",
     "h.loop_lock": "Loop Lock",
     "h.run_card": "Run-Card",
     "h.planner_threads": "Planner Threads",
@@ -89,6 +114,8 @@ const I18N = {
     "actions.copy_failed": "Copy failed",
     "actions.open": "Open",
     "actions.view": "View",
+    "actions.chat_view": "Chat view",
+    "actions.list_view": "List view",
     "actions.copy": "Copy",
     "actions.edit": "Edit",
     "actions.enable": "Enable",
@@ -98,6 +125,9 @@ const I18N = {
     "common.off": "off",
     "common.sample_parens": " (sample)",
     "common.unknown": "(unknown)",
+    "chat.role.user": "You",
+    "chat.role.assistant": "Assistant",
+    "chat.thinking": "Assistant is typing...",
     "error.unknown": "unknown error",
     "state.enabled": "enabled",
     "state.disabled": "disabled",
@@ -163,7 +193,7 @@ const I18N = {
     "north_star.detail.requirements": "Requirements",
     "north_star.detail.subscores": "Subscores",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "Use “Lens Findings” below to browse per-item matches and evidence pointers (lens-by-lens, topic-by-topic).",
+    "north_star.detail.lens_findings_hint": "Use “Lens Findings” to browse per-item matches; Catalog shows Reference/BP sources.",
     "north_star.detail.evidence_expectations": "Evidence expectations",
     "north_star.detail.remediation_ideas": "Remediation ideas",
     "job.poll_failed": "Job poll failed: {error}",
@@ -217,6 +247,23 @@ const I18N = {
     "sidebar.last_change": "last change: {ts}",
     "intake.field.topic": "Topic",
     "intake.field.why": "Why",
+    "intake.field.purpose": "Purpose",
+    "intake.field.necessity": "Necessity",
+    "intake.field.compatibility": "Compatibility",
+    "intake.field.why_required": "Why needed",
+    "intake.field.implementation_note": "Implementation note",
+    "intake.field.system_impact": "System impact",
+    "intake.field.benefit": "Benefit",
+    "intake.field.roi": "ROI",
+    "intake.purpose.fallback_missing": "Not set (curation needed)",
+    "intake.purpose.fallback_unknown": "Unknown",
+    "intake.purpose.generate": "Generate purposes (AI)",
+    "intake.purpose.generate_hint": "Missing only · OPEN scope · OpenAI",
+    "intake.purpose.generate_selected": "Generate for selected",
+    "intake.purpose.generate_selected_hint": "Selected item only",
+    "intake.purpose.report.title": "Purpose generation report",
+    "intake.purpose.report.none": "No report yet.",
+    "intake.purpose.report.view": "View report",
     "intake.field.bucket": "Bucket",
     "intake.field.status": "Status",
     "intake.field.priority": "Priority",
@@ -278,17 +325,38 @@ const I18N = {
     "overview.next.no_intake": "No intake items. Check sources.",
     "overview.next.no_blockers": "No immediate blockers. Consider auto-loop or new intake.",
     "north_star.all_lenses": "All lenses",
+    "north_star.lens_details_hint": "Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.",
     "north_star.select_lens_hint": "Select a lens to explore findings.",
+    "north_star.mechanisms.title": "Theme / Subtheme Catalog",
+    "north_star.mechanisms.empty": "No mechanisms registry loaded.",
+    "north_star.mechanisms.meta": "subjects={count}",
+    "north_star.findings.search_placeholder": "Search findings (id/title/criterion/tag/reason)",
+    "north_star.filter.subject.label": "Subject",
+    "north_star.filter.subject.placeholder": "Select subject",
+    "north_star.filter.perspective.label": "Perspective",
+    "north_star.filter.perspective.placeholder": "Select perspective",
+    "north_star.filter.theme.label": "Theme",
+    "north_star.filter.theme.placeholder": "Select theme",
+    "north_star.filter.subtheme.label": "Subtheme",
+    "north_star.filter.subtheme.placeholder": "Select subtheme",
+    "north_star.filter.topic.label": "Criterion/Axis",
+    "north_star.filter.topic.placeholder": "Select criterion",
+    "north_star.filter.catalog.label": "Catalog (Reference/BP)",
+    "north_star.filter.catalog.placeholder": "(optional)",
+    "north_star.filter.match.label": "Trigger Status",
+    "north_star.filter.match.placeholder": "Triggered only (default)",
+    "actions.reset_filters": "Reset",
     "north_star.no_findings": "(no findings)",
     "north_star.unknown": "(unknown)",
-    "north_star.table.lens": "Lens",
+    "north_star.table.lens": "Lens (Evaluation pack)",
     "north_star.table.match": "Match",
-    "north_star.table.topic": "Topic",
+    "north_star.table.subject": "Subject",
+    "north_star.table.topic": "Criterion/Axis",
     "north_star.table.domain": "Domain",
     "north_star.table.title": "Title",
     "north_star.table.theme": "Tema (Theme)",
     "north_star.table.subtheme": "Alt Tema (Subtheme)",
-    "north_star.table.catalog": "Catalog",
+    "north_star.table.catalog": "Catalog (Reference/BP)",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Reasons",
     "north_star.table.evidence": "Evidence",
@@ -296,7 +364,9 @@ const I18N = {
     "north_star.catalog.reference": "Referans (Reference)",
     "north_star.catalog.capability": "Yapı Taşı (Capability)",
     "north_star.catalog.criterion": "Kriter (Criterion)",
-    "north_star.preset.custom": "Custom (manual selection)",
+    "north_star.perspective.locked_topics": "Perspective pack locked",
+    "north_star.perspective.locked_hint": "Perspective pack is locked; topics are fixed.",
+    "north_star.preset.custom": "Filter set (manual selection)",
     "north_star.preset.all": "All (no topic filter)",
     "north_star.preset.ethics_compliance": "Ethics & Compliance",
     "north_star.preset.compliance_control": "Compliance / risk / assurance / control",
@@ -380,6 +450,10 @@ const I18N = {
     "h.auto_loop": "Oto Döngü",
     "h.airunner_jobs": "Airrunner İşleri",
     "h.github_ops_jobs": "GitHub Ops İşleri",
+    "jobs.freshness_fresh": "GitHub Ops güncellendi: {age} önce",
+    "jobs.freshness_stale": "GitHub Ops eski ({age} önce)",
+    "jobs.freshness_missing": "GitHub Ops güncellik bilgisi yok",
+    "jobs.freshness_unknown": "bilinmiyor",
     "h.loop_lock": "Döngü Kilidi",
     "h.run_card": "Koşu Kartı",
     "h.planner_threads": "Planlayıcı Thread'leri",
@@ -409,6 +483,8 @@ const I18N = {
     "actions.copy_failed": "Kopyalama başarısız",
     "actions.open": "Aç",
     "actions.view": "Görüntüle",
+    "actions.chat_view": "Sohbet görünümü",
+    "actions.list_view": "Liste görünümü",
     "actions.copy": "Kopyala",
     "actions.edit": "Düzenle",
     "actions.enable": "Etkinleştir",
@@ -418,6 +494,9 @@ const I18N = {
     "common.off": "kapalı",
     "common.sample_parens": " (örnek)",
     "common.unknown": "(bilinmiyor)",
+    "chat.role.user": "Sen",
+    "chat.role.assistant": "Asistan",
+    "chat.thinking": "Asistan yazıyor...",
     "error.unknown": "bilinmeyen hata",
     "state.enabled": "etkin",
     "state.disabled": "devre dışı",
@@ -483,7 +562,7 @@ const I18N = {
     "north_star.detail.requirements": "Gereksinimler",
     "north_star.detail.subscores": "Alt skorlar",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "Aşağıdaki “Lens Bulguları” ile bulgu eşleşmelerini ve kanıt işaretçilerini gezebilirsiniz (lens lens, konu konu).",
+    "north_star.detail.lens_findings_hint": "“Lens Bulguları” ile bulguları incele; Katalog sütunu Referans/BP kaynaklarını gösterir.",
     "north_star.detail.evidence_expectations": "Kanıt beklentileri",
     "north_star.detail.remediation_ideas": "İyileştirme fikirleri",
     "job.poll_failed": "İş takibi başarısız: {error}",
@@ -537,6 +616,23 @@ const I18N = {
     "sidebar.last_change": "son değişiklik: {ts}",
     "intake.field.topic": "Konu",
     "intake.field.why": "Neden",
+    "intake.field.purpose": "Amaç",
+    "intake.field.necessity": "Gereklilik",
+    "intake.field.compatibility": "Uyumluluk",
+    "intake.field.why_required": "Neden gerekli",
+    "intake.field.implementation_note": "Uygulama notu",
+    "intake.field.system_impact": "Sistem etkisi",
+    "intake.field.benefit": "Getiri / Fayda",
+    "intake.field.roi": "ROI (geri dönüş)",
+    "intake.purpose.fallback_missing": "Belirtilmemiş (düzenleme gerekli)",
+    "intake.purpose.fallback_unknown": "Bilinmiyor",
+    "intake.purpose.generate": "Amaçları üret (AI)",
+    "intake.purpose.generate_hint": "Yalnız eksikler · OPEN scope · OpenAI",
+    "intake.purpose.generate_selected": "Seçili iş için üret",
+    "intake.purpose.generate_selected_hint": "Yalnızca seçili iş",
+    "intake.purpose.report.title": "Amaç üretim raporu",
+    "intake.purpose.report.none": "Henüz rapor yok.",
+    "intake.purpose.report.view": "Raporu görüntüle",
     "intake.field.bucket": "Kategori",
     "intake.field.status": "Durum",
     "intake.field.priority": "Öncelik",
@@ -598,17 +694,37 @@ const I18N = {
     "overview.next.no_intake": "İş alımı öğesi yok. Kaynakları kontrol edin.",
     "overview.next.no_blockers": "Acil engel yok. Oto döngü veya yeni intake düşünebilirsiniz.",
     "north_star.all_lenses": "Tüm lensler",
+    "north_star.lens_details_hint": "Detayları görmek için bir lensi genişletin. Aşağıdaki “Lens Bulguları” ile lensler arasında bulguları (eşleşme + kanıt işaretçileri) keşfedin.",
     "north_star.select_lens_hint": "Bulgu keşfi için bir lens seçin.",
+    "north_star.mechanisms.title": "Tema / Alt Tema Kataloğu",
+    "north_star.mechanisms.empty": "Mekanizma kaydı yüklenmedi.",
+    "north_star.mechanisms.meta": "konu_sayısı={count}",
+    "north_star.findings.search_placeholder": "Bulgu ara (id/başlık/kriter/etiket/gerekçe)",
+    "north_star.filter.subject.label": "Konu",
+    "north_star.filter.subject.placeholder": "Konu seç",
+    "north_star.filter.perspective.label": "Bakış",
+    "north_star.filter.perspective.placeholder": "Bakış seç",
+    "north_star.filter.theme.label": "Tema",
+    "north_star.filter.theme.placeholder": "Tema seç",
+    "north_star.filter.subtheme.label": "Alt tema",
+    "north_star.filter.subtheme.placeholder": "Alt tema seç",
+    "north_star.filter.topic.label": "Kriter/Eksen",
+    "north_star.filter.topic.placeholder": "Kriter seç",
+    "north_star.filter.catalog.label": "Katalog (Referans/BP)",
+    "north_star.filter.catalog.placeholder": "(opsiyonel)",
+    "north_star.filter.match.label": "Tetiklenme",
+    "north_star.filter.match.placeholder": "Yalnız tetiklenen (varsayılan)",
     "north_star.no_findings": "(bulgu yok)",
     "north_star.unknown": "(bilinmiyor)",
-    "north_star.table.lens": "Lens",
+    "north_star.table.lens": "Lens (Değerlendirme paketi)",
     "north_star.table.match": "Eşleşme",
-    "north_star.table.topic": "Konu",
+    "north_star.table.subject": "Konu/Subject",
+    "north_star.table.topic": "Kriter/Eksen",
     "north_star.table.domain": "Alan",
     "north_star.table.title": "Başlık",
     "north_star.table.theme": "Tema (Theme)",
     "north_star.table.subtheme": "Alt Tema (Subtheme)",
-    "north_star.table.catalog": "Katalog",
+    "north_star.table.catalog": "Katalog (Referans/BP)",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Gerekçeler",
     "north_star.table.evidence": "Kanıt",
@@ -616,12 +732,15 @@ const I18N = {
     "north_star.catalog.reference": "Referans (Reference)",
     "north_star.catalog.capability": "Yapı Taşı (Capability)",
     "north_star.catalog.criterion": "Kriter (Criterion)",
-    "north_star.preset.custom": "Özel (manuel seçim)",
+    "north_star.perspective.locked_topics": "Bakış seti kilitli",
+    "north_star.perspective.locked_hint": "Bakış seti kilitli; kriterler sabittir.",
+    "north_star.preset.custom": "Filtre seti (manuel seçim)",
     "north_star.preset.all": "Tümü (konu filtresi yok)",
     "north_star.preset.ethics_compliance": "Etik & Uyum",
     "north_star.preset.compliance_control": "Uyum / risk / güvence / kontrol",
     "north_star.preset.context_alignment": "Bağlam uyumu",
     "north_star.preset.sustainability_ethics": "Sürdürülebilirlik & Etik",
+    "actions.reset_filters": "Sıfırla",
     "composer.run_confirm": "Çalıştır (onay)",
     "composer.allowlist_hint": "Sadece allowlist. Yanıtlar mevcut thread altında sistem notu olarak saklanır.",
     "composer.no_response_yet": "henüz yanıt yok",
@@ -728,6 +847,20 @@ const endpoints = {
   extensionToggle: "/api/extensions/toggle",
 };
 
+const intakePurposePath = ".cache/ws_customer_default/.cache/index/work_intake_purpose.v1.json";
+const intakePurposeReportPath = ".cache/ws_customer_default/.cache/reports/work_intake_purpose_generate.v0.1.json";
+const intakePurposeReportMdPath = ".cache/ws_customer_default/.cache/reports/work_intake_purpose_generate.v0.1.md";
+const chatProvidersRegistryPath = ".cache/ws_customer_default/.cache/providers/providers.v1.json";
+const chatProviderAllowlistPath = ".cache/ws_customer_default/.cache/providers/provider_policy.v1.json";
+const chatProviderPolicyWorkspacePath = ".cache/ws_customer_default/policies/policy_llm_providers_guardrails.v1.json";
+const chatProviderPolicyRepoPath = "policies/policy_llm_providers_guardrails.v1.json";
+const chatClassRegistryWorkspacePath = ".cache/ws_customer_default/.cache/index/llm_class_registry.v1.json";
+const chatClassRegistryPath = "docs/OPERATIONS/llm_class_registry.v1.json";
+const chatProviderMapWorkspacePath = ".cache/ws_customer_default/.cache/index/llm_provider_map.v1.json";
+const chatProviderMapPath = "docs/OPERATIONS/llm_provider_map.v1.json";
+const northStarCriteriaPacksPath = "docs/OPERATIONS/north_star_criteria_packs.v1.json";
+const northStarMechanismsRegistryPath = ".cache/ws_customer_default/.cache/index/mechanisms.registry.v1.json";
+
 const state = {
   lang: "tr",
   ws: null,
@@ -738,6 +871,8 @@ const state = {
   northStarFindingsLensName: "",
   northStarFindingSelected: null,
   northStarCatalogIndex: null,
+  northStarCriteriaPacks: null,
+  northStarMechanismsRegistry: null,
   northStarFindingsJoinStats: null,
   status: null,
   snapshot: null,
@@ -749,11 +884,34 @@ const state = {
   intakeInlineTab: {},
   intakeEvidencePath: null,
   intakeEvidencePreview: null,
+  intakePurposeIndex: null,
+  intakePurposeIndexError: null,
+  intakePurposeLoadedAt: null,
+  intakePurposeReport: null,
+  intakePurposeReportError: null,
+  intakePurposeReportLoadedAt: null,
   intakeLinkedNotes: null,
   intakeLinkedNotesLoading: false,
   intakeLinkedNotesError: null,
   intakeClaimPending: false,
   intakeClosePending: false,
+  notesView: "chat",
+  chatProfile: "",
+  chatProfileOptions: null,
+  chatProvider: "",
+  chatModel: "",
+  chatProviderRegistry: null,
+  chatProviderRegistryError: null,
+  chatProviderClassMap: null,
+  chatProviderClassMeta: null,
+  chatPending: null,
+  chatStreamNoteId: null,
+  chatStreamText: "",
+  chatStreamIndex: 0,
+  chatStreamTimer: null,
+  chatStreamThread: "",
+  chatLastAssistantNoteId: null,
+  chatStreamItems: null,
   claimOwnerTag: null,
   decisions: null,
   extensions: null,
@@ -763,6 +921,9 @@ const state = {
   overridesSelected: null,
   jobs: null,
   airunnerJobs: null,
+  githubOpsPollInFlight: false,
+  githubOpsPollFailures: 0,
+  githubOpsAutoPollTimer: null,
   locks: null,
   cockpitDecisionArtifacts: {
     ok: false,
@@ -827,10 +988,14 @@ const state = {
     northStarFindings: {
       search: "",
       preset: "CUSTOM",
-      domain: [],
+      perspective: [],
+      subject: [],
       topic: [],
+      theme: [],
+      subtheme: [],
       match: ["TRIGGERED"],
       catalog: [],
+      topic_locked_by_perspective: false,
     },
   },
   filterOptions: {
@@ -841,8 +1006,11 @@ const state = {
       extension: [],
     },
     northStarFindings: {
-      domain: [],
+      perspective: [],
+      subject: [],
       topic: [],
+      theme: [],
+      subtheme: [],
       match: ["TRIGGERED", "NOT_TRIGGERED", "UNKNOWN"],
       catalog: ["trend", "bp", "lens"],
     },
@@ -879,6 +1047,26 @@ async function fetchJson(url) {
     throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}${hint}`);
   }
   return data;
+}
+
+async function fetchNorthStarCriteriaPacks() {
+  try {
+    const data = await fetchOptionalJson(northStarCriteriaPacksPath);
+    return unwrap(data || {});
+  } catch (err) {
+    showToast(t("toast.refresh_failed", { name: "north_star_criteria_packs", error: formatError(err) }), "warn");
+    return null;
+  }
+}
+
+async function fetchNorthStarMechanismsRegistry() {
+  try {
+    const data = await fetchOptionalJson(northStarMechanismsRegistryPath);
+    return unwrap(data || {});
+  } catch (err) {
+    showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_registry", error: formatError(err) }), "warn");
+    return null;
+  }
 }
 
 function setBadge(el, status) {
@@ -1093,6 +1281,7 @@ function applyI18n() {
   applyAdminModeToWriteControls();
   renderActionLog();
   renderActionResponse();
+  updateGithubOpsFreshnessIndicator();
 }
 
 function rehydrateNorthStarTopicFilters() {
@@ -1167,6 +1356,17 @@ function applyAdminModeToWriteControls() {
     runCardSave.title = admin ? t("admin.save_run_card") : t("admin.save_run_card_disabled");
   }
 
+  const purposeGenerate = $("#intake-purpose-generate");
+  if (purposeGenerate) {
+    purposeGenerate.disabled = disabled;
+    purposeGenerate.title = admin ? t("intake.purpose.generate") : t("admin.required_op");
+  }
+  const purposeGenerateSelected = $("#intake-purpose-generate-selected");
+  if (purposeGenerateSelected) {
+    purposeGenerateSelected.disabled = disabled;
+    purposeGenerateSelected.title = admin ? t("intake.purpose.generate_selected") : t("admin.required_op");
+  }
+
   $$("[data-ext-toggle]").forEach((btn) => {
     btn.disabled = disabled;
     if (!admin) btn.title = t("admin.toggle_extensions_disabled");
@@ -1219,6 +1419,170 @@ function summarizeIntakeWhy(item) {
     return t("intake.why.derived_from", { source: item.source_type });
   }
   return t("intake.why.no_rationale");
+}
+
+function normalizeIntakePurposeIndex(payload) {
+  const raw = unwrap(payload || {});
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  const byId = {};
+  const byShort = {};
+  items.forEach((item) => {
+    const id = String(item?.intake_id || "").trim();
+    const shortId = String(item?.intake_short_id || "").trim();
+    if (id) byId[id] = item;
+    if (shortId) byShort[shortId] = item;
+  });
+  return {
+    items,
+    byId,
+    byShort,
+    loaded_at: new Date().toISOString(),
+    source_path: intakePurposePath,
+  };
+}
+
+function pickLocalizedField(record, baseKey) {
+  if (!record) return "";
+  const direct = record[baseKey];
+  if (direct) return String(direct);
+  const lang = state.lang === "en" ? "en" : "tr";
+  const localized = record[`${baseKey}_${lang}`] || record[`${baseKey}_tr`] || record[`${baseKey}_en`];
+  return localized ? String(localized) : "";
+}
+
+function getIntakePurposeRecord(intakeId) {
+  const id = String(intakeId || "").trim();
+  if (!id) return null;
+  const index = state.intakePurposeIndex || {};
+  if (index.byId && index.byId[id]) return index.byId[id];
+  const shortId = shortIntakeId(id);
+  if (shortId && index.byShort && index.byShort[shortId]) return index.byShort[shortId];
+  return null;
+}
+
+function buildPurposeFallback(item) {
+  const topic = summarizeIntakeTopic(item);
+  const why = summarizeIntakeWhy(item);
+  const missing = t("intake.purpose.fallback_missing");
+  const unknown = t("intake.purpose.fallback_unknown");
+  return {
+    purpose: String(item?.title || topic || "-").trim() || missing,
+    necessity: missing,
+    compatibility: missing,
+    why_required: why || unknown,
+    implementation_note: missing,
+    system_impact: unknown,
+    benefit: unknown,
+    roi: unknown,
+  };
+}
+
+function formatPurposeField(record, baseKey) {
+  const value = pickLocalizedField(record, baseKey);
+  return value ? value : "-";
+}
+
+async function refreshIntakePurposeIndex() {
+  try {
+    const payload = await fetchJson(`${endpoints.file}?path=${encodeURIComponent(intakePurposePath)}`);
+    state.intakePurposeIndex = normalizeIntakePurposeIndex(payload);
+    state.intakePurposeIndexError = null;
+    state.intakePurposeLoadedAt = state.intakePurposeIndex.loaded_at;
+  } catch (err) {
+    state.intakePurposeIndex = null;
+    state.intakePurposeIndexError = err;
+    state.intakePurposeLoadedAt = new Date().toISOString();
+  }
+}
+
+async function refreshIntakePurposeReport() {
+  try {
+    const payload = await fetchJson(`${endpoints.file}?path=${encodeURIComponent(intakePurposeReportPath)}`);
+    state.intakePurposeReport = unwrap(payload || {});
+    state.intakePurposeReportError = null;
+    state.intakePurposeReportLoadedAt = state.intakePurposeReport.generated_at || new Date().toISOString();
+  } catch (err) {
+    state.intakePurposeReport = null;
+    state.intakePurposeReportError = err;
+    state.intakePurposeReportLoadedAt = new Date().toISOString();
+  }
+}
+
+function renderIntakePurposeMeta() {
+  const meta = $("#intake-purpose-generate-meta");
+  if (!meta) return;
+  const hint = t("intake.purpose.generate_hint");
+  const loadedAt = formatTimestamp(state.intakePurposeLoadedAt) || "-";
+  const total = state.intakePurposeIndex?.items?.length ?? 0;
+  const errorFlag = state.intakePurposeIndexError ? " | error" : "";
+  meta.textContent = `${hint} | loaded_at=${loadedAt} | items=${total}${errorFlag}`;
+}
+
+function renderIntakePurposeReport() {
+  const titleEl = $("#intake-purpose-report-title");
+  const metaEl = $("#intake-purpose-report-meta");
+  const summaryEl = $("#intake-purpose-report-summary");
+  if (titleEl) titleEl.textContent = t("intake.purpose.report.title");
+  if (!metaEl || !summaryEl) return;
+
+  const report = state.intakePurposeReport;
+  if (!report || typeof report !== "object") {
+    metaEl.textContent = t("intake.purpose.report.none");
+    summaryEl.textContent = "";
+    return;
+  }
+
+  const generatedAt = formatTimestamp(report.generated_at) || "-";
+  const status = String(report.status || "UNKNOWN").toUpperCase();
+  const processed = Number.isFinite(Number(report.processed)) ? Number(report.processed) : 0;
+  const created = Number.isFinite(Number(report.created)) ? Number(report.created) : 0;
+  const skipped = Number.isFinite(Number(report.skipped)) ? Number(report.skipped) : 0;
+  const failures = Array.isArray(report.failures) ? report.failures.length : 0;
+  const provider = String(report.provider_id || "-");
+  const model = String(report.model || "-");
+
+  metaEl.textContent = `status=${status} generated_at=${generatedAt}`;
+  summaryEl.textContent = `processed=${processed} created=${created} skipped=${skipped} failures=${failures} provider=${provider} model=${model}`;
+}
+
+async function generateIntakePurposeAll() {
+  if (state.actionPending) return;
+  if (!isAdminModeEnabled()) {
+    showToast(t("admin.required_op"), "warn");
+    return;
+  }
+  const args = {
+    mode: "missing_only",
+    status: "OPEN",
+    provider_id: "openai",
+    model: "",
+    limit: "50",
+    dry_run: "false",
+  };
+  await postOp("work-intake-purpose-generate", args);
+}
+
+async function generateIntakePurposeSelected() {
+  if (state.actionPending) return;
+  if (!isAdminModeEnabled()) {
+    showToast(t("admin.required_op"), "warn");
+    return;
+  }
+  const intakeId = String(state.intakeSelectedId || "").trim();
+  if (!intakeId) {
+    showToast(t("toast.select_intake_first"), "warn");
+    return;
+  }
+  const args = {
+    intake_id: intakeId,
+    mode: "single",
+    status: "",
+    provider_id: "openai",
+    model: "",
+    limit: "1",
+    dry_run: "false",
+  };
+  await postOp("work-intake-purpose-generate", args);
 }
 
 function clearIntakeSelection() {
@@ -1775,11 +2139,28 @@ function renderIntakeDetail(item) {
   const why = summarizeIntakeWhy(item);
   const evidencePaths = Array.isArray(item.evidence_paths) ? item.evidence_paths.map(String) : [];
   const shortId = shortIntakeId(item.intake_id);
+  const purposeRecord = getIntakePurposeRecord(item.intake_id) || buildPurposeFallback(item);
+  const purpose = formatPurposeField(purposeRecord, "purpose");
+  const necessity = formatPurposeField(purposeRecord, "necessity");
+  const compatibility = formatPurposeField(purposeRecord, "compatibility");
+  const whyRequired = formatPurposeField(purposeRecord, "why_required");
+  const implementationNote = formatPurposeField(purposeRecord, "implementation_note");
+  const systemImpact = formatPurposeField(purposeRecord, "system_impact");
+  const benefit = formatPurposeField(purposeRecord, "benefit");
+  const roi = formatPurposeField(purposeRecord, "roi");
 
   meta.innerHTML = `${`<span class="intake-short-id">ID: ${escapeHtml(shortId || "-")}</span>`} | ${`<span class="intake-short-id">intake_id: ${escapeHtml(item.intake_id || "-")}</span>`} | ${escapeHtml(topic)}`;
   renderKeyValueGrid(fields, [
     [t("intake.field.topic"), topic],
     [t("intake.field.why"), why],
+    [t("intake.field.purpose"), purpose],
+    [t("intake.field.necessity"), necessity],
+    [t("intake.field.compatibility"), compatibility],
+    [t("intake.field.why_required"), whyRequired],
+    [t("intake.field.implementation_note"), implementationNote],
+    [t("intake.field.system_impact"), systemImpact],
+    [t("intake.field.benefit"), benefit],
+    [t("intake.field.roi"), roi],
     [t("intake.field.bucket"), item.bucket],
     [t("intake.field.status"), item.status],
     [t("intake.field.priority"), item.priority],
@@ -1859,6 +2240,56 @@ function pickTimestamp(item, keys) {
     if (value) return value;
   }
   return "";
+}
+
+function parseTimestampMs(value) {
+  if (!value) return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 1e12 ? value * 1000 : value;
+  }
+  const asString = String(value || "");
+  if (/^\d+$/.test(asString)) {
+    const num = Number(asString);
+    return Number.isFinite(num) ? (num < 1e12 ? num * 1000 : num) : null;
+  }
+  const date = new Date(asString);
+  const ms = date.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function formatAgeShort(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return t("jobs.freshness_unknown");
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  return `${hr}h`;
+}
+
+function getGithubOpsFreshness() {
+  const data = unwrap(state.jobs || {});
+  const raw = pickTimestamp(data, ["generated_at", "updated_at", "ts", "timestamp"]);
+  const ms = parseTimestampMs(raw);
+  const now = Date.now();
+  if (!ms) return { status: "missing", ageMs: null };
+  const ageMs = Math.max(0, now - ms);
+  const status = ageMs > GITHUB_OPS_STALE_MS ? "stale" : "fresh";
+  return { status, ageMs };
+}
+
+function updateGithubOpsFreshnessIndicator() {
+  const el = $("#github-jobs-freshness");
+  if (!el) return;
+  const { status, ageMs } = getGithubOpsFreshness();
+  el.dataset.status = status;
+  const ageText = ageMs === null ? t("jobs.freshness_unknown") : formatAgeShort(ageMs);
+  let title = "";
+  if (status === "fresh") title = t("jobs.freshness_fresh", { age: ageText });
+  else if (status === "stale") title = t("jobs.freshness_stale", { age: ageText });
+  else title = t("jobs.freshness_missing");
+  el.setAttribute("title", title);
+  el.setAttribute("aria-label", title);
 }
 
 function normalizeKey(value) {
@@ -2487,6 +2918,147 @@ function normalizeNorthStarFindingTopic(value) {
   return `${label} (${raw})`;
 }
 
+function getNorthStarCriteriaPack() {
+  const pack = state.northStarCriteriaPacks;
+  return pack && typeof pack === "object" ? pack : null;
+}
+
+function getNorthStarPerspectiveSet(perspectiveId) {
+  const pack = getNorthStarCriteriaPack();
+  if (!pack) return null;
+  const core = Array.isArray(pack.core_8) ? pack.core_8 : [];
+  const packs = pack.perspective_packs && typeof pack.perspective_packs === "object" ? pack.perspective_packs : {};
+  const entry = packs[String(perspectiveId || "")] || null;
+  const extra = entry && Array.isArray(entry.criteria) ? entry.criteria : [];
+  const merged = [];
+  const seen = new Set();
+  [...core, ...extra].forEach((axis) => {
+    const key = normalizeKey(axis);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(String(axis));
+  });
+  return { criteria: merged, meta: entry || null };
+}
+
+function getNorthStarPerspectiveOptions() {
+  const pack = getNorthStarCriteriaPack();
+  const packs = pack && typeof pack.perspective_packs === "object" ? pack.perspective_packs : {};
+  const keys = NORTH_STAR_PERSPECTIVE_ORDER.filter((key) => packs[key]);
+  const fallbackKeys = Object.keys(packs || {}).filter((k) => !keys.includes(k)).sort((a, b) => a.localeCompare(b));
+  const allKeys = [...keys, ...fallbackKeys];
+  return allKeys.map((key) => {
+    const entry = packs[key] || {};
+    const tr = String(entry.label_tr || key);
+    const en = String(entry.label_en || tr);
+    const label = tr && en && tr !== en ? `${tr} (${en})` : tr;
+    return { id: String(key), label };
+  });
+}
+
+function getNorthStarPerspectiveCriteriaUnion(perspectives) {
+  const list = Array.isArray(perspectives) ? perspectives : [];
+  const merged = [];
+  const seen = new Set();
+  list.forEach((id) => {
+    const set = getNorthStarPerspectiveSet(id);
+    if (!set || !Array.isArray(set.criteria)) return;
+    set.criteria.forEach((axis) => {
+      const key = normalizeKey(axis);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(String(axis));
+    });
+  });
+  return merged;
+}
+
+function applyNorthStarPerspectiveCriteria(perspectiveIds) {
+  const selected = Array.isArray(perspectiveIds)
+    ? perspectiveIds.map((p) => String(p || "").trim()).filter((p) => p)
+    : [];
+  state.filters.northStarFindings.perspective = selected;
+  if (!selected.length) {
+    state.filters.northStarFindings.topic_locked_by_perspective = false;
+    if (Array.isArray(state.filterOptions.northStarFindings.topic_unlocked)) {
+      state.filterOptions.northStarFindings.topic = state.filterOptions.northStarFindings.topic_unlocked.slice();
+    }
+    return;
+  }
+  const criteria = getNorthStarPerspectiveCriteriaUnion(selected);
+  const normalized = criteria
+    .map((axis) => normalizeNorthStarFindingTopic(axis))
+    .map((axis) => String(axis || "").trim())
+    .filter((axis) => Boolean(axis));
+  state.filterOptions.northStarFindings.topic = normalized;
+  state.filters.northStarFindings.topic_locked_by_perspective = true;
+}
+
+function normalizeNorthStarFindingSubject(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return t("north_star.unknown");
+  return raw;
+}
+
+function getMechanismsSubjectLabel(subjectId) {
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  const target = subjects.find((entry) => String(entry?.subject_id || "").trim() === String(subjectId || "").trim());
+  if (!target) return "";
+  if (String(subjectId) === "ethics_program") return "Etik Programı (ethics_program)";
+  return formatTrEnLabel(target?.subject_title_tr, target?.subject_title_en, subjectId);
+}
+
+function renderNorthStarMechanisms() {
+  const container = $("#north-star-mechanisms");
+  const meta = $("#north-star-mechanisms-meta");
+  if (!container) return;
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  const visibleSubjects = subjects.filter(
+    (subject) => !["DEPRECATED", "HIDDEN"].includes(String(subject?.status || "").toUpperCase())
+  );
+  if (meta) meta.textContent = t("north_star.mechanisms.meta", { count: String(visibleSubjects.length) });
+  if (!visibleSubjects.length) {
+    container.innerHTML = `<div class="subtle">${escapeHtml(t("north_star.mechanisms.empty"))}</div>`;
+    return;
+  }
+  const blocks = visibleSubjects
+    .map((subject) => {
+      const subjectId = String(subject?.subject_id || "").trim();
+      const subjectLabel = formatTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId || t("north_star.unknown"));
+      const status = String(subject?.status || "").toUpperCase() || "UNKNOWN";
+      const themes = Array.isArray(subject?.themes) ? subject.themes : [];
+      const themeBlocks = themes
+        .map((theme) => {
+          const themeLabel = formatTrEnLabel(
+            theme?.title_tr || theme?.theme_title_tr,
+            theme?.title_en || theme?.theme_title_en,
+            theme?.theme_id
+          );
+          const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
+          const subList = subthemes
+            .map((sub) => {
+              const subLabel = formatTrEnLabel(sub?.title_tr || sub?.subtheme_title_tr, sub?.title_en || sub?.subtheme_title_en, sub?.subtheme_id);
+              return `<li>${escapeHtml(subLabel || t("north_star.unknown"))}</li>`;
+            })
+            .join("");
+          const def = theme?.definition_tr || theme?.definition_en || "";
+          return `<details><summary><strong>${escapeHtml(themeLabel || t("north_star.unknown"))}</strong> <span class="subtle">(${subthemes.length})</span></summary>${def ? `<div class="subtle">${escapeHtml(def)}</div>` : ""}${subList ? `<ul class="subtle">${subList}</ul>` : `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}</details>`;
+        })
+        .join("");
+      return `<div class="card" style="margin-bottom:12px;">
+        <div class="row" style="justify-content:space-between;">
+          <div><strong>${escapeHtml(subjectLabel)}</strong> <span class="subtle">(${escapeHtml(subjectId)})</span></div>
+          <div class="badge">${escapeHtml(status)}</div>
+        </div>
+        ${themeBlocks || `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}
+      </div>`;
+    })
+    .join("");
+  container.innerHTML = blocks;
+}
+
 function normalizeNorthStarFindingDomains(domains) {
   if (!Array.isArray(domains) || domains.length === 0) return [t("common.none")];
   const cleaned = domains.map((d) => String(d || "").trim()).filter((d) => Boolean(d));
@@ -2509,6 +3081,8 @@ const NORTH_STAR_TOPIC_LABELS = {
     sureklilik_dayaniklilik: "Continuity / resilience",
     uygunluk_risk_guvence_kontrol: "Compliance / risk / assurance / control",
     zaman_hiz_ceviklik: "Time / speed / agility",
+    guvenlik: "Security",
+    gizlilik: "Privacy",
   },
   tr: {
     ai_otomasyon: "Yapay zekâ ile yapılabilecekler / otomasyon potansiyeli",
@@ -2525,6 +3099,8 @@ const NORTH_STAR_TOPIC_LABELS = {
     sureklilik_dayaniklilik: "Süreklilik / dayanıklılık",
     uygunluk_risk_guvence_kontrol: "Uyum / risk / güvence / kontrol",
     zaman_hiz_ceviklik: "Zaman / hız / çeviklik",
+    guvenlik: "Güvenlik",
+    gizlilik: "Gizlilik",
   },
 };
 
@@ -2552,6 +3128,12 @@ function setNorthStarFindingsPresetKey(next) {
 }
 
 function applyNorthStarFindingsPreset(next) {
+  if (state.filters?.northStarFindings?.topic_locked_by_perspective) {
+    setNorthStarFindingsPresetKey("CUSTOM");
+    renderNorthStarFindingsTagSelect("topic");
+    renderNorthStarFindings();
+    return;
+  }
   const key = String(next || "CUSTOM");
   const preset = NORTH_STAR_FINDINGS_PRESETS.find((p) => p.key === key) || null;
   setNorthStarFindingsPresetKey(key);
@@ -2575,10 +3157,16 @@ function applyNorthStarFindingsPreset(next) {
   renderNorthStarFindings();
 }
 
+const NORTH_STAR_PERSPECTIVE_ORDER = ["BUSINESS_PROCESS", "PRODUCT", "ENGINEERING", "GOVERNANCE"];
+
 function updateNorthStarFindingsFilterOptions(items) {
-  const domains = new Map();
+  const subjects = new Map();
   const topics = new Map();
+  const themes = new Map();
+  const subthemes = new Map();
   const catalogs = new Map();
+  const topicLocked = Boolean(state.filters?.northStarFindings?.topic_locked_by_perspective);
+  const perspectiveOptions = getNorthStarPerspectiveOptions();
 
   const addOption = (map, value) => {
     const raw = normalizeValue(value);
@@ -2588,13 +3176,57 @@ function updateNorthStarFindingsFilterOptions(items) {
   };
 
   (Array.isArray(items) ? items : []).forEach((item) => {
-    normalizeNorthStarFindingDomains(item?.domains).forEach((d) => addOption(domains, d));
+    const subjectRaw =
+      item?.subject ||
+      item?.subject_id ||
+      (Array.isArray(item?.tags)
+        ? item.tags.find((t) => String(t || "").toLowerCase().startsWith("subject:"))?.split(":").slice(1).join(":")
+        : "");
+    addOption(subjects, normalizeNorthStarFindingSubject(subjectRaw));
     addOption(topics, normalizeNorthStarFindingTopic(item?.topic));
+    const join = getNorthStarJoinForItem(item);
+    addOption(themes, join.theme_label);
+    addOption(subthemes, join.subtheme_label);
     addOption(catalogs, String(item?.catalog || ""));
   });
 
-  state.filterOptions.northStarFindings.domain = Array.from(domains.values()).sort((a, b) => a.localeCompare(b));
-  state.filterOptions.northStarFindings.topic = Array.from(topics.values()).sort((a, b) => a.localeCompare(b));
+  const registryOptions = extractMechanismsRegistryOptions(state.northStarMechanismsRegistry);
+  registryOptions.subjects.forEach((entry) => {
+    if (!entry?.id) return;
+    addOption(subjects, entry.id);
+  });
+  registryOptions.themes.forEach((label) => addOption(themes, label));
+  registryOptions.subthemes.forEach((label) => addOption(subthemes, label));
+
+  const subjectValues = Array.from(subjects.values()).sort((a, b) => a.localeCompare(b));
+  const subjectOptionMap = new Map();
+  registryOptions.subjects.forEach((entry) => {
+    if (!entry?.id) return;
+    subjectOptionMap.set(String(entry.id), { id: String(entry.id), label: String(entry.label || entry.id) });
+  });
+  subjectValues.forEach((id) => {
+    if (!subjectOptionMap.has(id)) subjectOptionMap.set(id, { id, label: id });
+  });
+  state.filterOptions.northStarFindings.subject = Array.from(subjectOptionMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  state.filterOptions.northStarFindings.perspective = perspectiveOptions;
+  const topicOptions = Array.from(topics.values()).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.northStarFindings.topic_unlocked = topicOptions.slice();
+  if (topicLocked) {
+    const selectedPerspectives = state.filters?.northStarFindings?.perspective || [];
+    const criteria = getNorthStarPerspectiveCriteriaUnion(selectedPerspectives);
+    if (criteria && criteria.length) {
+      state.filterOptions.northStarFindings.topic = criteria
+        .map((axis) => normalizeNorthStarFindingTopic(axis))
+        .map((axis) => String(axis || "").trim())
+        .filter((axis) => Boolean(axis));
+    } else {
+      state.filterOptions.northStarFindings.topic = topicOptions;
+    }
+  } else {
+    state.filterOptions.northStarFindings.topic = topicOptions;
+  }
+  state.filterOptions.northStarFindings.theme = Array.from(themes.values()).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.northStarFindings.subtheme = Array.from(subthemes.values()).sort((a, b) => a.localeCompare(b));
   const nextCatalogs = Array.from(catalogs.values())
     .map((c) => String(c || "").trim())
     .filter((c) => Boolean(c))
@@ -2602,10 +3234,10 @@ function updateNorthStarFindingsFilterOptions(items) {
   state.filterOptions.northStarFindings.catalog = nextCatalogs.length ? nextCatalogs : state.filterOptions.northStarFindings.catalog;
 
   // Prune selections that no longer exist (fail-closed).
-  ["domain", "topic", "match", "catalog"].forEach((field) => {
+  ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     const selected = state.filters.northStarFindings[field] || [];
     const options = state.filterOptions.northStarFindings[field] || [];
-    const optionKeys = new Set(options.map((opt) => normalizeKey(opt)));
+    const optionKeys = new Set(options.map((opt) => normalizeKey(opt?.id ?? opt)));
     state.filters.northStarFindings[field] = selected.filter((opt) => optionKeys.has(normalizeKey(opt)));
   });
 }
@@ -2617,13 +3249,31 @@ function renderNorthStarFindingsTagSelect(field) {
   const optionsEl = $(`#ns-findings-filter-${field}-options`);
   if (!wrap || !tagsEl || !input || !optionsEl) return;
 
+  const topicLocked = field === "topic" && state.filters?.northStarFindings?.topic_locked_by_perspective;
+  if (topicLocked) {
+    input.disabled = false;
+    if (!input.value) input.placeholder = t("north_star.perspective.locked_topics");
+  } else {
+    input.disabled = false;
+  }
+
   const selected = state.filters.northStarFindings[field] || [];
   const selectedKeys = new Set(selected.map((val) => normalizeKey(val)));
   const query = input.value.trim().toLowerCase();
-  const options = (state.filterOptions.northStarFindings[field] || [])
-    .filter((opt) => !selectedKeys.has(normalizeKey(opt)))
-    .filter((opt) => (query ? opt.toLowerCase().includes(query) : true))
-    .sort((a, b) => a.localeCompare(b));
+  const rawOptions = state.filterOptions.northStarFindings[field] || [];
+  const options = rawOptions
+    .map((opt) => {
+      if (opt && typeof opt === "object") {
+        const id = String(opt.id || "").trim();
+        const label = String(opt.label || opt.name || opt.title || id).trim();
+        return { value: id, label };
+      }
+      const value = String(opt || "").trim();
+      return { value, label: value };
+    })
+    .filter((opt) => opt.value && !selectedKeys.has(normalizeKey(opt.value)))
+    .filter((opt) => (query ? opt.label.toLowerCase().includes(query) : true))
+    .sort((a, b) => a.label.localeCompare(b.label));
   const activeIndex = getTagSelectActiveIndex("northStarFindings", field, options.length);
   setTagSelectActiveIndex("northStarFindings", field, activeIndex, options.length);
   const optionIdPrefix = `ns-findings-${field}-opt-`;
@@ -2638,20 +3288,24 @@ function renderNorthStarFindingsTagSelect(field) {
     setAriaExpanded(input, false);
   }
 
+  const labelLookup = field === "perspective"
+    ? new Map((state.filterOptions.northStarFindings.perspective || []).map((opt) => [String(opt.id || ""), String(opt.label || opt.id || "")]))
+    : null;
   tagsEl.innerHTML = selected
     .map((value) => {
       const encoded = encodeTag(value);
-      return `<span class="tag">${escapeHtml(value)}<button data-remove="${encoded}" aria-label="${escapeHtml(t("actions.remove_tag"))}">x</button></span>`;
+      const label = labelLookup?.get(String(value || "")) || String(value || "");
+      return `<span class="tag">${escapeHtml(label)}<button data-remove="${encoded}" aria-label="${escapeHtml(t("actions.remove_tag"))}">x</button></span>`;
     })
     .join("");
 
   optionsEl.innerHTML = options.length
     ? options
-        .map((value, idx) => {
-          const encoded = encodeTag(value);
+        .map((opt, idx) => {
+          const encoded = encodeTag(opt.value);
           const isActive = idx === activeIndex;
           const cls = `tag-option${isActive ? " active" : ""}`;
-          return `<div class="${cls}" role="option" id="${optionIdPrefix}${idx}" aria-selected="${isActive ? "true" : "false"}" data-value="${encoded}">${escapeHtml(value)}</div>`;
+          return `<div class="${cls}" role="option" id="${optionIdPrefix}${idx}" aria-selected="${isActive ? "true" : "false"}" data-value="${encoded}">${escapeHtml(opt.label)}</div>`;
         })
         .join("")
     : `<div class="tag-option subtle" role="option" aria-selected="false">${escapeHtml(t("empty.no_items"))}</div>`;
@@ -2667,6 +3321,10 @@ function addNorthStarFindingTag(field, value) {
   list.sort((a, b) => a.localeCompare(b));
   state.filters.northStarFindings[field] = list;
   renderNorthStarFindingsTagSelect(field);
+  if (field === "perspective") {
+    applyNorthStarPerspectiveCriteria(state.filters.northStarFindings.perspective);
+    renderNorthStarFindingsTagSelect("topic");
+  }
 }
 
 function removeNorthStarFindingTag(field, value) {
@@ -2674,6 +3332,10 @@ function removeNorthStarFindingTag(field, value) {
   const key = normalizeKey(value);
   state.filters.northStarFindings[field] = list.filter((item) => normalizeKey(item) !== key);
   renderNorthStarFindingsTagSelect(field);
+  if (field === "perspective") {
+    applyNorthStarPerspectiveCriteria(state.filters.northStarFindings.perspective);
+    renderNorthStarFindingsTagSelect("topic");
+  }
 }
 
 function findingsMatchRank(value) {
@@ -2751,6 +3413,50 @@ function formatThemeSubthemeLabel(entry, kind) {
   return tr || en || "—";
 }
 
+function formatTrEnLabel(tr, en, fallback = "") {
+  const trClean = String(tr || "").trim();
+  const enClean = String(en || "").trim();
+  if (trClean && enClean && trClean !== enClean) return `${trClean} (${enClean})`;
+  return trClean || enClean || fallback || "";
+}
+
+function extractMechanismsRegistryOptions(registryPayload) {
+  const registry = unwrap(registryPayload || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  const subjectOptions = [];
+  const themeOptions = [];
+  const subthemeOptions = [];
+
+  subjects.forEach((subject) => {
+    const subjectId = String(subject?.subject_id || "").trim();
+    let subjectLabel = formatTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId);
+    if (subjectId === "ethics_case_management") subjectLabel = "Etik Programı (ethics_case_management)";
+    if (subjectId) subjectOptions.push({ id: subjectId, label: subjectLabel || subjectId });
+    const themes = Array.isArray(subject?.themes) ? subject.themes : [];
+    themes.forEach((theme) => {
+      const themeLabel = formatTrEnLabel(
+        theme?.title_tr || theme?.theme_title_tr,
+        theme?.title_en || theme?.theme_title_en
+      );
+      if (themeLabel) themeOptions.push(themeLabel);
+      const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
+      subthemes.forEach((subtheme) => {
+        const subLabel = formatTrEnLabel(
+          subtheme?.title_tr || subtheme?.subtheme_title_tr,
+          subtheme?.title_en || subtheme?.subtheme_title_en
+        );
+        if (subLabel) subthemeOptions.push(subLabel);
+      });
+    });
+  });
+
+  return {
+    subjects: subjectOptions,
+    themes: dedupeList(themeOptions),
+    subthemes: dedupeList(subthemeOptions),
+  };
+}
+
 function getNorthStarJoinForItem(item) {
   const index = state.northStarCatalogIndex || { byId: {}, byTitle: {}, available: false };
   const id = String(item?.id || "").trim();
@@ -2809,21 +3515,30 @@ function renderNorthStarFindings() {
   const search = searchInput ? searchInput.value.trim() : state.filters.northStarFindings.search || "";
   state.filters.northStarFindings.search = search;
 
-  const domain = state.filters.northStarFindings.domain || [];
   const topic = state.filters.northStarFindings.topic || [];
+  const subject = state.filters.northStarFindings.subject || [];
+  const theme = state.filters.northStarFindings.theme || [];
+  const subtheme = state.filters.northStarFindings.subtheme || [];
   const match = state.filters.northStarFindings.match || [];
   const catalog = state.filters.northStarFindings.catalog || [];
 
   let items = itemsRaw.map((item) => {
-    const domains = normalizeNorthStarFindingDomains(item?.domains);
     const topicNorm = normalizeNorthStarFindingTopic(item?.topic);
+    const subjectRaw =
+      item?.subject ||
+      item?.subject_id ||
+      (Array.isArray(item?.tags)
+        ? item.tags.find((t) => String(t || "").toLowerCase().startsWith("subject:"))?.split(":").slice(1).join(":")
+        : "");
+    const subjectNorm = normalizeNorthStarFindingSubject(subjectRaw);
+    const subjectLabelFromRegistry = getMechanismsSubjectLabel(subjectNorm);
     const join = getNorthStarJoinForItem(item);
     const catalogLabel = formatNorthStarCatalogLabel(item?.catalog);
     return {
       ...item,
-      _domains_norm: domains,
-      _domains_joined: domains.join(", "),
       _topic_norm: topicNorm,
+      _subject_norm: subjectNorm,
+      _subject_label: subjectLabelFromRegistry || subjectNorm || "—",
       _match_rank: findingsMatchRank(item?.match_status),
       _reasons_count: Array.isArray(item?.reasons) ? item.reasons.length : 0,
       _evidence_count: Array.isArray(item?.evidence_pointers) ? item.evidence_pointers.length : 0,
@@ -2835,13 +3550,21 @@ function renderNorthStarFindings() {
     };
   });
 
-  if (domain.length) {
-    const domainKeys = new Set(domain.map((val) => normalizeKey(val)));
-    items = items.filter((item) => item._domains_norm.some((d) => domainKeys.has(normalizeKey(d))));
+  if (subject.length) {
+    const subjectKeys = new Set(subject.map((val) => normalizeKey(val)));
+    items = items.filter((item) => subjectKeys.has(normalizeKey(item._subject_norm)));
   }
   if (topic.length) {
     const topicKeys = new Set(topic.map((val) => normalizeKey(val)));
     items = items.filter((item) => topicKeys.has(normalizeKey(item._topic_norm)));
+  }
+  if (theme.length) {
+    const themeKeys = new Set(theme.map((val) => normalizeKey(val)));
+    items = items.filter((item) => themeKeys.has(normalizeKey(item._theme_label)));
+  }
+  if (subtheme.length) {
+    const subthemeKeys = new Set(subtheme.map((val) => normalizeKey(val)));
+    items = items.filter((item) => subthemeKeys.has(normalizeKey(item._subtheme_label)));
   }
   if (match.length) {
     const matchKeys = new Set(match.map((val) => normalizeKey(val)));
@@ -2860,9 +3583,9 @@ function renderNorthStarFindings() {
         item.id,
         item.title,
         item._topic_norm,
-        item._domains_joined,
         item._theme_label,
         item._subtheme_label,
+        item._subject_norm,
         Array.isArray(item.tags) ? item.tags.join(" ") : "",
         Array.isArray(item.reasons) ? item.reasons.join(" ") : "",
         includeLens ? String(item.lens || "") : "",
@@ -2883,8 +3606,6 @@ function renderNorthStarFindings() {
     }
     const t = String(a._topic_norm || "").localeCompare(String(b._topic_norm || ""));
     if (t !== 0) return t;
-    const d = String(a._domains_joined || "").localeCompare(String(b._domains_joined || ""));
-    if (d !== 0) return d;
     const c = String(a.catalog || "").localeCompare(String(b.catalog || ""));
     if (c !== 0) return c;
     return String(a.id || "").localeCompare(String(b.id || ""));
@@ -2930,8 +3651,8 @@ function renderNorthStarFindings() {
     const headers = [
       includeLens ? t("north_star.table.lens") : null,
       t("north_star.table.match"),
+      t("north_star.table.subject"),
       t("north_star.table.topic"),
-      t("north_star.table.domain"),
       t("north_star.table.title"),
       t("north_star.table.theme"),
       t("north_star.table.subtheme"),
@@ -2951,8 +3672,8 @@ function renderNorthStarFindings() {
           <tr class="clickable" data-finding="${key}">
             ${includeLens ? `<td>${escapeHtml(String(item.lens || ""))}</td>` : ""}
             <td>${renderNorthStarFindingsBadge(item.match_status)}</td>
+            <td>${escapeHtml(String(item._subject_label || "—"))}</td>
             <td>${escapeHtml(item._topic_norm)}</td>
-            <td>${escapeHtml(item._domains_joined)}</td>
             <td>${escapeHtml(String(item.title || ""))}</td>
             <td>${escapeHtml(String(item._theme_label || "—"))}</td>
             <td>${escapeHtml(String(item._subtheme_label || "—"))}</td>
@@ -3000,7 +3721,6 @@ function renderNorthStarFindingsDetail() {
     return;
   }
 
-  const domains = normalizeNorthStarFindingDomains(item.domains);
   const topic = normalizeNorthStarFindingTopic(item.topic);
   const tags = Array.isArray(item.tags) ? item.tags.map((t) => String(t || "")).filter((t) => Boolean(t)) : [];
   const reasons = Array.isArray(item.reasons) ? item.reasons.map((r) => String(r || "")).filter((r) => Boolean(r)) : [];
@@ -3017,6 +3737,7 @@ function renderNorthStarFindingsDetail() {
   const themeLabel = String(item._theme_label || "");
   const subthemeLabel = String(item._subtheme_label || "");
   const catalogLabel = String(item._catalog_label || formatNorthStarCatalogLabel(item.catalog || "") || "");
+  const subjectLabel = String(item._subject_label || item._subject_norm || "");
 
   const evidenceButtons = evidence.length
     ? evidence
@@ -3033,7 +3754,7 @@ function renderNorthStarFindingsDetail() {
   detailEl.innerHTML = `
     <div class="note-item">
       <div class="note-title">${escapeHtml(String(item.title || ""))}</div>
-      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | topic=${escapeHtml(topic)} | domains=${escapeHtml(domains.join(", "))} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | catalog=${escapeHtml(catalogLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
+      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | subject=${escapeHtml(subjectLabel || "—")} | topic=${escapeHtml(topic)} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | catalog=${escapeHtml(catalogLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
       <div class="note-tags">${tags.slice(0, 18).map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("")}</div>
       ${
         summary
@@ -3081,8 +3802,12 @@ function renderNorthStarFindingsDetail() {
 
 function clearNorthStarFindingsFilters() {
   state.filters.northStarFindings.search = "";
-  state.filters.northStarFindings.domain = [];
+  state.filters.northStarFindings.subject = [];
   state.filters.northStarFindings.topic = [];
+  state.filters.northStarFindings.perspective = [];
+  state.filters.northStarFindings.topic_locked_by_perspective = false;
+  state.filters.northStarFindings.theme = [];
+  state.filters.northStarFindings.subtheme = [];
   state.filters.northStarFindings.match = ["TRIGGERED"];
   state.filters.northStarFindings.catalog = [];
   setNorthStarFindingsPresetKey("CUSTOM");
@@ -3091,16 +3816,18 @@ function clearNorthStarFindingsFilters() {
   const searchInput = $("#ns-findings-search");
   if (searchInput) searchInput.value = "";
 
-  ["domain", "topic", "match", "catalog"].forEach((field) => {
+  ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     const input = $(`#ns-findings-filter-${field}-input`);
     if (input) input.value = "";
     renderNorthStarFindingsTagSelect(field);
   });
+  applyNorthStarPerspectiveCriteria(state.filters.northStarFindings.perspective);
+  renderNorthStarFindingsTagSelect("topic");
 }
 
 function setupNorthStarFindingsTagSelects() {
   if (northStarFindingsUiAttached) return;
-  const fields = ["domain", "topic", "match", "catalog"];
+  const fields = ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"];
   const closeAll = (except) => {
     fields.forEach((field) => {
       if (field === except) return;
@@ -3263,17 +3990,6 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
       presetSelect.addEventListener("change", () => applyNorthStarFindingsPreset(presetSelect.value));
     }
 
-    const lensSelect = $("#ns-findings-lens");
-    if (lensSelect) {
-      lensSelect.addEventListener("change", () => {
-        const selectedKey = String(lensSelect.value || "");
-        const byLens = state.northStarFindingsByLens && typeof state.northStarFindingsByLens === "object" ? state.northStarFindingsByLens : {};
-        const next = byLens[selectedKey];
-        const label = selectedKey === NORTH_STAR_FINDINGS_ALL_LENSES_KEY ? t("north_star.all_lenses") : selectedKey;
-        setupNorthStarFindingsUi(next, { lensKey: selectedKey, lensLabel: label });
-      });
-    }
-
     const searchInput = $("#ns-findings-search");
     if (searchInput) {
       searchInput.addEventListener("input", () => renderNorthStarFindings());
@@ -3297,7 +4013,7 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
     searchInput.value = state.filters.northStarFindings.search || "";
   }
 
-  ["domain", "topic", "match", "catalog"].forEach((field) => {
+  ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     renderNorthStarFindingsTagSelect(field);
   });
   renderNorthStarFindings();
@@ -3655,6 +4371,7 @@ function renderNorthStar() {
   ]);
 
   renderNorthStarLensDetails(payload, evalData);
+  renderNorthStarMechanisms();
 
   // Lens Findings (lens-by-lens explorer)
   const findingsByLens = {};
@@ -3879,7 +4596,6 @@ function renderNorthStarLensDetails(payload, evalData) {
       const trendRows = toRows(trendItems);
       const bpRows = toRows(bpItems);
       const cols = [
-        { key: "domains", label: t("north_star.table.domain") },
         { key: "topic", label: t("north_star.table.topic") },
         { key: "title", label: t("north_star.table.title") },
         { key: "id", label: t("north_star.table.id") },
@@ -4789,11 +5505,11 @@ function normalizeNote(item) {
   return note;
 }
 
-function renderNotesList(items) {
-  const list = $("#notes-list");
-  if (!list) return;
-  const search = ($("#notes-search").value || "").trim().toLowerCase();
-  const tagFilter = ($("#notes-tag-filter").value || "").trim().toLowerCase();
+function filterNotes(items) {
+  const searchEl = $("#notes-search");
+  const tagEl = $("#notes-tag-filter");
+  const search = ((searchEl ? searchEl.value : "") || "").trim().toLowerCase();
+  const tagFilter = ((tagEl ? tagEl.value : "") || "").trim().toLowerCase();
   let filtered = Array.isArray(items) ? items.map(normalizeNote) : [];
   if (search) {
     filtered = filtered.filter((item) => {
@@ -4810,45 +5526,305 @@ function renderNotesList(items) {
       return tags.some((t) => t.includes(tagFilter));
     });
   }
-  filtered = stableSort(filtered, compareBy(state.sort.notes.key, state.sort.notes.dir));
-  $("#notes-count").textContent = t("meta.showing_notes", { count: String(filtered.length) });
-  if (!filtered.length) {
-    list.innerHTML = `<div class="empty">${escapeHtml(t("empty.no_notes"))}</div>`;
+  return filtered;
+}
+
+function noteRole(note) {
+  const tags = normalizeNoteTags(note).map((t) => String(t).toLowerCase());
+  const title = String(note.title || "").toLowerCase();
+  if (tags.some((t) => t.includes("system") || t.includes("op") || t.includes("assistant") || t.includes("bot"))) {
+    return "assistant";
+  }
+  if (tags.some((t) => t.includes("user") || t.includes("human"))) return "user";
+  if (title.startsWith("op:") || title.startsWith("auto:") || title.startsWith("system")) return "assistant";
+  return "user";
+}
+
+function noteTokenMeta(note) {
+  const tags = normalizeNoteTags(note).map((t) => String(t));
+  let tokens = null;
+  let truncated = false;
+  tags.forEach((tag) => {
+    const raw = String(tag || "");
+    if (raw.toLowerCase().startsWith("tokens_estimate:")) {
+      const value = raw.split(":").slice(1).join(":").trim();
+      const parsed = parseInt(value, 10);
+      if (Number.isFinite(parsed)) tokens = parsed;
+    }
+    if (raw.toLowerCase() === "output_truncated:true") {
+      truncated = true;
+    }
+  });
+  return { tokens, truncated };
+}
+
+function noteModelMeta(note) {
+  const tags = normalizeNoteTags(note).map((t) => String(t));
+  let provider = "";
+  let model = "";
+  tags.forEach((tag) => {
+    const raw = String(tag || "");
+    if (raw.toLowerCase().startsWith("provider:")) {
+      provider = raw.split(":").slice(1).join(":").trim();
+    }
+    if (raw.toLowerCase().startsWith("model:")) {
+      model = raw.split(":").slice(1).join(":").trim();
+    }
+  });
+  return { provider, model };
+}
+
+function normalizeNoteTags(note) {
+  if (Array.isArray(note?.tags)) return note.tags;
+  const raw = String(note?.tags || "").trim();
+  if (!raw) return [];
+  return raw.split(",").map((t) => t.trim()).filter((t) => t);
+}
+
+function formatChatBody(raw) {
+  const text = String(raw || "");
+  if (!text.trim()) return "";
+  const lines = text.split(/\r?\n/);
+  return lines
+    .map((line) => {
+      const trimmed = line.trim();
+      const match = trimmed.match(/^[-–—\s]*\[?(PREVIEW|RESULT|EVIDENCE|ACTIONS|NEXT)\]?[-–—\s]*$/i);
+      if (match) {
+        return `<div class="chat-section">${escapeHtml(match[1].toUpperCase())}</div>`;
+      }
+      return `<div class="chat-line">${escapeHtml(line)}</div>`;
+    })
+    .join("");
+}
+
+function parseNoteTimestamp(note) {
+  const raw = String(note?.created_at || note?.updated_at || "");
+  const ts = Date.parse(raw);
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function stopChatStreaming() {
+  if (state.chatStreamTimer) clearInterval(state.chatStreamTimer);
+  state.chatStreamTimer = null;
+  state.chatStreamNoteId = null;
+  state.chatStreamText = "";
+  state.chatStreamIndex = 0;
+  state.chatStreamThread = "";
+  state.chatStreamItems = null;
+}
+
+function startChatStreaming(note, items) {
+  if (!note || !note.note_id) return;
+  stopChatStreaming();
+  const text = String(note.body || note.body_excerpt || "");
+  if (!text.trim()) return;
+  state.chatStreamNoteId = note.note_id;
+  state.chatLastAssistantNoteId = note.note_id;
+  state.chatStreamText = text;
+  state.chatStreamIndex = 0;
+  state.chatStreamThread = state.plannerThread || "default";
+  state.chatStreamItems = items;
+  const step = Math.max(8, Math.ceil(text.length / 120));
+  state.chatStreamTimer = setInterval(() => {
+    state.chatStreamIndex = Math.min(text.length, state.chatStreamIndex + step);
+    renderPlannerChat(state.chatStreamItems || []);
+    if (state.chatStreamIndex >= text.length) {
+      stopChatStreaming();
+      renderPlannerChat(state.chatStreamItems || []);
+    }
+  }, 30);
+}
+
+function maybeStartStreamingLatestAssistant(items) {
+  const activeThread = state.plannerThread || "default";
+  if (!items.length || state.chatStreamNoteId) return;
+  const assistantNotes = items.filter((item) => noteRole(item) === "assistant");
+  if (!assistantNotes.length) return;
+  const latest = assistantNotes
+    .slice()
+    .sort((a, b) => parseNoteTimestamp(a) - parseNoteTimestamp(b))
+    .pop();
+  if (!latest || !latest.note_id) return;
+  if (state.chatLastAssistantNoteId && String(state.chatLastAssistantNoteId) === String(latest.note_id)) return;
+  startChatStreaming(latest, items);
+}
+
+function startChatPending(thread) {
+  const token = `pending_${Date.now()}`;
+  state.chatPending = {
+    token,
+    thread: thread || "default",
+    started_at_ms: Date.now(),
+    started_at_iso: new Date().toISOString(),
+  };
+  return token;
+}
+
+function clearChatPending(token) {
+  if (!state.chatPending) return;
+  if (token && state.chatPending.token !== token) return;
+  state.chatPending = null;
+}
+
+function maybeResolveChatPending(items) {
+  const pending = state.chatPending;
+  const thread = state.plannerThread || "default";
+  if (!pending || pending.thread !== thread) return;
+  const pendingTs = pending.started_at_ms || 0;
+  const assistantNotes = items.filter((item) => noteRole(item) === "assistant");
+  if (!assistantNotes.length) return;
+  const candidate = assistantNotes
+    .filter((item) => parseNoteTimestamp(item) >= pendingTs - 1500)
+    .sort((a, b) => parseNoteTimestamp(a) - parseNoteTimestamp(b))
+    .pop();
+  if (!candidate) return;
+  clearChatPending(pending.token);
+  startChatStreaming(candidate, items);
+}
+
+function renderPlannerChat(items) {
+  const list = $("#chat-log");
+  if (!list) return;
+  if (!items.length) {
+    list.innerHTML = `<div class="empty">${escapeHtml(t("empty.no_chat_messages"))}</div>`;
     return;
   }
-  list.innerHTML = filtered
+  const sorted = stableSort(items, compareBy("created_at", "asc"));
+  const activeThread = state.plannerThread || "default";
+  const streamingId = state.chatStreamThread === activeThread ? state.chatStreamNoteId : null;
+  const streamText = state.chatStreamText || "";
+  const streamIndex = state.chatStreamIndex || 0;
+  const bodyMarkup = sorted
     .map((item) => {
-      const noteIdRaw = String(item.note_id || "");
-      const noteIdAttr = encodeTag(noteIdRaw);
-      const title = escapeHtml(item.title || t("notes.untitled"));
-      const updatedRaw = String(item.updated_at || "");
-      const metaText = t("notes.item_meta", { updated: updatedRaw, id: noteIdRaw });
-      const tags = Array.isArray(item.tags) ? item.tags.map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("") : "";
-      const excerpt = escapeHtml(item.body_excerpt || "");
+      const role = noteRole(item);
+      const roleLabel = role === "assistant" ? t("chat.role.assistant") : t("chat.role.user");
+      const ts = String(item.created_at || item.updated_at || "");
+      const title = String(item.title || "");
+      const metaParts = [roleLabel];
+      if (ts) metaParts.push(ts);
+      if (title) metaParts.push(title);
+      const rawBody = String(item.body || item.body_excerpt || "");
+      if (role === "assistant") {
+        const modelMeta = noteModelMeta(item);
+        if (modelMeta.provider || modelMeta.model) {
+          const label = modelMeta.provider && modelMeta.model
+            ? `${modelMeta.provider}/${modelMeta.model}`
+            : modelMeta.model || modelMeta.provider;
+          metaParts.push(label);
+        }
+        const tokenMeta = noteTokenMeta(item);
+        if (tokenMeta.tokens) {
+          metaParts.push(`≈${tokenMeta.tokens} tok`);
+        }
+        if (tokenMeta.truncated) {
+          metaParts.push("truncated");
+        }
+        if (rawBody) metaParts.push(`${rawBody.length} ch`);
+      } else if (rawBody) {
+        const approxTokens = Math.max(1, Math.ceil(rawBody.length / 4));
+        metaParts.push(`≈${approxTokens} tok`);
+        metaParts.push(`${rawBody.length} ch`);
+      }
+      const meta = metaParts.join(" • ");
+      const isStreaming = streamingId && item.note_id === streamingId;
+      let bodyText = rawBody;
+      if (isStreaming) {
+        const slice = streamText ? streamText.slice(0, Math.max(0, Math.min(streamIndex, streamText.length))) : bodyText;
+        bodyText = slice + (streamIndex < streamText.length ? "\n|" : "");
+      }
+      const body = formatChatBody(bodyText);
       return `
-        <div class="note-item">
-          <div class="note-title">${title}</div>
-          <div class="note-meta">${escapeHtml(metaText)}</div>
-          <div class="note-tags">${tags}</div>
-          <div class="subtle">${excerpt}</div>
-          <div class="note-actions">
-            <button class="btn" data-note-view="${noteIdAttr}">${escapeHtml(t("actions.view"))}</button>
-          </div>
+        <div class="chat-message ${role}${isStreaming ? " typing" : ""}">
+          <div class="chat-meta">${escapeHtml(meta)}</div>
+          <div class="chat-body">${body}</div>
         </div>
       `;
     })
     .join("");
-  $$("[data-note-view]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      if (state.actionPending) return;
-      const noteId = decodeTag(btn.dataset.noteView || "");
-      if (!noteId) return;
-      state.selectedNoteId = noteId;
-      const data = await fetchJson(`${endpoints.noteGet}?note_id=${encodeURIComponent(noteId)}`);
-      state.noteDetail = data;
-      renderNoteDetail(data);
+  let pendingMarkup = "";
+  if (state.chatPending && state.chatPending.thread === activeThread) {
+    const meta = `${t("chat.role.assistant")} • ${state.chatPending.started_at_iso || ""}`.trim();
+    pendingMarkup = `
+      <div class="chat-message assistant typing">
+        <div class="chat-meta">${escapeHtml(meta)}</div>
+        <div class="chat-body">${escapeHtml(t("chat.thinking"))}</div>
+      </div>
+    `;
+  }
+  list.innerHTML = `${bodyMarkup}${pendingMarkup}`;
+}
+
+function renderNotesList(items) {
+  const list = $("#notes-list");
+  let filtered = filterNotes(items);
+  filtered = stableSort(filtered, compareBy(state.sort.notes.key, state.sort.notes.dir));
+  const countEl = $("#notes-count");
+  if (countEl) {
+    countEl.textContent = t("meta.showing_notes", { count: String(filtered.length) });
+  }
+  if (list) {
+    if (!filtered.length) {
+      list.innerHTML = `<div class="empty">${escapeHtml(t("empty.no_notes"))}</div>`;
+      return filtered;
+    }
+    list.innerHTML = filtered
+      .map((item) => {
+        const noteIdRaw = String(item.note_id || "");
+        const noteIdAttr = encodeTag(noteIdRaw);
+        const title = escapeHtml(item.title || t("notes.untitled"));
+        const updatedRaw = String(item.updated_at || "");
+        const metaText = t("notes.item_meta", { updated: updatedRaw, id: noteIdRaw });
+        const tags = Array.isArray(item.tags) ? item.tags.map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("") : "";
+        const excerpt = escapeHtml(item.body_excerpt || "");
+        return `
+          <div class="note-item">
+            <div class="note-title">${title}</div>
+            <div class="note-meta">${escapeHtml(metaText)}</div>
+            <div class="note-tags">${tags}</div>
+            <div class="subtle">${excerpt}</div>
+            <div class="note-actions">
+              <button class="btn" data-note-view="${noteIdAttr}">${escapeHtml(t("actions.view"))}</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+    $$("[data-note-view]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (state.actionPending) return;
+        const noteId = decodeTag(btn.dataset.noteView || "");
+        if (!noteId) return;
+        state.selectedNoteId = noteId;
+        const data = await fetchJson(`${endpoints.noteGet}?note_id=${encodeURIComponent(noteId)}`);
+        state.noteDetail = data;
+        renderNoteDetail(data);
+      });
     });
-  });
+  }
+  return filtered;
+}
+
+function renderNotes(items) {
+  const filtered = renderNotesList(items);
+  renderPlannerChat(filtered || []);
+}
+
+function setNotesView(view) {
+  state.notesView = view === "list" ? "list" : "chat";
+  const chat = $("#planner-chat-view");
+  const list = $("#planner-list-view");
+  if (chat) chat.style.display = state.notesView === "chat" ? "grid" : "none";
+  if (list) list.style.display = state.notesView === "list" ? "block" : "none";
+  const btnChat = $("#notes-view-chat");
+  const btnList = $("#notes-view-list");
+  if (btnChat) {
+    btnChat.classList.toggle("accent", state.notesView === "chat");
+    btnChat.classList.toggle("ghost", state.notesView !== "chat");
+  }
+  if (btnList) {
+    btnList.classList.toggle("accent", state.notesView === "list");
+    btnList.classList.toggle("ghost", state.notesView !== "list");
+  }
 }
 
 function renderPlannerThreads() {
@@ -4918,11 +5894,441 @@ function parseTagsInput(raw) {
     .filter((item) => item);
 }
 
+function dedupeList(items) {
+  const seen = new Set();
+  return (items || []).filter((item) => {
+    if (!item) return false;
+    if (seen.has(item)) return false;
+    seen.add(item);
+    return true;
+  });
+}
+
+async function fetchOptionalJson(path) {
+  try {
+    return await fetchJson(`${endpoints.file}?path=${encodeURIComponent(path)}`);
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildChatProviderMap(registryPayload, policyPayload) {
+  const registry = unwrap(registryPayload || {}) || {};
+  const policy = unwrap(policyPayload || {}) || {};
+  const providers = Array.isArray(registry.providers) ? registry.providers : [];
+  const policyProviders = policy.providers || {};
+  const map = {};
+  providers.forEach((entry) => {
+    const id = String(entry?.id || "").trim();
+    if (!id) return;
+    const policyEntry = policyProviders[id] || {};
+    let models = Array.isArray(policyEntry.allow_models) ? policyEntry.allow_models.slice() : [];
+    const defaultModel = String(policyEntry.default_model || entry?.default_model || "").trim();
+    if (models.includes("*")) models = defaultModel ? [defaultModel] : [];
+    if (!models.length && defaultModel) models = [defaultModel];
+    models = dedupeList(models);
+    if (defaultModel && models.length && models[0] !== defaultModel) {
+      models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
+    }
+    map[id] = {
+      enabled: policyEntry.enabled ?? entry?.enabled ?? true,
+      defaultModel: defaultModel || (models[0] || ""),
+      models,
+    };
+  });
+  Object.keys(policyProviders || {}).forEach((id) => {
+    if (map[id]) return;
+    const policyEntry = policyProviders[id] || {};
+    let models = Array.isArray(policyEntry.allow_models) ? policyEntry.allow_models.slice() : [];
+    const defaultModel = String(policyEntry.default_model || "").trim();
+    if (models.includes("*")) models = defaultModel ? [defaultModel] : [];
+    if (!models.length && defaultModel) models = [defaultModel];
+    models = dedupeList(models);
+    map[id] = {
+      enabled: policyEntry.enabled ?? true,
+      defaultModel: defaultModel || (models[0] || ""),
+      models,
+    };
+  });
+  return map;
+}
+
+function buildProviderAllowlist(allowPayload) {
+  const raw = unwrap(allowPayload || {}) || {};
+  const allow = Array.isArray(raw.allow_providers) ? raw.allow_providers.map((x) => String(x).toLowerCase()) : [];
+  const set = new Set(allow);
+  const alias = {
+    google: ["gemini"],
+    gemini: ["google"],
+    xai: ["grok"],
+    grok: ["xai"],
+  };
+  return {
+    allow_set: set,
+    isAllowed(id) {
+      const pid = String(id || "").toLowerCase();
+      if (!set.size) return true;
+      if (set.has(pid)) return true;
+      const aliases = alias[pid] || [];
+      return aliases.some((a) => set.has(a));
+    },
+  };
+}
+
+function buildChatProfileOptions(classPayload) {
+  const registry = unwrap(classPayload || {}) || {};
+  const classes = Array.isArray(registry.classes) ? registry.classes : [];
+  if (!classes.length) return null;
+  const active = [];
+  const optional = [];
+  classes.forEach((entry) => {
+    const id = String(entry?.class_id || "").trim();
+    if (!id) return;
+    if (entry?.active_core === false) optional.push(id);
+    else active.push(id);
+  });
+  const merged = dedupeList([...active, ...optional]);
+  const fallback = Object.keys(CHAT_MODEL_GROUPS || {});
+  return dedupeList([...merged, ...fallback]);
+}
+
+function resolveChatProfileLabel(profileId) {
+  const label = CHAT_MODEL_GROUPS[profileId]?.label;
+  if (label) return label;
+  return profileId;
+}
+
+function saveChatSelection() {
+  try {
+    const payload = {
+      profile: state.chatProfile || "",
+      provider: state.chatProvider || "",
+      model: state.chatModel || "",
+    };
+    localStorage.setItem(CHAT_SELECTION_STORAGE_KEY, JSON.stringify(payload));
+  } catch (_) {
+    // ignore storage errors
+  }
+}
+
+function restoreChatSelection() {
+  try {
+    const raw = localStorage.getItem(CHAT_SELECTION_STORAGE_KEY);
+    if (!raw) return;
+    const payload = JSON.parse(raw);
+    if (payload && typeof payload === "object") {
+      if (payload.profile) state.chatProfile = String(payload.profile);
+      if (payload.provider) state.chatProvider = String(payload.provider);
+      if (payload.model) state.chatModel = String(payload.model);
+    }
+  } catch (_) {
+    // ignore storage errors
+  }
+}
+
+function buildChatProviderClassMap(providerMapPayload) {
+  const registry = unwrap(providerMapPayload || {}) || {};
+  const classes = registry.classes && typeof registry.classes === "object" ? registry.classes : {};
+  const result = {};
+  Object.keys(classes).forEach((classId) => {
+    const entry = classes[classId] || {};
+    const providers = entry.providers && typeof entry.providers === "object" ? entry.providers : {};
+    const providerMap = {};
+    Object.keys(providers).forEach((providerId) => {
+      const p = providers[providerId] || {};
+      let models = [];
+      if (Array.isArray(p.models)) {
+        models = p.models
+          .map((item) => String(item?.model_id || "").trim())
+          .filter((item) => item);
+      }
+      const pinned = String(p.pinned_model_id || "").trim();
+      if (pinned) {
+        models = [pinned, ...models.filter((m) => m !== pinned)];
+      }
+      models = dedupeList(models);
+      providerMap[providerId] = models;
+    });
+    result[classId] = providerMap;
+  });
+  return result;
+}
+
+function buildChatProviderClassMeta(providerMapPayload) {
+  const registry = unwrap(providerMapPayload || {}) || {};
+  const classes = registry.classes && typeof registry.classes === "object" ? registry.classes : {};
+  const result = {};
+  Object.keys(classes).forEach((classId) => {
+    const entry = classes[classId] || {};
+    const providers = entry.providers && typeof entry.providers === "object" ? entry.providers : {};
+    const providerMeta = {};
+    Object.keys(providers).forEach((providerId) => {
+      const p = providers[providerId] || {};
+      const eligible = [];
+      const status = {};
+      if (Array.isArray(p.models)) {
+        p.models.forEach((item) => {
+          const modelId = String(item?.model_id || "").trim();
+          if (!modelId) return;
+          const stage = String(item?.stage || "").trim().toLowerCase();
+          const probe = String(item?.probe_status || "").trim().toLowerCase();
+          status[modelId] = { stage: stage || null, probe_status: probe || null };
+          if (stage === "verified" && probe === "ok") eligible.push(modelId);
+        });
+      }
+      providerMeta[providerId] = { eligible: dedupeList(eligible), status };
+    });
+    result[classId] = providerMeta;
+  });
+  return result;
+}
+
+function filterModelsForProfile(profileId, models) {
+  const items = Array.isArray(models) ? models.slice() : [];
+  if (!items.length) return items;
+  const id = String(profileId || "").toUpperCase();
+  const rules = {
+    FAST_TEXT: { include: [], exclude: ["embedding", "image", "dall-e", "sora", "audio", "realtime", "moderation", "vision", "ocr", "qvq", "video"] },
+    BALANCED_TEXT: { include: [], exclude: ["embedding", "image", "dall-e", "sora", "audio", "realtime", "moderation", "vision", "ocr", "qvq", "video"] },
+    GOVERNANCE_ASSURANCE: { include: [], exclude: ["embedding", "image", "dall-e", "sora", "audio", "realtime", "moderation", "vision", "ocr", "qvq", "video"] },
+    IMAGE_GEN: { include: ["image", "dall-e", "sora", "img"], exclude: ["realtime", "audio", "embedding"] },
+    VIDEO_GEN: { include: ["sora", "video"], exclude: ["image", "audio", "embedding"] },
+    AUDIO: { include: ["audio", "tts", "transcribe"], exclude: ["image", "video", "embedding"] },
+    REALTIME_STREAMING: { include: ["realtime", "stream"], exclude: [] },
+    OCR_DOC: { include: ["ocr"], exclude: [] },
+    VISION_MM: { include: ["vision", "vl"], exclude: ["ocr"] },
+    VISION_REASONING: { include: ["qvq", "vision", "reason"], exclude: [] },
+    EMBEDDINGS: { include: ["embedding"], exclude: [] },
+    MODERATION_SAFETY: { include: ["moderation"], exclude: [] },
+    DEEP_RESEARCH: { include: ["deep-research", "research"], exclude: [] },
+    CODE_AGENTIC: { include: ["codex", "code"], exclude: [] },
+    REASONING_TEXT: {
+      include: [],
+      exclude: ["embedding", "image", "dall-e", "sora", "audio", "realtime", "moderation", "vision", "ocr", "qvq", "video"],
+    },
+  };
+  const rule = rules[id];
+  if (!rule) return items;
+  const filtered = items.filter((model) => {
+    const name = String(model || "").toLowerCase();
+    const includeHit = !rule.include.length || rule.include.some((token) => name.includes(token));
+    const excludeHit = rule.exclude.some((token) => name.includes(token));
+    return includeHit && !excludeHit;
+  });
+  if (filtered.length) return filtered;
+  return rule.include.length ? [] : items;
+}
+
+function resolveChatProviderMap() {
+  if (state.chatProviderRegistry && state.chatProviderRegistry.providers) {
+    return state.chatProviderRegistry.providers;
+  }
+  const fallback = {};
+  Object.values(CHAT_MODEL_GROUPS).forEach((group) => {
+    (group.provider_order || []).forEach((provider) => {
+      if (!fallback[provider]) {
+        fallback[provider] = { enabled: true, models: [], defaultModel: "" };
+      }
+    });
+  });
+  return fallback;
+}
+
+function renderChatModelSelectors() {
+  const profileEl = $("#chat-profile");
+  const providerEl = $("#chat-provider");
+  const modelEl = $("#chat-model");
+  if (!profileEl || !providerEl || !modelEl) return;
+
+  const registryProfiles = Array.isArray(state.chatProfileOptions) ? state.chatProfileOptions : [];
+  const baseProfiles = registryProfiles.length ? registryProfiles : Object.keys(CHAT_MODEL_GROUPS);
+  const profiles = dedupeList([...baseProfiles, ...Object.keys(CHAT_MODEL_GROUPS)]);
+  profileEl.innerHTML = profiles
+    .map((key) => `<option value="${escapeHtml(key)}">${escapeHtml(resolveChatProfileLabel(key))}</option>`)
+    .join("");
+  const activeProfile = profiles.includes(state.chatProfile) ? state.chatProfile : profiles[0];
+  state.chatProfile = activeProfile || "FAST_TEXT";
+  profileEl.value = state.chatProfile;
+
+  const providerMap = resolveChatProviderMap();
+  const group = CHAT_MODEL_GROUPS[state.chatProfile] || CHAT_MODEL_GROUPS[profiles[0]] || {};
+  const providerOrder = group.provider_order || [];
+  const classProviderMap = state.chatProviderClassMap || {};
+  const classProviders = classProviderMap[state.chatProfile] || {};
+  const classProviderKeys = Object.keys(classProviders || {});
+  const classHasProviderData = classProviderKeys.length > 0;
+  let providers = providerOrder.filter((p) => providerMap[p] && providerMap[p].enabled !== false);
+  if (classHasProviderData) {
+    providers = providers.filter((p) => classProviderKeys.includes(p));
+  } else {
+    providers = [];
+  }
+  if (!providers.length) {
+    providers = Object.keys(providerMap).filter((p) => providerMap[p]?.enabled !== false);
+    if (classHasProviderData) {
+      providers = providers.filter((p) => classProviderKeys.includes(p));
+    }
+  }
+  if (!providers.length && !classHasProviderData) {
+    providerEl.innerHTML = `<option value="">(no provider for profile)</option>`;
+    modelEl.innerHTML = `<option value="">(no verified model)</option>`;
+    state.chatProvider = "";
+    state.chatModel = "";
+    return;
+  }
+
+  if (!providers.length) {
+    providerEl.innerHTML = `<option value="">(no provider)</option>`;
+    modelEl.innerHTML = `<option value="">(no model)</option>`;
+    state.chatProvider = "";
+    state.chatModel = "";
+    return;
+  }
+
+  state.chatProvider = providers.includes(state.chatProvider) ? state.chatProvider : providers[0];
+  providerEl.innerHTML = providers.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+  providerEl.value = state.chatProvider;
+
+  const modelInfo = providerMap[state.chatProvider] || {};
+  const classModels = Array.isArray(classProviders?.[state.chatProvider])
+    ? classProviders[state.chatProvider].slice()
+    : [];
+  let models = classModels.length ? classModels : [];
+  if (!models.length && Array.isArray(modelInfo.models)) {
+    models = modelInfo.models.slice();
+  }
+  models = filterModelsForProfile(state.chatProfile, models);
+  const defaultModel = modelInfo.defaultModel;
+  if (defaultModel && models.includes(defaultModel) && models[0] !== defaultModel) {
+    models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
+  }
+  const classMetaMap = state.chatProviderClassMeta || {};
+  const classMeta = classMetaMap[state.chatProfile] || {};
+  const providerMeta = classMeta[state.chatProvider] || {};
+  const eligibleModels = Array.isArray(providerMeta.eligible) ? providerMeta.eligible.slice() : [];
+  const eligibleSet = new Set(eligibleModels);
+  const hasVerificationMeta =
+    eligibleModels.length || (providerMeta.status && Object.keys(providerMeta.status).length);
+  const verifiedModels = hasVerificationMeta ? models.filter((m) => eligibleSet.has(m)) : [];
+
+  if (verifiedModels.length) {
+    state.chatModel = verifiedModels.includes(state.chatModel)
+      ? state.chatModel
+      : verifiedModels[0] || "";
+  } else {
+    state.chatModel = "";
+  }
+
+  const options = [];
+  const displayModels = verifiedModels.length ? verifiedModels : models;
+  if (!displayModels.length || (hasVerificationMeta && !verifiedModels.length)) {
+    options.push(`<option value="" disabled selected>${escapeHtml("(no verified model)")}</option>`);
+  }
+  displayModels.forEach((m) => {
+    const eligible = hasVerificationMeta ? eligibleSet.has(m) : verifiedModels.length ? true : false;
+    const showAsUnverified = hasVerificationMeta && !eligible;
+    const label = showAsUnverified ? `${m} (unverified)` : m;
+    options.push(
+      `<option value="${escapeHtml(m)}" ${
+        showAsUnverified ? 'disabled data-unverified="1" style="color:#6b7a7a;opacity:0.6"' : ""
+      }>${escapeHtml(label)}</option>`
+    );
+  });
+  modelEl.innerHTML = options.join("");
+  modelEl.value = state.chatModel;
+  saveChatSelection();
+}
+
+async function refreshChatModelSelectors() {
+  const profileEl = $("#chat-profile");
+  const providerEl = $("#chat-provider");
+  const modelEl = $("#chat-model");
+  if (!profileEl || !providerEl || !modelEl) return;
+  profileEl.disabled = true;
+  providerEl.disabled = true;
+  modelEl.disabled = true;
+  let classPayload = await fetchOptionalJson(chatClassRegistryWorkspacePath);
+  if (!classPayload) classPayload = await fetchOptionalJson(chatClassRegistryPath);
+  let providerMapPayload = await fetchOptionalJson(chatProviderMapWorkspacePath);
+  if (!providerMapPayload) providerMapPayload = await fetchOptionalJson(chatProviderMapPath);
+  const registryPayload = await fetchOptionalJson(chatProvidersRegistryPath);
+  const allowPayload = await fetchOptionalJson(chatProviderAllowlistPath);
+  let policyPayload = await fetchOptionalJson(chatProviderPolicyWorkspacePath);
+  if (!policyPayload) {
+    policyPayload = await fetchOptionalJson(chatProviderPolicyRepoPath);
+  }
+  const profileOptions = buildChatProfileOptions(classPayload);
+  state.chatProfileOptions = profileOptions;
+  state.chatProviderClassMap = buildChatProviderClassMap(providerMapPayload);
+  state.chatProviderClassMeta = buildChatProviderClassMeta(providerMapPayload);
+  const providerMap = buildChatProviderMap(registryPayload, policyPayload);
+  const allowlist = buildProviderAllowlist(allowPayload);
+  Object.keys(providerMap).forEach((id) => {
+    providerMap[id].enabled = providerMap[id].enabled !== false && allowlist.isAllowed(id);
+  });
+  if (!Object.keys(providerMap).length) {
+    state.chatProviderRegistryError = "NO_PROVIDER_REGISTRY";
+  } else {
+    state.chatProviderRegistryError = null;
+  }
+  state.chatProviderRegistry = {
+    providers: providerMap,
+    loaded_at: new Date().toISOString(),
+    registry_path: registryPayload?.path || chatProvidersRegistryPath,
+    policy_path: policyPayload?.path || chatProviderPolicyWorkspacePath,
+    allowlist_path: allowPayload?.path || chatProviderAllowlistPath,
+  };
+  renderChatModelSelectors();
+  profileEl.disabled = false;
+  providerEl.disabled = false;
+  modelEl.disabled = false;
+}
+
+let chatSelectorsInitialized = false;
+function initChatModelSelectors() {
+  if (chatSelectorsInitialized) return;
+  const profileEl = $("#chat-profile");
+  const providerEl = $("#chat-provider");
+  const modelEl = $("#chat-model");
+  if (!profileEl || !providerEl || !modelEl) return;
+  chatSelectorsInitialized = true;
+
+  restoreChatSelection();
+
+  profileEl.addEventListener("change", () => {
+    state.chatProfile = profileEl.value;
+    renderChatModelSelectors();
+  });
+  providerEl.addEventListener("change", () => {
+    state.chatProvider = providerEl.value;
+    renderChatModelSelectors();
+  });
+  modelEl.addEventListener("change", () => {
+    state.chatModel = modelEl.value;
+  });
+
+  renderChatModelSelectors();
+  refreshChatModelSelectors();
+}
+
+function buildChatAutoTags() {
+  const tags = [];
+  if (state.chatProfile) tags.push(`profile:${state.chatProfile}`);
+  if (state.chatProvider) tags.push(`provider:${state.chatProvider}`);
+  if (state.chatModel) tags.push(`model:${state.chatModel}`);
+  tags.push("role:user");
+  return tags;
+}
+
 function clearNoteComposer() {
-  $("#note-title").value = "";
-  $("#note-body").value = "";
-  $("#note-tags").value = "";
-  $("#note-link-id").value = "";
+  const titleEl = $("#note-title");
+  if (titleEl) titleEl.value = "";
+  const bodyEl = $("#note-body");
+  if (bodyEl) bodyEl.value = "";
+  const tagsEl = $("#note-tags");
+  if (tagsEl) tagsEl.value = "";
+  const linkId = $("#note-link-id");
+  if (linkId) linkId.value = "";
   state.noteLinks = [];
   renderNoteLinks();
 }
@@ -5018,7 +6424,14 @@ async function refreshOverview() {
 }
 
 async function refreshNorthStar() {
-  state.northStar = await fetchJson(endpoints.northStar);
+  const [northStar, criteriaPacks, mechanismsRegistry] = await Promise.all([
+    fetchJson(endpoints.northStar),
+    fetchNorthStarCriteriaPacks(),
+    fetchNorthStarMechanismsRegistry(),
+  ]);
+  state.northStar = northStar;
+  if (criteriaPacks) state.northStarCriteriaPacks = criteriaPacks;
+  if (mechanismsRegistry) state.northStarMechanismsRegistry = mechanismsRegistry;
   renderNorthStar();
 }
 
@@ -5044,6 +6457,8 @@ async function refreshInbox() {
 async function refreshIntake() {
   await refreshCockpitDecisionArtifacts();
   scheduleRefresh("intake_compat", refreshIntakeCompatSummary, 160);
+  await refreshIntakePurposeIndex();
+  await refreshIntakePurposeReport();
   state.intake = await fetchJson(endpoints.intake);
   const items = Array.isArray(state.intake.items)
     ? state.intake.items
@@ -5066,6 +6481,8 @@ async function refreshIntake() {
       : (unwrap(state.decisions || {}).items || []);
     renderDecisionTable(decisionItems);
   }
+  renderIntakePurposeMeta();
+  renderIntakePurposeReport();
 }
 
 async function refreshDecisions() {
@@ -5107,6 +6524,58 @@ async function refreshJobs() {
   if (smokeEl) {
     smokeEl.textContent = smokeId ? `last smoke job: ${smokeId}` : "last smoke job: -";
   }
+  updateGithubOpsFreshnessIndicator();
+  scheduleGithubOpsAutoPoll("refresh_jobs");
+}
+
+function computeGithubOpsPollIntervalMs() {
+  const summary = (state.jobs || {}).summary || {};
+  const running = Number(summary.running || 0);
+  const queued = Number(summary.queued || 0);
+  if (state.activeTab === "jobs" || running > 0 || queued > 0) return GITHUB_OPS_POLL_ACTIVE_MS;
+  return GITHUB_OPS_POLL_IDLE_MS;
+}
+
+function shouldAutoPollGithubOps() {
+  if (state.githubOpsPollInFlight) return false;
+  const summary = (state.jobs || {}).summary || {};
+  const running = Number(summary.running || 0);
+  const queued = Number(summary.queued || 0);
+  const freshness = getGithubOpsFreshness();
+  const stale = freshness.status !== "fresh";
+  return state.activeTab === "jobs" || running > 0 || queued > 0 || stale;
+}
+
+function scheduleGithubOpsAutoPoll(reason = "") {
+  if (state.githubOpsAutoPollTimer) {
+    clearTimeout(state.githubOpsAutoPollTimer);
+  }
+  const delay = computeGithubOpsPollIntervalMs();
+  state.githubOpsAutoPollTimer = setTimeout(() => runGithubOpsAutoPoll(reason), delay);
+}
+
+async function runGithubOpsAutoPoll(reason = "") {
+  if (!shouldAutoPollGithubOps()) {
+    scheduleGithubOpsAutoPoll("idle");
+    return;
+  }
+  state.githubOpsPollInFlight = true;
+  try {
+    const { data } = await postOpInternal("github-ops-job-poll", { max: 3 });
+    if (data && isOpJobInProgress(data)) {
+      // Async job started; rely on /api/op_job polling elsewhere.
+    }
+    state.githubOpsPollFailures = 0;
+    scheduleRefresh("jobs", refreshJobs, 180);
+  } catch (_) {
+    state.githubOpsPollFailures = (state.githubOpsPollFailures || 0) + 1;
+  } finally {
+    state.githubOpsPollInFlight = false;
+    const base = computeGithubOpsPollIntervalMs();
+    const backoff = Math.min(GITHUB_OPS_POLL_IDLE_MS * 3, base * (1 + state.githubOpsPollFailures));
+    if (state.githubOpsAutoPollTimer) clearTimeout(state.githubOpsAutoPollTimer);
+    state.githubOpsAutoPollTimer = setTimeout(() => runGithubOpsAutoPoll(reason), backoff);
+  }
 }
 
 async function refreshLocks() {
@@ -5129,7 +6598,20 @@ async function refreshNotes() {
   const thread = state.plannerThread || "default";
   state.notes = await fetchJson(`${endpoints.plannerChat}?thread=${encodeURIComponent(thread)}`);
   const items = Array.isArray(state.notes.items) ? state.notes.items : [];
-  renderNotesList(items);
+  if (state.chatStreamNoteId) {
+    const hasStreamNote = items.some((item) => String(item.note_id || "") === String(state.chatStreamNoteId || ""));
+    if (!hasStreamNote) {
+      stopChatStreaming();
+    } else {
+      state.chatStreamItems = items;
+    }
+  }
+  maybeResolveChatPending(items);
+  renderNotes(items);
+  setNotesView(state.notesView);
+  if (!state.chatPending) {
+    maybeStartStreamingLatestAssistant(items);
+  }
 }
 
 
@@ -5202,6 +6684,10 @@ async function refreshAll() {
 }
 
 function confirmAction(op, args) {
+  const opName = String(op || "").trim();
+  if (opName === "planner-chat-send" || opName === "planner-chat-send-llm") {
+    return Promise.resolve(true);
+  }
   const modal = $("#confirm-modal");
   const text = $("#confirm-text");
   const yes = $("#confirm-yes");
@@ -5424,8 +6910,11 @@ async function postOp(op, args = {}) {
     showToast(t("admin.required_op"), "warn");
     return null;
   }
-  const ok = await confirmAction(op, args);
-  if (!ok) return null;
+  const confirmBypassOps = new Set(["planner-chat-send", "planner-chat-send-llm"]);
+  if (!confirmBypassOps.has(opName)) {
+    const ok = await confirmAction(op, args);
+    if (!ok) return null;
+  }
   setActionDisabled(true);
   let data = null;
   try {
@@ -5458,10 +6947,12 @@ async function postOp(op, args = {}) {
     const status = String(data?.status || "UNKNOWN").toUpperCase();
     const toastKind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op, status: data.status || "UNKNOWN" }), toastKind);
-    if (op === "planner-chat-send" && data.status !== "FAIL") {
+    if (op === "planner-chat-send" || op === "planner-chat-send-llm") {
       clearNoteComposer();
+      await refreshNotes();
+    } else {
+      await refreshAll();
     }
-    await refreshAll();
   } finally {
     setActionDisabled(false);
   }
@@ -5851,6 +7342,27 @@ function setupOps() {
       await closeSelectedIntakeItem();
     });
   }
+  const purposeGenerateBtn = $("#intake-purpose-generate");
+  if (purposeGenerateBtn) {
+    purposeGenerateBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await generateIntakePurposeAll();
+    });
+  }
+  const purposeGenerateSelectedBtn = $("#intake-purpose-generate-selected");
+  if (purposeGenerateSelectedBtn) {
+    purposeGenerateSelectedBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await generateIntakePurposeSelected();
+    });
+  }
+  const purposeReportBtn = $("#intake-purpose-report-open");
+  if (purposeReportBtn) {
+    purposeReportBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await openEvidencePreview(intakePurposeReportMdPath);
+    });
+  }
   const hideDone = $("#filter-hide-done");
   if (hideDone) {
     hideDone.addEventListener("change", () => {
@@ -5957,6 +7469,16 @@ function setupOps() {
   if (threadRefresh) {
     threadRefresh.addEventListener("click", () => refreshNotes());
   }
+  const threadNew = $("#planner-thread-new");
+  if (threadNew) {
+    threadNew.addEventListener("click", () => {
+      const id = `chat-${new Date().toISOString().replace(/[:.]/g, "").toLowerCase()}`;
+      state.plannerThread = id;
+      const input = $("#planner-thread");
+      if (input) input.value = id;
+      refreshNotes();
+    });
+  }
   const threadInput = $("#planner-thread");
   if (threadInput) {
     threadInput.addEventListener("change", () => {
@@ -6013,59 +7535,129 @@ function setupOps() {
     });
   }
 
-  $("#notes-refresh").addEventListener("click", () => refreshNotes());
-  $("#notes-search").addEventListener("input", () => {
-    const items = Array.isArray(state.notes?.items) ? state.notes.items : [];
-    renderNotesList(items);
-  });
-  $("#notes-tag-filter").addEventListener("input", () => {
-    const items = Array.isArray(state.notes?.items) ? state.notes.items : [];
-    renderNotesList(items);
-  });
+  const notesRefresh = $("#notes-refresh");
+  if (notesRefresh) notesRefresh.addEventListener("click", () => refreshNotes());
+  const notesViewChat = $("#notes-view-chat");
+  if (notesViewChat) {
+    notesViewChat.addEventListener("click", () => {
+      setNotesView("chat");
+      const items = Array.isArray(state.notes?.items) ? state.notes.items : [];
+      renderNotes(items);
+    });
+  }
+  const notesViewList = $("#notes-view-list");
+  if (notesViewList) {
+    notesViewList.addEventListener("click", () => {
+      setNotesView("list");
+      const items = Array.isArray(state.notes?.items) ? state.notes.items : [];
+      renderNotes(items);
+    });
+  }
+  const notesSearch = $("#notes-search");
+  if (notesSearch) {
+    notesSearch.addEventListener("input", () => {
+      const items = Array.isArray(state.notes?.items) ? state.notes.items : [];
+      renderNotes(items);
+    });
+  }
+  const notesTagFilter = $("#notes-tag-filter");
+  if (notesTagFilter) {
+    notesTagFilter.addEventListener("input", () => {
+      const items = Array.isArray(state.notes?.items) ? state.notes.items : [];
+      renderNotes(items);
+    });
+  }
 
-  $("#note-link-add").addEventListener("click", () => {
-    const kind = $("#note-link-kind").value.trim();
-    const target = $("#note-link-id").value.trim();
-    if (!kind || !target) {
-      showToast(t("toast.link_kind_required"), "warn");
-      return;
-    }
-    state.noteLinks.push({ kind, id_or_path: target });
-    $("#note-link-id").value = "";
-    renderNoteLinks();
-  });
+  const noteLinkAdd = $("#note-link-add");
+  if (noteLinkAdd) {
+    noteLinkAdd.addEventListener("click", () => {
+      const kindEl = $("#note-link-kind");
+      const targetEl = $("#note-link-id");
+      const kind = kindEl ? kindEl.value.trim() : "";
+      const target = targetEl ? targetEl.value.trim() : "";
+      if (!kind || !target) {
+        showToast(t("toast.link_kind_required"), "warn");
+        return;
+      }
+      state.noteLinks.push({ kind, id_or_path: target });
+      if (targetEl) targetEl.value = "";
+      renderNoteLinks();
+    });
+  }
 
-  $("#note-link-clear").addEventListener("click", () => {
-    state.noteLinks = [];
-    renderNoteLinks();
-  });
+  const noteLinkClear = $("#note-link-clear");
+  if (noteLinkClear) {
+    noteLinkClear.addEventListener("click", () => {
+      state.noteLinks = [];
+      renderNoteLinks();
+    });
+  }
 
-  $("#note-save").addEventListener("click", () => {
-    const title = $("#note-title").value.trim();
-    const body = $("#note-body").value || "";
-    const tags = parseTagsInput($("#note-tags").value);
+  $("#note-save").addEventListener("click", async () => {
+    const titleEl = $("#note-title");
+    const bodyEl = $("#note-body");
+    const tagsEl = $("#note-tags");
+    let title = titleEl ? titleEl.value.trim() : "";
+    const body = bodyEl ? bodyEl.value || "" : "";
+    const tags = parseTagsInput(tagsEl ? tagsEl.value : "");
     if (!title && !body.trim()) {
       showToast(t("toast.title_or_body_required"), "warn");
       return;
+    }
+    if (!title) {
+      const firstLine = body.trim().split(/\r?\n/)[0] || "";
+      title = firstLine.slice(0, 80) || t("notes.untitled");
     }
     const threadInput = $("#planner-thread");
     const threadRaw = threadInput ? threadInput.value.trim().toLowerCase() : "";
     const thread = threadRaw || state.plannerThread || "default";
     const linksJson = JSON.stringify(state.noteLinks || []);
-    postOp("planner-chat-send", {
+    const autoTags = buildChatAutoTags();
+    const mergedTags = Array.from(new Set([...tags, ...autoTags]));
+    if (!state.chatProvider || !state.chatModel) {
+      showToast("Provider/model required.", "warn");
+      return;
+    }
+    const pendingToken = startChatPending(thread);
+    clearNoteComposer();
+    renderNotes(Array.isArray(state.notes?.items) ? state.notes.items : []);
+    const result = await postOp("planner-chat-send-llm", {
       thread,
       title,
       body,
-      tags: tags.join(","),
+      tags: mergedTags.join(","),
       links_json: linksJson,
+      provider_id: state.chatProvider || "",
+      model: state.chatModel || "",
+      profile: state.chatProfile || "",
     });
+    if (!result || String(result.status || "").toUpperCase().includes("FAIL")) {
+      clearChatPending(pendingToken);
+      renderNotes(Array.isArray(state.notes?.items) ? state.notes.items : []);
+    }
   });
+
+  const noteBodyInput = $("#note-body");
+  if (noteBodyInput) {
+    noteBodyInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      const titleEl = $("#note-title");
+      const titleVal = titleEl ? titleEl.value.trim() : "";
+      const bodyVal = noteBodyInput.value || "";
+      if (!titleVal && !bodyVal.trim()) return;
+      event.preventDefault();
+      const saveBtn = $("#note-save");
+      if (saveBtn) saveBtn.click();
+    });
+  }
 
   $("#note-clear").addEventListener("click", () => {
     clearNoteComposer();
   });
 
   renderNoteLinks();
+  initChatModelSelectors();
+  setNotesView("chat");
 
   $("#evidence-refresh").addEventListener("click", refreshEvidence);
   $("#evidence-search").addEventListener("input", () => scheduleRefresh("evidence", refreshEvidence, 240));

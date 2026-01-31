@@ -1359,6 +1359,7 @@ DEFAULT_ASYNC_OPS = {
     "system-status",
     "ui-snapshot-bundle",
     "auto-loop",
+    "work-intake-purpose-generate",
 }
 
 

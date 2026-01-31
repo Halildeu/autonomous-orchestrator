@@ -44,7 +44,7 @@
     }
   },
   "live_gate": {
-    "policy_live_enabled": false,
+    "policy_live_enabled": true,
     "require_env_key_present": true,
     "require_explicit_live_flag": true,
     "explicit_live_flag_env": "KERNEL_API_LLM_LIVE"

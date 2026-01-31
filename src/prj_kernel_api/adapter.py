@@ -24,6 +24,7 @@ from src.prj_kernel_api.api_guardrails import (
     release_concurrency,
     verify_auth,
 )
+from src.prj_kernel_api.adapter_llm_actions import maybe_handle_llm_actions
 from src.prj_kernel_api.dotenv_loader import resolve_env_presence
 from src.prj_kernel_api.llm_clients import build_http_request
 from src.prj_kernel_api.llm_live_probe import run_live_probe
@@ -472,6 +473,21 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 auth_checked=auth_checked,
                 rate_limited=rate_limited,
             )
+
+        llm_resp = maybe_handle_llm_actions(
+            action=action,
+            params=params,
+            workspace_root=workspace_root,
+            repo_root=repo_root,
+            env_mode=env_mode,
+            request_id=request_id,
+            auth_checked=auth_checked,
+            rate_limited=rate_limited,
+            policy=policy,
+            build_response=_build_response,
+        )
+        if llm_resp is not None:
+            return llm_resp
 
         detail = bool(params.get("detail", False))
         strict = bool(params.get("strict", False))
