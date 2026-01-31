@@ -224,6 +224,46 @@ def cmd_cockpit_healthcheck(args: argparse.Namespace) -> int:
     return 0 if res.get("status") in {"OK", "WARN"} else 2
 
 
+def cmd_memory_healthcheck(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    from src.ops.memory_health import run_memory_healthcheck
+
+    res = run_memory_healthcheck(workspace_root=ws)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN", "SKIP"} else 2
+
+
+def cmd_memory_smoke(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    from src.ops.memory_health import run_memory_smoke
+
+    res = run_memory_smoke(workspace_root=ws)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN", "SKIP"} else 2
+
+
 def cmd_planner_notes_create(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -1075,6 +1115,14 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_cockpit_hc.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_cockpit_hc.add_argument("--port", default="8787", help="Port (default: 8787).")
     ap_cockpit_hc.set_defaults(func=cmd_cockpit_healthcheck)
+
+    ap_mem_hc = parent.add_parser("memory-healthcheck", help="Run memory adapter healthcheck (workspace-only).")
+    ap_mem_hc.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_mem_hc.set_defaults(func=cmd_memory_healthcheck)
+
+    ap_mem_smoke = parent.add_parser("memory-smoke", help="Run memory adapter smoke test (workspace-only).")
+    ap_mem_smoke.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_mem_smoke.set_defaults(func=cmd_memory_smoke)
 
     register_planner_and_intake_subcommands(
         parent,

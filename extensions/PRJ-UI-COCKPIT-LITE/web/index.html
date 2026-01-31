@@ -22,6 +22,21 @@
         --radius: 12px;
         --sidebar-width: 260px;
       }
+      [data-theme="light"] {
+        --bg: #f6f8f7;
+        --bg2: #e9efee;
+        --panel: #f1f4f3;
+        --card: #ffffff;
+        --card-2: #f6f9f8;
+        --text: #152021;
+        --muted: #5e6f73;
+        --accent: #1f9f86;
+        --accent-2: #c9922e;
+        --danger: #c45757;
+        --border: #d6e0df;
+        --shadow: rgba(15, 20, 21, 0.12);
+        --shadow-soft: rgba(15, 20, 21, 0.08);
+      }
       * { box-sizing: border-box; }
       body {
         margin: 0;
@@ -30,6 +45,12 @@
         background:
           radial-gradient(900px 600px at 5% 10%, #1e2a2b 0%, transparent 60%),
           radial-gradient(900px 500px at 95% 0%, #1b2425 0%, transparent 55%),
+          linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      }
+      [data-theme="light"] body {
+        background:
+          radial-gradient(900px 600px at 5% 10%, rgba(160, 210, 200, 0.25) 0%, transparent 60%),
+          radial-gradient(900px 500px at 95% 0%, rgba(160, 190, 210, 0.2) 0%, transparent 55%),
           linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
       }
       .app {
@@ -45,6 +66,10 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+      }
+      [data-theme="light"] .sidebar {
+        background: #f7faf9;
+        border-right-color: var(--border);
       }
       .sidebar-header {
         display: flex;
@@ -82,6 +107,11 @@
         font-size: 14px;
         line-height: 1;
       }
+      [data-theme="light"] .sidebar-toggle-btn {
+        background: #ffffff;
+        color: #5e6f73;
+        border-color: var(--border);
+      }
       .sidebar-toggle-btn:hover {
         border-color: var(--accent);
         color: var(--accent);
@@ -104,6 +134,9 @@
         border-radius: 8px;
         cursor: pointer;
       }
+      [data-theme="light"] .nav button {
+        color: #203134;
+      }
       .nav-icon {
         width: 28px;
         height: 28px;
@@ -119,6 +152,11 @@
         flex: 0 0 auto;
         user-select: none;
       }
+      [data-theme="light"] .nav-icon {
+        background: #ffffff;
+        color: #5e6f73;
+        border-color: var(--border);
+      }
       .nav-label {
         flex: 1 1 auto;
         min-width: 0;
@@ -126,6 +164,9 @@
       .nav button.active {
         border-color: var(--accent);
         background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .nav button.active {
+        background: rgba(31, 159, 134, 0.12);
       }
       .nav button.active .nav-icon {
         border-color: var(--accent);
@@ -135,6 +176,9 @@
         margin-top: auto;
         font-size: 12px;
         color: var(--muted);
+      }
+      [data-theme="light"] .sidebar-footer {
+        color: #6a7b80;
       }
       .main {
         display: flex;
@@ -149,6 +193,10 @@
         border-bottom: 1px solid var(--border);
         background: rgba(14, 20, 20, 0.7);
         backdrop-filter: blur(6px);
+      }
+      [data-theme="light"] .topbar {
+        background: rgba(255, 255, 255, 0.9);
+        border-bottom-color: var(--border);
       }
       .topbar-left {
         display: flex;
@@ -171,10 +219,56 @@
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      .badge.version {
+        border-color: rgba(47, 219, 170, 0.55);
+        background: rgba(47, 219, 170, 0.12);
+        color: var(--accent);
+        font-weight: 700;
+        text-transform: none;
+        letter-spacing: 0.02em;
+        font-size: 12px;
+        padding: 5px 12px;
+      }
+      [data-theme="light"] .badge {
+        background: #ffffff;
+      }
+      [data-theme="light"] .badge.version {
+        background: #ffffff;
+        border-color: rgba(0, 155, 118, 0.45);
+        color: #009b76;
+      }
       .badge.ok { border-color: var(--accent); color: var(--accent); }
       .badge.warn { border-color: var(--accent-2); color: var(--accent-2); }
       .badge.fail { border-color: var(--danger); color: var(--danger); }
       .badge.idle { border-color: #8aa6ff; color: #8aa6ff; }
+      .meta-id {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .meta-id__value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+      .ai-icon-glyph {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+      }
+      .ai-icon-glyph svg {
+        width: 14px;
+        height: 14px;
+        fill: currentColor;
+      }
       .content {
         padding: 20px 24px 40px;
       }
@@ -192,6 +286,11 @@
         color: var(--text);
         cursor: pointer;
         transition: transform 0.08s ease, border 0.2s ease;
+      }
+      [data-theme="light"] .btn {
+        background: #ffffff;
+        color: var(--text);
+        border-color: var(--border);
       }
       .btn:hover { transform: translateY(-1px); }
       .sidebar-toggle-btn:focus-visible,
@@ -218,6 +317,42 @@
       .btn.small {
         padding: 5px 8px;
         font-size: 11px;
+      }
+      .btn.tiny {
+        padding: 2px 6px;
+        font-size: 10px;
+        line-height: 1;
+      }
+      .btn.ai-icon {
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(18, 28, 30, 0.6);
+        transition: transform 0.08s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      [data-theme="light"] .btn.ai-icon {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: #ffffff;
+      }
+      .btn.ai-icon:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(47, 219, 170, 0.3);
+        transform: translateY(-1px);
+      }
+      .btn.ai-icon:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .btn.icon {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn.icon svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
       }
       .grid {
         display: grid;
@@ -252,6 +387,9 @@
         background: rgba(61, 214, 176, 0.12);
         font-size: 11px;
       }
+      [data-theme="light"] .pill {
+        background: rgba(31, 159, 134, 0.14);
+      }
       .empty {
         padding: 16px;
         border: 1px dashed var(--border);
@@ -277,6 +415,11 @@
         color: var(--text);
         padding: 6px 10px;
         border-radius: 8px;
+      }
+      [data-theme="light"] .input {
+        background: #ffffff;
+        color: var(--text);
+        border-color: var(--border);
       }
       .checkbox {
         display: inline-flex;
@@ -344,6 +487,9 @@
         background: #0f1415;
         align-items: center;
       }
+      [data-theme="light"] .tag-select-input {
+        background: #ffffff;
+      }
       .tag-select.open .tag-dropdown {
         display: block;
       }
@@ -361,6 +507,10 @@
         border: 1px solid var(--border);
         background: rgba(61, 214, 176, 0.12);
         font-size: 11px;
+      }
+      [data-theme="light"] .tag {
+        background: #ffffff;
+        color: var(--text);
       }
       .tag button {
         border: none;
@@ -404,6 +554,10 @@
         display: none;
         z-index: 20;
       }
+      [data-theme="light"] .tag-dropdown {
+        background: #ffffff;
+        box-shadow: 0 12px 20px rgba(15, 20, 21, 0.12);
+      }
       .tag-option {
         padding: 6px 10px;
         cursor: pointer;
@@ -412,9 +566,16 @@
       .tag-option:hover {
         background: rgba(61, 214, 176, 0.08);
       }
+      [data-theme="light"] .tag-option:hover {
+        background: rgba(31, 159, 134, 0.12);
+      }
       .tag-option.active,
       .tag-option[aria-selected="true"] {
         background: rgba(61, 214, 176, 0.12);
+      }
+      [data-theme="light"] .tag-option.active,
+      [data-theme="light"] .tag-option[aria-selected="true"] {
+        background: rgba(31, 159, 134, 0.16);
       }
       textarea.input {
         width: 100%;
@@ -430,6 +591,9 @@
         border-radius: 10px;
         background: #11181a;
       }
+      [data-theme="light"] .table-wrap {
+        background: #ffffff;
+      }
       .table-wrap tbody tr.clickable:hover {
         cursor: pointer;
         background: rgba(61, 214, 176, 0.08);
@@ -444,6 +608,9 @@
       .table-wrap tbody tr.expanded-row td {
         padding: 0;
         background: rgba(255, 255, 255, 0.02);
+      }
+      [data-theme="light"] .table-wrap tbody tr.expanded-row td {
+        background: rgba(0, 0, 0, 0.02);
       }
 
       .intake-inline-detail {
@@ -461,6 +628,9 @@
       .intake-inline-detail .inline-title {
         font-weight: 600;
         color: #e6edf3;
+      }
+      [data-theme="light"] .intake-inline-detail .inline-title {
+        color: #203134;
       }
       .intake-short-id {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -481,6 +651,9 @@
         border-top: 1px solid rgba(255, 255, 255, 0.06);
         padding-top: 10px;
       }
+      [data-theme="light"] .intake-inline-detail .inline-section {
+        border-top-color: rgba(0, 0, 0, 0.08);
+      }
 
       .intake-inline-detail .decision-options {
         display: grid;
@@ -495,6 +668,10 @@
         padding: 10px;
         background: rgba(0, 0, 0, 0.16);
       }
+      [data-theme="light"] .intake-inline-detail .decision-option {
+        border-color: rgba(0, 0, 0, 0.08);
+        background: #ffffff;
+      }
 
       .intake-inline-detail .decision-option .opt-title {
         font-weight: 600;
@@ -504,6 +681,9 @@
       .intake-inline-detail .decision-option .opt-notes {
         color: #b9c3cf;
         font-size: 12px;
+      }
+      [data-theme="light"] .intake-inline-detail .decision-option .opt-notes {
+        color: #5e6f73;
       }
       .intake-detail-grid {
         display: grid;
@@ -538,12 +718,21 @@
         display: grid;
         gap: 6px;
       }
+      [data-theme="light"] .note-item {
+        background: #ffffff;
+      }
       .note-title {
         font-weight: 600;
+      }
+      [data-theme="light"] .note-title {
+        color: #203134;
       }
       .note-meta {
         font-size: 11px;
         color: var(--muted);
+      }
+      [data-theme="light"] .note-meta {
+        color: #5e6f73;
       }
       .note-body {
         font-size: 12px;
@@ -563,6 +752,10 @@
         border: 1px solid var(--border);
         color: var(--muted);
       }
+      [data-theme="light"] .note-tag {
+        background: #ffffff;
+        color: #5e6f73;
+      }
       .note-actions {
         display: flex;
         gap: 8px;
@@ -579,12 +772,22 @@
         color: var(--text);
         cursor: pointer;
       }
+      [data-theme="light"] .thread-item {
+        background: #ffffff;
+        color: #203134;
+      }
       .thread-item.active {
         border-color: var(--accent);
         box-shadow: 0 0 0 1px rgba(61, 214, 176, 0.2);
       }
+      [data-theme="light"] .thread-item.active {
+        box-shadow: 0 0 0 1px rgba(31, 159, 134, 0.2);
+      }
       .thread-title {
         font-weight: 600;
+      }
+      [data-theme="light"] .thread-title {
+        color: #203134;
       }
       .chat-shell {
         display: grid;
@@ -626,20 +829,29 @@
         display: grid;
         gap: 8px;
       }
+      [data-theme="light"] .chat-log {
+        background: #ffffff;
+      }
       .chat-message {
         padding: 8px 10px;
         border-radius: 10px;
         border: 1px solid var(--border);
         background: #0f1415;
       }
+      [data-theme="light"] .chat-message {
+        background: #f6f9f8;
+      }
       .chat-message.assistant { border-color: #3dd6b0; background: #0d1617; margin-right: 18%; }
+      [data-theme="light"] .chat-message.assistant { background: #eef8f5; }
       .chat-message.user {
         border-color: #4aa3ff;
         background: #0e1a22;
         margin-left: 18%;
         align-self: end;
       }
+      [data-theme="light"] .chat-message.user { background: #edf5ff; }
       .chat-message.user .chat-meta { color: #8fbef5; }
+      [data-theme="light"] .chat-message.user .chat-meta { color: #3f6fa7; }
       .chat-message.typing { opacity: 0.85; }
       .chat-message.typing .chat-body { font-style: italic; }
       .chat-message.note { border-color: #3dd6b0; }
@@ -653,6 +865,9 @@
         color: var(--muted);
         margin-bottom: 4px;
       }
+      [data-theme="light"] .chat-meta {
+        color: #5e6f73;
+      }
       .chat-body {
         font-size: 12px;
         white-space: pre-wrap;
@@ -664,6 +879,9 @@
         margin: 6px 0 2px;
         text-transform: uppercase;
         letter-spacing: 0.04em;
+      }
+      [data-theme="light"] .chat-section {
+        color: #1f9f86;
       }
       .chat-line {
         line-height: 1.4;
@@ -702,6 +920,10 @@
         text-align: left;
         z-index: 2;
       }
+      [data-theme="light"] th {
+        background: #eef3f2;
+        color: #506064;
+      }
       th button {
         width: 100%;
         text-align: left;
@@ -726,6 +948,11 @@
         overflow-wrap: anywhere;
         word-break: break-word;
       }
+      [data-theme="light"] pre {
+        background: #f6f9f8;
+        border-color: #d6e0df;
+        color: #203134;
+      }
       .split {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -739,17 +966,233 @@
         display: none;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(6, 10, 12, 0.72);
+        backdrop-filter: blur(6px) saturate(120%);
         z-index: 1000;
+      }
+      [data-theme="light"] .modal {
+        background: rgba(10, 18, 20, 0.35);
+        backdrop-filter: blur(4px) saturate(110%);
       }
       .modal.open { display: flex; }
       .modal-card {
-        width: min(420px, 90vw);
-        background: #101718;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 12px 24px var(--shadow);
+        width: min(520px, 92vw);
+        background: linear-gradient(160deg, #0f1718 0%, #0b1112 100%);
+        border: 1px solid rgba(106, 231, 210, 0.12);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      }
+      [data-theme="light"] .modal-card {
+        background: #ffffff;
+        border-color: #d6e0df;
+        box-shadow: 0 20px 40px rgba(15, 20, 21, 0.18);
+      }
+      .modal-card.ai-suggest {
+        position: relative;
+        overflow: hidden;
+      }
+      .modal-card.ai-suggest .modal-history {
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(8, 14, 16, 0.72);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 12px;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history {
+        border-color: #d6e0df;
+        background: #f6f9f8;
+      }
+      .modal-card.ai-suggest .modal-history .msg {
+        display: block;
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        line-height: 1.35;
+        background: rgba(255, 255, 255, 0.04);
+        color: #d7e5e3;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg {
+        background: #ffffff;
+        color: #203134;
+      }
+      .modal-card.ai-suggest .modal-history .msg .meta {
+        display: block;
+        font-size: 12px;
+        opacity: 0.7;
+        margin-bottom: 4px;
+      }
+      .modal-card.ai-suggest .modal-history .msg.user {
+        background: rgba(0, 180, 170, 0.08);
+        border: 1px solid rgba(0, 180, 170, 0.2);
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg.user {
+        background: rgba(0, 140, 130, 0.08);
+        border-color: rgba(0, 140, 130, 0.2);
+      }
+      .modal-card.ai-suggest .modal-history .msg.assistant {
+        background: rgba(97, 191, 255, 0.06);
+        border: 1px solid rgba(97, 191, 255, 0.18);
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg.assistant {
+        background: rgba(76, 149, 208, 0.08);
+        border-color: rgba(76, 149, 208, 0.2);
+      }
+      .modal-card.ai-suggest .modal-history .msg.system {
+        background: rgba(255, 196, 46, 0.06);
+        border: 1px solid rgba(255, 196, 46, 0.16);
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg.system {
+        background: rgba(205, 152, 46, 0.12);
+        border-color: rgba(205, 152, 46, 0.22);
+      }
+      .modal-card.ai-suggest .modal-thread {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 8px;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-thread {
+        color: #5e6f73;
+      }
+      .modal-card.ai-suggest .modal-status {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 6px;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-status {
+        color: #5e6f73;
+      }
+      .modal-card.ai-suggest .modal-status.warn {
+        color: #ffb37a;
+      }
+      .modal-card.ai-suggest .modal-context {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .modal-card.ai-suggest .modal-context strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .modal-card.ai-suggest .modal-context .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 11px;
+      }
+      .modal-card.ai-suggest .modal-context .pill.primary {
+        border-color: rgba(47, 219, 170, 0.5);
+        color: var(--accent);
+      }
+      .modal-card.ai-suggest .modal-context .pill.secondary {
+        border-color: rgba(255, 182, 72, 0.5);
+        color: #ffc66d;
+      }
+      .modal-card.ai-suggest::before {
+        content: "";
+        position: absolute;
+        inset: -120px 30% auto auto;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(106, 231, 210, 0.22), rgba(106, 231, 210, 0));
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      [data-theme="light"] .modal-card.ai-suggest::before {
+        background: radial-gradient(circle, rgba(31, 159, 134, 0.18), rgba(31, 159, 134, 0));
+        opacity: 0.45;
+      }
+      .modal-selects {
+        display: grid;
+        grid-template-columns: minmax(160px, 1.1fr) minmax(110px, 0.8fr) minmax(160px, 1.1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .modal-selects .input {
+        margin-bottom: 0;
+      }
+      .sr-only {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .modal-title-wrap {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .modal-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        color: #000000;
+        font-weight: 700;
+        box-shadow: none;
+      }
+      .modal-icon svg {
+        width: 24px;
+        height: 24px;
+      }
+      .modal-title {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+      }
+      .modal-hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      [data-theme="light"] .modal-hint {
+        color: #5e6f73;
+      }
+      .modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .modal-textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .modal-close {
+        width: 32px;
+        height: 32px;
       }
       .toast-container {
         position: fixed;
@@ -768,6 +1211,9 @@
         box-shadow: 0 8px 16px var(--shadow-soft);
         font-size: 12px;
       }
+      [data-theme="light"] .toast {
+        background: #ffffff;
+      }
       .toast.ok { border-color: var(--accent); color: var(--accent); }
       .toast.warn { border-color: var(--accent-2); color: var(--accent-2); }
       .toast.fail { border-color: var(--danger); color: var(--danger); }
@@ -783,11 +1229,17 @@
         background: #0f1516;
         border: 1px solid var(--border);
       }
+      [data-theme="light"] .action-log .entry {
+        background: #ffffff;
+      }
       .evidence-tree details {
         margin-bottom: 6px;
         border: 1px solid var(--border);
         border-radius: 8px;
         padding: 6px 8px;
+      }
+      [data-theme="light"] .evidence-tree details {
+        background: #ffffff;
       }
       .evidence-tree {
         max-height: 68vh;
@@ -798,6 +1250,9 @@
       .evidence-tree summary {
         cursor: pointer;
         color: var(--muted);
+      }
+      [data-theme="light"] .evidence-tree summary {
+        color: #5e6f73;
       }
       .evidence-item {
         display: flex;
@@ -822,6 +1277,9 @@
         background: #141c1d;
         font-size: 12px;
       }
+      [data-theme="light"] .status-banner {
+        background: #ffffff;
+      }
       .status-banner.warn { border-color: var(--accent-2); }
       .status-banner.ok { border-color: var(--accent); }
       .status-banner.fail { border-color: var(--danger); }
@@ -832,6 +1290,9 @@
         border: 1px solid rgba(0, 0, 0, 0.12);
         font-size: 12px;
         margin-right: 6px;
+      }
+      [data-theme="light"] .pill {
+        background: #ffffff;
       }
       .pill.muted { opacity: 0.85; }
       .pill.ok { border-color: var(--accent); color: var(--accent); }
@@ -867,6 +1328,11 @@
         font-size: 11px;
         letter-spacing: 0.08em;
         user-select: none;
+      }
+      [data-theme="light"] .sidebar-collapsed .brand-short {
+        background: #ffffff;
+        color: #5e6f73;
+        border-color: var(--border);
       }
       @keyframes fadeUp {
         from { opacity: 0; transform: translateY(10px); }
@@ -965,6 +1431,10 @@
           </div>
 	          <div class="topbar-right row">
 	            <button class="btn accent" id="refresh-all" data-i18n="actions.refresh_all">Refresh All</button>
+              <select class="input" id="theme-select" data-i18n-aria-label="theme.label" data-i18n-title="theme.label">
+                <option value="dark" data-i18n="theme.dark">Dark</option>
+                <option value="light" data-i18n="theme.light">Light</option>
+              </select>
               <select class="input" id="lang-select" data-i18n-aria-label="lang.label" data-i18n-title="lang.label">
                 <option value="en">EN</option>
                 <option value="tr">TR</option>
@@ -1041,7 +1511,9 @@
           <section id="tab-north-star" class="tab">
             <div class="grid">
               <div class="card">
-                <h3 data-i18n="h.north_star">North Star</h3>
+                <div class="row" style="justify-content: space-between; align-items: center;">
+                  <h3 data-i18n="h.north_star" style="margin: 0;">North Star</h3>
+                </div>
                 <div class="badge" id="north-star-status">loading</div>
 	                <div class="subtle" id="north-star-summary"></div>
 	                <div class="row">
@@ -1069,11 +1541,50 @@
 	              <div class="subtle" data-i18n="north_star.lens_details_hint">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
 	              <div id="north-star-lens-details"></div>
 	            </div>
-	            <div class="card">
-	              <h3 data-i18n="north_star.mechanisms.title">Tema / Alt Tema Kataloğu</h3>
-	              <div class="subtle" id="north-star-mechanisms-meta"></div>
-	              <div id="north-star-mechanisms"></div>
-	            </div>
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <h3 data-i18n="north_star.mechanisms.title" style="margin: 0;">Tema / Alt Tema Kataloğu</h3>
+                <button class="btn ghost small icon" id="export-mechanisms" type="button" data-i18n-title="north_star.export_mechanisms" data-i18n-aria-label="north_star.export_mechanisms" title="Export theme catalog" aria-label="Export theme catalog">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v12"></path>
+                    <path d="M8 11l4 4 4-4"></path>
+                    <path d="M4 17h16"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="row" style="gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+                <input class="input" id="ns-mechanisms-search" placeholder="Konu/tema/alt tema ara" data-i18n-placeholder="north_star.mechanisms.filter.search.placeholder" aria-label="Mekanizma ara" data-i18n-aria-label="north_star.mechanisms.filter.search_aria" />
+                <div class="tag-select" id="ns-mechanisms-filter-subject">
+                  <div class="tag-select-input">
+                    <div class="tag-list" id="ns-mechanisms-filter-subject-tags"></div>
+                    <input class="tag-input" id="ns-mechanisms-filter-subject-input" placeholder="Konu filtrele" data-i18n-placeholder="north_star.mechanisms.filter.subject.placeholder" aria-label="Filter mechanisms by subject" data-i18n-aria-label="north_star.mechanisms.filter.subject_aria" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-mechanisms-filter-subject-options" />
+                    <button class="tag-toggle" type="button" aria-label="Toggle subject options">v</button>
+                  </div>
+                  <div class="tag-dropdown" id="ns-mechanisms-filter-subject-options" role="listbox" aria-label="Subject options"></div>
+                </div>
+                <div class="tag-select" id="ns-mechanisms-filter-status">
+                  <div class="tag-select-input">
+                    <div class="tag-list" id="ns-mechanisms-filter-status-tags"></div>
+                    <input class="tag-input" id="ns-mechanisms-filter-status-input" placeholder="Durum filtrele" data-i18n-placeholder="north_star.mechanisms.filter.status.placeholder" aria-label="Filter mechanisms by status" data-i18n-aria-label="north_star.mechanisms.filter.status_aria" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-mechanisms-filter-status-options" />
+                    <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
+                  </div>
+                  <div class="tag-dropdown" id="ns-mechanisms-filter-status-options" role="listbox" aria-label="Status options"></div>
+                </div>
+              </div>
+              <div class="subtle" id="north-star-mechanisms-meta"></div>
+              <div id="north-star-mechanisms"></div>
+            </div>
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <h3 data-i18n="north_star.suggestions.title" style="margin: 0;">AI Önerileri</h3>
+                <div class="row" style="gap: 8px;">
+                  <button class="btn ghost small" id="ns-seed-btn" type="button" data-i18n="north_star.suggestions.seed_btn">Seed (GPT-5.2)</button>
+                  <button class="btn ghost small" id="ns-consult-btn" type="button" data-i18n="north_star.suggestions.consult_btn">Consult (LLM)</button>
+                </div>
+              </div>
+              <div class="subtle" id="north-star-suggestions-meta"></div>
+              <div id="north-star-suggestions"></div>
+            </div>
 		            <div class="card">
 			              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
 			              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>
@@ -1558,6 +2069,61 @@
 	        <div class="row">
 	          <button class="btn danger" id="confirm-yes" type="button" data-i18n="modal.confirm_yes">Confirm</button>
 	          <button class="btn" id="confirm-no" type="button" data-i18n="modal.confirm_no">Cancel</button>
+	        </div>
+	      </div>
+	    </div>
+
+	    <div class="modal" id="ai-suggest-modal" role="dialog" aria-modal="true" aria-labelledby="ai-suggest-title">
+	      <div class="modal-card ai-suggest" role="document">
+	        <div class="modal-header">
+	          <div class="modal-title-wrap">
+	            <div class="modal-icon" aria-hidden="true">
+	              <svg viewBox="6 6 52 52" fill="none">
+	                <path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z" fill="currentColor"/>
+	                <path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z" fill="currentColor"/>
+	                <path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z" fill="currentColor"/>
+	                <text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif" fill="currentColor">AI</text>
+	              </svg>
+	            </div>
+	            <div>
+	              <h3 class="modal-title" id="ai-suggest-title" data-i18n="north_star.suggestions.modal_title">AI note</h3>
+	              <div class="modal-hint" id="ai-suggest-hint" data-i18n="north_star.suggestions.modal_hint">Optional context for AI suggestions.</div>
+	            </div>
+	          </div>
+	          <button class="btn ghost icon modal-close" id="ai-suggest-close" type="button" aria-label="Close">
+	            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	              <path d="M6 6l12 12"></path>
+	              <path d="M18 6l-12 12"></path>
+	            </svg>
+	          </button>
+	        </div>
+	        <div class="modal-body">
+        <div class="modal-thread" id="ai-suggest-thread"></div>
+        <div class="modal-status subtle" id="ai-suggest-status" aria-live="polite"></div>
+        <div class="modal-context" id="ai-suggest-context"></div>
+        <div class="modal-thread-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <label class="subtle" for="ai-suggest-thread-select">Thread</label>
+          <select class="input" id="ai-suggest-thread-select" aria-label="AI thread"></select>
+          <button class="btn ghost small" id="ai-suggest-thread-new" type="button">Yeni</button>
+        </div>
+        <div class="modal-history" id="ai-suggest-history" aria-live="polite"></div>
+        <textarea class="input modal-textarea" id="ai-suggest-comment" rows="4" placeholder="Optional context" data-i18n-placeholder="north_star.suggestions.modal_placeholder"></textarea>
+	        <div class="modal-selects" id="ai-suggest-selects">
+          <label class="subtle sr-only" for="ai-suggest-profile" data-i18n="north_star.suggestions.modal_profile">Profile</label>
+          <select class="input" id="ai-suggest-profile"></select>
+          <label class="subtle sr-only" for="ai-suggest-provider" data-i18n="north_star.suggestions.modal_provider">Provider</label>
+          <select class="input" id="ai-suggest-provider"></select>
+          <label class="subtle sr-only" for="ai-suggest-model" data-i18n="north_star.suggestions.modal_model">Model</label>
+          <select class="input" id="ai-suggest-model"></select>
+	        </div>
+	        <div id="ai-suggest-merge-wrap" style="display:none;">
+	          <label class="subtle" for="ai-suggest-merge" data-i18n="north_star.suggestions.modal_merge_label">Merge target theme_id</label>
+	          <input class="input" id="ai-suggest-merge" type="text" placeholder="theme_id" />
+	        </div>
+	        </div>
+	        <div class="modal-footer">
+	          <button class="btn ghost" id="ai-suggest-cancel" type="button" data-i18n="north_star.suggestions.modal_cancel">Cancel</button>
+	          <button class="btn accent" id="ai-suggest-submit" type="button" data-i18n="north_star.suggestions.modal_submit">Submit</button>
 	        </div>
 	      </div>
 	    </div>
