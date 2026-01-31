@@ -16,7 +16,7 @@
     "notes": []
   },
   "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-RELEASE-AUTOMATION",
-  "enabled": false,
+  "enabled": true,
   "entrypoints": {
     "cockpit_sections": [
       "release"

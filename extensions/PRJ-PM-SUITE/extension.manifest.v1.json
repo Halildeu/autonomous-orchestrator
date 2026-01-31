@@ -15,7 +15,7 @@
     "notes": []
   },
   "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-PM-SUITE",
-  "enabled": false,
+  "enabled": true,
   "entrypoints": {
     "cockpit_sections": [
       "pm_suite"
