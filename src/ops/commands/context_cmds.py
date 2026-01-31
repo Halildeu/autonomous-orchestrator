@@ -435,3 +435,48 @@ def register_context_subcommands(parent: argparse._SubParsersAction[argparse.Arg
     from src.ops.north_star_theme_bootstrap import cmd_north_star_theme_bootstrap
 
     ap_ns_bootstrap.set_defaults(func=cmd_north_star_theme_bootstrap)
+
+    ap_ns_seed = parent.add_parser(
+        "north-star-theme-seed",
+        help="Seed theme/subtheme suggestions via GPT-5.2 (PROPOSED only).",
+    )
+    ap_ns_seed.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_seed.add_argument("--subject-id", required=True, help="Subject id (e.g., ethics_program).")
+    ap_ns_seed.add_argument("--provider-id", default="openai", help="Provider id (default: openai).")
+    ap_ns_seed.add_argument("--model", default="gpt-5.2", help="Model id (default: gpt-5.2).")
+    ap_ns_seed.add_argument("--max-tokens", default="5000", help="Max tokens (default: 5000).")
+    from src.ops.north_star_theme_suggestions import cmd_north_star_theme_seed
+
+    ap_ns_seed.set_defaults(func=cmd_north_star_theme_seed)
+
+    ap_ns_consult = parent.add_parser(
+        "north-star-theme-consult",
+        help="Consult LLMs for suggestions only (missing/merge/too few/too many).",
+    )
+    ap_ns_consult.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_consult.add_argument("--subject-id", required=True, help="Subject id (e.g., ethics_program).")
+    ap_ns_consult.add_argument(
+        "--providers",
+        default="",
+        help="Comma-separated providers (default: openai,google,claude,deepseek,qwen,xai).",
+    )
+    ap_ns_consult.add_argument("--focus-type", default="", help="Optional focus type (theme|subtheme).")
+    ap_ns_consult.add_argument("--focus-id", default="", help="Optional focus id.")
+    ap_ns_consult.add_argument("--comment", default="", help="Optional user comment/context.")
+    ap_ns_consult.add_argument("--max-tokens", default="2500", help="Max tokens (default: 2500).")
+    from src.ops.north_star_theme_suggestions import cmd_north_star_theme_consult
+
+    ap_ns_consult.set_defaults(func=cmd_north_star_theme_consult)
+
+    ap_ns_apply = parent.add_parser(
+        "north-star-theme-suggestion-apply",
+        help="Apply suggestion (ACCEPT/REJECT/MERGE) with optional comment.",
+    )
+    ap_ns_apply.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_apply.add_argument("--suggestion-id", required=True, help="Suggestion id.")
+    ap_ns_apply.add_argument("--action", required=True, help="ACCEPT|REJECT|MERGE")
+    ap_ns_apply.add_argument("--comment", default="", help="Optional reviewer comment.")
+    ap_ns_apply.add_argument("--merge-target", default="", help="Optional merge target theme id.")
+    from src.ops.north_star_theme_suggestions import cmd_north_star_theme_suggestion_apply
+
+    ap_ns_apply.set_defaults(func=cmd_north_star_theme_suggestion_apply)

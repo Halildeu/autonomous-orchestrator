@@ -8,6 +8,7 @@ const ADMIN_REQUIRED_OPS = new Set(["overrides-write", "work-intake-purpose-gene
 const ADMIN_REQUIRED_ACTIONS = new Set(["run-card-set", "extension-toggle", "settings-set-override"]);
 const ADMIN_REQUIRED_ELEMENT_IDS = new Set(["settings-save", "run-card-save"]);
 const LANG_STORAGE_KEY = "cockpit_lang.v1";
+const THEME_STORAGE_KEY = "cockpit_theme.v1";
 const CHAT_SELECTION_STORAGE_KEY = "cockpit_planner_chat_selection.v1";
 const SUPPORTED_LANGS = ["en", "tr"];
 const OP_JOB_POLLING = new Set();
@@ -36,6 +37,9 @@ const I18N = {
   en: {
     "ui.title": "Operator Console",
     "lang.label": "Language",
+    "theme.label": "Theme",
+    "theme.dark": "Dark",
+    "theme.light": "Light",
     "actions.refresh_all": "Refresh All",
     "sidebar.toggle": "Toggle sidebar",
     "nav.primary": "Primary",
@@ -311,6 +315,8 @@ const I18N = {
     "notes.thread_meta": "count={count} last={last}",
     "notes.open": "Open",
     "notes.links.none": "no links added",
+    "select.none": "none",
+    "select.no_verified_model": "no model",
     "notes.links.remove": "Remove",
     "notes.no_note_selected": "no note selected",
     "notes.prefill.context_header": "Context (from intake):",
@@ -330,6 +336,79 @@ const I18N = {
     "north_star.mechanisms.title": "Theme / Subtheme Catalog",
     "north_star.mechanisms.empty": "No mechanisms registry loaded.",
     "north_star.mechanisms.meta": "subjects={count}",
+    "north_star.mechanisms.filter.subject.placeholder": "Filter subject",
+    "north_star.mechanisms.filter.subject_aria": "Filter mechanisms by subject",
+    "north_star.mechanisms.filter.status.placeholder": "Filter status",
+    "north_star.mechanisms.filter.status_aria": "Filter mechanisms by status",
+    "north_star.mechanisms.filter.search.placeholder": "Search subject/theme/subtheme",
+    "north_star.mechanisms.filter.search_aria": "Search mechanisms",
+    "north_star.mechanisms.filter.version_aria": "Select version",
+    "north_star.mechanisms.version.active": "Active (latest)",
+    "north_star.mechanisms.status.active": "Active",
+    "north_star.mechanisms.status.deprecated": "Deprecated",
+    "north_star.mechanisms.status.hidden": "Hidden",
+    "north_star.export_mechanisms": "Export theme catalog (Excel)",
+    "north_star.suggestions.title": "AI Suggestions",
+    "north_star.suggestions.seed_btn": "Seed (GPT-5.2)",
+    "north_star.suggestions.consult_btn": "Consult (LLM)",
+    "north_star.suggestions.empty": "No suggestions available.",
+    "north_star.suggestions.meta": "proposed={count}",
+    "north_star.suggestions.accept": "Accept",
+    "north_star.suggestions.reject": "Reject",
+    "north_star.suggestions.merge": "Merge",
+    "north_star.suggestions.modal_title": "AI note",
+    "north_star.suggestions.modal_hint": "Optional context for AI suggestions.",
+    "north_star.suggestions.modal_context_label": "Selection",
+    "north_star.suggestions.modal_context_subject": "Subject",
+    "north_star.suggestions.modal_context_theme": "Theme",
+    "north_star.suggestions.modal_context_subtheme": "Subtheme",
+    "north_star.suggestions.modal_comment": "Comment",
+    "north_star.suggestions.modal_placeholder": "Add context or constraints for the AI suggestion (optional).",
+    "north_star.suggestions.modal_profile": "Profile",
+    "north_star.suggestions.modal_provider": "Provider",
+    "north_star.suggestions.modal_model": "Model",
+    "north_star.suggestions.modal_model_hint": "Unverified models are disabled.",
+    "north_star.suggestions.modal_history_empty": "No messages yet.",
+    "north_star.suggestions.modal_status_idle": "",
+    "north_star.suggestions.modal_status_started": "Request sent. Waiting for response...",
+    "north_star.suggestions.modal_status_done": "Consult completed.",
+    "north_star.suggestions.modal_status_error": "Consult failed.",
+    "north_star.suggestions.modal_merge_label": "Merge target theme_id",
+    "north_star.suggestions.modal_cancel": "Cancel",
+    "north_star.suggestions.modal_submit": "Submit",
+    "north_star.suggestions.comment_prompt": "Optional comment (why/what to adjust)",
+    "north_star.suggestions.merge_prompt": "Merge target theme_id (optional)",
+    "north_star.suggestions.ai_prompt": "AI comment (context for suggestions)",
+    "north_star.suggestions.seed_confirm": "Seed themes with GPT-5.2? Output goes to PROPOSED only.",
+    "north_star.suggestions.filter.search": "Search suggestions",
+    "north_star.suggestions.filter.subject": "Subject",
+    "north_star.suggestions.filter.theme": "Theme",
+    "north_star.suggestions.filter.subtheme": "Subtheme",
+    "north_star.suggestions.filter.multi_hint": "Use comma for multi-select",
+    "north_star.suggestions.filter.type": "Suggestion type (missing/merge/too_many)",
+    "north_star.suggestions.filter.date_from": "From",
+    "north_star.suggestions.filter.date_to": "To",
+    "north_star.suggestions.discuss": "Discuss",
+    "toast.export_mechanisms_ok": "Theme catalog exported to Excel ({count} rows).",
+    "toast.export_mechanisms_empty": "Theme catalog has no rows to export.",
+    "toast.export_mechanisms_failed": "Theme catalog export failed: {error}",
+    "north_star.export.subject_id": "Subject ID",
+    "north_star.export.subject_title_tr": "Subject (TR)",
+    "north_star.export.subject_title_en": "Subject (EN)",
+    "north_star.export.subject_status": "Subject Status",
+    "north_star.export.subject_approval_required": "Approval Required",
+    "north_star.export.subject_approval_mode": "Approval Mode",
+    "north_star.export.subject_approved_at": "Approved At",
+    "north_star.export.theme_id": "Theme ID",
+    "north_star.export.theme_title_tr": "Theme (TR)",
+    "north_star.export.theme_title_en": "Theme (EN)",
+    "north_star.export.theme_definition_tr": "Theme Definition (TR)",
+    "north_star.export.theme_definition_en": "Theme Definition (EN)",
+    "north_star.export.subtheme_id": "Subtheme ID",
+    "north_star.export.subtheme_title_tr": "Subtheme (TR)",
+    "north_star.export.subtheme_title_en": "Subtheme (EN)",
+    "north_star.export.subtheme_definition_tr": "Subtheme Definition (TR)",
+    "north_star.export.subtheme_definition_en": "Subtheme Definition (EN)",
     "north_star.findings.search_placeholder": "Search findings (id/title/criterion/tag/reason)",
     "north_star.filter.subject.label": "Subject",
     "north_star.filter.subject.placeholder": "Select subject",
@@ -405,6 +484,9 @@ const I18N = {
   tr: {
     "ui.title": "Operatör Konsolu",
     "lang.label": "Dil",
+    "theme.label": "Tema",
+    "theme.dark": "Koyu",
+    "theme.light": "Açık",
     "actions.refresh_all": "Tümünü Yenile",
     "sidebar.toggle": "Sidebar’ı aç/kapat",
     "nav.primary": "Ana gezinme",
@@ -680,6 +762,8 @@ const I18N = {
     "notes.thread_meta": "adet={count} son={last}",
     "notes.open": "Aç",
     "notes.links.none": "link eklenmedi",
+    "select.none": "yok",
+    "select.no_verified_model": "model yok",
     "notes.links.remove": "Kaldır",
     "notes.no_note_selected": "not seçilmedi",
     "notes.prefill.context_header": "Bağlam (intake'den):",
@@ -699,6 +783,79 @@ const I18N = {
     "north_star.mechanisms.title": "Tema / Alt Tema Kataloğu",
     "north_star.mechanisms.empty": "Mekanizma kaydı yüklenmedi.",
     "north_star.mechanisms.meta": "konu_sayısı={count}",
+    "north_star.mechanisms.filter.subject.placeholder": "Konu filtrele",
+    "north_star.mechanisms.filter.subject_aria": "Konuya göre filtrele",
+    "north_star.mechanisms.filter.status.placeholder": "Durum filtrele",
+    "north_star.mechanisms.filter.status_aria": "Duruma göre filtrele",
+    "north_star.mechanisms.filter.search.placeholder": "Konu/tema/alt tema ara",
+    "north_star.mechanisms.filter.search_aria": "Mekanizma ara",
+    "north_star.mechanisms.filter.version_aria": "Sürüm seç",
+    "north_star.mechanisms.version.active": "Aktif (en güncel)",
+    "north_star.mechanisms.status.active": "Aktif",
+    "north_star.mechanisms.status.deprecated": "Arşiv (Deprecated)",
+    "north_star.mechanisms.status.hidden": "Gizli",
+    "north_star.export_mechanisms": "Tema kataloğunu dışa aktar (Excel)",
+    "north_star.suggestions.title": "AI Önerileri",
+    "north_star.suggestions.seed_btn": "Seed (GPT-5.2)",
+    "north_star.suggestions.consult_btn": "İstişare (LLM)",
+    "north_star.suggestions.empty": "Öneri yok.",
+    "north_star.suggestions.meta": "öneri={count}",
+    "north_star.suggestions.accept": "Kabul",
+    "north_star.suggestions.reject": "Reddet",
+    "north_star.suggestions.merge": "Birleştir",
+    "north_star.suggestions.modal_title": "AI yorumu",
+    "north_star.suggestions.modal_hint": "Öneri için opsiyonel bağlam.",
+    "north_star.suggestions.modal_context_label": "Seçim",
+    "north_star.suggestions.modal_context_subject": "Konu",
+    "north_star.suggestions.modal_context_theme": "Tema",
+    "north_star.suggestions.modal_context_subtheme": "Alt tema",
+    "north_star.suggestions.modal_comment": "Yorum",
+    "north_star.suggestions.modal_placeholder": "Öneri için ek bağlam/konstraint ekleyin (opsiyonel).",
+    "north_star.suggestions.modal_profile": "Profil",
+    "north_star.suggestions.modal_provider": "Sağlayıcı",
+    "north_star.suggestions.modal_model": "Model",
+    "north_star.suggestions.modal_model_hint": "Doğrulanmayan modeller seçilemez.",
+    "north_star.suggestions.modal_history_empty": "Henüz mesaj yok.",
+    "north_star.suggestions.modal_status_idle": "",
+    "north_star.suggestions.modal_status_started": "İstek gönderildi. Yanıt bekleniyor...",
+    "north_star.suggestions.modal_status_done": "İstişare tamamlandı.",
+    "north_star.suggestions.modal_status_error": "İstişare başarısız.",
+    "north_star.suggestions.modal_merge_label": "Birleştirme hedef theme_id",
+    "north_star.suggestions.modal_cancel": "Vazgeç",
+    "north_star.suggestions.modal_submit": "Gönder",
+    "north_star.suggestions.comment_prompt": "Opsiyonel yorum (neden / nasıl)",
+    "north_star.suggestions.merge_prompt": "Birleştirme hedef theme_id (opsiyonel)",
+    "north_star.suggestions.ai_prompt": "AI yorumu (öneri için bağlam)",
+    "north_star.suggestions.seed_confirm": "GPT-5.2 ile seed üretilsin mi? Çıktı sadece PROPOSED olur.",
+    "north_star.suggestions.filter.search": "Öneri ara",
+    "north_star.suggestions.filter.subject": "Konu",
+    "north_star.suggestions.filter.theme": "Tema",
+    "north_star.suggestions.filter.subtheme": "Alt tema",
+    "north_star.suggestions.filter.multi_hint": "Çoklu seçim için virgül kullanın",
+    "north_star.suggestions.filter.type": "Öneri türü (eksik/birleştir/çok)",
+    "north_star.suggestions.filter.date_from": "Başlangıç",
+    "north_star.suggestions.filter.date_to": "Bitiş",
+    "north_star.suggestions.discuss": "İstişare",
+    "toast.export_mechanisms_ok": "Tema kataloğu Excel’e aktarıldı ({count} satır).",
+    "toast.export_mechanisms_empty": "Tema kataloğunda dışa aktarılacak satır yok.",
+    "toast.export_mechanisms_failed": "Tema kataloğu dışa aktarılamadı: {error}",
+    "north_star.export.subject_id": "Konu ID",
+    "north_star.export.subject_title_tr": "Konu (TR)",
+    "north_star.export.subject_title_en": "Konu (EN)",
+    "north_star.export.subject_status": "Konu Durumu",
+    "north_star.export.subject_approval_required": "Onay Gerekli",
+    "north_star.export.subject_approval_mode": "Onay Modu",
+    "north_star.export.subject_approved_at": "Onay Tarihi",
+    "north_star.export.theme_id": "Tema ID",
+    "north_star.export.theme_title_tr": "Tema (TR)",
+    "north_star.export.theme_title_en": "Tema (EN)",
+    "north_star.export.theme_definition_tr": "Tema Tanımı (TR)",
+    "north_star.export.theme_definition_en": "Tema Tanımı (EN)",
+    "north_star.export.subtheme_id": "Alt Tema ID",
+    "north_star.export.subtheme_title_tr": "Alt Tema (TR)",
+    "north_star.export.subtheme_title_en": "Alt Tema (EN)",
+    "north_star.export.subtheme_definition_tr": "Alt Tema Tanımı (TR)",
+    "north_star.export.subtheme_definition_en": "Alt Tema Tanımı (EN)",
     "north_star.findings.search_placeholder": "Bulgu ara (id/başlık/kriter/etiket/gerekçe)",
     "north_star.filter.subject.label": "Konu",
     "north_star.filter.subject.placeholder": "Konu seç",
@@ -860,9 +1017,12 @@ const chatProviderMapWorkspacePath = ".cache/ws_customer_default/.cache/index/ll
 const chatProviderMapPath = "docs/OPERATIONS/llm_provider_map.v1.json";
 const northStarCriteriaPacksPath = "docs/OPERATIONS/north_star_criteria_packs.v1.json";
 const northStarMechanismsRegistryPath = ".cache/ws_customer_default/.cache/index/mechanisms.registry.v1.json";
+const northStarMechanismsSuggestionsPath = ".cache/ws_customer_default/.cache/index/mechanisms.suggestions.v1.json";
+const northStarMechanismsHistoryPath = ".cache/ws_customer_default/.cache/index/mechanisms.registry.history.v1.json";
 
 const state = {
   lang: "tr",
+  theme: "dark",
   ws: null,
   overview: null,
   northStar: null,
@@ -873,6 +1033,8 @@ const state = {
   northStarCatalogIndex: null,
   northStarCriteriaPacks: null,
   northStarMechanismsRegistry: null,
+  northStarMechanismsSuggestions: null,
+  northStarMechanismsHistory: null,
   northStarFindingsJoinStats: null,
   status: null,
   snapshot: null,
@@ -904,6 +1066,9 @@ const state = {
   chatProviderRegistryError: null,
   chatProviderClassMap: null,
   chatProviderClassMeta: null,
+  aiSuggestProfile: "",
+  aiSuggestProvider: "",
+  aiSuggestModel: "",
   chatPending: null,
   chatStreamNoteId: null,
   chatStreamText: "",
@@ -970,6 +1135,7 @@ const state = {
   tagSelectActiveIndex: {
     intake: {},
     northStarFindings: {},
+    northStarMechanisms: {},
   },
   sort: {
     inbox: { key: "created_at", dir: "desc" },
@@ -997,6 +1163,11 @@ const state = {
       catalog: [],
       topic_locked_by_perspective: false,
     },
+    northStarMechanisms: {
+      search: "",
+      subject: [],
+      status: [],
+    },
   },
   filterOptions: {
     intake: {
@@ -1014,11 +1185,16 @@ const state = {
       match: ["TRIGGERED", "NOT_TRIGGERED", "UNKNOWN"],
       catalog: ["trend", "bp", "lens"],
     },
+    northStarMechanisms: {
+      subject: [],
+      status: ["ACTIVE", "DEPRECATED", "HIDDEN"],
+    },
   },
 };
 
 let northStarFindingsUiAttached = false;
 let northStarFindingsControlsAttached = false;
+let northStarMechanismsControlsAttached = false;
 
 function unwrap(payload) {
   return payload && payload.data ? payload.data : payload;
@@ -1066,6 +1242,358 @@ async function fetchNorthStarMechanismsRegistry() {
   } catch (err) {
     showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_registry", error: formatError(err) }), "warn");
     return null;
+  }
+}
+
+async function fetchNorthStarMechanismsSuggestions() {
+  try {
+    const data = await fetchOptionalJson(northStarMechanismsSuggestionsPath);
+    return unwrap(data || {});
+  } catch (err) {
+    showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_suggestions", error: formatError(err) }), "warn");
+    return null;
+  }
+}
+
+async function fetchNorthStarMechanismsHistory() {
+  try {
+    const data = await fetchOptionalJson(northStarMechanismsHistoryPath);
+    return unwrap(data || {});
+  } catch (err) {
+    showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_history", error: formatError(err) }), "warn");
+    return null;
+  }
+}
+
+function xmlEscape(text) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function encodeUtf8(text) {
+  return new TextEncoder().encode(String(text ?? ""));
+}
+
+function crc32(buf) {
+  let crc = -1;
+  for (let i = 0; i < buf.length; i += 1) {
+    crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ buf[i]) & 0xff];
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let c = i;
+    for (let k = 0; k < 8; k += 1) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function toDosDateTime(date = new Date()) {
+  const d = date;
+  const dosTime = ((d.getHours() & 0x1f) << 11) | ((d.getMinutes() & 0x3f) << 5) | ((d.getSeconds() / 2) & 0x1f);
+  const dosDate = (((d.getFullYear() - 1980) & 0x7f) << 9) | (((d.getMonth() + 1) & 0xf) << 5) | (d.getDate() & 0x1f);
+  return { dosTime: dosTime & 0xffff, dosDate: dosDate & 0xffff };
+}
+
+function buildZip(files) {
+  const fileRecords = [];
+  let offset = 0;
+  const parts = [];
+  const { dosDate, dosTime } = toDosDateTime();
+
+  files.forEach((file) => {
+    const nameBytes = encodeUtf8(file.name);
+    const dataBytes = typeof file.data === "string" ? encodeUtf8(file.data) : new Uint8Array(file.data);
+    const crc = crc32(dataBytes);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const view = new DataView(localHeader.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, dosTime, true);
+    view.setUint16(12, dosDate, true);
+    view.setUint32(14, crc, true);
+    view.setUint32(18, dataBytes.length, true);
+    view.setUint32(22, dataBytes.length, true);
+    view.setUint16(26, nameBytes.length, true);
+    view.setUint16(28, 0, true);
+    localHeader.set(nameBytes, 30);
+    parts.push(localHeader, dataBytes);
+    fileRecords.push({
+      nameBytes,
+      crc,
+      size: dataBytes.length,
+      offset,
+      dosDate,
+      dosTime,
+    });
+    offset += localHeader.length + dataBytes.length;
+  });
+
+  const centralParts = [];
+  let centralSize = 0;
+  fileRecords.forEach((rec) => {
+    const header = new Uint8Array(46 + rec.nameBytes.length);
+    const view = new DataView(header.buffer);
+    view.setUint32(0, 0x02014b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 20, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, 0, true);
+    view.setUint16(12, rec.dosTime, true);
+    view.setUint16(14, rec.dosDate, true);
+    view.setUint32(16, rec.crc, true);
+    view.setUint32(20, rec.size, true);
+    view.setUint32(24, rec.size, true);
+    view.setUint16(28, rec.nameBytes.length, true);
+    view.setUint16(30, 0, true);
+    view.setUint16(32, 0, true);
+    view.setUint16(34, 0, true);
+    view.setUint16(36, 0, true);
+    view.setUint32(38, 0, true);
+    view.setUint32(42, rec.offset, true);
+    header.set(rec.nameBytes, 46);
+    centralParts.push(header);
+    centralSize += header.length;
+  });
+
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(4, 0, true);
+  endView.setUint16(6, 0, true);
+  endView.setUint16(8, fileRecords.length, true);
+  endView.setUint16(10, fileRecords.length, true);
+  endView.setUint32(12, centralSize, true);
+  endView.setUint32(16, offset, true);
+  endView.setUint16(20, 0, true);
+
+  const blobParts = [...parts, ...centralParts, end];
+  return new Blob(blobParts, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+function buildXlsx(rows, columns) {
+  const sheetRows = [];
+  const headerCells = columns.map((col, idx) => {
+    const cellRef = String.fromCharCode(65 + idx) + "1";
+    return `<c r="${cellRef}" t="inlineStr"><is><t>${xmlEscape(col.label)}</t></is></c>`;
+  });
+  sheetRows.push(`<row r="1">${headerCells.join("")}</row>`);
+  rows.forEach((row, rowIdx) => {
+    const r = rowIdx + 2;
+    const cells = columns.map((col, colIdx) => {
+      const cellRef = String.fromCharCode(65 + colIdx) + String(r);
+      return `<c r="${cellRef}" t="inlineStr"><is><t>${xmlEscape(row[col.key])}</t></is></c>`;
+    });
+    sheetRows.push(`<row r="${r}">${cells.join("")}</row>`);
+  });
+
+  const sheetXml = `<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    ${sheetRows.join("")}
+  </sheetData>
+</worksheet>`;
+
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="ThemeCatalog" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`;
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const workbookRelsXml = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`;
+
+  const files = [
+    { name: "[Content_Types].xml", data: contentTypesXml },
+    { name: "_rels/.rels", data: relsXml },
+    { name: "xl/workbook.xml", data: workbookXml },
+    { name: "xl/_rels/workbook.xml.rels", data: workbookRelsXml },
+    { name: "xl/worksheets/sheet1.xml", data: sheetXml },
+  ];
+
+  return buildZip(files);
+}
+
+function downloadBlobFile(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    link.remove();
+  }, 0);
+}
+
+function flattenMechanismsRegistry(registry) {
+  const rows = [];
+  const subjects = Array.isArray(registry?.subjects) ? registry.subjects : [];
+  subjects.forEach((subject) => {
+    const subjectId = String(subject?.subject_id || "");
+    const subjectTitleTr = String(subject?.subject_title_tr || "");
+    const subjectTitleEn = String(subject?.subject_title_en || "");
+    const subjectStatus = String(subject?.status || "");
+    const subjectApprovalRequired = String(subject?.approval_required ?? "");
+    const subjectApprovalMode = String(subject?.approval_mode || "");
+    const subjectApprovedAt = String(subject?.approved_at || "");
+    const themes = Array.isArray(subject?.themes) ? subject.themes : [];
+    if (!themes.length) {
+      rows.push({
+        subject_id: subjectId,
+        subject_title_tr: subjectTitleTr,
+        subject_title_en: subjectTitleEn,
+        subject_status: subjectStatus,
+        subject_approval_required: subjectApprovalRequired,
+        subject_approval_mode: subjectApprovalMode,
+        subject_approved_at: subjectApprovedAt,
+        theme_id: "",
+        theme_title_tr: "",
+        theme_title_en: "",
+        theme_definition_tr: "",
+        theme_definition_en: "",
+        subtheme_id: "",
+        subtheme_title_tr: "",
+        subtheme_title_en: "",
+        subtheme_definition_tr: "",
+        subtheme_definition_en: "",
+      });
+      return;
+    }
+    themes.forEach((theme) => {
+      const themeId = String(theme?.theme_id || "");
+      const themeTitleTr = String(theme?.title_tr || "");
+      const themeTitleEn = String(theme?.title_en || "");
+      const themeDefTr = String(theme?.definition_tr || "");
+      const themeDefEn = String(theme?.definition_en || "");
+      const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
+      if (!subthemes.length) {
+        rows.push({
+          subject_id: subjectId,
+          subject_title_tr: subjectTitleTr,
+          subject_title_en: subjectTitleEn,
+          subject_status: subjectStatus,
+          subject_approval_required: subjectApprovalRequired,
+          subject_approval_mode: subjectApprovalMode,
+          subject_approved_at: subjectApprovedAt,
+          theme_id: themeId,
+          theme_title_tr: themeTitleTr,
+          theme_title_en: themeTitleEn,
+          theme_definition_tr: themeDefTr,
+          theme_definition_en: themeDefEn,
+          subtheme_id: "",
+          subtheme_title_tr: "",
+          subtheme_title_en: "",
+          subtheme_definition_tr: "",
+          subtheme_definition_en: "",
+        });
+        return;
+      }
+      subthemes.forEach((subtheme) => {
+        rows.push({
+          subject_id: subjectId,
+          subject_title_tr: subjectTitleTr,
+          subject_title_en: subjectTitleEn,
+          subject_status: subjectStatus,
+          subject_approval_required: subjectApprovalRequired,
+          subject_approval_mode: subjectApprovalMode,
+          subject_approved_at: subjectApprovedAt,
+          theme_id: themeId,
+          theme_title_tr: themeTitleTr,
+          theme_title_en: themeTitleEn,
+          theme_definition_tr: themeDefTr,
+          theme_definition_en: themeDefEn,
+          subtheme_id: String(subtheme?.subtheme_id || ""),
+          subtheme_title_tr: String(subtheme?.title_tr || ""),
+          subtheme_title_en: String(subtheme?.title_en || ""),
+          subtheme_definition_tr: String(subtheme?.definition_tr || ""),
+          subtheme_definition_en: String(subtheme?.definition_en || ""),
+        });
+      });
+    });
+  });
+  return rows;
+}
+
+async function exportMechanismsCatalog() {
+  try {
+    let registry = unwrap(state.northStarMechanismsRegistry || {});
+    if (!registry || !Array.isArray(registry.subjects)) {
+      registry = await fetchNorthStarMechanismsRegistry();
+      if (registry) state.northStarMechanismsRegistry = registry;
+    }
+    registry = unwrap(registry || {});
+    updateNorthStarMechanismsFilterOptions(registry, state.northStarMechanismsHistory);
+    const filteredSubjects = getFilteredMechanismsSubjects(registry);
+    const rows = flattenMechanismsRegistry({ ...registry, subjects: filteredSubjects });
+    if (!rows.length) {
+      showToast(t("toast.export_mechanisms_empty"), "warn");
+      return;
+    }
+    const baseColumns = [
+      { key: "subject_id", label: t("north_star.export.subject_id") },
+      { key: "subject_status", label: t("north_star.export.subject_status") },
+      { key: "subject_approval_required", label: t("north_star.export.subject_approval_required") },
+      { key: "subject_approval_mode", label: t("north_star.export.subject_approval_mode") },
+      { key: "subject_approved_at", label: t("north_star.export.subject_approved_at") },
+      { key: "theme_id", label: t("north_star.export.theme_id") },
+      { key: "subtheme_id", label: t("north_star.export.subtheme_id") },
+    ];
+    const lang = state.lang === "en" ? "en" : "tr";
+    const langColumns =
+      lang === "tr"
+        ? [
+            { key: "subject_title_tr", label: t("north_star.export.subject_title_tr") },
+            { key: "theme_title_tr", label: t("north_star.export.theme_title_tr") },
+            { key: "theme_definition_tr", label: t("north_star.export.theme_definition_tr") },
+            { key: "subtheme_title_tr", label: t("north_star.export.subtheme_title_tr") },
+            { key: "subtheme_definition_tr", label: t("north_star.export.subtheme_definition_tr") },
+          ]
+        : [
+            { key: "subject_title_en", label: t("north_star.export.subject_title_en") },
+            { key: "theme_title_en", label: t("north_star.export.theme_title_en") },
+            { key: "theme_definition_en", label: t("north_star.export.theme_definition_en") },
+            { key: "subtheme_title_en", label: t("north_star.export.subtheme_title_en") },
+            { key: "subtheme_definition_en", label: t("north_star.export.subtheme_definition_en") },
+          ];
+    const columns = [...baseColumns.slice(0, 1), ...langColumns, ...baseColumns.slice(1)];
+    const stamp = formatTimestamp(registry?.generated_at || "") || new Date().toISOString().slice(0, 10);
+    const safeStamp = String(stamp).replace(/[:\\s]/g, "-");
+    const xlsxBlob = buildXlsx(rows, columns);
+    downloadBlobFile(`theme_subtheme_catalog_${safeStamp}.xlsx`, xlsxBlob);
+    showToast(t("toast.export_mechanisms_ok", { count: String(rows.length) }), "ok");
+  } catch (err) {
+    showToast(t("toast.export_mechanisms_failed", { error: formatError(err) }), "fail");
   }
 }
 
@@ -1251,6 +1779,18 @@ function readLangFromStorage(key, defaultValue = "en") {
   return SUPPORTED_LANGS.includes(norm) ? norm : String(defaultValue || "en");
 }
 
+function readThemeFromStorage(key, defaultValue = "dark") {
+  let v = defaultValue;
+  try {
+    const raw = localStorage.getItem(String(key));
+    if (raw !== null && raw !== undefined && raw !== "") v = String(raw);
+  } catch (err) {
+    v = defaultValue;
+  }
+  const norm = String(v || "").trim().toLowerCase();
+  return ["dark", "light"].includes(norm) ? norm : String(defaultValue || "dark");
+}
+
 function applyI18n() {
   try {
     document.documentElement.lang = state.lang;
@@ -1279,6 +1819,8 @@ function applyI18n() {
 
   updateAdminModeButtons();
   applyAdminModeToWriteControls();
+  updateNorthStarMechanismsFilterOptions(state.northStarMechanismsRegistry, state.northStarMechanismsHistory);
+  ["subject", "status"].forEach((field) => renderNorthStarMechanismsTagSelect(field));
   renderActionLog();
   renderActionResponse();
   updateGithubOpsFreshnessIndicator();
@@ -1316,11 +1858,32 @@ function setLanguage(next, { persist = true } = {}) {
   scheduleRefresh("active_tab", refreshActiveTab, 80);
 }
 
+function applyTheme(theme) {
+  const next = ["dark", "light"].includes(theme) ? theme : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+}
+
+function setTheme(next, { persist = true } = {}) {
+  const norm = String(next || "").trim().toLowerCase();
+  state.theme = ["dark", "light"].includes(norm) ? norm : "dark";
+  if (persist) writeToStorage(THEME_STORAGE_KEY, state.theme);
+  const select = $("#theme-select");
+  if (select) select.value = state.theme;
+  applyTheme(state.theme);
+}
+
 function setupLanguageSelector() {
   const select = $("#lang-select");
   if (!select) return;
   select.value = state.lang;
   select.addEventListener("change", () => setLanguage(select.value));
+}
+
+function setupThemeSelector() {
+  const select = $("#theme-select");
+  if (!select) return;
+  select.value = state.theme || "dark";
+  select.addEventListener("change", () => setTheme(select.value));
 }
 
 function isAdminModeEnabled() {
@@ -3009,29 +3572,406 @@ function getMechanismsSubjectLabel(subjectId) {
   return formatTrEnLabel(target?.subject_title_tr, target?.subject_title_en, subjectId);
 }
 
+function getMechanismsHistorySubject(historyPayload, subjectId) {
+  if (!subjectId) return null;
+  const history = unwrap(historyPayload || {}) || {};
+  const subjects = Array.isArray(history.subjects) ? history.subjects : [];
+  return subjects.find((entry) => String(entry?.subject_id || "").trim() === String(subjectId || "").trim()) || null;
+}
+
+function getMechanismsHistoryVersions(historySubject) {
+  if (!historySubject) return [];
+  const versions = Array.isArray(historySubject.versions) ? historySubject.versions : [];
+  return versions
+    .map((version) => ({
+      version_id: String(version?.version_id || "").trim(),
+      label: String(version?.label || version?.version_title || "").trim(),
+      created_at: String(version?.created_at || version?.generated_at || "").trim(),
+      status: String(version?.status || "").trim(),
+      themes: Array.isArray(version?.themes) ? version.themes : [],
+    }))
+    .filter((version) => version.version_id);
+}
+
+function getMechanismsHistoryVersion(historySubject, versionId) {
+  if (!historySubject || !versionId) return null;
+  const versions = getMechanismsHistoryVersions(historySubject);
+  return versions.find((version) => normalizeKey(version.version_id) === normalizeKey(versionId)) || null;
+}
+
+function getLatestMechanismsVersionLabel(historySubject) {
+  const versions = getMechanismsHistoryVersions(historySubject);
+  if (!versions.length) return "";
+  const scored = versions
+    .map((version) => ({
+      ...version,
+      ts: Date.parse(version.created_at || "") || 0,
+    }))
+    .sort((a, b) => (b.ts - a.ts) || String(b.version_id).localeCompare(String(a.version_id)));
+  const pick = scored[0];
+  return pick.label || pick.created_at || pick.version_id || "";
+}
+
+function getPrimaryMechanismsSubjectFilter() {
+  const selected = state.filters?.northStarMechanisms?.subject || [];
+  if (Array.isArray(selected)) return String(selected[0] || "");
+  return String(selected || "");
+}
+
+function getVisibleMechanismsSubjects(registryPayload) {
+  const registry = unwrap(registryPayload || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  return subjects.filter((subject) => !["DEPRECATED", "HIDDEN"].includes(String(subject?.status || "").toUpperCase()));
+}
+
+function getFilteredMechanismsSubjects(registryPayload) {
+  const registry = unwrap(registryPayload || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
+  const selectedStatuses = state.filters?.northStarMechanisms?.status || [];
+  const search = String(state.filters?.northStarMechanisms?.search || "").trim().toLowerCase();
+
+  const subjectKeys = new Set((Array.isArray(selectedSubjects) ? selectedSubjects : []).map((val) => normalizeKey(val)));
+  const statusKeys = new Set((Array.isArray(selectedStatuses) ? selectedStatuses : []).map((val) => normalizeKey(val)));
+  const effectiveStatuses = statusKeys.size ? statusKeys : null;
+
+  return subjects.filter((subject) => {
+    const subjectId = String(subject?.subject_id || "").trim();
+    const subjectStatus = String(subject?.status || "").toUpperCase() || "UNKNOWN";
+    if (effectiveStatuses && !effectiveStatuses.has(normalizeKey(subjectStatus))) return false;
+    if (subjectKeys.size && !subjectKeys.has(normalizeKey(subjectId))) return false;
+    if (!search) return true;
+    return mechanismSubjectMatchesSearch(subject, search);
+  });
+}
+
+function getMechanismsSubjectLabelLocalized(subject) {
+  const subjectId = String(subject?.subject_id || "").trim();
+  if (subjectId === "ethics_case_management") return "Etik Programı";
+  if (subjectId === "ethics_program") return "Etik Programı";
+  return localizeTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId);
+}
+
+function formatVersionLabel(raw) {
+  const label = String(raw || "").trim();
+  if (!label) return "";
+  const matchDate = label.match(/(\d{4}-\d{2}-\d{2})/);
+  if (matchDate) return `v${matchDate[1]}`;
+  if (/^v\d{4}-\d{2}-\d{2}$/i.test(label)) return label;
+  return label;
+}
+
+function updateNorthStarMechanismsFilterOptions(registryPayload, historyPayload) {
+  const registry = unwrap(registryPayload || {}) || {};
+  const history = unwrap(historyPayload || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  const subjectOptions = subjects
+    .map((subject) => {
+      const subjectId = String(subject?.subject_id || "").trim();
+      const historySubject = getMechanismsHistorySubject(history, subjectId);
+      const latestVersionLabel = formatVersionLabel(getLatestMechanismsVersionLabel(historySubject));
+      const labelTitle = getMechanismsSubjectLabelLocalized(subject) || subjectId;
+      const labelBase = `${labelTitle} · ID: ${subjectId}`;
+      const label = latestVersionLabel ? `${labelBase} · Güncel ${latestVersionLabel}` : labelBase;
+      return { id: subjectId, label };
+    })
+    .filter((opt) => opt.id)
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const statusValues = new Set(state.filterOptions?.northStarMechanisms?.status || []);
+  subjects.forEach((subject) => {
+    const status = String(subject?.status || "").toUpperCase();
+    if (status) statusValues.add(status);
+  });
+  const statusOptions = Array.from(statusValues.values())
+    .map((status) => String(status || "").toUpperCase())
+    .filter((status) => status)
+    .sort((a, b) => a.localeCompare(b));
+
+  state.filterOptions.northStarMechanisms.subject = subjectOptions;
+  state.filterOptions.northStarMechanisms.status = statusOptions;
+
+  const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
+  const subjectKeys = new Set(subjectOptions.map((opt) => normalizeKey(opt.id)));
+  state.filters.northStarMechanisms.subject = (Array.isArray(selectedSubjects) ? selectedSubjects : []).filter((opt) =>
+    subjectKeys.has(normalizeKey(opt))
+  );
+
+  const selectedStatuses = state.filters?.northStarMechanisms?.status || [];
+  const statusKeys = new Set(statusOptions.map((opt) => normalizeKey(opt)));
+  const prunedStatuses = (Array.isArray(selectedStatuses) ? selectedStatuses : []).filter((opt) => statusKeys.has(normalizeKey(opt)));
+  state.filters.northStarMechanisms.status = prunedStatuses;
+}
+
+function renderNorthStarMechanismsTagSelect(field) {
+  const wrap = $(`#ns-mechanisms-filter-${field}`);
+  const tagsEl = $(`#ns-mechanisms-filter-${field}-tags`);
+  const input = $(`#ns-mechanisms-filter-${field}-input`);
+  const optionsEl = $(`#ns-mechanisms-filter-${field}-options`);
+  if (!wrap || !tagsEl || !input || !optionsEl) return;
+
+  const selected = state.filters.northStarMechanisms[field] || [];
+  const selectedKeys = new Set(selected.map((val) => normalizeKey(val)));
+  const query = input.value.trim().toLowerCase();
+  const rawOptions = state.filterOptions.northStarMechanisms[field] || [];
+  const labelMap = new Map(
+    rawOptions
+      .map((opt) => {
+        if (opt && typeof opt === "object") {
+          const id = String(opt.id || "").trim();
+          const label = String(opt.label || opt.name || opt.title || id).trim();
+          return [id, label];
+        }
+        const value = String(opt || "").trim();
+        return [value, value];
+      })
+      .filter((pair) => pair[0])
+  );
+  const options = rawOptions
+    .map((opt) => {
+      if (opt && typeof opt === "object") {
+        const id = String(opt.id || "").trim();
+        const label = String(opt.label || opt.name || opt.title || id).trim();
+        return { value: id, label };
+      }
+      const value = String(opt || "").trim();
+      const label = field === "status" ? getMechanismsStatusLabel(value) : value;
+      return { value, label };
+    })
+    .filter((opt) => opt.value && !selectedKeys.has(normalizeKey(opt.value)))
+    .filter((opt) => (query ? opt.label.toLowerCase().includes(query) : true))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const activeIndex = getTagSelectActiveIndex("northStarMechanisms", field, options.length);
+  setTagSelectActiveIndex("northStarMechanisms", field, activeIndex, options.length);
+  const optionIdPrefix = `ns-mechanisms-${field}-opt-`;
+  if (wrap.classList.contains("open")) {
+    setAriaExpanded(input, true);
+    if (options.length) {
+      input.setAttribute("aria-activedescendant", `${optionIdPrefix}${activeIndex}`);
+    } else {
+      input.removeAttribute("aria-activedescendant");
+    }
+  } else {
+    setAriaExpanded(input, false);
+  }
+
+  tagsEl.innerHTML = selected
+    .map((value) => {
+      const encoded = encodeTag(value);
+      const label =
+        field === "status" ? getMechanismsStatusLabel(value) : labelMap.get(String(value || "")) || String(value || "");
+      return `<span class="tag">${escapeHtml(label)}<button data-remove="${encoded}" aria-label="${escapeHtml(t("actions.remove_tag"))}">x</button></span>`;
+    })
+    .join("");
+
+  optionsEl.innerHTML = options.length
+    ? options
+        .map((opt, idx) => {
+          const encoded = encodeTag(opt.value);
+          const isActive = idx === activeIndex;
+          const cls = `tag-option${isActive ? " active" : ""}`;
+          return `<div class="${cls}" role="option" id="${optionIdPrefix}${idx}" aria-selected="${isActive ? "true" : "false"}" data-value="${encoded}">${escapeHtml(opt.label)}</div>`;
+        })
+        .join("")
+    : `<div class="tag-option subtle" role="option" aria-selected="false">${escapeHtml(t("empty.no_items"))}</div>`;
+}
+
+function addNorthStarMechanismsTag(field, value) {
+  const list = state.filters.northStarMechanisms[field] || [];
+  const key = normalizeKey(value);
+  if (!key) return;
+  const exists = list.some((item) => normalizeKey(item) === key);
+  if (exists) return;
+  list.push(normalizeValue(value));
+  list.sort((a, b) => a.localeCompare(b));
+  state.filters.northStarMechanisms[field] = list;
+  renderNorthStarMechanismsTagSelect(field);
+}
+
+function removeNorthStarMechanismsTag(field, value) {
+  const list = state.filters.northStarMechanisms[field] || [];
+  const key = normalizeKey(value);
+  state.filters.northStarMechanisms[field] = list.filter((item) => normalizeKey(item) !== key);
+  renderNorthStarMechanismsTagSelect(field);
+}
+
+function setupNorthStarMechanismsTagSelects() {
+  const fields = ["subject", "status"];
+  const closeAll = (except) => {
+    fields.forEach((field) => {
+      if (field === except) return;
+      const wrap = $(`#ns-mechanisms-filter-${field}`);
+      if (wrap) wrap.classList.remove("open");
+      const input = $(`#ns-mechanisms-filter-${field}-input`);
+      if (input) setAriaExpanded(input, false);
+    });
+  };
+
+  fields.forEach((field) => {
+    const wrap = $(`#ns-mechanisms-filter-${field}`);
+    const input = $(`#ns-mechanisms-filter-${field}-input`);
+    const options = $(`#ns-mechanisms-filter-${field}-options`);
+    if (!wrap || !input || !options) return;
+    const toggle = wrap.querySelector(".tag-toggle");
+
+    const openSelect = () => {
+      closeAll(field);
+      wrap.classList.add("open");
+      setTagSelectActiveIndex("northStarMechanisms", field, 0);
+      renderNorthStarMechanismsTagSelect(field);
+      requestAnimationFrame(() => scrollTagSelectActiveOptionIntoView(options));
+    };
+
+    input.addEventListener("focus", () => {
+      openSelect();
+    });
+    input.addEventListener("input", () => renderNorthStarMechanismsTagSelect(field));
+    input.addEventListener("keydown", (event) => {
+      const key = event.key;
+      if (key === "Escape") {
+        wrap.classList.remove("open");
+        setAriaExpanded(input, false);
+        return;
+      }
+      if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "Enter") return;
+      if (!wrap.classList.contains("open") && (key === "ArrowDown" || key === "ArrowUp")) {
+        openSelect();
+      }
+      if (!wrap.classList.contains("open")) return;
+
+      const optionEls = Array.from(options.querySelectorAll(".tag-option[data-value]"));
+      if (!optionEls.length) return;
+      const current = getTagSelectActiveIndex("northStarMechanisms", field, optionEls.length);
+
+      if (key === "ArrowDown" || key === "ArrowUp") {
+        event.preventDefault();
+        const delta = key === "ArrowDown" ? 1 : -1;
+        setTagSelectActiveIndex("northStarMechanisms", field, clampIndex(current + delta, optionEls.length), optionEls.length);
+        renderNorthStarMechanismsTagSelect(field);
+        requestAnimationFrame(() => scrollTagSelectActiveOptionIntoView(options));
+        return;
+      }
+
+      if (key === "Enter") {
+        event.preventDefault();
+        const target = optionEls[current];
+        const rawValue = target?.dataset?.value;
+        if (!rawValue) return;
+        addNorthStarMechanismsTag(field, decodeTag(rawValue));
+        input.value = "";
+        openSelect();
+        input.focus();
+        renderNorthStarMechanisms();
+      }
+    });
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (wrap.contains(document.activeElement)) return;
+        wrap.classList.remove("open");
+        setAriaExpanded(input, false);
+      }, 150);
+    });
+    options.addEventListener("mousedown", (event) => event.preventDefault());
+    if (toggle) {
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (wrap.classList.contains("open")) {
+          wrap.classList.remove("open");
+          setAriaExpanded(input, false);
+        } else {
+          openSelect();
+        }
+        input.focus();
+      });
+    }
+    wrap.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target?.classList?.contains("tag-toggle")) return;
+      const rawValue = target?.dataset?.value;
+      const rawRemove = target?.dataset?.remove;
+      if (rawValue) {
+        addNorthStarMechanismsTag(field, decodeTag(rawValue));
+        input.value = "";
+        openSelect();
+        input.focus();
+        renderNorthStarMechanisms();
+      }
+      if (rawRemove) {
+        removeNorthStarMechanismsTag(field, decodeTag(rawRemove));
+        renderNorthStarMechanisms();
+      }
+      if (target && (target.classList?.contains("tag-select-input") || target.classList?.contains("tag-input"))) {
+        openSelect();
+        input.focus();
+      }
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    fields.forEach((field) => {
+      const wrap = $(`#ns-mechanisms-filter-${field}`);
+      if (!wrap) return;
+      if (!wrap.contains(event.target)) {
+        wrap.classList.remove("open");
+        const input = $(`#ns-mechanisms-filter-${field}-input`);
+        if (input) setAriaExpanded(input, false);
+      }
+    });
+  });
+}
+
+function setupNorthStarMechanismsControls() {
+  if (northStarMechanismsControlsAttached) return;
+  const searchInput = $("#ns-mechanisms-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      state.filters.northStarMechanisms.search = searchInput.value.trim();
+      renderNorthStarMechanisms();
+    });
+  }
+  setupNorthStarMechanismsTagSelects();
+  northStarMechanismsControlsAttached = true;
+}
+
 function renderNorthStarMechanisms() {
   const container = $("#north-star-mechanisms");
   const meta = $("#north-star-mechanisms-meta");
   if (!container) return;
   const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
-  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
-  const visibleSubjects = subjects.filter(
-    (subject) => !["DEPRECATED", "HIDDEN"].includes(String(subject?.status || "").toUpperCase())
-  );
-  if (meta) meta.textContent = t("north_star.mechanisms.meta", { count: String(visibleSubjects.length) });
-  if (!visibleSubjects.length) {
+  const history = unwrap(state.northStarMechanismsHistory || {}) || {};
+  updateNorthStarMechanismsFilterOptions(registry, history);
+  setupNorthStarMechanismsControls();
+  const searchInput = $("#ns-mechanisms-search");
+  if (searchInput) searchInput.value = state.filters.northStarMechanisms.search || "";
+  ["subject", "status"].forEach((field) => renderNorthStarMechanismsTagSelect(field));
+  const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
+  const subjectId = Array.isArray(selectedSubjects) ? (selectedSubjects.length === 1 ? String(selectedSubjects[0] || "") : "") : String(selectedSubjects || "");
+  const filteredSubjects = getFilteredMechanismsSubjects(registry).map((subject) => {
+    const currentId = String(subject?.subject_id || "").trim();
+    return subject;
+  });
+  if (meta) meta.textContent = t("north_star.mechanisms.meta", { count: String(filteredSubjects.length) });
+  if (!filteredSubjects.length) {
     container.innerHTML = `<div class="subtle">${escapeHtml(t("north_star.mechanisms.empty"))}</div>`;
     return;
   }
-  const blocks = visibleSubjects
+  const blocks = filteredSubjects
     .map((subject) => {
       const subjectId = String(subject?.subject_id || "").trim();
-      const subjectLabel = formatTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId || t("north_star.unknown"));
+      const historySubject = getMechanismsHistorySubject(history, subjectId);
+      const latestLabel = formatVersionLabel(getLatestMechanismsVersionLabel(historySubject));
+      const selectedVersionLabel = latestLabel ? `Güncel ${latestLabel}` : "";
+      const subjectLabel = localizeTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId || t("north_star.unknown"));
       const status = String(subject?.status || "").toUpperCase() || "UNKNOWN";
+      const statusLabel = getMechanismsStatusLabel(status);
+      const versionBadge = selectedVersionLabel
+        ? `<span class="badge version" title="${escapeHtml(selectedVersionLabel)}">Güncel ${escapeHtml(latestLabel)}</span>`
+        : "";
       const themes = Array.isArray(subject?.themes) ? subject.themes : [];
       const themeBlocks = themes
         .map((theme) => {
-          const themeLabel = formatTrEnLabel(
+          const themeLabel = localizeTrEnLabel(
             theme?.title_tr || theme?.theme_title_tr,
             theme?.title_en || theme?.theme_title_en,
             theme?.theme_id
@@ -3039,24 +3979,740 @@ function renderNorthStarMechanisms() {
           const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
           const subList = subthemes
             .map((sub) => {
-              const subLabel = formatTrEnLabel(sub?.title_tr || sub?.subtheme_title_tr, sub?.title_en || sub?.subtheme_title_en, sub?.subtheme_id);
-              return `<li>${escapeHtml(subLabel || t("north_star.unknown"))}</li>`;
+              const subLabel = localizeTrEnLabel(sub?.title_tr || sub?.subtheme_title_tr, sub?.title_en || sub?.subtheme_title_en, sub?.subtheme_id);
+              const subId = String(sub?.subtheme_id || "").trim();
+              const aiId = subId || `${themeId || "sub"}:${subLabel}`;
+              const subIdHtml = subId
+                ? `<span class="meta-id">ID: <span class="meta-id__value">${escapeHtml(subId)}</span></span>`
+                : `<span class="meta-id">ID: <span class="meta-id__value">-</span></span>`;
+              return `<li>${escapeHtml(subLabel || t("north_star.unknown"))} ${subIdHtml} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subtheme" data-ai-id="${escapeHtml(aiId)}" data-ai-label="${escapeHtml(subLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" data-ai-subtheme="${escapeHtml(subLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></li>`;
             })
             .join("");
-          const def = theme?.definition_tr || theme?.definition_en || "";
-          return `<details><summary><strong>${escapeHtml(themeLabel || t("north_star.unknown"))}</strong> <span class="subtle">(${subthemes.length})</span></summary>${def ? `<div class="subtle">${escapeHtml(def)}</div>` : ""}${subList ? `<ul class="subtle">${subList}</ul>` : `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}</details>`;
+          const def = localizeTrEnLabel(
+            theme?.definition_tr || theme?.theme_definition_tr,
+            theme?.definition_en || theme?.theme_definition_en,
+            ""
+          );
+          const themeId = String(theme?.theme_id || "").trim();
+          const themeIdHtml = themeId
+            ? `<span class="meta-id">ID: <span class="meta-id__value">${escapeHtml(themeId)}</span></span>`
+            : `<span class="meta-id">ID: <span class="meta-id__value">-</span></span>`;
+          return `<details><summary><strong>${escapeHtml(themeLabel || t("north_star.unknown"))}</strong> <span class="subtle">(${subthemes.length})</span> ${themeIdHtml} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="theme" data-ai-id="${escapeHtml(themeId || subjectId)}" data-ai-label="${escapeHtml(themeLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></summary>${def ? `<div class="subtle">${escapeHtml(def)}</div>` : ""}${subList ? `<ul class="subtle">${subList}</ul>` : `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}</details>`;
         })
         .join("");
+      const aiSubjectBadge = `<button type="button" class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subject" data-ai-id="${escapeHtml(subjectId)}" data-ai-label="${escapeHtml(subjectLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" title="AI öneri"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span><span style="margin-left:4px;">AI öneri</span></button>`;
+      const subjectIdHtml = subjectId ? `<span class="meta-id">ID: <span class="meta-id__value">${escapeHtml(subjectId)}</span></span>` : "";
       return `<div class="card" style="margin-bottom:12px;">
-        <div class="row" style="justify-content:space-between;">
-          <div><strong>${escapeHtml(subjectLabel)}</strong> <span class="subtle">(${escapeHtml(subjectId)})</span></div>
-          <div class="badge">${escapeHtml(status)}</div>
+        <div class="row" style="justify-content:space-between;gap:8px;align-items:center;">
+          <div><strong>${escapeHtml(subjectLabel)}</strong> ${subjectIdHtml} ${aiSubjectBadge}</div>
+          <div class="row" style="gap:6px;align-items:center;">${versionBadge}<div class="badge">${escapeHtml(statusLabel)}</div></div>
         </div>
         ${themeBlocks || `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}
       </div>`;
     })
     .join("");
   container.innerHTML = blocks;
+  attachNorthStarSuggestionHandlers();
+}
+
+function renderNorthStarSuggestions() {
+  const container = $("#north-star-suggestions");
+  const meta = $("#north-star-suggestions-meta");
+  if (!container) return;
+  const store = unwrap(state.northStarMechanismsSuggestions || {}) || {};
+  const items = Array.isArray(store.suggestions) ? store.suggestions : [];
+  const filters = state.northStarSuggestionsFilters || {
+    subject: "",
+    theme: "",
+    subtheme: "",
+  };
+  state.northStarSuggestionsFilters = filters;
+  if (!filters._initialized) {
+    const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
+    if (!filters.subject && Array.isArray(selectedSubjects) && selectedSubjects.length) {
+      filters.subject = String(selectedSubjects[0] || "");
+    }
+    const ctx = state.aiSuggestSelectionContext || {};
+    if (!filters.subject && ctx.subject) filters.subject = String(ctx.subject);
+    if (!filters.theme && ctx.theme) filters.theme = String(ctx.theme);
+    if (!filters.subtheme && ctx.subtheme) filters.subtheme = String(ctx.subtheme);
+    filters._initialized = true;
+  }
+
+  const normalize = (val) => String(val || "").toLowerCase();
+  const parseMulti = (val) =>
+    String(val || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .map((v) => normalize(v));
+
+  const filteredItems = items.filter((s) => {
+    const subjList = parseMulti(filters.subject);
+    const themeList = parseMulti(filters.theme);
+    const subthemeList = parseMulti(filters.subtheme);
+    if (subjList.length && !subjList.includes(normalize(s?.subject_id))) return false;
+    if (themeList.length && !themeList.includes(normalize(s?.target_id))) return false;
+    if (subthemeList.length && !subthemeList.includes(normalize(s?.target_id))) return false;
+    return true;
+  });
+
+  const proposed = items.filter((s) => String(s?.status || "").toUpperCase() === "PROPOSED");
+  if (meta) meta.textContent = t("north_star.suggestions.meta", { count: String(proposed.length) });
+  const filterBar = `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.subject"))}" value="${escapeHtml(filters.subject || "")}" data-suggest-filter="subject"/>
+      <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.theme"))}" value="${escapeHtml(filters.theme || "")}" data-suggest-filter="theme"/>
+      <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.subtheme"))}" value="${escapeHtml(filters.subtheme || "")}" data-suggest-filter="subtheme"/>
+      <div class="subtle" style="align-self:center;">${escapeHtml(t("north_star.suggestions.filter.multi_hint") || "Çoklu değer için virgül kullanın.")}</div>
+    </div>`;
+
+  if (!filteredItems.length) {
+    container.innerHTML = `${filterBar}<div class="subtle">${escapeHtml(t("north_star.suggestions.empty"))}</div>`;
+    attachNorthStarSuggestionHandlers();
+    $$("[data-suggest-filter]").forEach((el) => {
+      el.oninput = () => {
+        state.northStarSuggestionsFilters = {
+          ...state.northStarSuggestionsFilters,
+          [el.dataset.suggestFilter]: el.value,
+        };
+        renderNorthStarSuggestions();
+      };
+    });
+    return;
+  }
+
+  const rows = filteredItems
+    .map((s) => {
+      const id = String(s?.suggestion_id || "");
+      const subjectId = String(s?.subject_id || "");
+      const sType = String(s?.suggestion_type || "");
+      const target = String(s?.target_id || "");
+      const payload = s?.payload ? JSON.stringify(s.payload) : "";
+      const targetType = String(s?.target_type || "");
+      const createdAt = String(s?.created_at || "");
+      return `<div class="card" style="margin-bottom:8px;">
+        <div class="row" style="justify-content:space-between;gap:8px;align-items:center;">
+          <div>
+            <div><strong>${escapeHtml(sType)}</strong> <span class="subtle">(${escapeHtml(target)})</span></div>
+            <div class="subtle">${escapeHtml(subjectId)} • ${escapeHtml(id)} • ${escapeHtml(createdAt)}</div>
+          </div>
+          <div class="row" style="gap:6px;">
+            <button class="btn small ghost" data-suggest-action="ACCEPT" data-suggest-id="${escapeHtml(id)}">${escapeHtml(t("north_star.suggestions.accept"))}</button>
+            <button class="btn small ghost" data-suggest-action="REJECT" data-suggest-id="${escapeHtml(id)}">${escapeHtml(t("north_star.suggestions.reject"))}</button>
+            <button class="btn small ghost" data-suggest-action="MERGE" data-suggest-id="${escapeHtml(id)}">${escapeHtml(t("north_star.suggestions.merge"))}</button>
+            <button class="btn small ghost" data-suggest-discuss="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="${escapeHtml(targetType)}" data-ai-id="${escapeHtml(target)}" data-ai-label="${escapeHtml(target)}" title="${escapeHtml(t("north_star.suggestions.discuss"))}">${escapeHtml(t("north_star.suggestions.discuss"))}</button>
+          </div>
+        </div>
+        ${payload ? `<div class="subtle" style="margin-top:6px;">${escapeHtml(payload)}</div>` : ""}
+      </div>`;
+    })
+    .join("");
+  container.innerHTML = `${filterBar}${rows}`;
+  attachNorthStarSuggestionHandlers();
+  $$("[data-suggest-filter]").forEach((el) => {
+    el.oninput = () => {
+      state.northStarSuggestionsFilters = {
+        ...state.northStarSuggestionsFilters,
+        [el.dataset.suggestFilter]: el.value,
+      };
+      renderNorthStarSuggestions();
+    };
+  });
+}
+
+function getAiSuggestThreadsByKey() {
+  if (!state.aiSuggestThreadsByKey) state.aiSuggestThreadsByKey = {};
+  return state.aiSuggestThreadsByKey;
+}
+
+function rememberAiSuggestThread(threadKey, threadId) {
+  if (!threadKey || !threadId) return;
+  const map = getAiSuggestThreadsByKey();
+  map[threadKey] = threadId;
+}
+
+function pickAiSuggestThread(threadKey, fallback) {
+  const map = getAiSuggestThreadsByKey();
+  return map[threadKey] || fallback || "";
+}
+
+function collectSuggestionsForSelection(subjectId, focusType, focusId, sinceTs) {
+  const store = unwrap(state.northStarMechanismsSuggestions || {}) || {};
+  const items = Array.isArray(store.suggestions) ? store.suggestions : [];
+  const since = Number.isFinite(sinceTs) ? sinceTs : 0;
+  return items.filter((s) => {
+    if (subjectId && String(s?.subject_id || "") !== String(subjectId)) return false;
+    if (focusType && String(s?.target_type || "") !== String(focusType)) return false;
+    if (focusId && String(s?.target_id || "") !== String(focusId)) return false;
+    if (!since) return true;
+    const ts = Date.parse(String(s?.created_at || ""));
+    return Number.isFinite(ts) ? ts >= since : true;
+  });
+}
+
+function summarizeSuggestions(items) {
+  if (!items.length) return "";
+  const lines = items.slice(0, 6).map((s) => {
+    const sType = String(s?.suggestion_type || "");
+    const target = String(s?.target_id || "");
+    const reason = String(s?.payload?.reason_tr || s?.payload?.reason_en || "");
+    return `• ${sType} → ${target}${reason ? ` — ${reason}` : ""}`;
+  });
+  const suffix = items.length > 6 ? `\n… +${items.length - 6} more` : "";
+  return `${lines.join("\n")}${suffix}`;
+}
+
+async function waitForSuggestions({ subjectId, focusType, focusId, sinceTs, attempts = 6, delayMs = 1500 }) {
+  let found = [];
+  for (let i = 0; i < attempts; i += 1) {
+    await refreshNorthStar();
+    found = collectSuggestionsForSelection(subjectId, focusType, focusId, sinceTs);
+    if (found.length) break;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return found;
+}
+
+function _threadSafePart(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function _threadHash(value) {
+  const text = String(value || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function _trimThreadId(value, max = 64) {
+  const text = String(value || "");
+  if (text.length <= max) return text;
+  const suffix = _threadHash(text);
+  const keep = Math.max(8, max - suffix.length - 1);
+  return `${text.slice(0, keep)}_${suffix}`;
+}
+
+function getAiSuggestThreadPrefix(subjectId, focusType, focusId) {
+  if (!subjectId) return "";
+  const type = _threadSafePart(focusType || "subject") || "subject";
+  const id = _threadSafePart(focusId || subjectId) || "subject";
+  const subject = _threadSafePart(subjectId) || "subject";
+  return _trimThreadId(`ns_ai.${subject}.${type}.${id}`);
+}
+
+async function ensurePlannerThreadsLoaded() {
+  if (state.plannerThreads) return state.plannerThreads;
+  try {
+    state.plannerThreads = await fetchJson(endpoints.plannerThreads);
+  } catch (_) {
+    state.plannerThreads = { threads: [] };
+  }
+  return state.plannerThreads;
+}
+
+function filterAiSuggestThreads(prefix) {
+  const items = Array.isArray(state.plannerThreads?.threads) ? state.plannerThreads.threads : [];
+  if (!prefix) return [];
+  return items
+    .map((t) => ({ thread: String(t.thread || ""), count: t.count, last: t.last }))
+    .filter((t) => t.thread.startsWith(prefix));
+}
+
+function buildAiSuggestThreadId(prefix, suffix = "") {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "").toLowerCase();
+  const safeSuffix = _threadSafePart(suffix);
+  const base = safeSuffix ? `${prefix}.${safeSuffix}` : `${prefix}.${stamp}`;
+  return _trimThreadId(base);
+}
+
+function formatAiSuggestThreadLabel(threadId) {
+  const parts = String(threadId || "").split(":");
+  const suffix = parts.slice(-1)[0] || threadId;
+  const selection = state.aiSuggestSelectionLabel || "";
+  return selection ? `${selection} · ${suffix}` : suffix;
+}
+
+async function loadAiSuggestThreadMessages(threadId) {
+  if (!threadId) return [];
+  try {
+    const payload = await fetchJson(`${endpoints.plannerChat}?thread=${encodeURIComponent(threadId)}`);
+    return Array.isArray(payload?.items) ? payload.items.map(normalizeNote) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function renderAiSuggestHistory(container, items) {
+  if (!container) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    container.innerHTML = `<div class="subtle">${escapeHtml(t("north_star.suggestions.modal_history_empty") || "Henüz mesaj yok.")}</div>`;
+    return;
+  }
+  container.innerHTML = items
+    .map((item) => {
+      const role = noteRole(item);
+      const title = escapeHtml(String(item.title || ""));
+      const body = escapeHtml(String(item.body || ""));
+      const meta = escapeHtml(String(item.updated_at || item.created_at || ""));
+      const header = title ? `${title} · ${meta}` : meta;
+      return `<div class="msg ${role}"><span class="meta">${header}</span><div>${body}</div></div>`;
+    })
+    .join("");
+  container.scrollTop = container.scrollHeight;
+}
+
+async function openNorthStarSuggestModal({
+  title,
+  hint,
+  selectionLabel,
+  showMergeTarget,
+  showModelSelect,
+  profileDefault,
+  threadKey,
+  threadLabel,
+  keepOpenOnSubmit,
+  onSubmit,
+}) {
+  const modal = $("#ai-suggest-modal");
+  const titleEl = $("#ai-suggest-title");
+  const hintEl = $("#ai-suggest-hint");
+  const commentEl = $("#ai-suggest-comment");
+  const selectsWrap = $("#ai-suggest-selects");
+  const historyEl = $("#ai-suggest-history");
+  const threadEl = $("#ai-suggest-thread");
+  const contextEl = $("#ai-suggest-context");
+  const statusEl = $("#ai-suggest-status");
+  const threadSelect = $("#ai-suggest-thread-select");
+  const threadNewBtn = $("#ai-suggest-thread-new");
+  const mergeWrap = $("#ai-suggest-merge-wrap");
+  const mergeEl = $("#ai-suggest-merge");
+  const submitBtn = $("#ai-suggest-submit");
+  const cancelBtn = $("#ai-suggest-cancel");
+  const closeBtn = $("#ai-suggest-close");
+  if (!modal || !titleEl || !hintEl || !commentEl || !mergeWrap || !mergeEl || !submitBtn || !cancelBtn) {
+    return Promise.resolve({ comment: "", mergeTarget: "", provider: "", model: "", profile: "" });
+  }
+
+  titleEl.textContent = title || t("north_star.suggestions.modal_title");
+  hintEl.textContent = hint || t("north_star.suggestions.modal_hint");
+  commentEl.value = "";
+  mergeEl.value = "";
+  if (statusEl) {
+    statusEl.textContent = t("north_star.suggestions.modal_status_idle") || "";
+    statusEl.classList.remove("warn");
+  }
+  state.aiSuggestSelectionLabel = selectionLabel || "";
+  if (threadEl) {
+    threadEl.textContent = "";
+    threadEl.style.display = "none";
+  }
+  if (contextEl) {
+    const label = selectionLabel ? `<strong>${escapeHtml(t("north_star.suggestions.modal_context_label"))}:</strong> ${escapeHtml(selectionLabel)}` : "";
+    contextEl.innerHTML = label || `<span class="subtle">${escapeHtml(t("north_star.unknown"))}</span>`;
+  }
+  await ensurePlannerThreadsLoaded();
+  const prefix = threadKey || "";
+  let availableThreads = filterAiSuggestThreads(prefix);
+  if (!availableThreads.length && prefix) {
+    const created = buildAiSuggestThreadId(prefix, "default");
+    availableThreads = [{ thread: created, count: 0, last: "" }];
+  }
+  if (threadSelect) {
+    threadSelect.innerHTML = availableThreads
+      .map((t) => `<option value="${escapeHtml(t.thread)}">${escapeHtml(formatAiSuggestThreadLabel(t.thread))}</option>`)
+      .join("");
+    threadSelect.value = pickAiSuggestThread(prefix, availableThreads[0]?.thread || "");
+  }
+  let activeThread = threadSelect ? threadSelect.value : availableThreads[0]?.thread || "";
+  rememberAiSuggestThread(prefix, activeThread);
+  if (historyEl) {
+    const items = await loadAiSuggestThreadMessages(activeThread);
+    renderAiSuggestHistory(historyEl, items);
+  }
+  if (threadSelect) {
+    threadSelect.onchange = async () => {
+      activeThread = threadSelect.value || "";
+      rememberAiSuggestThread(prefix, activeThread);
+      const items = await loadAiSuggestThreadMessages(activeThread);
+      renderAiSuggestHistory(historyEl, items);
+    };
+  }
+  if (threadNewBtn) {
+    threadNewBtn.onclick = async () => {
+      if (!prefix) return;
+      const fresh = buildAiSuggestThreadId(prefix, "");
+      const nextList = [{ thread: fresh, count: 0, last: "" }].concat(availableThreads);
+      availableThreads = nextList;
+      if (threadSelect) {
+        threadSelect.innerHTML = availableThreads
+          .map((t) => `<option value="${escapeHtml(t.thread)}">${escapeHtml(formatAiSuggestThreadLabel(t.thread))}</option>`)
+          .join("");
+        threadSelect.value = fresh;
+      }
+      activeThread = fresh;
+      rememberAiSuggestThread(prefix, activeThread);
+      const items = await loadAiSuggestThreadMessages(activeThread);
+      renderAiSuggestHistory(historyEl, items);
+    };
+  }
+  mergeWrap.style.display = showMergeTarget ? "block" : "none";
+  if (selectsWrap) {
+    selectsWrap.style.display = showModelSelect ? "grid" : "none";
+  }
+  if (showModelSelect) {
+    await ensureChatProviderRegistryLoaded();
+    const profileHint = profileDefault || resolveSuggestProfileDefault("consult");
+    renderAiSuggestModelSelectors(profileHint);
+  } else {
+    state.aiSuggestProfile = "";
+    state.aiSuggestProvider = "";
+    state.aiSuggestModel = "";
+  }
+
+  let resolve;
+  const promise = new Promise((res) => {
+    resolve = res;
+  });
+
+  const onBackdrop = (event) => {
+    if (event.target !== modal) return;
+    close(null);
+  };
+
+  const onKeydown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close(null);
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      submitBtn.click();
+    }
+  };
+  const onCommentKeydown = (event) => {
+    if (event.key !== "Enter") return;
+    if (event.shiftKey || event.altKey) return;
+    if (event.isComposing) return;
+    event.preventDefault();
+    submitBtn.click();
+  };
+
+  const close = (result) => {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    submitBtn.onclick = null;
+    cancelBtn.onclick = null;
+    if (closeBtn) closeBtn.onclick = null;
+    modal.removeEventListener("mousedown", onBackdrop);
+    document.removeEventListener("keydown", onKeydown);
+    commentEl.removeEventListener("keydown", onCommentKeydown);
+    resolve(result);
+  };
+
+  submitBtn.onclick = async () => {
+    const comment = String(commentEl.value || "").trim();
+    const mergeTarget = String(mergeEl.value || "").trim();
+    const provider = showModelSelect ? String(state.aiSuggestProvider || "") : "";
+    const model = showModelSelect ? String(state.aiSuggestModel || "") : "";
+    const profile = showModelSelect ? String(state.aiSuggestProfile || "") : "";
+    if (showModelSelect && (!provider || !model)) {
+      showToast("Provider/model required.", "warn");
+      return;
+    }
+    const modelHint = provider && model ? `[model_hint=${provider}/${model}]` : "";
+    const commentWithModel = modelHint ? `${comment} ${modelHint}`.trim() : comment;
+    const payload = { comment: commentWithModel, mergeTarget, provider, model, profile };
+    const threadId = activeThread || (threadSelect ? threadSelect.value : "");
+    const submitTs = Date.now();
+    if (threadId) {
+      await postOpInternal("planner-chat-send", {
+        thread: threadId,
+        title: "User",
+        body: commentWithModel || "(boş)",
+        tags: "user,ns_ai",
+        links_json: "[]",
+      });
+      const items = await loadAiSuggestThreadMessages(threadId);
+      renderAiSuggestHistory(historyEl, items);
+    }
+    if (typeof onSubmit === "function") {
+      submitBtn.disabled = true;
+      if (statusEl) {
+        statusEl.textContent = t("north_star.suggestions.modal_status_started") || "";
+        statusEl.classList.remove("warn");
+      }
+      try {
+        const result = await onSubmit(payload);
+        if (statusEl) {
+          statusEl.textContent = t("north_star.suggestions.modal_status_done") || "";
+          statusEl.classList.remove("warn");
+        }
+        const selection = {
+          subjectId: result?.subject_id || "",
+          focusType: result?.focus_type || "",
+          focusId: result?.focus_id || "",
+          sinceTs: submitTs - 2000,
+        };
+        const found = await waitForSuggestions({ ...selection });
+        const suggestionSummary = summarizeSuggestions(found);
+        if (threadId) {
+          await postOpInternal("planner-chat-send", {
+            thread: threadId,
+            title: "Assistant",
+            body:
+              suggestionSummary ||
+              (result && result.note ? String(result.note) : t("north_star.suggestions.thread_sent") || "İstek gönderildi."),
+            tags: "assistant,ns_ai",
+            links_json: "[]",
+          });
+          const items = await loadAiSuggestThreadMessages(threadId);
+          renderAiSuggestHistory(historyEl, items);
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = t("north_star.suggestions.modal_status_error") || "İstişare başarısız.";
+          statusEl.classList.add("warn");
+        }
+        if (threadId) {
+          await postOpInternal("planner-chat-send", {
+            thread: threadId,
+            title: t("common.error") || "Hata",
+            body: formatError(err),
+            tags: "system,ns_ai",
+            links_json: "[]",
+          });
+          const items = await loadAiSuggestThreadMessages(threadId);
+          renderAiSuggestHistory(historyEl, items);
+        }
+        showToast(formatError(err), "warn");
+      } finally {
+        submitBtn.disabled = false;
+      }
+      commentEl.value = "";
+      if (keepOpenOnSubmit) {
+        commentEl.focus();
+        return;
+      }
+      close(payload);
+      return;
+    }
+    close(payload);
+  };
+  cancelBtn.onclick = () => close(null);
+  if (closeBtn) closeBtn.onclick = () => close(null);
+
+  modal.addEventListener("mousedown", onBackdrop);
+  document.addEventListener("keydown", onKeydown);
+  commentEl.addEventListener("keydown", onCommentKeydown);
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  commentEl.focus();
+
+  return promise;
+}
+
+function attachNorthStarSuggestionHandlers() {
+  const seedBtn = $("#ns-seed-btn");
+  if (seedBtn) {
+    seedBtn.onclick = async () => {
+      const subjectId = String(getPrimaryMechanismsSubjectFilter() || "").trim();
+      const subjectLabel = subjectId ? getMechanismsSubjectLabel(subjectId) || subjectId : "";
+      const selectionLabel = subjectLabel
+        ? `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`
+        : "";
+      const modalResult = await openNorthStarSuggestModal({
+        title: t("north_star.suggestions.seed_btn"),
+        hint: t("north_star.suggestions.seed_confirm"),
+        selectionLabel,
+        showMergeTarget: false,
+        showModelSelect: true,
+        profileDefault: resolveSuggestProfileDefault("seed"),
+        threadKey: getAiSuggestThreadPrefix(subjectId, "subject", subjectId),
+        threadLabel: subjectId ? `${subjectId} · seed` : "",
+        keepOpenOnSubmit: true,
+        onSubmit: async (payload) => {
+          await postOp("north-star-theme-seed", {
+            subject_id: subjectId,
+            provider_id: payload.provider || "",
+            model: payload.model || "",
+          });
+          await refreshNorthStar();
+          return {
+            note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
+            subject_id: subjectId,
+            focus_type: "subject",
+            focus_id: subjectId,
+          };
+        },
+      });
+      if (!modalResult) return;
+    };
+  }
+  const consultBtn = $("#ns-consult-btn");
+  if (consultBtn) {
+    consultBtn.onclick = async () => {
+      const subjectId = String(getPrimaryMechanismsSubjectFilter() || "").trim();
+      const subjectLabel = subjectId ? getMechanismsSubjectLabel(subjectId) || subjectId : "";
+      const selectionLabel = subjectLabel
+        ? `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`
+        : "";
+      const modalResult = await openNorthStarSuggestModal({
+        title: t("north_star.suggestions.consult_btn"),
+        hint: t("north_star.suggestions.modal_hint"),
+        selectionLabel,
+        showMergeTarget: false,
+        showModelSelect: true,
+        profileDefault: resolveSuggestProfileDefault("consult"),
+        threadKey: getAiSuggestThreadPrefix(subjectId, "subject", subjectId),
+        threadLabel: subjectId ? `${subjectId} · consult` : "",
+        keepOpenOnSubmit: true,
+        onSubmit: async (payload) => {
+          await postOp("north-star-theme-consult", {
+            subject_id: subjectId,
+            providers: payload.provider || "",
+            comment: payload.comment || "",
+          });
+          await refreshNorthStar();
+          return {
+            note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
+            subject_id: subjectId,
+            focus_type: "subject",
+            focus_id: subjectId,
+          };
+        },
+      });
+      if (!modalResult) return;
+    };
+  }
+  $$("[data-ai-suggest]").forEach((btn) => {
+    btn.addEventListener("click", async (event) => {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const subjectId = btn.dataset.aiSubject || "";
+      const focusType = btn.dataset.aiType || "";
+      const focusId = btn.dataset.aiId || "";
+      state.aiSuggestSelectionContext = {
+        subject: subjectId || "",
+        theme: focusType === "theme" ? focusId : "",
+        subtheme: focusType === "subtheme" ? focusId : "",
+      };
+      const subjectLabel = btn.dataset.aiSubjectLabel || btn.dataset.aiLabel || subjectId;
+      const themeLabel = btn.dataset.aiTheme || "";
+      const subthemeLabel = btn.dataset.aiSubtheme || "";
+      let selectionLabel = "";
+      if (focusType === "subtheme") {
+        selectionLabel = `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`;
+        if (themeLabel) selectionLabel += ` · ${t("north_star.suggestions.modal_context_theme")}: ${themeLabel}`;
+        if (subthemeLabel) selectionLabel += ` · ${t("north_star.suggestions.modal_context_subtheme")}: ${subthemeLabel}`;
+      } else if (focusType === "theme") {
+        selectionLabel = `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`;
+        if (themeLabel) selectionLabel += ` · ${t("north_star.suggestions.modal_context_theme")}: ${themeLabel}`;
+      } else {
+        selectionLabel = `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`;
+      }
+      const modalResult = await openNorthStarSuggestModal({
+        title: t("north_star.suggestions.modal_title"),
+        hint: t("north_star.suggestions.modal_hint"),
+        selectionLabel,
+        showMergeTarget: false,
+        showModelSelect: true,
+        profileDefault: resolveSuggestProfileDefault(focusType || "consult"),
+        threadKey: getAiSuggestThreadPrefix(subjectId, focusType, focusId),
+        threadLabel: selectionLabel,
+        keepOpenOnSubmit: true,
+        onSubmit: async (payload) => {
+          await postOp("north-star-theme-consult", {
+            subject_id: subjectId,
+            providers: payload.provider || "",
+            focus_type: focusType,
+            focus_id: focusId,
+            comment: payload.comment || "",
+          });
+          await refreshNorthStar();
+          return {
+            note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
+            subject_id: subjectId,
+            focus_type: focusType,
+            focus_id: focusId,
+          };
+        },
+      });
+      if (!modalResult) return;
+    });
+  });
+  $$("[data-suggest-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const suggestionId = btn.dataset.suggestId || "";
+      const action = btn.dataset.suggestAction || "";
+      const modalResult = await openNorthStarSuggestModal({
+        title: action,
+        hint: t("north_star.suggestions.modal_hint"),
+        showMergeTarget: String(action).toUpperCase() === "MERGE",
+        showModelSelect: false,
+      });
+      if (!modalResult) return;
+      const comment = modalResult.comment || "";
+      const mergeTarget = modalResult.mergeTarget || "";
+      if (String(action).toUpperCase() === "MERGE" && !mergeTarget) {
+        showToast(t("north_star.suggestions.merge_prompt"), "warn");
+        return;
+      }
+      await postOp("north-star-theme-suggestion-apply", {
+        suggestion_id: suggestionId,
+        action,
+        comment,
+        merge_target: mergeTarget,
+      });
+      await refreshNorthStar();
+    });
+  });
+  $$("[data-suggest-discuss]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const subjectId = btn.dataset.aiSubject || "";
+      const focusType = btn.dataset.aiType || "";
+      const focusId = btn.dataset.aiId || "";
+      const targetLabel = btn.dataset.aiLabel || focusId;
+      let selectionLabel = "";
+      if (subjectId) selectionLabel = `${t("north_star.suggestions.modal_context_subject")}: ${subjectId}`;
+      if (focusType) selectionLabel += ` · ${t("north_star.suggestions.modal_context_theme")}: ${targetLabel}`;
+      const modalResult = await openNorthStarSuggestModal({
+        title: t("north_star.suggestions.discuss"),
+        hint: t("north_star.suggestions.modal_hint"),
+        selectionLabel,
+        showMergeTarget: false,
+        showModelSelect: true,
+        profileDefault: resolveSuggestProfileDefault("consult"),
+        threadKey: getAiSuggestThreadPrefix(subjectId, focusType || "theme", focusId || targetLabel),
+        keepOpenOnSubmit: true,
+        onSubmit: async (payload) => {
+          await postOp("north-star-theme-consult", {
+            subject_id: subjectId,
+            providers: payload.provider || "",
+            focus_type: focusType || "theme",
+            focus_id: focusId || targetLabel,
+            comment: payload.comment || "",
+          });
+          await refreshNorthStar();
+          return {
+            note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
+            subject_id: subjectId,
+            focus_type: focusType || "theme",
+            focus_id: focusId || targetLabel,
+          };
+        },
+      });
+      if (!modalResult) return;
+    });
+  });
 }
 
 function normalizeNorthStarFindingDomains(domains) {
@@ -3418,6 +5074,49 @@ function formatTrEnLabel(tr, en, fallback = "") {
   const enClean = String(en || "").trim();
   if (trClean && enClean && trClean !== enClean) return `${trClean} (${enClean})`;
   return trClean || enClean || fallback || "";
+}
+
+function localizeTrEnLabel(tr, en, fallback = "") {
+  const lang = state.lang === "en" ? "en" : "tr";
+  const trClean = String(tr || "").trim();
+  const enClean = String(en || "").trim();
+  if (lang === "tr") return trClean || enClean || fallback || "";
+  return enClean || trClean || fallback || "";
+}
+
+function getMechanismsStatusLabel(status) {
+  const norm = String(status || "").toUpperCase();
+  if (norm === "DEPRECATED") return t("north_star.mechanisms.status.deprecated");
+  if (norm === "HIDDEN") return t("north_star.mechanisms.status.hidden");
+  if (norm === "ACTIVE") return t("north_star.mechanisms.status.active");
+  return norm || t("north_star.unknown");
+}
+
+function mechanismSubjectMatchesSearch(subject, query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return true;
+  const tokens = [];
+  const add = (value) => {
+    const text = String(value || "").trim();
+    if (text) tokens.push(text.toLowerCase());
+  };
+  add(subject?.subject_id);
+  add(localizeTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, ""));
+
+  const themes = Array.isArray(subject?.themes) ? subject.themes : [];
+  themes.forEach((theme) => {
+    add(theme?.theme_id);
+    add(localizeTrEnLabel(theme?.title_tr || theme?.theme_title_tr, theme?.title_en || theme?.theme_title_en, ""));
+    add(localizeTrEnLabel(theme?.definition_tr || theme?.theme_definition_tr, theme?.definition_en || theme?.theme_definition_en, ""));
+    const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
+    subthemes.forEach((sub) => {
+      add(sub?.subtheme_id);
+      add(localizeTrEnLabel(sub?.title_tr || sub?.subtheme_title_tr, sub?.title_en || sub?.subtheme_title_en, ""));
+      add(localizeTrEnLabel(sub?.definition_tr || sub?.subtheme_definition_tr, sub?.definition_en || sub?.subtheme_definition_en, ""));
+    });
+  });
+
+  return tokens.some((text) => text.includes(q));
 }
 
 function extractMechanismsRegistryOptions(registryPayload) {
@@ -4372,6 +6071,7 @@ function renderNorthStar() {
 
   renderNorthStarLensDetails(payload, evalData);
   renderNorthStarMechanisms();
+  renderNorthStarSuggestions();
 
   // Lens Findings (lens-by-lens explorer)
   const findingsByLens = {};
@@ -5998,6 +7698,7 @@ function resolveChatProfileLabel(profileId) {
   return profileId;
 }
 
+
 function saveChatSelection() {
   try {
     const payload = {
@@ -6170,15 +7871,15 @@ function renderChatModelSelectors() {
     }
   }
   if (!providers.length && !classHasProviderData) {
-    providerEl.innerHTML = `<option value="">(no provider for profile)</option>`;
-    modelEl.innerHTML = `<option value="">(no verified model)</option>`;
+    providerEl.innerHTML = `<option value="">${escapeHtml(t("select.none"))}</option>`;
+    modelEl.innerHTML = `<option value="">${escapeHtml(t("select.no_verified_model"))}</option>`;
     state.chatProvider = "";
     state.chatModel = "";
     return;
   }
 
   if (!providers.length) {
-    providerEl.innerHTML = `<option value="">(no provider)</option>`;
+    providerEl.innerHTML = `<option value="">${escapeHtml(t("select.none"))}</option>`;
     modelEl.innerHTML = `<option value="">(no model)</option>`;
     state.chatProvider = "";
     state.chatModel = "";
@@ -6222,7 +7923,7 @@ function renderChatModelSelectors() {
   const options = [];
   const displayModels = verifiedModels.length ? verifiedModels : models;
   if (!displayModels.length || (hasVerificationMeta && !verifiedModels.length)) {
-    options.push(`<option value="" disabled selected>${escapeHtml("(no verified model)")}</option>`);
+    options.push(`<option value="" disabled selected>${escapeHtml(t("select.no_verified_model"))}</option>`);
   }
   displayModels.forEach((m) => {
     const eligible = hasVerificationMeta ? eligibleSet.has(m) : verifiedModels.length ? true : false;
@@ -6237,6 +7938,139 @@ function renderChatModelSelectors() {
   modelEl.innerHTML = options.join("");
   modelEl.value = state.chatModel;
   saveChatSelection();
+}
+
+function resolveSuggestProfileDefault(kind) {
+  const key = String(kind || "").toUpperCase();
+  const map = {
+    SEED: "REASONING_TEXT",
+    CONSULT: "BALANCED_TEXT",
+    THEME: "BALANCED_TEXT",
+    SUBTHEME: "BALANCED_TEXT",
+  };
+  return map[key] || "BALANCED_TEXT";
+}
+
+function renderAiSuggestModelSelectors(profileDefault) {
+  const profileEl = $("#ai-suggest-profile");
+  const providerEl = $("#ai-suggest-provider");
+  const modelEl = $("#ai-suggest-model");
+  const wrapEl = $("#ai-suggest-selects");
+  if (!profileEl || !providerEl || !modelEl || !wrapEl) return { profile: "", provider: "", model: "" };
+
+  wrapEl.style.display = "grid";
+  const registryProfiles = Array.isArray(state.chatProfileOptions) ? state.chatProfileOptions : [];
+  const baseProfiles = registryProfiles.length ? registryProfiles : Object.keys(CHAT_MODEL_GROUPS);
+  const profiles = dedupeList([...baseProfiles, ...Object.keys(CHAT_MODEL_GROUPS)]);
+  const preferredProfile = profiles.includes(profileDefault) ? profileDefault : profiles[0];
+  state.aiSuggestProfile = profiles.includes(state.aiSuggestProfile)
+    ? state.aiSuggestProfile
+    : preferredProfile || "BALANCED_TEXT";
+  profileEl.innerHTML = profiles
+    .map((key) => `<option value="${escapeHtml(key)}">${escapeHtml(resolveChatProfileLabel(key))}</option>`)
+    .join("");
+  profileEl.value = state.aiSuggestProfile;
+
+  const providerMap = resolveChatProviderMap();
+  const group = CHAT_MODEL_GROUPS[state.aiSuggestProfile] || CHAT_MODEL_GROUPS[profiles[0]] || {};
+  const providerOrder = group.provider_order || [];
+  const classProviderMap = state.chatProviderClassMap || {};
+  const classProviders = classProviderMap[state.aiSuggestProfile] || {};
+  const classProviderKeys = Object.keys(classProviders || {});
+  const classHasProviderData = classProviderKeys.length > 0;
+  let providers = providerOrder.filter((p) => providerMap[p] && providerMap[p].enabled !== false);
+  if (classHasProviderData) {
+    providers = providers.filter((p) => classProviderKeys.includes(p));
+  } else {
+    providers = [];
+  }
+  if (!providers.length) {
+    providers = Object.keys(providerMap).filter((p) => providerMap[p]?.enabled !== false);
+    if (classHasProviderData) {
+      providers = providers.filter((p) => classProviderKeys.includes(p));
+    }
+  }
+  if (!providers.length) {
+    providerEl.innerHTML = `<option value="">${escapeHtml(t("select.none"))}</option>`;
+    modelEl.innerHTML = `<option value="">${escapeHtml(t("select.no_verified_model"))}</option>`;
+    state.aiSuggestProvider = "";
+    state.aiSuggestModel = "";
+    return { profile: state.aiSuggestProfile, provider: "", model: "" };
+  }
+
+  state.aiSuggestProvider = providers.includes(state.aiSuggestProvider) ? state.aiSuggestProvider : providers[0];
+  providerEl.innerHTML = providers.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+  providerEl.value = state.aiSuggestProvider;
+
+  const modelInfo = providerMap[state.aiSuggestProvider] || {};
+  const classModels = Array.isArray(classProviders?.[state.aiSuggestProvider])
+    ? classProviders[state.aiSuggestProvider].slice()
+    : [];
+  let models = classModels.length ? classModels : [];
+  if (!models.length && Array.isArray(modelInfo.models)) {
+    models = modelInfo.models.slice();
+  }
+  models = filterModelsForProfile(state.aiSuggestProfile, models);
+  const defaultModel = modelInfo.defaultModel;
+  if (defaultModel && models.includes(defaultModel) && models[0] !== defaultModel) {
+    models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
+  }
+  const classMetaMap = state.chatProviderClassMeta || {};
+  const classMeta = classMetaMap[state.aiSuggestProfile] || {};
+  const providerMeta = classMeta[state.aiSuggestProvider] || {};
+  const eligibleModels = Array.isArray(providerMeta.eligible) ? providerMeta.eligible.slice() : [];
+  const eligibleSet = new Set(eligibleModels);
+  const hasVerificationMeta =
+    eligibleModels.length || (providerMeta.status && Object.keys(providerMeta.status).length);
+  const verifiedModels = hasVerificationMeta ? models.filter((m) => eligibleSet.has(m)) : [];
+
+  if (verifiedModels.length) {
+    state.aiSuggestModel = verifiedModels.includes(state.aiSuggestModel)
+      ? state.aiSuggestModel
+      : verifiedModels[0] || "";
+  } else {
+    state.aiSuggestModel = "";
+  }
+
+  const options = [];
+  const displayModels = verifiedModels.length ? verifiedModels : models;
+  if (!displayModels.length || (hasVerificationMeta && !verifiedModels.length)) {
+    options.push(`<option value="" disabled selected>${escapeHtml(t("select.no_verified_model"))}</option>`);
+  }
+  displayModels.forEach((m) => {
+    const eligible = hasVerificationMeta ? eligibleSet.has(m) : verifiedModels.length ? true : false;
+    const showAsUnverified = hasVerificationMeta && !eligible;
+    const label = showAsUnverified ? `${m} (unverified)` : m;
+    options.push(
+      `<option value="${escapeHtml(m)}" ${
+        showAsUnverified ? 'disabled data-unverified="1" style="color:#6b7a7a;opacity:0.6"' : ""
+      }>${escapeHtml(label)}</option>`
+    );
+  });
+  modelEl.innerHTML = options.join("");
+  modelEl.value = state.aiSuggestModel;
+
+  profileEl.onchange = () => {
+    state.aiSuggestProfile = profileEl.value;
+    state.aiSuggestProvider = "";
+    state.aiSuggestModel = "";
+    renderAiSuggestModelSelectors(state.aiSuggestProfile);
+  };
+  providerEl.onchange = () => {
+    state.aiSuggestProvider = providerEl.value;
+    state.aiSuggestModel = "";
+    renderAiSuggestModelSelectors(state.aiSuggestProfile);
+  };
+  modelEl.onchange = () => {
+    state.aiSuggestModel = modelEl.value;
+  };
+
+  return { profile: state.aiSuggestProfile, provider: state.aiSuggestProvider, model: state.aiSuggestModel };
+}
+
+async function ensureChatProviderRegistryLoaded() {
+  if (state.chatProviderRegistry) return;
+  await refreshChatModelSelectors();
 }
 
 async function refreshChatModelSelectors() {
@@ -6424,14 +8258,18 @@ async function refreshOverview() {
 }
 
 async function refreshNorthStar() {
-  const [northStar, criteriaPacks, mechanismsRegistry] = await Promise.all([
+  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory] = await Promise.all([
     fetchJson(endpoints.northStar),
     fetchNorthStarCriteriaPacks(),
     fetchNorthStarMechanismsRegistry(),
+    fetchNorthStarMechanismsSuggestions(),
+    fetchNorthStarMechanismsHistory(),
   ]);
   state.northStar = northStar;
   if (criteriaPacks) state.northStarCriteriaPacks = criteriaPacks;
   if (mechanismsRegistry) state.northStarMechanismsRegistry = mechanismsRegistry;
+  if (mechanismsSuggestions) state.northStarMechanismsSuggestions = mechanismsSuggestions;
+  if (mechanismsHistory) state.northStarMechanismsHistory = mechanismsHistory;
   renderNorthStar();
 }
 
@@ -6910,7 +8748,13 @@ async function postOp(op, args = {}) {
     showToast(t("admin.required_op"), "warn");
     return null;
   }
-  const confirmBypassOps = new Set(["planner-chat-send", "planner-chat-send-llm"]);
+  const confirmBypassOps = new Set([
+    "planner-chat-send",
+    "planner-chat-send-llm",
+    "north-star-theme-seed",
+    "north-star-theme-consult",
+    "north-star-theme-suggestion-apply",
+  ]);
   if (!confirmBypassOps.has(opName)) {
     const ok = await confirmAction(op, args);
     if (!ok) return null;
@@ -7255,6 +9099,14 @@ function setupOps() {
     refreshAll();
     refreshEvidence();
   });
+
+  const exportMechanismsBtn = $("#export-mechanisms");
+  if (exportMechanismsBtn) {
+    exportMechanismsBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      exportMechanismsCatalog();
+    });
+  }
 
   const inlineToggle = $("#toggle-sidebar-inline");
   if (inlineToggle) {
@@ -7745,10 +9597,13 @@ function setupStream() {
 applySidebarCollapsedState(readSidebarCollapsedFromStorage(), { persist: false });
 state.claimOwnerTag = getOrCreateClaimOwnerTag();
 state.lang = readLangFromStorage(LANG_STORAGE_KEY, "tr");
+state.theme = readThemeFromStorage(THEME_STORAGE_KEY, "dark");
 state.adminModeEnabled = readBoolFromStorage("cockpit_admin_mode.v1", false);
 state.lockClaimsLimit = readIntFromStorage("cockpit_lock_claims_limit.v1", 20, [10, 20, 50]);
 state.lockClaimsGroupByOwner = readBoolFromStorage("cockpit_lock_claims_group_owner.v1", false);
 setupLanguageSelector();
+setupThemeSelector();
+applyTheme(state.theme);
 applyI18n();
 setupNav();
 setupOps();

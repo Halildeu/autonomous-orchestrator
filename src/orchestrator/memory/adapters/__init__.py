@@ -17,14 +17,14 @@ def _network_mode() -> str:
     return str(v).strip().upper() if isinstance(v, str) else "OFF"
 
 
-def resolve_memory_port(*, workspace: Path) -> MemoryPort:
-    raw = os.environ.get("ORCH_MEMORY_ADAPTER", "local_first")
-    adapter = str(raw).strip().lower() if isinstance(raw, str) else "local_first"
+def _normalize_adapter(raw: str | None) -> str:
+    return str(raw).strip().lower() if isinstance(raw, str) and raw.strip() else ""
 
+
+def _resolve_adapter(*, adapter: str, workspace: Path, net: str) -> MemoryPort:
     if adapter in {"local_first", "local-first", "local"}:
         return LocalFirstMemoryPort(workspace=workspace)
 
-    net = _network_mode()
     if adapter in {"qdrant_driver", "qdrant-driver"}:
         port = QdrantDriverMemoryPort(workspace=workspace)
         if not port.is_available(network_mode=net):
@@ -50,3 +50,20 @@ def resolve_memory_port(*, workspace: Path) -> MemoryPort:
         return port
 
     raise MemoryAdapterUnavailable(f"Unknown memory adapter: {adapter}")
+
+
+def resolve_memory_port(*, workspace: Path) -> MemoryPort:
+    adapter = _normalize_adapter(os.environ.get("ORCH_MEMORY_ADAPTER", "local_first")) or "local_first"
+    fallback = _normalize_adapter(os.environ.get("ORCH_MEMORY_FALLBACK", "")) or ""
+    net = _network_mode()
+    try:
+        return _resolve_adapter(adapter=adapter, workspace=workspace, net=net)
+    except MemoryAdapterUnavailable as primary_err:
+        if fallback:
+            try:
+                return _resolve_adapter(adapter=fallback, workspace=workspace, net=net)
+            except MemoryAdapterUnavailable as fallback_err:
+                raise MemoryAdapterUnavailable(
+                    f"{primary_err}; fallback={fallback} failed: {fallback_err}"
+                ) from fallback_err
+        raise

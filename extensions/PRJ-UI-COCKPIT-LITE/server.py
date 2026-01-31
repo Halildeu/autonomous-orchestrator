@@ -1360,6 +1360,9 @@ DEFAULT_ASYNC_OPS = {
     "ui-snapshot-bundle",
     "auto-loop",
     "work-intake-purpose-generate",
+    "north-star-theme-seed",
+    "north-star-theme-consult",
+    "north-star-theme-suggestion-apply",
 }
 
 

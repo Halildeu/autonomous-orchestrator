@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from io import StringIO
@@ -186,6 +187,61 @@ def _load_auto_loop_override(workspace_root: Path) -> tuple[dict[str, Any], list
         return ({}, notes)
     notes.append("auto_loop_override_loaded")
     return (obj, notes)
+
+
+def _maybe_run_memory_health(*, workspace_root: Path, notes: list[str]) -> str | None:
+    try:
+        from src.ops.memory_health import run_memory_healthcheck
+
+        res = run_memory_healthcheck(workspace_root=workspace_root)
+        path = res.get("report_path") if isinstance(res, dict) else None
+        if isinstance(path, str) and path:
+            notes.append("memory_healthcheck=ok")
+            return path
+        notes.append("memory_healthcheck=missing_path")
+        return None
+    except Exception:
+        notes.append("memory_healthcheck=fail")
+        return None
+
+
+def _maybe_run_memory_smoke(
+    *, workspace_root: Path, notes: list[str], auto_loop_override: dict[str, Any]
+) -> tuple[str | None, str]:
+    enabled = auto_loop_override.get("memory_smoke_enabled")
+    if isinstance(enabled, str):
+        enabled = enabled.strip().lower() in {"1", "true", "yes", "on"}
+    if enabled is not True:
+        notes.append("memory_smoke=disabled")
+        return (None, "SKIP")
+
+    period = auto_loop_override.get("memory_smoke_period_seconds")
+    try:
+        period_seconds = int(period) if period is not None else 0
+    except Exception:
+        period_seconds = 0
+
+    report_path = workspace_root / ".cache" / "reports" / "memory_smoke.v1.json"
+    if period_seconds > 0 and report_path.exists():
+        age = time.time() - report_path.stat().st_mtime
+        if age < period_seconds:
+            notes.append("memory_smoke=skip_recent")
+            return (_rel_path(workspace_root, report_path), "SKIP")
+
+    try:
+        from src.ops.memory_health import run_memory_smoke
+
+        res = run_memory_smoke(workspace_root=workspace_root)
+        path = res.get("report_path") if isinstance(res, dict) else None
+        status = str(res.get("status") or "UNKNOWN") if isinstance(res, dict) else "UNKNOWN"
+        if isinstance(path, str) and path:
+            notes.append("memory_smoke=ran")
+            return (path, status)
+        notes.append("memory_smoke=ran_missing_path")
+        return (None, status)
+    except Exception:
+        notes.append("memory_smoke=fail")
+        return (None, "FAIL")
 
 
 def _update_autopilot_apply_override(*, workspace_root: Path, max_apply_per_tick: int) -> None:
@@ -504,6 +560,13 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         _update_auto_mode_override(workspace_root=workspace_root, max_actions_per_tick=max_apply_per_tick)
         notes.append("auto_loop_max_apply_per_tick_override=true")
 
+    memory_health_path = _maybe_run_memory_health(workspace_root=workspace_root, notes=notes)
+    memory_smoke_path, memory_smoke_status = _maybe_run_memory_smoke(
+        workspace_root=workspace_root,
+        notes=notes,
+        auto_loop_override=auto_loop_override if isinstance(auto_loop_override, dict) else {},
+    )
+
     run_decision_inbox_build(workspace_root=workspace_root)
     decision_show = run_decision_inbox_show(workspace_root=workspace_root)
     pending_before = int(decision_show.get("decisions_count") or 0)
@@ -649,6 +712,9 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         "airunner_baseline_path": baseline_res.get("report_path"),
         "airunner_run_path": run_res.get("run_path"),
         "airunner_deltas_path": run_res.get("deltas_path"),
+        "memory_health_path": memory_health_path,
+        "memory_smoke_path": memory_smoke_path,
+        "memory_smoke_status": memory_smoke_status,
         "github_ops_report_path": github_ops_report_rel if (workspace_root / github_ops_report_rel).exists() else None,
         "pr_merge_e2e_report_path": pr_merge_report_path,
         "pr_merge_e2e": {
@@ -719,6 +785,10 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         evidence_paths.append(github_ops_report_rel)
     if isinstance(pr_merge_report_path, str) and pr_merge_report_path and pr_merge_report_path not in evidence_paths:
         evidence_paths.append(pr_merge_report_path)
+    if isinstance(memory_health_path, str) and memory_health_path and memory_health_path not in evidence_paths:
+        evidence_paths.append(memory_health_path)
+    if isinstance(memory_smoke_path, str) and memory_smoke_path and memory_smoke_path not in evidence_paths:
+        evidence_paths.append(memory_smoke_path)
     report["evidence_paths"] = evidence_paths
     report["trace_meta"] = build_trace_meta(
         work_item_id=run_id,

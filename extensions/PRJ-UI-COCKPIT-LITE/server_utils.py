@@ -66,6 +66,26 @@ OP_DEFAULTS = {
         "limit": "50",
         "dry_run": "false",
     },
+    "north-star-theme-seed": {
+        "subject_id": "",
+        "provider_id": "openai",
+        "model": "gpt-5.2",
+        "max_tokens": "5000",
+    },
+    "north-star-theme-consult": {
+        "subject_id": "",
+        "providers": "",
+        "focus_type": "",
+        "focus_id": "",
+        "comment": "",
+        "max_tokens": "2500",
+    },
+    "north-star-theme-suggestion-apply": {
+        "suggestion_id": "",
+        "action": "",
+        "comment": "",
+        "merge_target": "",
+    },
     "doc-nav-check": {"strict": "true", "detail": "false", "chat": "false"},
     "smoke-full-triage": {"detail": "false", "chat": "false"},
     "smoke-fast-triage": {"detail": "false", "chat": "false"},
@@ -114,6 +134,26 @@ OP_ARG_MAP = {
         "model": "--model",
         "limit": "--limit",
         "dry_run": "--dry-run",
+    },
+    "north-star-theme-seed": {
+        "subject_id": "--subject-id",
+        "provider_id": "--provider-id",
+        "model": "--model",
+        "max_tokens": "--max-tokens",
+    },
+    "north-star-theme-consult": {
+        "subject_id": "--subject-id",
+        "providers": "--providers",
+        "focus_type": "--focus-type",
+        "focus_id": "--focus-id",
+        "comment": "--comment",
+        "max_tokens": "--max-tokens",
+    },
+    "north-star-theme-suggestion-apply": {
+        "suggestion_id": "--suggestion-id",
+        "action": "--action",
+        "comment": "--comment",
+        "merge_target": "--merge-target",
     },
     "doc-nav-check": {"strict": "--strict", "detail": "--detail", "chat": "--chat"},
     "smoke-full-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
@@ -918,6 +958,9 @@ def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[in
                     max_len = 2000
                 elif key == "tags":
                     max_len = 500
+            if op in {"north-star-theme-consult", "north-star-theme-suggestion-apply"} and key == "comment":
+                max_len = 4000
+                allow_newlines = True
             safe_value = _safe_arg_value(value, max_len=max_len, allow_newlines=allow_newlines)
             if safe_value is None:
                 return 400, {"status": "FAIL", "error": "ARG_INVALID"}
