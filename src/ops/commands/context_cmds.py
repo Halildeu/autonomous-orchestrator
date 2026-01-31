@@ -419,3 +419,19 @@ def register_context_subcommands(parent: argparse._SubParsersAction[argparse.Arg
     ap_router.add_argument("--detail", default="false", help="true|false (default: false).")
     ap_router.add_argument("--dry-run", default="false", help="true|false (default: false).")
     ap_router.set_defaults(func=cmd_context_router_check)
+
+    ap_ns_bootstrap = parent.add_parser(
+        "north-star-theme-bootstrap",
+        help="Bootstrap theme/subtheme via LLM consult (subject open).",
+    )
+    ap_ns_bootstrap.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_bootstrap.add_argument("--subject-id", required=True, help="Subject id (e.g., ethics_case_management).")
+    ap_ns_bootstrap.add_argument(
+        "--providers",
+        default="",
+        help="Comma-separated providers (default: openai,google,claude,deepseek,qwen,xai).",
+    )
+    ap_ns_bootstrap.add_argument("--approve", action="store_true", help="Mark result ACTIVE (default: PROPOSED).")
+    from src.ops.north_star_theme_bootstrap import cmd_north_star_theme_bootstrap
+
+    ap_ns_bootstrap.set_defaults(func=cmd_north_star_theme_bootstrap)

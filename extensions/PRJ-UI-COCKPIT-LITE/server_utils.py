@@ -11,6 +11,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+_HERE = Path(__file__).resolve()
+_REPO_ROOT = _HERE.parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from src.prj_kernel_api.adapter import handle_request as kernel_handle_request
+from src.prj_kernel_api.dotenv_loader import resolve_env_value
+
 SECRET_KEY_HINTS = (
     "secret",
     "token",
@@ -49,6 +57,15 @@ OP_DEFAULTS = {
     "work-intake-check": {"mode": "strict", "chat": "false", "detail": "false"},
     "work-intake-claim": {"mode": "claim", "ttl_seconds": "3600", "owner_tag": "", "force": "false"},
     "work-intake-close": {"mode": "close", "reason": "", "owner_tag": "", "force": "false"},
+    "work-intake-purpose-generate": {
+        "intake_id": "",
+        "mode": "missing_only",
+        "status": "OPEN",
+        "provider_id": "openai",
+        "model": "",
+        "limit": "50",
+        "dry_run": "false",
+    },
     "doc-nav-check": {"strict": "true", "detail": "false", "chat": "false"},
     "smoke-full-triage": {"detail": "false", "chat": "false"},
     "smoke-fast-triage": {"detail": "false", "chat": "false"},
@@ -56,6 +73,15 @@ OP_DEFAULTS = {
     "airrunner-run": {"ticks": "2", "mode": "no_wait", "budget_seconds": "0", "chat": "false"},
     "planner-notes-create": {"title": "", "body": "", "tags": "", "links_json": "[]"},
     "planner-chat-send": {"thread": "default", "title": "", "body": "", "tags": "", "links_json": "[]"},
+    "planner-chat-send-llm": {
+        "thread": "default",
+        "title": "",
+        "body": "",
+        "tags": "",
+        "provider_id": "",
+        "model": "",
+        "profile": "",
+    },
     "overrides-write": {"name": "", "json": ""},
 }
 
@@ -80,6 +106,15 @@ OP_ARG_MAP = {
         "owner_tag": "--owner-tag",
         "force": "--force",
     },
+    "work-intake-purpose-generate": {
+        "intake_id": "--intake-id",
+        "mode": "--mode",
+        "status": "--status",
+        "provider_id": "--provider-id",
+        "model": "--model",
+        "limit": "--limit",
+        "dry_run": "--dry-run",
+    },
     "doc-nav-check": {"strict": "--strict", "detail": "--detail", "chat": "--chat"},
     "smoke-full-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
     "smoke-fast-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
@@ -87,6 +122,15 @@ OP_ARG_MAP = {
     "airrunner-run": {"ticks": "--ticks", "mode": "--mode", "budget_seconds": "--budget_seconds", "chat": "--chat"},
     "planner-notes-create": {"title": "--title", "body": "--body", "tags": "--tags", "links_json": "--links-json"},
     "planner-chat-send": {"thread": None, "title": None, "body": None, "tags": None, "links_json": None},
+    "planner-chat-send-llm": {
+        "thread": None,
+        "title": None,
+        "body": None,
+        "tags": None,
+        "provider_id": None,
+        "model": None,
+        "profile": None,
+    },
     "overrides-write": {"name": None, "json": None},
 }
 
@@ -157,6 +201,10 @@ def _allow_roots(repo_root: Path, ws_root: Path) -> list[Path]:
         (ws_root / ".cache" / "github_ops").resolve(),
         (ws_root / ".cache" / "policy_overrides").resolve(),
         (ws_root / ".cache" / "chat_console").resolve(),
+        (ws_root / ".cache" / "providers").resolve(),
+        (ws_root / "policies").resolve(),
+        (repo_root / "policies").resolve(),
+        (repo_root / "docs" / "OPERATIONS").resolve(),
         (repo_root / ".cache" / "script_budget").resolve(),
     ]
 
@@ -690,6 +738,149 @@ def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[in
     actual_op = op
     allowed_args = OP_ARG_MAP.get(op, {})
     merged = dict(OP_DEFAULTS.get(op, {}))
+
+    if op == "planner-chat-send-llm":
+        thread = str(args.get("thread") or "default").strip().lower()
+        if not _thread_id_valid(thread):
+            return 400, {"status": "FAIL", "error": "THREAD_ID_INVALID"}
+        body_raw = str(args.get("body") or "")
+        title_raw = str(args.get("title") or "")
+        body = _safe_arg_value(body_raw, max_len=4000, allow_newlines=True)
+        title = _safe_arg_value(title_raw, max_len=200, allow_newlines=False)
+        if body is None or title is None:
+            return 400, {"status": "FAIL", "error": "ARG_INVALID"}
+        if not title and body:
+            title = body.strip().splitlines()[0][:80]
+        if not title and not body:
+            return 400, {"status": "FAIL", "error": "TITLE_OR_BODY_REQUIRED"}
+        provider_raw = str(args.get("provider_id") or "")
+        model_raw = str(args.get("model") or "")
+        profile_raw = str(args.get("profile") or "")
+        provider_id = (_safe_arg_value(provider_raw, max_len=40, allow_newlines=False) or "").strip().lower()
+        model = (_safe_arg_value(model_raw, max_len=120, allow_newlines=False) or "").strip()
+        profile = (_safe_arg_value(profile_raw, max_len=40, allow_newlines=False) or "").strip()
+        if not provider_id or not model:
+            return 400, {"status": "FAIL", "error": "PROVIDER_OR_MODEL_REQUIRED"}
+
+        tags = _parse_tags_value(args.get("tags"))
+        tags.append(_thread_tag(thread))
+        tags.append("role:user")
+        if profile:
+            tags.append(f"profile:{profile}")
+        tags.append(f"provider:{provider_id}")
+        tags.append(f"model:{model}")
+        tags = sorted(set(tags))
+        merged = {
+            "title": title,
+            "body": body,
+            "tags": ",".join(tags),
+            "links_json": "[]",
+        }
+        actual_op = "planner-notes-create"
+        allowed_args = {"title": "--title", "body": "--body", "tags": "--tags", "links_json": "--links-json"}
+
+        trace_meta = _trace_meta_for_op(op, merged, ws_root)
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "OP_CALL",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "args": _redact(merged),
+                "trace_meta": trace_meta,
+                "evidence_paths": [],
+            },
+        )
+
+        cmd = [sys.executable, "-m", "src.ops.manage", actual_op, "--workspace-root", str(ws_root)]
+        for key, flag in allowed_args.items():
+            if key in merged:
+                cmd.extend([flag, str(merged[key])])
+        user_proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True)
+        if user_proc.returncode != 0:
+            return 200, {"status": "FAIL", "op": op, "error": "USER_NOTE_CREATE_FAIL", "trace_meta": trace_meta}
+
+        history = _list_planner_messages(ws_root, thread)
+        messages = []
+        system_prompt = "You are the Planner assistant. Be concise and actionable."
+        messages.append({"role": "system", "content": system_prompt})
+        for note in history[-12:]:
+            note_tags = note.get("tags") if isinstance(note.get("tags"), list) else []
+            note_role = "assistant" if any(str(t).lower().startswith("role:assistant") for t in note_tags) else "user"
+            content = str(note.get("body") or note.get("title") or "").strip()
+            if content:
+                messages.append({"role": note_role, "content": content})
+        if not messages or messages[-1].get("content") != body:
+            messages.append({"role": "user", "content": body})
+
+        auth_present, auth_value = resolve_env_value("KERNEL_API_TOKEN", str(ws_root), env_mode="dotenv")
+        req = {
+            "version": "v1",
+            "kind": "llm_call_live",
+            "workspace_root": str(ws_root),
+            "env_mode": "dotenv",
+            "params": {
+                "provider_id": provider_id,
+                "model": model,
+                "messages": messages,
+                "temperature": 0.2,
+                "max_tokens": 2000,
+                "dry_run": False,
+            },
+        }
+        if auth_present and auth_value:
+            req["params"]["auth_token"] = auth_value
+        llm_resp = kernel_handle_request(req)
+        llm_status = str(llm_resp.get("status") or "FAIL")
+        llm_payload = llm_resp.get("payload") if isinstance(llm_resp.get("payload"), dict) else {}
+        output_preview = str(llm_payload.get("output_preview") or "").strip()
+        output_truncated = bool(llm_payload.get("output_truncated"))
+        approx_tokens = max(1, int(len(output_preview) / 4)) if output_preview else 0
+        if llm_status != "OK" or not output_preview:
+            error_code = str(llm_resp.get("error_code") or "")
+            message = str(llm_resp.get("message") or "")
+            output_preview = f"[LLM_FAIL] {error_code} {message}".strip()
+
+        assistant_tags = [f"provider:{provider_id}", f"model:{model}", "role:assistant", _thread_tag(thread)]
+        if profile:
+            assistant_tags.append(f"profile:{profile}")
+        if approx_tokens:
+            assistant_tags.append(f"tokens_estimate:{approx_tokens}")
+        if output_truncated:
+            assistant_tags.append("output_truncated:true")
+        assistant_payload = {
+            "title": "Assistant",
+            "body": output_preview,
+            "tags": ",".join(sorted(set(assistant_tags))),
+            "links_json": "[]",
+        }
+        cmd_assistant = [sys.executable, "-m", "src.ops.manage", "planner-notes-create", "--workspace-root", str(ws_root)]
+        for key, flag in allowed_args.items():
+            if key in assistant_payload:
+                cmd_assistant.extend([flag, str(assistant_payload[key])])
+        subprocess.run(cmd_assistant, cwd=repo_root, capture_output=True, text=True)
+
+        payload_out = {
+            "status": llm_status,
+            "op": op,
+            "trace_meta": trace_meta,
+            "evidence_paths": [],
+        }
+        _chat_append(
+            ws_root,
+            {
+                "version": "v1",
+                "type": "RESULT",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "op": op,
+                "status": llm_status,
+                "error_code": llm_resp.get("error_code"),
+                "trace_meta": trace_meta,
+                "evidence_paths": [],
+            },
+        )
+        return 200, payload_out
 
     if op == "planner-chat-send":
         thread = str(args.get("thread") or "default").strip().lower()

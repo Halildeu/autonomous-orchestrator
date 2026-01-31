@@ -16,6 +16,7 @@ def register_planner_and_intake_subcommands(
     cmd_work_intake_select,
     cmd_work_intake_claim,
     cmd_work_intake_close,
+    cmd_work_intake_purpose_generate,
     cmd_work_intake_autoselect,
     cmd_doer_actionability,
 ) -> None:
@@ -112,6 +113,20 @@ def register_planner_and_intake_subcommands(
     ap_intake_close.add_argument("--owner-tag", dest="owner_tag", default="", help="Owner tag (default: env CODEX_CHAT_TAG).")
     ap_intake_close.add_argument("--force", default="false", help="true|false (default: false).")
     ap_intake_close.set_defaults(func=cmd_work_intake_close)
+
+    ap_intake_purpose = parent.add_parser(
+        "work-intake-purpose-generate",
+        help="Generate purpose/benefit/ROI fields for intake items (AI + fallback, workspace-only).",
+    )
+    ap_intake_purpose.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_purpose.add_argument("--intake-id", dest="intake_id", default="", help="Single intake id (optional).")
+    ap_intake_purpose.add_argument("--mode", default="missing_only", help="missing_only|all (default: missing_only).")
+    ap_intake_purpose.add_argument("--status", default="OPEN", help="Filter by intake status (default: OPEN).")
+    ap_intake_purpose.add_argument("--provider-id", dest="provider_id", default="openai", help="Provider id.")
+    ap_intake_purpose.add_argument("--model", default="", help="Override model id (optional).")
+    ap_intake_purpose.add_argument("--limit", default="50", help="Max items to process (default: 50).")
+    ap_intake_purpose.add_argument("--dry-run", dest="dry_run", default="false", help="true|false (default: false).")
+    ap_intake_purpose.set_defaults(func=cmd_work_intake_purpose_generate)
 
     ap_intake_autoselect = parent.add_parser(
         "work-intake-autoselect",

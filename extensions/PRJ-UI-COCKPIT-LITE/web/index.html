@@ -288,6 +288,48 @@
       .checkbox input {
         accent-color: var(--accent);
       }
+      .checkbox .checkbox-icon {
+        width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+      }
+      .checkbox .checkbox-icon svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+      }
+      .checkbox input:checked + .checkbox-icon {
+        color: var(--accent);
+      }
+      .freshness {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .freshness .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent-2);
+        box-shadow: 0 0 0 2px rgba(230, 184, 87, 0.18);
+      }
+      .freshness[data-status="fresh"] .dot {
+        background: var(--accent);
+        box-shadow: 0 0 0 2px rgba(61, 214, 176, 0.18);
+      }
+      .freshness[data-status="stale"] .dot {
+        background: var(--accent-2);
+        box-shadow: 0 0 0 2px rgba(230, 184, 87, 0.18);
+      }
+      .freshness[data-status="missing"] .dot {
+        background: var(--danger);
+        box-shadow: 0 0 0 2px rgba(226, 107, 107, 0.18);
+      }
       .tag-select {
         position: relative;
         min-width: 180px;
@@ -544,6 +586,29 @@
       .thread-title {
         font-weight: 600;
       }
+      .chat-shell {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 16px;
+        min-height: 520px;
+      }
+      .chat-sidebar {
+        display: grid;
+        gap: 12px;
+        border-right: 1px solid var(--border);
+        padding-right: 14px;
+      }
+      .chat-main {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 12px;
+      }
+      .chat-composer {
+        display: grid;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
       .chat-panel {
         display: grid;
         grid-template-rows: 1fr auto;
@@ -555,7 +620,8 @@
         border-radius: 10px;
         padding: 10px;
         background: #11181a;
-        max-height: 320px;
+        min-height: 360px;
+        max-height: 520px;
         overflow: auto;
         display: grid;
         gap: 8px;
@@ -566,6 +632,16 @@
         border: 1px solid var(--border);
         background: #0f1415;
       }
+      .chat-message.assistant { border-color: #3dd6b0; background: #0d1617; margin-right: 18%; }
+      .chat-message.user {
+        border-color: #4aa3ff;
+        background: #0e1a22;
+        margin-left: 18%;
+        align-self: end;
+      }
+      .chat-message.user .chat-meta { color: #8fbef5; }
+      .chat-message.typing { opacity: 0.85; }
+      .chat-message.typing .chat-body { font-style: italic; }
       .chat-message.note { border-color: #3dd6b0; }
       .chat-message.op_call { border-color: #8aa6ff; }
       .chat-message.decision_apply { border-color: #e6b857; }
@@ -581,9 +657,31 @@
         font-size: 12px;
         white-space: pre-wrap;
       }
+      .chat-section {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent);
+        margin: 6px 0 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .chat-line {
+        line-height: 1.4;
+      }
       .chat-input {
         width: 100%;
         min-height: 100px;
+      }
+      @media (max-width: 980px) {
+        .chat-shell {
+          grid-template-columns: 1fr;
+        }
+        .chat-sidebar {
+          border-right: none;
+          padding-right: 0;
+          border-bottom: 1px solid var(--border);
+          padding-bottom: 12px;
+        }
       }
       table {
         width: 100%;
@@ -968,68 +1066,98 @@
 	            </div>
 	            <div class="card">
 	              <h3 data-i18n="h.lens_details">Lens Details</h3>
-	              <div class="subtle">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
+	              <div class="subtle" data-i18n="north_star.lens_details_hint">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
 	              <div id="north-star-lens-details"></div>
+	            </div>
+	            <div class="card">
+	              <h3 data-i18n="north_star.mechanisms.title">Tema / Alt Tema Kataloğu</h3>
+	              <div class="subtle" id="north-star-mechanisms-meta"></div>
+	              <div id="north-star-mechanisms"></div>
 	            </div>
 		            <div class="card">
 			              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
-			              <div class="subtle" id="ns-findings-meta">Select a lens to explore findings.</div>
+			              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>
 			              <div class="row" style="margin-top: 10px;">
+			                <input class="input" id="ns-findings-search" placeholder="Bulgu ara (id/başlık/kriter/etiket/gerekçe)" data-i18n-placeholder="north_star.findings.search_placeholder" aria-label="Bulgu ara" />
 			                <div class="field-stack">
-			                  <label class="subtle" for="ns-findings-preset">Preset</label>
-			                  <select class="input" id="ns-findings-preset" aria-label="Select preset"></select>
+			                  <label class="subtle" for="ns-findings-filter-subject-input" data-i18n="north_star.filter.subject.label">Konu/Subject</label>
+			                  <div class="tag-select" id="ns-findings-filter-subject">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-subject-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-subject-input" placeholder="Konu seç" data-i18n-placeholder="north_star.filter.subject.placeholder" aria-label="Filter by subject" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-subject-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle subject options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-subject-options" role="listbox" aria-label="Subject options"></div>
+			                  </div>
 			                </div>
 			                <div class="field-stack">
-			                  <label class="subtle" for="ns-findings-lens">Lens</label>
-			                  <select class="input" id="ns-findings-lens" aria-label="Select lens"></select>
+			                  <label class="subtle" for="ns-findings-filter-perspective-input" data-i18n="north_star.filter.perspective.label">Bakış (Perspective)</label>
+			                  <div class="tag-select" id="ns-findings-filter-perspective">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-perspective-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-perspective-input" placeholder="Bakış seç" data-i18n-placeholder="north_star.filter.perspective.placeholder" aria-label="Filter by perspective" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-perspective-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle perspective options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-perspective-options" role="listbox" aria-label="Bakış seçenekleri"></div>
+			                  </div>
 			                </div>
-		                <input class="input" id="ns-findings-search" placeholder="Search findings (id/title/topic/tags/reasons)" aria-label="Search findings" />
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-domain-input">Domain</label>
-		                  <div class="tag-select" id="ns-findings-filter-domain">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-domain-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-domain-input" placeholder="Select domain" aria-label="Filter by domain" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-domain-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle domain options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-domain-options" role="listbox" aria-label="Domain options"></div>
-		                  </div>
-		                </div>
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-topic-input">Topic</label>
-		                  <div class="tag-select" id="ns-findings-filter-topic">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-topic-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-topic-input" placeholder="Select topic" aria-label="Filter by topic" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-topic-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle topic options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-topic-options" role="listbox" aria-label="Topic options"></div>
-		                  </div>
-		                </div>
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-match-input">Match</label>
-		                  <div class="tag-select" id="ns-findings-filter-match">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Triggered only (default)" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle match options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
-		                  </div>
-		                </div>
-		                <div class="field-stack">
-		                  <label class="subtle" for="ns-findings-filter-catalog-input">Catalog</label>
-		                  <div class="tag-select" id="ns-findings-filter-catalog">
-		                    <div class="tag-select-input">
-		                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
-		                      <input class="tag-input" id="ns-findings-filter-catalog-input" placeholder="(optional)" aria-label="Filter by catalog" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-catalog-options" />
-		                      <button class="tag-toggle" type="button" aria-label="Toggle catalog options">v</button>
-		                    </div>
-		                    <div class="tag-dropdown" id="ns-findings-filter-catalog-options" role="listbox" aria-label="Catalog options"></div>
-		                  </div>
-		                </div>
-		                <button class="btn small" id="ns-findings-clear" type="button">Reset</button>
-		              </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-theme-input" data-i18n="north_star.filter.theme.label">Tema</label>
+			                  <div class="tag-select" id="ns-findings-filter-theme">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-theme-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-theme-input" placeholder="Tema seç" data-i18n-placeholder="north_star.filter.theme.placeholder" aria-label="Filter by theme" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-theme-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle theme options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-theme-options" role="listbox" aria-label="Tema seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-subtheme-input" data-i18n="north_star.filter.subtheme.label">Alt tema</label>
+			                  <div class="tag-select" id="ns-findings-filter-subtheme">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-subtheme-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-subtheme-input" placeholder="Alt tema seç" data-i18n-placeholder="north_star.filter.subtheme.placeholder" aria-label="Filter by subtheme" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-subtheme-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle subtheme options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-subtheme-options" role="listbox" aria-label="Alt tema seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-topic-input" data-i18n="north_star.filter.topic.label">Kriter/Eksen</label>
+			                  <div class="tag-select" id="ns-findings-filter-topic">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-topic-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-topic-input" placeholder="Kriter seç" data-i18n-placeholder="north_star.filter.topic.placeholder" aria-label="Filter by topic" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-topic-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle topic options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-topic-options" role="listbox" aria-label="Kriter/Eksen seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-catalog-input" data-i18n="north_star.filter.catalog.label">Katalog (Referans/BP)</label>
+			                  <div class="tag-select" id="ns-findings-filter-catalog">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-catalog-input" placeholder="(opsiyonel)" data-i18n-placeholder="north_star.filter.catalog.placeholder" aria-label="Filter by catalog" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-catalog-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle catalog options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-catalog-options" role="listbox" aria-label="Catalog options"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-match-input" data-i18n="north_star.filter.match.label">Match</label>
+			                  <div class="tag-select" id="ns-findings-filter-match">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Triggered only (default)" data-i18n-placeholder="north_star.filter.match.placeholder" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle match options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
+			                  </div>
+			                </div>
+			              <button class="btn small" id="ns-findings-clear" type="button" data-i18n="actions.reset_filters">Reset</button>
+			              </div>
 	              <div class="subtle" id="ns-findings-summary" style="margin-top: 8px;"></div>
 	              <div class="status-banner warn" id="ns-findings-join-banner" style="display:none; margin-top: 8px;"></div>
 	              <div id="ns-findings-table" style="margin-top: 10px;"></div>
@@ -1156,13 +1284,27 @@
                 <button class="btn" id="clear-intake-filter">Clear</button>
               </div>
               <div class="subtle" id="intake-count"></div>
+              <div class="row" style="margin-top: 8px;">
+                <button class="btn accent" id="intake-purpose-generate" type="button" data-i18n="intake.purpose.generate">Generate purposes (AI)</button>
+                <div class="subtle" id="intake-purpose-generate-meta" data-i18n="intake.purpose.generate_hint">Missing only · OPEN scope · OpenAI</div>
+              </div>
+              <div class="row" style="margin-top: 6px;">
+                <div class="subtle" id="intake-purpose-report-title" data-i18n="intake.purpose.report.title">Purpose generation report</div>
+                <button class="btn ghost" id="intake-purpose-report-open" type="button" data-i18n="intake.purpose.report.view">View report</button>
+              </div>
+              <div class="subtle" id="intake-purpose-report-meta"></div>
+              <div class="subtle" id="intake-purpose-report-summary"></div>
               <div id="intake-table" class="table-wrap"></div>
 	              <details id="intake-detail-panel">
 	                <summary class="subtle">Selected item details</summary>
-	                <div class="row" style="margin-top: 10px;">
-	                  <div class="subtle" id="intake-detail-meta">no selection</div>
-	                  <button class="btn ghost" id="intake-clear-selection" type="button">Clear</button>
-	                </div>
+                <div class="row" style="margin-top: 10px;">
+                  <div class="subtle" id="intake-detail-meta">no selection</div>
+                  <button class="btn ghost" id="intake-clear-selection" type="button">Clear</button>
+                </div>
+                <div class="row" style="margin-top: 8px;">
+                  <button class="btn" id="intake-purpose-generate-selected" type="button" data-i18n="intake.purpose.generate_selected">Generate for selected</button>
+                  <div class="subtle" id="intake-purpose-generate-selected-meta" data-i18n="intake.purpose.generate_selected_hint">Selected item only</div>
+                </div>
                 <div id="intake-detail-fields" class="intake-detail-grid"></div>
                 <div class="row" style="margin-top: 10px;">
                   <div class="subtle" id="intake-claim-meta" data-i18n="intake.claim.meta_none">Claim: -</div>
@@ -1265,7 +1407,12 @@
           <section id="tab-jobs" class="tab">
             <div class="grid">
               <div class="card">
-                <h3 data-i18n="h.github_ops_jobs">GitHub Ops Jobs</h3>
+                <div class="row" style="justify-content: space-between; align-items: center;">
+                  <h3 data-i18n="h.github_ops_jobs" style="margin: 0;">GitHub Ops Jobs</h3>
+                  <span class="freshness" id="github-jobs-freshness" data-status="missing" aria-label="GitHub Ops data status">
+                    <span class="dot" aria-hidden="true"></span>
+                  </span>
+                </div>
                 <div class="subtle">Jobs list is read-only in strict allowlist mode.</div>
                 <div class="subtle" id="smoke-fast-last">last smoke job: -</div>
                 <div id="github-jobs-table" class="table-wrap"></div>
@@ -1314,53 +1461,34 @@
           </section>
 
           <section id="tab-planner-chat" class="tab">
-            <div class="grid">
-              <div class="card">
+            <div class="card chat-shell">
+              <div class="chat-sidebar">
                 <h3 data-i18n="h.planner_threads">Planner Threads</h3>
                 <div class="row">
-                  <input class="input" id="planner-thread" placeholder="thread id (default)" />
+                  <input class="input" id="planner-thread" placeholder="Sohbet adı (default)" />
+                  <button class="btn ghost" id="planner-thread-new">Yeni</button>
                   <button class="btn" id="planner-thread-refresh">Refresh</button>
                 </div>
                 <div id="planner-thread-list" class="note-list"></div>
               </div>
-              <div class="card">
-                <h3 data-i18n="h.thread_messages">Thread Messages</h3>
+              <div class="chat-main">
                 <div class="row">
-                  <input class="input" id="notes-search" placeholder="Search title/body/tags" />
-                  <input class="input" id="notes-tag-filter" placeholder="Tag filter" />
-                  <button class="btn" id="notes-refresh">Refresh</button>
+                  <div class="subtle" id="notes-count"></div>
+                  <button class="btn ghost" id="notes-refresh">Refresh</button>
                 </div>
-                <div class="subtle" id="notes-count"></div>
-                <div id="notes-list" class="note-list"></div>
-              </div>
-              <div class="card">
-                <h3 data-i18n="h.compose_message">Compose Message</h3>
-                <div class="row">
-                  <input class="input" id="note-title" placeholder="Title" />
-                  <input class="input" id="note-tags" placeholder="tags (comma separated)" />
+                <div id="chat-log" class="chat-log"></div>
+                <div class="chat-composer">
+                  <div class="row">
+                    <select class="input" id="chat-profile"></select>
+                    <select class="input" id="chat-provider"></select>
+                    <select class="input" id="chat-model"></select>
+                  </div>
+                  <textarea class="input chat-input" id="note-body" placeholder="Mesajını yaz..."></textarea>
+                  <div class="row">
+                    <button class="btn accent" id="note-save">Gönder</button>
+                    <button class="btn ghost" id="note-clear">Temizle</button>
+                  </div>
                 </div>
-                <textarea class="input" id="note-body" placeholder="Write message..."></textarea>
-                <div class="row">
-                  <select class="input" id="note-link-kind">
-                    <option value="intake">intake</option>
-                    <option value="decision">decision</option>
-                    <option value="job">job</option>
-                    <option value="run_card">run_card</option>
-                  </select>
-                  <input class="input" id="note-link-id" placeholder="id or path" />
-                  <button class="btn" id="note-link-add">Add link</button>
-                  <button class="btn ghost" id="note-link-clear">Clear links</button>
-                </div>
-                <div class="subtle" id="note-links-list"></div>
-                <div class="row">
-                  <button class="btn accent" id="note-save">Send</button>
-                  <button class="btn ghost" id="note-clear">Clear</button>
-                </div>
-              </div>
-              <div class="card">
-                <h3 data-i18n="h.message_detail">Message Detail</h3>
-                <div class="subtle" id="note-view-meta"></div>
-                <pre id="note-view-body"></pre>
               </div>
             </div>
           </section>
