@@ -1431,6 +1431,7 @@
           </div>
 	          <div class="topbar-right row">
 	            <button class="btn accent" id="refresh-all" data-i18n="actions.refresh_all">Refresh All</button>
+              <button class="btn ghost" id="snapshot-page" data-i18n="actions.snapshot_page">Snapshot this page</button>
               <select class="input" id="theme-select" data-i18n-aria-label="theme.label" data-i18n-title="theme.label">
                 <option value="dark" data-i18n="theme.dark">Dark</option>
                 <option value="light" data-i18n="theme.light">Light</option>
@@ -1443,16 +1444,10 @@
 	          </div>
 	        </header>
 	        <main class="content">
-          <div class="toolbar">
-            <button class="btn" data-op="system-status">system-status</button>
-            <button class="btn" data-op="ui-snapshot-bundle">ui-snapshot-bundle</button>
-            <button class="btn" data-op="work-intake-check">work-intake-check (strict)</button>
-            <button class="btn" data-op="decision-inbox-show">decision-inbox-show</button>
-            <button class="btn warn" data-op="auto-loop">auto-loop (budgeted)</button>
-            <button class="btn" data-op="airrunner-run">airrunner-run (ticks=2)</button>
-          </div>
-
           <section id="tab-overview" class="tab active">
+            <div class="toolbar">
+              <button class="btn" data-op="system-status">system-status</button>
+            </div>
             <div class="status-banner" id="next-banner"></div>
             <div class="grid">
               <div class="card">
@@ -1738,6 +1733,9 @@
           <section id="tab-intake" class="tab">
             <div class="card">
               <h3 data-i18n="h.intake_strict">Intake (strict)</h3>
+              <div class="row" style="margin-bottom:8px;">
+                <button class="btn" data-op="work-intake-check">work-intake-check (strict)</button>
+              </div>
               <div class="status-banner warn" id="intake-decision-banner" style="display:none; margin-top: 10px;"></div>
               <div class="status-card" id="intake-compat-summary" style="margin:8px 0; display:none;"></div>
               <div class="status-banner warn" id="intake-compat-summary-warn" style="margin:8px 0; display:none;"></div>

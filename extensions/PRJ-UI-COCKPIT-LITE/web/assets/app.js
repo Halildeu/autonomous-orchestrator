@@ -41,6 +41,7 @@ const I18N = {
     "theme.dark": "Dark",
     "theme.light": "Light",
     "actions.refresh_all": "Refresh All",
+    "actions.snapshot_page": "Snapshot this page",
     "sidebar.toggle": "Toggle sidebar",
     "nav.primary": "Primary",
     "nav.overview": "Overview",
@@ -324,6 +325,12 @@ const I18N = {
     "notes.prefill.next_header": "What do we want to do next?",
     "notes.prefill.next_placeholder": "- (write your plan / decision / rationale here)",
     "notes.prefill.none": "- (none)",
+    "notes.snapshot.title": "[SNAPSHOT] {page}",
+    "notes.snapshot.context_header": "Snapshot context:",
+    "notes.snapshot.context_page": "- page: {page}",
+    "notes.snapshot.context_hash": "- url: {hash}",
+    "notes.snapshot.context_time": "- captured_at: {ts}",
+    "notes.snapshot.evidence_header": "Snapshot evidence:",
     "overview.banner.no_intake": "No actionable intake. You may add a request.",
     "overview.banner.ready": "Ready. Use safe defaults or run a bounded loop.",
     "overview.banner.decisions_pending": "Decisions pending ({count}). Open Decisions.",
@@ -488,6 +495,7 @@ const I18N = {
     "theme.dark": "Koyu",
     "theme.light": "Açık",
     "actions.refresh_all": "Tümünü Yenile",
+    "actions.snapshot_page": "Bu sayfayı snapshot al",
     "sidebar.toggle": "Sidebar’ı aç/kapat",
     "nav.primary": "Ana gezinme",
     "nav.overview": "Genel Bakış",
@@ -771,6 +779,12 @@ const I18N = {
     "notes.prefill.next_header": "Sonraki adım ne olsun?",
     "notes.prefill.next_placeholder": "- (buraya plan / karar / gerekçe yazın)",
     "notes.prefill.none": "- (yok)",
+    "notes.snapshot.title": "[SNAPSHOT] {page}",
+    "notes.snapshot.context_header": "Snapshot bağlamı:",
+    "notes.snapshot.context_page": "- sayfa: {page}",
+    "notes.snapshot.context_hash": "- url: {hash}",
+    "notes.snapshot.context_time": "- yakalama_zamanı: {ts}",
+    "notes.snapshot.evidence_header": "Snapshot kanıtları:",
     "overview.banner.no_intake": "Aksiyonlanabilir intake yok. Yeni bir istek ekleyebilirsiniz.",
     "overview.banner.ready": "Hazır. Safe defaults kullanın veya sınırlı bir döngü çalıştırın.",
     "overview.banner.decisions_pending": "Bekleyen kararlar var ({count}). Kararlar sekmesini açın.",
@@ -2443,6 +2457,77 @@ function createNoteForSelectedIntake() {
   tagsEl.value = Array.from(new Set(baseTags)).join(", ");
 
   state.noteLinks = [{ kind: "intake", id_or_path: String(intakeId) }];
+  renderNoteLinks();
+
+  if (threadEl && !threadEl.value) {
+    threadEl.value = state.plannerThread || "default";
+  }
+
+  navigateToTab("notes");
+  titleEl.focus();
+  showToast(t("toast.note_composer_prefilled"), "ok");
+}
+
+function prefillNoteForSnapshot(payload) {
+  const titleEl = $("#note-title");
+  const bodyEl = $("#note-body");
+  const tagsEl = $("#note-tags");
+  const threadEl = $("#planner-thread");
+  if (!titleEl || !bodyEl || !tagsEl) {
+    showToast(t("toast.notes_composer_unavailable"), "fail");
+    return;
+  }
+
+  const tabKeyMap = {
+    "overview": "nav.overview",
+    "north-star": "nav.north_star",
+    "inbox": "nav.inbox",
+    "intake": "nav.intake",
+    "decisions": "nav.decisions",
+    "extensions": "nav.extensions",
+    "overrides": "nav.overrides",
+    "auto-loop": "nav.auto_loop",
+    "jobs": "nav.jobs",
+    "locks": "nav.locks",
+    "run-card": "nav.run_card",
+    "planner-chat": "nav.planner_chat",
+    "command-composer": "nav.command_composer",
+    "evidence": "nav.evidence",
+  };
+  const activeTab = String(state.activeTab || "overview");
+  const tabLabel = t(tabKeyMap[activeTab] || "nav.overview");
+  const hash = String(window.location.hash || "");
+  const ts = String(payload?.generated_at || new Date().toISOString());
+
+  const evidencePaths = [];
+  const reportPath = String(payload?.report_path || "").trim();
+  if (reportPath) evidencePaths.push(reportPath);
+  const pathsObj = payload && typeof payload.paths === "object" && payload.paths ? payload.paths : {};
+  Object.values(pathsObj).forEach((val) => {
+    const v = String(val || "").trim();
+    if (v) evidencePaths.push(v);
+  });
+
+  const body = [
+    t("notes.snapshot.context_header"),
+    t("notes.snapshot.context_page", { page: tabLabel }),
+    t("notes.snapshot.context_hash", { hash: hash || "-" }),
+    t("notes.snapshot.context_time", { ts }),
+    "",
+    t("notes.snapshot.evidence_header"),
+    ...(evidencePaths.length ? evidencePaths.slice(0, 12).map((p) => `- ${p}`) : [t("notes.prefill.none")]),
+    "",
+    t("notes.prefill.next_header"),
+    t("notes.prefill.next_placeholder"),
+    "",
+  ].join("\n");
+
+  titleEl.value = t("notes.snapshot.title", { page: tabLabel });
+  bodyEl.value = body;
+  const baseTags = ["snapshot", "ui", activeTab.replace(/[^a-z0-9_\\-]/gi, "_")].filter(Boolean);
+  tagsEl.value = Array.from(new Set(baseTags)).join(", ");
+
+  state.noteLinks = evidencePaths.map((p) => ({ kind: "evidence", id_or_path: p }));
   renderNoteLinks();
 
   if (threadEl && !threadEl.value) {
@@ -8735,6 +8820,11 @@ function pollOpJob(jobId, pollUrl = "", opHint = "") {
 async function postOp(op, args = {}) {
   if (state.actionPending) return null;
   const opName = String(op || "").trim();
+  if (opName === "ui-snapshot-bundle") {
+    if (!args || typeof args !== "object") args = {};
+    if (!("ui_page" in args)) args.ui_page = String(state.activeTab || "overview");
+    if (!("ui_hash" in args)) args.ui_hash = String(window.location.hash || "");
+  }
   const existingJobId =
     opName && state.opJobsInProgress && typeof state.opJobsInProgress === "object"
       ? String(state.opJobsInProgress[opName] || "").trim()
@@ -8791,6 +8881,10 @@ async function postOp(op, args = {}) {
     const status = String(data?.status || "UNKNOWN").toUpperCase();
     const toastKind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op, status: data.status || "UNKNOWN" }), toastKind);
+    if (opName === "ui-snapshot-bundle") {
+      prefillNoteForSnapshot(data);
+      return data;
+    }
     if (op === "planner-chat-send" || op === "planner-chat-send-llm") {
       clearNoteComposer();
       await refreshNotes();
@@ -9099,6 +9193,10 @@ function setupOps() {
     refreshAll();
     refreshEvidence();
   });
+  const snapshotTopbar = $("#snapshot-page");
+  if (snapshotTopbar) {
+    snapshotTopbar.addEventListener("click", () => postOp("ui-snapshot-bundle"));
+  }
 
   const exportMechanismsBtn = $("#export-mechanisms");
   if (exportMechanismsBtn) {
@@ -9531,6 +9629,7 @@ function setupOps() {
     window.open(url, "_blank");
   });
 }
+
 
 function copyText(text) {
   if (!text) return;
