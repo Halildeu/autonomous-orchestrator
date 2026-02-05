@@ -126,6 +126,20 @@ const I18N = {
     "actions.enable": "Enable",
     "actions.disable": "Disable",
     "actions.remove_tag": "Remove tag",
+    "snapshot.target.title": "Snapshot target",
+    "snapshot.target.hint": "Which Planner Chat thread should this snapshot be appended to?",
+    "snapshot.target.preview": "Preview:",
+    "snapshot.target.mode_current": "Current thread",
+    "snapshot.target.mode_pick": "Pick another thread",
+    "snapshot.target.mode_new": "Create new thread",
+    "snapshot.target.pick_hint": "Select from existing threads.",
+    "snapshot.target.new_hint": "Optional name; a new thread_id will be generated.",
+    "snapshot.target.open_chat": "Switch to Planner Chat after snapshot",
+    "snapshot.target.cancel": "Cancel",
+    "snapshot.target.continue": "Continue",
+    "snapshot.target.current_thread": "Active thread: {id}",
+    "snapshot.chat_append_failed": "Failed to append snapshot to chat: {error}",
+    "snapshot.chat_appended": "Snapshot appended to Planner Chat.",
     "common.on": "on",
     "common.off": "off",
     "common.sample_parens": " (sample)",
@@ -580,6 +594,20 @@ const I18N = {
     "actions.enable": "Etkinleştir",
     "actions.disable": "Devre dışı bırak",
     "actions.remove_tag": "Etiketi kaldır",
+    "snapshot.target.title": "Snapshot hedefi",
+    "snapshot.target.hint": "Bu snapshot hangi Planner Chat thread'ine eklensin?",
+    "snapshot.target.preview": "Önizleme:",
+    "snapshot.target.mode_current": "Mevcut thread",
+    "snapshot.target.mode_pick": "Başka thread seç",
+    "snapshot.target.mode_new": "Yeni thread oluştur",
+    "snapshot.target.pick_hint": "Mevcut thread listesinden seç.",
+    "snapshot.target.new_hint": "Opsiyonel ad ver; sistem yeni bir thread_id üretir.",
+    "snapshot.target.open_chat": "Snapshot sonrası Planner Chat’e geç",
+    "snapshot.target.cancel": "Vazgeç",
+    "snapshot.target.continue": "Devam et",
+    "snapshot.target.current_thread": "Aktif thread: {id}",
+    "snapshot.chat_append_failed": "Snapshot sohbet ekleme başarısız: {error}",
+    "snapshot.chat_appended": "Snapshot Planner Chat’e eklendi.",
     "common.on": "açık",
     "common.off": "kapalı",
     "common.sample_parens": " (örnek)",
@@ -8689,6 +8717,319 @@ function confirmAction(op, args) {
   });
 }
 
+function buildSnapshotThreadId(suffix = "") {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "").toLowerCase();
+  const safeSuffix = _threadSafePart(suffix);
+  const base = safeSuffix ? `snapshot.${stamp}.${safeSuffix}` : `snapshot.${stamp}`;
+  return _trimThreadId(base);
+}
+
+async function openSnapshotTargetModal() {
+  const modal = $("#snapshot-target-modal");
+  const titleEl = $("#snapshot-target-title");
+  const hintEl = $("#snapshot-target-hint");
+  const previewLabelEl = $("#snapshot-target-thread-preview");
+  const currentThreadEl = $("#snapshot-target-current-thread");
+
+  const currentModeEl = $("#snapshot-target-mode-current");
+  const pickModeEl = $("#snapshot-target-mode-pick");
+  const newModeEl = $("#snapshot-target-mode-new");
+
+  const currentModeLabel = $("#snapshot-target-mode-current-label");
+  const pickModeLabel = $("#snapshot-target-mode-pick-label");
+  const newModeLabel = $("#snapshot-target-mode-new-label");
+  const pickHintEl = $("#snapshot-target-mode-pick-sub");
+  const newHintEl = $("#snapshot-target-mode-new-sub");
+
+  const threadSelectEl = $("#snapshot-target-thread-select");
+  const newSuffixEl = $("#snapshot-target-thread-new-suffix");
+  const newGenerateBtn = $("#snapshot-target-thread-new-generate");
+  const openChatEl = $("#snapshot-target-open-chat");
+  const openChatLabelEl = $("#snapshot-target-open-chat-label");
+  const cancelBtn = $("#snapshot-target-cancel");
+  const continueBtn = $("#snapshot-target-continue");
+  const closeBtn = $("#snapshot-target-close");
+
+  if (
+    !modal ||
+    !titleEl ||
+    !hintEl ||
+    !previewLabelEl ||
+    !currentThreadEl ||
+    !currentModeEl ||
+    !pickModeEl ||
+    !newModeEl ||
+    !threadSelectEl ||
+    !newSuffixEl ||
+    !newGenerateBtn ||
+    !openChatEl ||
+    !openChatLabelEl ||
+    !cancelBtn ||
+    !continueBtn
+  ) {
+    return Promise.resolve({
+      threadId: state.plannerThread || "default",
+      openChat: true,
+      mode: "current",
+    });
+  }
+
+  titleEl.textContent = t("snapshot.target.title") || "Snapshot hedefi";
+  hintEl.textContent = t("snapshot.target.hint") || "Bu snapshot hangi Planner Chat thread'ine eklensin?";
+  currentModeLabel.textContent = t("snapshot.target.mode_current") || "Mevcut thread";
+  pickModeLabel.textContent = t("snapshot.target.mode_pick") || "Başka thread seç";
+  newModeLabel.textContent = t("snapshot.target.mode_new") || "Yeni thread oluştur";
+  pickHintEl.textContent = t("snapshot.target.pick_hint") || "Mevcut thread listesinden seç.";
+  newHintEl.textContent = t("snapshot.target.new_hint") || "Opsiyonel ad ver; sistem yeni bir thread_id üretir.";
+  openChatLabelEl.textContent = t("snapshot.target.open_chat") || "Snapshot sonrası Planner Chat’e geç";
+  cancelBtn.textContent = t("snapshot.target.cancel") || "Vazgeç";
+  continueBtn.textContent = t("snapshot.target.continue") || "Devam et";
+
+  const activeThread = String(state.plannerThread || "default");
+  currentThreadEl.textContent = activeThread;
+
+  await ensurePlannerThreadsLoaded(true);
+  const threads = Array.isArray(state.plannerThreads?.threads) ? state.plannerThreads.threads : [];
+  const threadRows = threads
+    .map((entry) => ({
+      id: String(entry?.thread || entry?.thread_id || "").trim() || "default",
+      count: entry?.count,
+      last: entry?.last,
+    }))
+    .filter((row) => row.id);
+  const sorted = threadRows.sort((a, b) => String(b.last || "").localeCompare(String(a.last || "")));
+  const optionIds = dedupeList([activeThread, ...sorted.map((r) => r.id)]);
+
+  threadSelectEl.innerHTML = optionIds
+    .map((id) => {
+      const label = id;
+      const safe = escapeHtml(label);
+      const selected = id === activeThread ? " selected" : "";
+      return `<option value="${escapeHtml(id)}"${selected}>${safe}</option>`;
+    })
+    .join("\n");
+
+  openChatEl.checked = true;
+  currentModeEl.checked = true;
+  pickModeEl.checked = false;
+  newModeEl.checked = false;
+  threadSelectEl.disabled = true;
+  newSuffixEl.disabled = true;
+  newGenerateBtn.disabled = true;
+
+  let generatedNewThreadId = buildSnapshotThreadId("");
+  const updatePreview = () => {
+    const mode = currentModeEl.checked ? "current" : pickModeEl.checked ? "pick" : "new";
+    let id = activeThread;
+    if (mode === "pick") {
+      id = String(threadSelectEl.value || activeThread || "default").trim() || "default";
+    } else if (mode === "new") {
+      id = String(generatedNewThreadId || "").trim() || buildSnapshotThreadId(newSuffixEl.value || "");
+    }
+    previewLabelEl.textContent = id;
+  };
+
+  const applyMode = () => {
+    const mode = currentModeEl.checked ? "current" : pickModeEl.checked ? "pick" : "new";
+    threadSelectEl.disabled = mode !== "pick";
+    newSuffixEl.disabled = mode !== "new";
+    newGenerateBtn.disabled = mode !== "new";
+    if (mode === "new") {
+      generatedNewThreadId = buildSnapshotThreadId(newSuffixEl.value || "");
+    }
+    updatePreview();
+  };
+
+  const onModeChange = () => applyMode();
+  const onGenerate = (event) => {
+    event.preventDefault();
+    generatedNewThreadId = buildSnapshotThreadId(newSuffixEl.value || "");
+    updatePreview();
+  };
+  const onSuffixInput = () => {
+    if (!newModeEl.checked) return;
+    generatedNewThreadId = buildSnapshotThreadId(newSuffixEl.value || "");
+    updatePreview();
+  };
+  const onPickChange = () => {
+    if (!pickModeEl.checked) return;
+    updatePreview();
+  };
+
+  currentModeEl.addEventListener("change", onModeChange);
+  pickModeEl.addEventListener("change", onModeChange);
+  newModeEl.addEventListener("change", onModeChange);
+  newGenerateBtn.addEventListener("click", onGenerate);
+  newSuffixEl.addEventListener("input", onSuffixInput);
+  threadSelectEl.addEventListener("change", onPickChange);
+
+  applyMode();
+
+  const lastFocus = document.activeElement;
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => {
+    try {
+      continueBtn.focus();
+    } catch (_) {
+      // ignore
+    }
+  });
+
+  return new Promise((resolve) => {
+    const cleanup = (result) => {
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      currentModeEl.removeEventListener("change", onModeChange);
+      pickModeEl.removeEventListener("change", onModeChange);
+      newModeEl.removeEventListener("change", onModeChange);
+      newGenerateBtn.removeEventListener("click", onGenerate);
+      newSuffixEl.removeEventListener("input", onSuffixInput);
+      threadSelectEl.removeEventListener("change", onPickChange);
+      modal.removeEventListener("mousedown", onBackdrop);
+      document.removeEventListener("keydown", onKeyDown);
+      cancelBtn.onclick = null;
+      continueBtn.onclick = null;
+      if (closeBtn) closeBtn.onclick = null;
+      if (lastFocus && typeof lastFocus.focus === "function") {
+        try {
+          lastFocus.focus();
+        } catch (_) {
+          // ignore
+        }
+      }
+      resolve(result);
+    };
+
+    const onBackdrop = (event) => {
+      if (event.target !== modal) return;
+      event.preventDefault();
+      cleanup(null);
+    };
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cleanup(null);
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        continueBtn.click();
+      }
+    };
+
+    modal.addEventListener("mousedown", onBackdrop);
+    document.addEventListener("keydown", onKeyDown);
+
+    cancelBtn.onclick = () => cleanup(null);
+    if (closeBtn) closeBtn.onclick = () => cleanup(null);
+    continueBtn.onclick = () => {
+      const mode = currentModeEl.checked ? "current" : pickModeEl.checked ? "pick" : "new";
+      let id = activeThread;
+      if (mode === "pick") id = String(threadSelectEl.value || activeThread || "default").trim() || "default";
+      if (mode === "new") id = String(generatedNewThreadId || "").trim() || buildSnapshotThreadId(newSuffixEl.value || "");
+      cleanup({
+        mode,
+        threadId: id,
+        openChat: Boolean(openChatEl.checked),
+      });
+    };
+  });
+}
+
+function buildSnapshotEvidencePaths(payload) {
+  const evidencePaths = [];
+  const reportPath = String(payload?.report_path || "").trim();
+  if (reportPath) evidencePaths.push(reportPath);
+  const snapshotPath = String(payload?.ui_snapshot_path || "").trim();
+  if (snapshotPath) evidencePaths.push(snapshotPath);
+  const evidenceList = Array.isArray(payload?.evidence_paths) ? payload.evidence_paths : [];
+  evidenceList.forEach((p) => {
+    const v = String(p || "").trim();
+    if (v) evidencePaths.push(v);
+  });
+  const pathsObj = payload && typeof payload.paths === "object" && payload.paths ? payload.paths : {};
+  Object.values(pathsObj).forEach((val) => {
+    const v = String(val || "").trim();
+    if (v) evidencePaths.push(v);
+  });
+  const deduped = Array.from(new Set(evidencePaths.filter(Boolean)));
+  if (!deduped.length) deduped.push(".cache/reports/ui_snapshot_bundle.v1.json");
+  return deduped;
+}
+
+function buildSnapshotChatBody(payload) {
+  const tabKeyMap = {
+    "overview": "nav.overview",
+    "north-star": "nav.north_star",
+    "inbox": "nav.inbox",
+    "intake": "nav.intake",
+    "decisions": "nav.decisions",
+    "extensions": "nav.extensions",
+    "overrides": "nav.overrides",
+    "auto-loop": "nav.auto_loop",
+    "jobs": "nav.jobs",
+    "locks": "nav.locks",
+    "run-card": "nav.run_card",
+    "search": "nav.search",
+    "planner-chat": "nav.planner_chat",
+    "command-composer": "nav.command_composer",
+    "evidence": "nav.evidence",
+  };
+  const snapshotContext = state.snapshotContext || {};
+  const activeTab = String(snapshotContext.activeTab || state.activeTab || "overview");
+  const tabLabel = t(tabKeyMap[activeTab] || "nav.overview");
+  const hash = String(snapshotContext.hash || window.location.hash || "");
+  const ts = String(payload?.generated_at || new Date().toISOString());
+  const paths = buildSnapshotEvidencePaths(payload);
+
+  return [
+    `[SNAPSHOT] ${tabLabel}`,
+    `- page: ${tabLabel}`,
+    `- url: ${hash || "-"}`,
+    `- captured_at: ${ts}`,
+    "",
+    "Evidence:",
+    ...paths.map((p) => `- ${p}`),
+  ].join("\n");
+}
+
+async function handleSnapshotBundleCompleted(payload) {
+  const target = state.snapshotTarget;
+  state.snapshotTarget = null;
+  const body = buildSnapshotChatBody(payload);
+  const threadId = String(target?.threadId || "").trim();
+  if (!threadId) {
+    prefillNoteForSnapshot(payload);
+    return;
+  }
+  try {
+    const { res, data } = await postOpInternal("planner-chat-send", {
+      thread: threadId,
+      title: "System",
+      body,
+      tags: "system,snapshot,ui",
+      links_json: "[]",
+    });
+    if (!res?.ok) {
+      showToast(t("snapshot.chat_append_failed", { error: data?.error || data?.status || "UNKNOWN" }), "warn");
+      prefillNoteForSnapshot(payload);
+      return;
+    }
+    showToast(t("snapshot.chat_appended") || "Snapshot Planner Chat’e eklendi.", "ok");
+    if (target?.openChat) {
+      state.plannerThread = threadId;
+      navigateToTab("planner-chat");
+      scheduleRefresh("notes", refreshNotes, 120);
+    }
+  } catch (err) {
+    showToast(t("snapshot.chat_append_failed", { error: formatError(err) }), "warn");
+    prefillNoteForSnapshot(payload);
+  } finally {
+    state.snapshotContext = null;
+  }
+}
+
 function applyOpButtonsDisabledState() {
   $$("[data-op]").forEach((btn) => {
     const opName = String(btn?.dataset?.op || "").trim();
@@ -8808,6 +9149,13 @@ function pollOpJob(jobId, pollUrl = "", opHint = "") {
       return;
     }
 
+    if (
+      !status.includes("FAIL") &&
+      (opName === "ui-snapshot-bundle" || String(data.op || "").trim() === "ui-snapshot-bundle")
+    ) {
+      await handleSnapshotBundleCompleted(data);
+    }
+
     const kind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op: data.op || "op", status: status || "DONE" }), kind);
     scheduleRefresh("active_tab", refreshActiveTab, 140);
@@ -8844,6 +9192,7 @@ async function postOp(op, args = {}) {
     "north-star-theme-seed",
     "north-star-theme-consult",
     "north-star-theme-suggestion-apply",
+    "ui-snapshot-bundle",
   ]);
   if (!confirmBypassOps.has(opName)) {
     const ok = await confirmAction(op, args);
@@ -8882,7 +9231,7 @@ async function postOp(op, args = {}) {
     const toastKind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op, status: data.status || "UNKNOWN" }), toastKind);
     if (opName === "ui-snapshot-bundle") {
-      prefillNoteForSnapshot(data);
+      await handleSnapshotBundleCompleted(data);
       return data;
     }
     if (op === "planner-chat-send" || op === "planner-chat-send-llm") {
@@ -9195,7 +9544,16 @@ function setupOps() {
   });
   const snapshotTopbar = $("#snapshot-page");
   if (snapshotTopbar) {
-    snapshotTopbar.addEventListener("click", () => postOp("ui-snapshot-bundle"));
+    snapshotTopbar.addEventListener("click", async () => {
+      const target = await openSnapshotTargetModal();
+      if (!target) return;
+      state.snapshotTarget = target;
+      state.snapshotContext = {
+        activeTab: state.activeTab || "overview",
+        hash: String(window.location.hash || ""),
+      };
+      postOp("ui-snapshot-bundle");
+    });
   }
 
   const exportMechanismsBtn = $("#export-mechanisms");

@@ -2126,6 +2126,73 @@
 	      </div>
 	    </div>
 
+      <div class="modal" id="snapshot-target-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-target-title">
+        <div class="modal-card" role="document">
+          <div class="modal-header">
+            <div>
+              <h3 class="modal-title" id="snapshot-target-title">Snapshot hedefi</h3>
+              <div class="modal-hint" id="snapshot-target-hint">Bu snapshot hangi Planner Chat thread'ine eklensin?</div>
+            </div>
+            <button class="btn ghost icon modal-close" id="snapshot-target-close" type="button" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 6l12 12"></path>
+                <path d="M18 6l-12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="subtle" style="margin-bottom:10px;">
+              <span class="subtle">Önizleme:</span>
+              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;" id="snapshot-target-thread-preview">default</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+                <input type="radio" name="snapshot-target-mode" id="snapshot-target-mode-current" value="current" checked />
+                <span>
+                  <div><strong id="snapshot-target-mode-current-label">Mevcut thread</strong></div>
+                  <div class="subtle" id="snapshot-target-mode-current-sub">Aktif thread: <span id="snapshot-target-current-thread">default</span></div>
+                </span>
+              </label>
+
+              <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+                <input type="radio" name="snapshot-target-mode" id="snapshot-target-mode-pick" value="pick" />
+                <span style="flex:1;">
+                  <div><strong id="snapshot-target-mode-pick-label">Başka thread seç</strong></div>
+                  <div class="subtle" id="snapshot-target-mode-pick-sub">Mevcut thread listesinden seç.</div>
+                  <div style="margin-top:8px;">
+                    <select class="input" id="snapshot-target-thread-select" aria-label="Planner thread" disabled></select>
+                  </div>
+                </span>
+              </label>
+
+              <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+                <input type="radio" name="snapshot-target-mode" id="snapshot-target-mode-new" value="new" />
+                <span style="flex:1;">
+                  <div><strong id="snapshot-target-mode-new-label">Yeni thread oluştur</strong></div>
+                  <div class="subtle" id="snapshot-target-mode-new-sub">Opsiyonel ad ver; sistem yeni bir thread_id üretir.</div>
+                  <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <input class="input" id="snapshot-target-thread-new-suffix" type="text" placeholder="örn: iso9001_4_1" style="flex:1;min-width:220px;" />
+                    <button class="btn ghost small" id="snapshot-target-thread-new-generate" type="button">Yenile</button>
+                  </div>
+                </span>
+              </label>
+            </div>
+
+            <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                <input type="checkbox" id="snapshot-target-open-chat" checked />
+                <span id="snapshot-target-open-chat-label">Snapshot sonrası Planner Chat’e geç</span>
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn ghost" id="snapshot-target-cancel" type="button">Vazgeç</button>
+            <button class="btn accent" id="snapshot-target-continue" type="button">Devam et</button>
+          </div>
+        </div>
+      </div>
+
     <div class="toast-container" id="toast-container"></div>
 
     <script src="/assets/app.js"></script>
