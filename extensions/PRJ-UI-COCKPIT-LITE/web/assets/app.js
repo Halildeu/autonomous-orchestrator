@@ -9168,11 +9168,6 @@ function pollOpJob(jobId, pollUrl = "", opHint = "") {
 async function postOp(op, args = {}) {
   if (state.actionPending) return null;
   const opName = String(op || "").trim();
-  if (opName === "ui-snapshot-bundle") {
-    if (!args || typeof args !== "object") args = {};
-    if (!("ui_page" in args)) args.ui_page = String(state.activeTab || "overview");
-    if (!("ui_hash" in args)) args.ui_hash = String(window.location.hash || "");
-  }
   const existingJobId =
     opName && state.opJobsInProgress && typeof state.opJobsInProgress === "object"
       ? String(state.opJobsInProgress[opName] || "").trim()
