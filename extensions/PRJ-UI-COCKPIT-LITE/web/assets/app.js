@@ -7,6 +7,7 @@ const NORTH_STAR_FINDINGS_ALL_LENSES_KEY = "__ALL_LENSES__";
 const ADMIN_REQUIRED_OPS = new Set(["overrides-write", "work-intake-purpose-generate", "planner-chat-send-llm"]);
 const ADMIN_REQUIRED_ACTIONS = new Set(["run-card-set", "extension-toggle", "settings-set-override"]);
 const ADMIN_REQUIRED_ELEMENT_IDS = new Set(["settings-save", "run-card-save"]);
+const AI_SUGGEST_THREAD_STORAGE_KEY = "cockpit.ai_suggest_threads.v1";
 const LANG_STORAGE_KEY = "cockpit_lang.v1";
 const THEME_STORAGE_KEY = "cockpit_theme.v1";
 const CHAT_SELECTION_STORAGE_KEY = "cockpit_planner_chat_selection.v1";
@@ -15,6 +16,17 @@ const OP_JOB_POLLING = new Set();
 const GITHUB_OPS_POLL_ACTIVE_MS = 15000;
 const GITHUB_OPS_POLL_IDLE_MS = 60000;
 const GITHUB_OPS_STALE_MS = 3 * 60 * 1000;
+const SEARCH_INDEX_AUTO_REFRESH_MS = 24 * 60 * 60 * 1000;
+const SEARCH_INDEX_POLL_MS = 15 * 60 * 1000;
+const TIMELINE_ALERT_NON_TOOL_RATIO = 0.6;
+const TIMELINE_ALERT_P95_MS = 10 * 60 * 1000;
+const TIMELINE_TREND_WINDOW = 5;
+const INTAKE_GROUP_TABS = {
+  summary: ["summary"],
+  decision: ["decision"],
+  evidence: ["evidence", "notes"],
+  raw: ["raw"],
+};
 const CHAT_MODEL_GROUPS = {
   FAST_TEXT: { label: "FAST_TEXT", provider_order: ["openai", "google", "claude", "deepseek", "qwen", "xai"] },
   BALANCED_TEXT: { label: "BALANCED_TEXT", provider_order: ["qwen", "deepseek", "openai", "google", "claude", "xai"] },
@@ -33,6 +45,93 @@ const CHAT_MODEL_GROUPS = {
   DEEP_RESEARCH: { label: "DEEP_RESEARCH", provider_order: ["openai", "google"] },
 };
 
+const EXTENSION_DESCRIPTIONS_TR = {
+  "PRJ-AIRUNNER": {
+    summary: "Arka planda otomatik iş döngülerini çalıştırır.",
+    value: "Tekrarlayan işleri otomatikleştirir ve akışları düzenli işletir.",
+    when: "Zamanlanmış veya tetiklenen döngülerde.",
+    output: "Job durumu ve çalışma logları.",
+  },
+  "PRJ-DEPLOY": {
+    summary: "Dağıtım (deploy) akışını ve hedeflerini yönetir.",
+    value: "Dağıtım süreçlerini standartlaştırır, kontrol noktaları sağlar.",
+    when: "Deploy işleri çalıştırıldığında.",
+    output: "Deploy durumu ve sonuçlar.",
+  },
+  "PRJ-ENFORCEMENT-PACK": {
+    summary: "Uyum ve kalite kurallarını otomatik kontrol eder.",
+    value: "Hatalı değişikliklerin sisteme girmesini engeller, riskleri görünür kılar.",
+    when: "Policy-check / enforcement akışlarında.",
+    output: "Uyarı–ihlal raporu ve gerekiyorsa bloklama.",
+  },
+  "PRJ-EXECUTORPORT": {
+    summary: "Güvenli komut/iş yürütme kapısı sağlar.",
+    value: "Komut çalıştırmayı kontrollü ve izlenebilir hale getirir.",
+    when: "Runner/executor çağrılarında.",
+    output: "Çalıştırma çıktısı ve durum.",
+  },
+  "PRJ-KERNEL-API": {
+    summary: "Çekirdek API ve ortak sözleşmeleri sağlar.",
+    value: "Modüller arası uyumu korur, standart davranış üretir.",
+    when: "Ortak API kullanımlarında.",
+    output: "API yanıtları ve sözleşme uyumu.",
+  },
+  "PRJ-M0-MAINTAINABILITY": {
+    summary: "Bakım/kalite odaklı temel kuralları uygular.",
+    value: "Uzun vadeli sürdürülebilirliği güçlendirir.",
+    when: "Kontrol/denetim aşamalarında.",
+    output: "Uyarılar ve bakım raporları.",
+  },
+  "PRJ-MEMORYPORT": {
+    summary: "Semantik arama/bellek katmanına bağlantı sağlar.",
+    value: "Benzerlik aramalarını ve bilgi geri çağırmayı mümkün kılar.",
+    when: "Semantic search ve memory işlemlerinde.",
+    output: "Arama sonuçları ve eşleşmeler.",
+  },
+  "PRJ-OBSERVABILITY-OTEL": {
+    summary: "Telemetry ve izleme verilerini toplar.",
+    value: "Sistem sağlığını görünür kılar, sorun takibini kolaylaştırır.",
+    when: "Sistem çalışırken.",
+    output: "Log/trace/metric verileri.",
+  },
+  "PRJ-PLANNER": {
+    summary: "İşleri plan adımlarına çevirir.",
+    value: "Ne yapılacağını netleştirir, önerileri yapılandırır.",
+    when: "Planlama/istişare çağrılarında.",
+    output: "Plan adımları ve öneriler.",
+  },
+  "PRJ-PM-SUITE": {
+    summary: "Proje/portföy yönetimi bileşenlerini sağlar.",
+    value: "Projeleri yapılandırılmış biçimde takip etmeyi sağlar.",
+    when: "PM modülleri kullanıldığında.",
+    output: "PM kayıtları ve durumlar.",
+  },
+  "PRJ-UI-COCKPIT-LITE": {
+    summary: "Operatör konsolu arayüzünü sağlar.",
+    value: "Durumları ve aksiyonları tek ekranda toplar.",
+    when: "Cockpit açıldığında.",
+    output: "UI görünümü.",
+  },
+  "PRJ-WORK-INTAKE": {
+    summary: "Gelen işleri toplar ve sınıflandırır.",
+    value: "İşlerin kaybolmasını engeller, net bir iş kuyruğu sağlar.",
+    when: "Yeni istek geldiğinde ve intake yenilemede.",
+    output: "İş listesi, amaç ve etiketler.",
+  },
+  "prj-github-ops": {
+    summary: "GitHub operasyonlarını yönetir.",
+    value: "Repo içi otomasyonu standartlaştırır.",
+    when: "GitHub ops çağrılarında.",
+    output: "Job durumları ve sonuçlar.",
+  },
+  "release-automation": {
+    summary: "Sürümleme ve yayın akışlarını otomatikler.",
+    value: "Yayın sürecini hızlandırır, hataları azaltır.",
+    when: "Release işleri tetiklendiğinde.",
+    output: "Release durumu ve çıktılar.",
+  },
+};
+
 const I18N = {
   en: {
     "ui.title": "Operator Console",
@@ -46,6 +145,7 @@ const I18N = {
     "nav.primary": "Primary",
     "nav.overview": "Overview",
     "nav.north_star": "North Star",
+    "nav.timeline": "Timeline",
     "nav.inbox": "Inbox",
     "nav.intake": "Intake",
     "nav.decisions": "Decisions",
@@ -55,6 +155,7 @@ const I18N = {
     "nav.jobs": "Jobs",
     "nav.locks": "Locks",
     "nav.run_card": "Run-Card",
+    "nav.search": "Search",
     "nav.planner_chat": "Planner Chat",
     "nav.command_composer": "Command Composer",
     "nav.evidence": "Evidence",
@@ -64,11 +165,93 @@ const I18N = {
     "h.loop_activity": "Loop Activity",
     "h.locks": "Locks",
     "h.script_budget": "Script Budget",
+    "h.timeline_dashboard": "Time Sink Dashboard",
+    "h.search": "Search",
     "h.next_steps": "Next Steps",
     "h.action_log": "Action Log",
     "h.last_action": "Last Action",
     "h.system_status_raw": "System Status (raw)",
     "h.ui_snapshot_raw": "UI Snapshot (raw)",
+    "search.placeholder": "Search (auto)",
+    "search.scope.label": "Scope",
+    "search.scope.ssot": "SSOT (fast)",
+    "search.scope.repo": "Repo (full)",
+    "search.mode.label": "Search mode",
+    "search.mode.auto": "Auto",
+    "search.mode.keyword": "Keyword (rg)",
+    "search.mode.semantic": "Semantic (pgvector)",
+    "search.run": "Search",
+    "search.rebuild": "Update index",
+    "search.status.idle": "Waiting for query.",
+    "search.status.running": "Searching…",
+    "search.status.done": "Results: {count} • mode={mode}",
+    "search.status.error": "Search failed: {error}",
+    "search.engine.none": "Engine: -",
+    "search.engine.value": "Engine: {engine}",
+    "search.engine.badge.none": "SRCH: -",
+    "search.engine.badge.value": "SRCH: {engine}",
+    "search.no_results": "No results.",
+    "search.index.none": "Index: missing",
+    "search.index.ready": "Index: {indexed_at} • files={files} • records={records} • adapter={adapter}",
+    "search.index.building": "Index building: {done}/{total} • ETA={eta}",
+    "search.index.building_scan": "Index building: scanning files…",
+    "search.index.predicted": "Estimated build: {eta}",
+    "search.index.refreshing": "Index update running…",
+    "search.index.error": "Index update failed: {error}",
+    "search.index.age": "Last update: {age}",
+    "search.index.remaining": "Next refresh in: {remaining}",
+    "search.capabilities.title": "Adapter Contract",
+    "search.capabilities.status": "Contract: {contract} • scope={scope} • index={index}",
+    "search.capabilities.routing": "Routing: auto={auto} • keyword={keyword} • semantic={semantic}",
+    "search.capabilities.selection": "Fallback: keyword={keyword} • semantic={semantic}",
+    "search.capabilities.loading": "Capabilities loading…",
+    "search.capabilities.error": "Capabilities failed: {error}",
+    "search.capabilities.adapters.none": "No adapter data.",
+    "search.capabilities.adapters.header": "Adapter | Engine | Status | Tooling | Reason",
+    "search.capabilities.semantic.none": "SEM: -",
+    "search.capabilities.semantic.pending": "SEM: …",
+    "search.capabilities.semantic.ready": "SEM: READY",
+    "search.capabilities.semantic.unavailable": "SEM: UNAVAILABLE",
+    "search.capabilities.semantic.failed": "SEM: ERROR",
+    "search.capabilities.semantic.reason": "Semantic reason: {reason}",
+    "timeline.refresh": "Refresh",
+    "timeline.total_tool_time": "Total tool time",
+    "timeline.process_count": "Process count",
+    "timeline.process_p95": "Process p95",
+    "timeline.non_tool_ratio": "Non-tool ratio",
+    "timeline.slowest_processes": "Slowest processes",
+    "timeline.tool_breakdown": "Tool breakdown",
+    "timeline.meta": "generated={generated} • range={range} • events={events}",
+    "timeline.pending": "Timeline report is loading…",
+    "timeline.empty": "Timeline report is not available yet.",
+    "timeline.group.dashboard": "Dashboard",
+    "timeline.group.trend": "Trend",
+    "timeline.tab.summary": "Summary",
+    "timeline.tab.processes": "Processes",
+    "timeline.tab.tools": "Tools",
+    "timeline.tab.pctl": "P50 / P95",
+    "timeline.tab.alerts": "Alerts",
+    "timeline.process.meta": "Rows: {count} • Click a row to expand details",
+    "timeline.tools.meta": "Rows: {count} • Aggregated by tool",
+    "timeline.trend.meta": "Rolling window: last {window} cycles • points={count}",
+    "timeline.trend.empty": "Not enough cycle data for trend chart.",
+    "timeline.alert.idle": "TIME: -",
+    "timeline.alert.ok": "TIME: OK",
+    "timeline.alert.warn": "TIME: WARN",
+    "timeline.alert.fail": "TIME: ALARM",
+    "timeline.alert.details.none": "No threshold breach in current report.",
+    "timeline.alert.details.non_tool": "Non-tool ratio {actual}% > {threshold}%",
+    "timeline.alert.details.p95": "Process p95 {actual} > {threshold}",
+    "timeline.table.started": "Started",
+    "timeline.table.ended": "Ended",
+    "timeline.table.duration": "Duration",
+    "timeline.table.tool_total": "Tool",
+    "timeline.table.non_tool": "Non-tool",
+    "timeline.table.tool_calls": "Calls",
+    "timeline.table.top_tool": "Top tool",
+    "timeline.table.closed_by": "Closed by",
+    "timeline.table.p50": "P50",
+    "timeline.table.p95": "P95",
     "h.north_star": "North Star",
     "h.lens_summary": "Lens Summary",
     "h.gap_summary": "Gap Summary",
@@ -81,6 +264,16 @@ const I18N = {
     "h.decision_inbox": "Decision Inbox",
     "h.extensions": "Extensions",
     "h.extension_detail": "Extension Detail",
+    "h.extension_usage": "Extension Usage",
+    "extensions.detail.manifest": "Manifest",
+    "extensions.detail.meta": "Meta",
+    "extensions.detail.overrides": "Overrides",
+    "extensions.detail.readme": "README",
+    "extensions.detail.policies": "Policies",
+    "extensions.detail.ops": "Ops metrics",
+    "extensions.detail.about": "What it does",
+    "extensions.detail.loading": "Loading…",
+    "extensions.detail.empty": "No detail available.",
     "h.safe_overrides": "Safe Overrides",
     "h.edit_override": "Edit Override",
     "h.auto_loop": "Auto-loop",
@@ -126,20 +319,6 @@ const I18N = {
     "actions.enable": "Enable",
     "actions.disable": "Disable",
     "actions.remove_tag": "Remove tag",
-    "snapshot.target.title": "Snapshot target",
-    "snapshot.target.hint": "Which Planner Chat thread should this snapshot be appended to?",
-    "snapshot.target.preview": "Preview:",
-    "snapshot.target.mode_current": "Current thread",
-    "snapshot.target.mode_pick": "Pick another thread",
-    "snapshot.target.mode_new": "Create new thread",
-    "snapshot.target.pick_hint": "Select from existing threads.",
-    "snapshot.target.new_hint": "Optional name; a new thread_id will be generated.",
-    "snapshot.target.open_chat": "Switch to Planner Chat after snapshot",
-    "snapshot.target.cancel": "Cancel",
-    "snapshot.target.continue": "Continue",
-    "snapshot.target.current_thread": "Active thread: {id}",
-    "snapshot.chat_append_failed": "Failed to append snapshot to chat: {error}",
-    "snapshot.chat_appended": "Snapshot appended to Planner Chat.",
     "common.on": "on",
     "common.off": "off",
     "common.sample_parens": " (sample)",
@@ -162,6 +341,7 @@ const I18N = {
     "table.title": "Title",
     "table.created": "Created",
     "table.updated": "Updated",
+    "table.time": "Time",
     "table.extension": "Extension",
     "table.claim": "Claim",
     "table.recommended_action": "Recommendation",
@@ -175,6 +355,7 @@ const I18N = {
     "table.kind": "Kind",
     "table.domain": "Domain",
     "table.scope": "Scope",
+    "table.path": "Path",
     "table.preview": "Preview",
     "table.evidence": "Evidence",
     "table.question": "Question",
@@ -212,7 +393,7 @@ const I18N = {
     "north_star.detail.requirements": "Requirements",
     "north_star.detail.subscores": "Subscores",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "Use “Lens Findings” to browse per-item matches; Catalog shows Reference/BP sources.",
+    "north_star.detail.lens_findings_hint": "Use “Lens Findings” to browse per-item matches; Workflow Stage shows Reference/Assessment/Gap and details keep source type (Trend/BP/Lens).",
     "north_star.detail.evidence_expectations": "Evidence expectations",
     "north_star.detail.remediation_ideas": "Remediation ideas",
     "job.poll_failed": "Job poll failed: {error}",
@@ -221,6 +402,7 @@ const I18N = {
     "job.started": "{op}: started (job {id})",
     "job.done": "{op}: {status}",
     "job.already_running": "{op}: already running (tracking {id})",
+    "snapshot.started": "Snapshot is being prepared (job {id}). It will open in Notes when ready.",
     "toast.refresh_failed": "Refresh failed ({name}): {error}",
     "toast.select_intake_first": "Select an intake item first.",
     "toast.notes_composer_unavailable": "Notes composer not available.",
@@ -261,6 +443,7 @@ const I18N = {
     "action.last_action": "last action: {op} ({status})",
     "status.api": "API: {status}",
     "status.sse": "SSE: {status}",
+    "status.memory": "MEM: {status}",
     "status.disconnected": "DISCONNECTED",
     "sidebar.workspace": "workspace: {path}",
     "sidebar.last_change": "last change: {ts}",
@@ -306,6 +489,15 @@ const I18N = {
     "intake.decision.banner_missing": "Decision data unavailable (missing decision artifacts). Intake still usable.",
     "intake.inline.tab_decision": "Decision",
     "intake.inline.tab_technical": "Technical",
+    "intake.detail.tab_summary": "Summary",
+    "intake.detail.tab_decision": "Decision",
+    "intake.detail.tab_evidence": "Evidence",
+    "intake.detail.tab_notes": "Notes",
+    "intake.detail.tab_raw": "Raw JSON",
+    "intake.group.summary": "Overview",
+    "intake.group.decision": "Decision",
+    "intake.group.evidence": "Evidence",
+    "intake.group.raw": "Raw",
     "intake.decision.save": "Save",
     "intake.decision.note_placeholder": "Optional note…",
     "intake.decision.no_overlay": "No decision card available for this item.",
@@ -330,8 +522,14 @@ const I18N = {
     "notes.thread_meta": "count={count} last={last}",
     "notes.open": "Open",
     "notes.links.none": "no links added",
+    "notes.links.header": "Evidence & Attachments",
+    "notes.title_placeholder": "Title (optional)",
+    "notes.tags_placeholder": "Tags (comma separated)",
     "select.none": "none",
     "select.no_verified_model": "no model",
+    "chat.model.unverified": "doğrulanmadı",
+    "chat.model.skeleton": "taslak/atlanır",
+    "chat.allowlist_warn": "Allowlist UYARI: {fail} başarısız → doğrulanmayan modeller taslak/atlanır.",
     "notes.links.remove": "Remove",
     "notes.no_note_selected": "no note selected",
     "notes.prefill.context_header": "Context (from intake):",
@@ -368,6 +566,13 @@ const I18N = {
     "north_star.mechanisms.status.active": "Active",
     "north_star.mechanisms.status.deprecated": "Deprecated",
     "north_star.mechanisms.status.hidden": "Hidden",
+    "north_star.mechanisms.transfer_btn": "Send to findings",
+    "north_star.mechanisms.transfer_title": "Apply as Lens Findings filter",
+    "north_star.mechanisms.transfer_done": "Lens Findings scope added: {target}",
+    "north_star.mechanisms.transfer_blocked_hint": "Lens transfer requires subject to be ACTIVE and approved.",
+    "north_star.mechanisms.transfer_blocked_detail": "Lens transfer disabled: {reasons}",
+    "north_star.mechanisms.transfer_reason_not_active": "Not active",
+    "north_star.mechanisms.transfer_reason_not_approved": "Not approved",
     "north_star.export_mechanisms": "Export theme catalog (Excel)",
     "north_star.suggestions.title": "AI Suggestions",
     "north_star.suggestions.seed_btn": "Seed (GPT-5.2)",
@@ -379,6 +584,10 @@ const I18N = {
     "north_star.suggestions.merge": "Merge",
     "north_star.suggestions.modal_title": "AI note",
     "north_star.suggestions.modal_hint": "Optional context for AI suggestions.",
+    "north_star.suggestions.modal_intent": "Intent",
+    "north_star.suggestions.modal_intent_seed": "Seed → PROPOSED (no direct registry write)",
+    "north_star.suggestions.modal_intent_consult": "Consult → PROPOSED (no direct registry write)",
+    "north_star.suggestions.modal_intent_discuss": "Discuss → PROPOSED (no direct registry write)",
     "north_star.suggestions.modal_context_label": "Selection",
     "north_star.suggestions.modal_context_subject": "Subject",
     "north_star.suggestions.modal_context_theme": "Theme",
@@ -388,7 +597,7 @@ const I18N = {
     "north_star.suggestions.modal_profile": "Profile",
     "north_star.suggestions.modal_provider": "Provider",
     "north_star.suggestions.modal_model": "Model",
-    "north_star.suggestions.modal_model_hint": "Unverified models are disabled.",
+    "north_star.suggestions.modal_model_hint": "",
     "north_star.suggestions.modal_history_empty": "No messages yet.",
     "north_star.suggestions.modal_status_idle": "",
     "north_star.suggestions.modal_status_started": "Request sent. Waiting for response...",
@@ -397,8 +606,44 @@ const I18N = {
     "north_star.suggestions.modal_merge_label": "Merge target theme_id",
     "north_star.suggestions.modal_cancel": "Cancel",
     "north_star.suggestions.modal_submit": "Submit",
+    "north_star.suggestions.modal_open_chat": "Open chat",
+    "north_star.catalog_create.title": "Catalog Builder",
+    "north_star.catalog_create.hint": "Prompt: v0.4.8 (prompt_refine_consolidated)",
+    "north_star.catalog_create.subject_label": "Topic",
+    "north_star.catalog_create.subject_placeholder": "e.g., Internal Audit",
+    "north_star.catalog_create.save": "Save",
+    "north_star.catalog_create.create": "Create catalog",
+    "north_star.catalog_create.meta_saved": "Saved topic: {subject} · thread: {thread}",
+    "north_star.catalog_create.status_ready": "ready",
+    "north_star.catalog_create.status_loading": "loading prompt…",
+    "north_star.catalog_create.status_missing": "prompt not found",
+    "north_star.catalog_create.modal_title": "Create Catalog",
+    "north_star.catalog_create.modal_hint": "Edit the prompt if needed, then send via Planner Chat.",
+    "north_star.catalog_create.modal_subject_label": "Topic",
+    "north_star.catalog_create.modal_thread_label": "Thread",
+    "north_star.catalog_create.modal_open_chat": "Open chat",
+    "north_star.catalog_create.modal_send": "Send (LLM)",
+    "north_star.catalog_create.modal_cancel": "Cancel",
+    "planner_chat.suggestions.title": "Suggested next steps",
+    "toast.catalog_subject_required": "Topic required.",
+    "toast.catalog_prompt_missing": "Prompt template not found.",
+    "toast.catalog_prompt_ready": "Catalog prompt prepared.",
+    "toast.catalog_sent": "Catalog request sent.",
+    "toast.catalog_prefilled": "Catalog prompt moved to chat.",
+
     "north_star.suggestions.comment_prompt": "Optional comment (why/what to adjust)",
     "north_star.suggestions.merge_prompt": "Merge target theme_id (optional)",
+    "extensions.usage.search": "Search path/kind/extension",
+    "extensions.usage.summary": "{matched}/{total} matched · unknown {unknown}",
+    "extensions.usage.top": "Top extensions",
+    "extensions.usage.trend": "7d usage trend",
+    "extensions.usage.by_day": "Daily usage",
+    "extensions.usage.by_day_empty": "No daily usage data.",
+    "extensions.usage.select_placeholder": "Select",
+    "extensions.usage.empty_hint": "No usage data yet. Try Refresh or run ops that emit logs.",
+    "extensions.usage.no_data": "No usage data yet.",
+    "extensions.usage.unknown_title": "Unknown samples",
+    "extensions.usage.unused": "Unused extensions: {list}",
     "north_star.suggestions.ai_prompt": "AI comment (context for suggestions)",
     "north_star.suggestions.seed_confirm": "Seed themes with GPT-5.2? Output goes to PROPOSED only.",
     "north_star.suggestions.filter.search": "Search suggestions",
@@ -409,6 +654,10 @@ const I18N = {
     "north_star.suggestions.filter.type": "Suggestion type (missing/merge/too_many)",
     "north_star.suggestions.filter.date_from": "From",
     "north_star.suggestions.filter.date_to": "To",
+    "north_star.suggestions.filter.quick.today": "Today",
+    "north_star.suggestions.filter.quick.week": "Last 7 days",
+    "north_star.suggestions.filter.quick.month": "Last 30 days",
+    "north_star.suggestions.filter.quick.all": "All",
     "north_star.suggestions.discuss": "Discuss",
     "toast.export_mechanisms_ok": "Theme catalog exported to Excel ({count} rows).",
     "toast.export_mechanisms_empty": "Theme catalog has no rows to export.",
@@ -441,10 +690,14 @@ const I18N = {
     "north_star.filter.subtheme.placeholder": "Select subtheme",
     "north_star.filter.topic.label": "Criterion/Axis",
     "north_star.filter.topic.placeholder": "Select criterion",
-    "north_star.filter.catalog.label": "Catalog (Reference/BP)",
+    "north_star.filter.catalog.label": "Workflow Stage (Reference/Assessment/Gap)",
     "north_star.filter.catalog.placeholder": "(optional)",
     "north_star.filter.match.label": "Trigger Status",
-    "north_star.filter.match.placeholder": "Triggered only (default)",
+    "north_star.filter.match.placeholder": "Select match status",
+    "north_star.findings.transfer_scopes.title": "Active transfer scopes",
+    "north_star.findings.transfer_scopes.empty": "none",
+    "north_star.findings.transfer_scopes.remove_title": "Remove scope",
+    "north_star.findings.transfer_scopes.removed": "Transfer scope removed.",
     "actions.reset_filters": "Reset",
     "north_star.no_findings": "(no findings)",
     "north_star.unknown": "(unknown)",
@@ -456,14 +709,41 @@ const I18N = {
     "north_star.table.title": "Title",
     "north_star.table.theme": "Tema (Theme)",
     "north_star.table.subtheme": "Alt Tema (Subtheme)",
-    "north_star.table.catalog": "Catalog (Reference/BP)",
+    "north_star.table.catalog": "Workflow Stage",
+    "north_star.table.source_type": "Source Type",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Reasons",
     "north_star.table.evidence": "Evidence",
     "north_star.join.banner": "Theme/Subtheme join missing for {miss} findings (title fallback {fallback}){reason}",
-    "north_star.catalog.reference": "Referans (Reference)",
-    "north_star.catalog.capability": "Yapı Taşı (Capability)",
-    "north_star.catalog.criterion": "Kriter (Criterion)",
+    "north_star.catalog.reference": "Reference - Trend",
+    "north_star.catalog.capability": "Reference - Best Practice",
+    "north_star.catalog.criterion": "Assessment Check (Lens)",
+    "north_star.stage.reference": "Reference",
+    "north_star.stage.assessment": "Assessment",
+    "north_star.stage.gap": "Gap",
+    "north_star.findings.scope_hint": "Reference / Assessment / Gap are workflow stages. The stage filter classifies each finding; details still show source type (Trend/BP/Lens).",
+    "north_star.workflow.title": "North Star Workflow v1",
+    "north_star.workflow.subtitle": "Canonical flow: Reference -> Assessment -> Gap -> PDCA",
+    "north_star.workflow.step1": "Reference: Theme/Subtheme + Trend/BP reference set is approved (ACTIVE).",
+    "north_star.workflow.step2": "Assessment: Run raw/eval measurement against the approved reference.",
+    "north_star.workflow.step3": "Gap: Produce deterministic deviations with impact/risk/effort.",
+    "north_star.workflow.step4": "PDCA: Prioritize closure actions, recheck, and track regression.",
+    "north_star.workflow.note": "Note: Lens Findings is now filtered by workflow stage. Trend/BP/Lens remains only as source type in details.",
+    "north_star.flow2.title": "Flow 2 Status",
+    "north_star.flow2.subtitle": "Assessment chain health (Assessment + Policy + Status).",
+    "north_star.flow2.assessment": "Assessment",
+    "north_star.flow2.policy": "Policy-check",
+    "north_star.flow2.system": "System-status",
+    "north_star.flow2.project": "Project-status",
+    "north_star.flow2.summary": "assessment_at={assessment_at} | system_at={system_at} | policy_inputs={policy_inputs}",
+    "north_star.flow2.summary_missing": "Flow 2 telemetry files are missing.",
+    "north_star.flow2.line.assessment": "Assessment: controls={controls} metrics={metrics} packs={packs}",
+    "north_star.flow2.line.policy": "Policy-check: allow={allow} suspend={suspend} invalid={invalid} diff_nonzero={diff}",
+    "north_star.flow2.line.system": "System-status: actions={actions} script_budget_fail={sb_fail} script_budget_warn={sb_warn}",
+    "north_star.flow2.line.project": "Project-status: next_milestone={next_milestone} core_lock={core_lock}",
+    "north_star.flow2.invalid_expected": "invalid_envelope expected: negative fixture sample ({file}).",
+    "north_star.flow2.invalid_unexpected": "invalid_envelope detected outside known negative fixtures. Review examples before production runs.",
+    "north_star.flow2.invalid_none": "invalid_envelope count is 0.",
     "north_star.perspective.locked_topics": "Perspective pack locked",
     "north_star.perspective.locked_hint": "Perspective pack is locked; topics are fixed.",
     "north_star.preset.custom": "Filter set (manual selection)",
@@ -492,6 +772,7 @@ const I18N = {
     "empty.no_actions": "No actions yet.",
     "empty.no_items": "No items.",
     "empty.no_findings_match": "No findings match the current filters.",
+    "empty.no_findings_transfer_scope": "No transferred catalog scope yet. Review catalog first, then transfer ACTIVE + approved entries to Lens Findings.",
     "empty.select_finding_row": "Select a finding row to inspect details.",
     "empty.no_lens_details": "No lens details.",
     "empty.no_active_claims": "No active claims.",
@@ -514,6 +795,7 @@ const I18N = {
     "nav.primary": "Ana gezinme",
     "nav.overview": "Genel Bakış",
     "nav.north_star": "Kuzey Yıldızı",
+    "nav.timeline": "Timeline",
     "nav.inbox": "Gelen Kutusu",
     "nav.intake": "İş Alımı",
     "nav.decisions": "Kararlar",
@@ -523,6 +805,7 @@ const I18N = {
     "nav.jobs": "İşler",
     "nav.locks": "Kilitler",
     "nav.run_card": "Koşu Kartı",
+    "nav.search": "Arama",
     "nav.planner_chat": "Planlayıcı Sohbet",
     "nav.command_composer": "Komut Oluşturucu",
     "nav.evidence": "Kanıt",
@@ -532,11 +815,93 @@ const I18N = {
     "h.loop_activity": "Döngü Aktivitesi",
     "h.locks": "Kilitler",
     "h.script_budget": "Script Bütçesi",
+    "h.timeline_dashboard": "Zaman Kaybı Panosu",
+    "h.search": "Arama",
     "h.next_steps": "Sonraki Adımlar",
     "h.action_log": "Aksiyon Günlüğü",
     "h.last_action": "Son Aksiyon",
     "h.system_status_raw": "Sistem Durumu (ham)",
     "h.ui_snapshot_raw": "UI Snapshot (ham)",
+    "search.placeholder": "Arama (otomatik)",
+    "search.scope.label": "Kapsam",
+    "search.scope.ssot": "SSOT (hızlı)",
+    "search.scope.repo": "Tüm repo",
+    "search.mode.label": "Arama modu",
+    "search.mode.auto": "Oto",
+    "search.mode.keyword": "Anahtar kelime (rg)",
+    "search.mode.semantic": "Anlamsal (pgvector)",
+    "search.run": "Ara",
+    "search.rebuild": "Index güncelle",
+    "search.status.idle": "Sorgu bekleniyor.",
+    "search.status.running": "Aranıyor…",
+    "search.status.done": "Sonuç: {count} • mod={mode}",
+    "search.status.error": "Arama başarısız: {error}",
+    "search.engine.none": "Motor: -",
+    "search.engine.value": "Motor: {engine}",
+    "search.engine.badge.none": "SRCH: -",
+    "search.engine.badge.value": "SRCH: {engine}",
+    "search.no_results": "Sonuç yok.",
+    "search.index.none": "Index: yok",
+    "search.index.ready": "Index: {indexed_at} • dosya={files} • kayıt={records} • adapter={adapter}",
+    "search.index.building": "Index hazırlanıyor: {done}/{total} • ETA={eta}",
+    "search.index.building_scan": "Index hazırlanıyor: dosyalar taranıyor…",
+    "search.index.predicted": "Tahmini hazırlama: {eta}",
+    "search.index.refreshing": "Index güncelleniyor…",
+    "search.index.error": "Index güncelleme hatası: {error}",
+    "search.index.age": "Son güncelleme: {age}",
+    "search.index.remaining": "Kalan süre: {remaining}",
+    "search.capabilities.title": "Adapter Kontratı",
+    "search.capabilities.status": "Kontrat: {contract} • kapsam={scope} • index={index}",
+    "search.capabilities.routing": "Yönlendirme: oto={auto} • keyword={keyword} • semantic={semantic}",
+    "search.capabilities.selection": "Fallback: keyword={keyword} • semantic={semantic}",
+    "search.capabilities.loading": "Capabilities yükleniyor…",
+    "search.capabilities.error": "Capabilities hatası: {error}",
+    "search.capabilities.adapters.none": "Adapter verisi yok.",
+    "search.capabilities.adapters.header": "Adapter | Motor | Durum | Araç | Neden",
+    "search.capabilities.semantic.none": "SEM: -",
+    "search.capabilities.semantic.pending": "SEM: …",
+    "search.capabilities.semantic.ready": "SEM: HAZIR",
+    "search.capabilities.semantic.unavailable": "SEM: YOK",
+    "search.capabilities.semantic.failed": "SEM: HATA",
+    "search.capabilities.semantic.reason": "Semantic nedeni: {reason}",
+    "timeline.refresh": "Yenile",
+    "timeline.total_tool_time": "Toplam araç süresi",
+    "timeline.process_count": "İşlem sayısı",
+    "timeline.process_p95": "İşlem p95",
+    "timeline.non_tool_ratio": "Araç dışı oran",
+    "timeline.slowest_processes": "En yavaş işlemler",
+    "timeline.tool_breakdown": "Araç kırılımı",
+    "timeline.meta": "üretim={generated} • aralık={range} • olay={events}",
+    "timeline.pending": "Timeline raporu hazırlanıyor…",
+    "timeline.empty": "Timeline raporu henüz yok.",
+    "timeline.group.dashboard": "Dashboard",
+    "timeline.group.trend": "Trend",
+    "timeline.tab.summary": "Özet",
+    "timeline.tab.processes": "İşlemler",
+    "timeline.tab.tools": "Araçlar",
+    "timeline.tab.pctl": "P50 / P95",
+    "timeline.tab.alerts": "Alarmlar",
+    "timeline.process.meta": "Satır: {count} • Detay için satıra tıkla",
+    "timeline.tools.meta": "Satır: {count} • Araç bazlı toplam",
+    "timeline.trend.meta": "Hareketli pencere: son {window} işlem • nokta={count}",
+    "timeline.trend.empty": "Trend grafiği için yeterli işlem verisi yok.",
+    "timeline.alert.idle": "TIME: -",
+    "timeline.alert.ok": "TIME: OK",
+    "timeline.alert.warn": "TIME: WARN",
+    "timeline.alert.fail": "TIME: ALARM",
+    "timeline.alert.details.none": "Mevcut raporda eşik ihlali yok.",
+    "timeline.alert.details.non_tool": "Araç dışı oran {actual}% > {threshold}%",
+    "timeline.alert.details.p95": "İşlem p95 {actual} > {threshold}",
+    "timeline.table.started": "Başlangıç",
+    "timeline.table.ended": "Bitiş",
+    "timeline.table.duration": "Süre",
+    "timeline.table.tool_total": "Araç",
+    "timeline.table.non_tool": "Araç dışı",
+    "timeline.table.tool_calls": "Çağrı",
+    "timeline.table.top_tool": "Ana araç",
+    "timeline.table.closed_by": "Kapanış",
+    "timeline.table.p50": "P50",
+    "timeline.table.p95": "P95",
     "h.north_star": "Kuzey Yıldızı",
     "h.lens_summary": "Lens Özeti",
     "h.gap_summary": "Açık Özeti",
@@ -549,6 +914,27 @@ const I18N = {
     "h.decision_inbox": "Karar Kutusu",
     "h.extensions": "Eklentiler",
     "h.extension_detail": "Eklenti Detayı",
+    "h.extension_usage": "Eklenti Kullanımı",
+    "extensions.detail.manifest": "Manifest",
+    "extensions.detail.meta": "Meta",
+    "extensions.detail.overrides": "Override'lar",
+    "extensions.detail.readme": "README",
+    "extensions.detail.policies": "Policy",
+    "extensions.detail.ops": "Ops metrikleri",
+    "extensions.detail.about": "Ne işe yarar",
+    "extensions.detail.loading": "Yükleniyor…",
+    "extensions.detail.empty": "Detay yok.",
+    "extensions.usage.search": "Yol/tür/eklenti ara",
+    "extensions.usage.summary": "{matched}/{total} eşleşti · bilinmeyen {unknown}",
+    "extensions.usage.top": "En çok kullanılanlar",
+    "extensions.usage.trend": "7g kullanım trendi",
+    "extensions.usage.by_day": "Günlük kullanım",
+    "extensions.usage.by_day_empty": "Günlük kullanım verisi yok.",
+    "extensions.usage.select_placeholder": "Seç",
+    "extensions.usage.empty_hint": "Henüz kullanım verisi yok. Yenile veya ops çalıştır.",
+    "extensions.usage.no_data": "Henüz kullanım verisi yok.",
+    "extensions.usage.unknown_title": "Bilinmeyen örnekler",
+    "extensions.usage.unused": "Kullanılmayan eklentiler: {list}",
     "h.safe_overrides": "Güvenli Override'lar",
     "h.edit_override": "Override Düzenle",
     "h.auto_loop": "Oto Döngü",
@@ -594,20 +980,6 @@ const I18N = {
     "actions.enable": "Etkinleştir",
     "actions.disable": "Devre dışı bırak",
     "actions.remove_tag": "Etiketi kaldır",
-    "snapshot.target.title": "Snapshot hedefi",
-    "snapshot.target.hint": "Bu snapshot hangi Planner Chat thread'ine eklensin?",
-    "snapshot.target.preview": "Önizleme:",
-    "snapshot.target.mode_current": "Mevcut thread",
-    "snapshot.target.mode_pick": "Başka thread seç",
-    "snapshot.target.mode_new": "Yeni thread oluştur",
-    "snapshot.target.pick_hint": "Mevcut thread listesinden seç.",
-    "snapshot.target.new_hint": "Opsiyonel ad ver; sistem yeni bir thread_id üretir.",
-    "snapshot.target.open_chat": "Snapshot sonrası Planner Chat’e geç",
-    "snapshot.target.cancel": "Vazgeç",
-    "snapshot.target.continue": "Devam et",
-    "snapshot.target.current_thread": "Aktif thread: {id}",
-    "snapshot.chat_append_failed": "Snapshot sohbet ekleme başarısız: {error}",
-    "snapshot.chat_appended": "Snapshot Planner Chat’e eklendi.",
     "common.on": "açık",
     "common.off": "kapalı",
     "common.sample_parens": " (örnek)",
@@ -615,6 +987,9 @@ const I18N = {
     "chat.role.user": "Sen",
     "chat.role.assistant": "Asistan",
     "chat.thinking": "Asistan yazıyor...",
+    "chat.model.unverified": "doğrulanmadı",
+    "chat.model.skeleton": "taslak/atlanır",
+    "chat.allowlist_warn": "Allowlist UYARI: {fail} başarısız → doğrulanmayan modeller taslak/atlanır.",
     "error.unknown": "bilinmeyen hata",
     "state.enabled": "etkin",
     "state.disabled": "devre dışı",
@@ -630,6 +1005,7 @@ const I18N = {
     "table.title": "Başlık",
     "table.created": "Oluşturma",
     "table.updated": "Güncelleme",
+    "table.time": "Zaman",
     "table.extension": "Eklenti",
     "table.claim": "Claim",
     "table.recommended_action": "Öneri",
@@ -643,6 +1019,7 @@ const I18N = {
     "table.kind": "Tür",
     "table.domain": "Alan",
     "table.scope": "Kapsam",
+    "table.path": "Yol",
     "table.preview": "Önizleme",
     "table.evidence": "Kanıt",
     "table.question": "Soru",
@@ -680,7 +1057,7 @@ const I18N = {
     "north_star.detail.requirements": "Gereksinimler",
     "north_star.detail.subscores": "Alt skorlar",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "“Lens Bulguları” ile bulguları incele; Katalog sütunu Referans/BP kaynaklarını gösterir.",
+    "north_star.detail.lens_findings_hint": "“Lens Bulguları” ile bulguları incele; İş Akışı Aşaması sütunu Reference/Assessment/Gap gösterir, detayda kaynak tipi (Trend/BP/Lens) korunur.",
     "north_star.detail.evidence_expectations": "Kanıt beklentileri",
     "north_star.detail.remediation_ideas": "İyileştirme fikirleri",
     "job.poll_failed": "İş takibi başarısız: {error}",
@@ -689,6 +1066,7 @@ const I18N = {
     "job.started": "{op}: başlatıldı (iş {id})",
     "job.done": "{op}: {status}",
     "job.already_running": "{op}: zaten çalışıyor (takip: {id})",
+    "snapshot.started": "Snapshot hazırlanıyor (iş {id}). Hazır olunca Notlar’da açılacak.",
     "toast.refresh_failed": "Yenileme başarısız ({name}): {error}",
     "toast.select_intake_first": "Önce bir iş alımı öğesi seçin.",
     "toast.notes_composer_unavailable": "Not editörü mevcut değil.",
@@ -729,6 +1107,7 @@ const I18N = {
     "action.last_action": "son işlem: {op} ({status})",
     "status.api": "API: {status}",
     "status.sse": "SSE: {status}",
+    "status.memory": "MEM: {status}",
     "status.disconnected": "BAĞLI DEĞİL",
     "sidebar.workspace": "çalışma alanı: {path}",
     "sidebar.last_change": "son değişiklik: {ts}",
@@ -774,6 +1153,15 @@ const I18N = {
     "intake.decision.banner_missing": "Karar verisi yüklenemedi (decision artefact'ları yok). Intake yine de kullanılabilir.",
     "intake.inline.tab_decision": "Karar",
     "intake.inline.tab_technical": "Teknik",
+    "intake.detail.tab_summary": "Özet",
+    "intake.detail.tab_decision": "Karar",
+    "intake.detail.tab_evidence": "Kanıt",
+    "intake.detail.tab_notes": "Notlar",
+    "intake.detail.tab_raw": "Ham JSON",
+    "intake.group.summary": "Genel",
+    "intake.group.decision": "Karar",
+    "intake.group.evidence": "Kanıt/Not",
+    "intake.group.raw": "Ham",
     "intake.decision.save": "Kaydet",
     "intake.decision.note_placeholder": "İsteğe bağlı not…",
     "intake.decision.no_overlay": "Bu öğe için karar kartı yok.",
@@ -798,6 +1186,9 @@ const I18N = {
     "notes.thread_meta": "adet={count} son={last}",
     "notes.open": "Aç",
     "notes.links.none": "link eklenmedi",
+    "notes.links.header": "Kanıtlar & Ekler",
+    "notes.title_placeholder": "Başlık (opsiyonel)",
+    "notes.tags_placeholder": "Etiketler (virgülle)",
     "select.none": "yok",
     "select.no_verified_model": "model yok",
     "notes.links.remove": "Kaldır",
@@ -836,6 +1227,13 @@ const I18N = {
     "north_star.mechanisms.status.active": "Aktif",
     "north_star.mechanisms.status.deprecated": "Arşiv (Deprecated)",
     "north_star.mechanisms.status.hidden": "Gizli",
+    "north_star.mechanisms.transfer_btn": "Lens'e aktar",
+    "north_star.mechanisms.transfer_title": "Lens Bulguları filtresine aktar",
+    "north_star.mechanisms.transfer_done": "Lens Bulguları kapsamına eklendi: {target}",
+    "north_star.mechanisms.transfer_blocked_hint": "Lens aktarımı için konu ACTIVE ve onaylı olmalı.",
+    "north_star.mechanisms.transfer_blocked_detail": "Lens aktarımı devre dışı: {reasons}",
+    "north_star.mechanisms.transfer_reason_not_active": "Aktif değil",
+    "north_star.mechanisms.transfer_reason_not_approved": "Onaylı değil",
     "north_star.export_mechanisms": "Tema kataloğunu dışa aktar (Excel)",
     "north_star.suggestions.title": "AI Önerileri",
     "north_star.suggestions.seed_btn": "Seed (GPT-5.2)",
@@ -847,6 +1245,10 @@ const I18N = {
     "north_star.suggestions.merge": "Birleştir",
     "north_star.suggestions.modal_title": "AI yorumu",
     "north_star.suggestions.modal_hint": "Öneri için opsiyonel bağlam.",
+    "north_star.suggestions.modal_intent": "Niyet",
+    "north_star.suggestions.modal_intent_seed": "Seed → PROPOSED (registry'ye doğrudan yazılmaz)",
+    "north_star.suggestions.modal_intent_consult": "İstişare → PROPOSED (registry'ye doğrudan yazılmaz)",
+    "north_star.suggestions.modal_intent_discuss": "İstişare → PROPOSED (registry'ye doğrudan yazılmaz)",
     "north_star.suggestions.modal_context_label": "Seçim",
     "north_star.suggestions.modal_context_subject": "Konu",
     "north_star.suggestions.modal_context_theme": "Tema",
@@ -856,7 +1258,7 @@ const I18N = {
     "north_star.suggestions.modal_profile": "Profil",
     "north_star.suggestions.modal_provider": "Sağlayıcı",
     "north_star.suggestions.modal_model": "Model",
-    "north_star.suggestions.modal_model_hint": "Doğrulanmayan modeller seçilemez.",
+    "north_star.suggestions.modal_model_hint": "",
     "north_star.suggestions.modal_history_empty": "Henüz mesaj yok.",
     "north_star.suggestions.modal_status_idle": "",
     "north_star.suggestions.modal_status_started": "İstek gönderildi. Yanıt bekleniyor...",
@@ -865,6 +1267,30 @@ const I18N = {
     "north_star.suggestions.modal_merge_label": "Birleştirme hedef theme_id",
     "north_star.suggestions.modal_cancel": "Vazgeç",
     "north_star.suggestions.modal_submit": "Gönder",
+    "north_star.suggestions.modal_open_chat": "Sohbete git",
+    "north_star.catalog_create.title": "Yeni Katalog Oluştur",
+    "north_star.catalog_create.hint": "Prompt: v0.4.8 (prompt_refine_consolidated)",
+    "north_star.catalog_create.subject_label": "Konu",
+    "north_star.catalog_create.subject_placeholder": "Örn: İç Denetim",
+    "north_star.catalog_create.save": "Kaydet",
+    "north_star.catalog_create.create": "Katalog oluştur",
+    "north_star.catalog_create.meta_saved": "Kayıtlı konu: {subject} · thread: {thread}",
+    "north_star.catalog_create.status_ready": "hazır",
+    "north_star.catalog_create.status_loading": "prompt yükleniyor…",
+    "north_star.catalog_create.status_missing": "prompt bulunamadı",
+    "north_star.catalog_create.modal_title": "Katalog Oluştur",
+    "north_star.catalog_create.modal_hint": "Prompt metnini gerekirse düzenle, sonra Planner Chat ile gönder.",
+    "north_star.catalog_create.modal_subject_label": "Konu",
+    "north_star.catalog_create.modal_thread_label": "Thread",
+    "north_star.catalog_create.modal_open_chat": "Sohbete taşı",
+    "north_star.catalog_create.modal_send": "Gönder (LLM)",
+    "north_star.catalog_create.modal_cancel": "Vazgeç",
+    "planner_chat.suggestions.title": "Önerilen adımlar",
+    "toast.catalog_subject_required": "Konu gerekli.",
+    "toast.catalog_prompt_missing": "Prompt şablonu bulunamadı.",
+    "toast.catalog_prompt_ready": "Katalog promptu hazır.",
+    "toast.catalog_sent": "Katalog isteği gönderildi.",
+    "toast.catalog_prefilled": "Katalog promptu sohbete taşındı.",
     "north_star.suggestions.comment_prompt": "Opsiyonel yorum (neden / nasıl)",
     "north_star.suggestions.merge_prompt": "Birleştirme hedef theme_id (opsiyonel)",
     "north_star.suggestions.ai_prompt": "AI yorumu (öneri için bağlam)",
@@ -877,6 +1303,10 @@ const I18N = {
     "north_star.suggestions.filter.type": "Öneri türü (eksik/birleştir/çok)",
     "north_star.suggestions.filter.date_from": "Başlangıç",
     "north_star.suggestions.filter.date_to": "Bitiş",
+    "north_star.suggestions.filter.quick.today": "Bugün",
+    "north_star.suggestions.filter.quick.week": "Son 1 hafta",
+    "north_star.suggestions.filter.quick.month": "Son 1 ay",
+    "north_star.suggestions.filter.quick.all": "Tümü",
     "north_star.suggestions.discuss": "İstişare",
     "toast.export_mechanisms_ok": "Tema kataloğu Excel’e aktarıldı ({count} satır).",
     "toast.export_mechanisms_empty": "Tema kataloğunda dışa aktarılacak satır yok.",
@@ -909,10 +1339,14 @@ const I18N = {
     "north_star.filter.subtheme.placeholder": "Alt tema seç",
     "north_star.filter.topic.label": "Kriter/Eksen",
     "north_star.filter.topic.placeholder": "Kriter seç",
-    "north_star.filter.catalog.label": "Katalog (Referans/BP)",
+    "north_star.filter.catalog.label": "İş Akışı Aşaması (Reference/Assessment/Gap)",
     "north_star.filter.catalog.placeholder": "(opsiyonel)",
     "north_star.filter.match.label": "Tetiklenme",
-    "north_star.filter.match.placeholder": "Yalnız tetiklenen (varsayılan)",
+    "north_star.filter.match.placeholder": "Match durumu seç",
+    "north_star.findings.transfer_scopes.title": "Aktif kapsamlar",
+    "north_star.findings.transfer_scopes.empty": "yok",
+    "north_star.findings.transfer_scopes.remove_title": "Kapsamı kaldır",
+    "north_star.findings.transfer_scopes.removed": "Aktarım kapsamı kaldırıldı.",
     "north_star.no_findings": "(bulgu yok)",
     "north_star.unknown": "(bilinmiyor)",
     "north_star.table.lens": "Lens (Değerlendirme paketi)",
@@ -923,14 +1357,41 @@ const I18N = {
     "north_star.table.title": "Başlık",
     "north_star.table.theme": "Tema (Theme)",
     "north_star.table.subtheme": "Alt Tema (Subtheme)",
-    "north_star.table.catalog": "Katalog (Referans/BP)",
+    "north_star.table.catalog": "İş Akışı Aşaması",
+    "north_star.table.source_type": "Kaynak Tipi",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Gerekçeler",
     "north_star.table.evidence": "Kanıt",
     "north_star.join.banner": "Tema/Alt tema eşleşmesi {miss} bulguda yok (başlık eşleşmesi: {fallback}){reason}",
-    "north_star.catalog.reference": "Referans (Reference)",
-    "north_star.catalog.capability": "Yapı Taşı (Capability)",
-    "north_star.catalog.criterion": "Kriter (Criterion)",
+    "north_star.catalog.reference": "Referans - Trend",
+    "north_star.catalog.capability": "Referans - En İyi Uygulama",
+    "north_star.catalog.criterion": "Assessment Kontrolü (Lens)",
+    "north_star.stage.reference": "Reference",
+    "north_star.stage.assessment": "Assessment",
+    "north_star.stage.gap": "Gap",
+    "north_star.findings.scope_hint": "Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu workflow aşamasına göre sınıflar; detayda kaynak tipi (Trend/BP/Lens) gösterilir.",
+    "north_star.workflow.title": "North Star Workflow v1",
+    "north_star.workflow.subtitle": "Canonical akış: Reference -> Assessment -> Gap -> PDCA",
+    "north_star.workflow.step1": "Reference: Theme/Subtheme + Trend/BP referans setini onayla (ACTIVE).",
+    "north_star.workflow.step2": "Assessment: Onaylı referansa karşı raw/eval ölçümünü çalıştır.",
+    "north_star.workflow.step3": "Gap: Sapmaları deterministik olarak etki/risk/efor ile üret.",
+    "north_star.workflow.step4": "PDCA: Kapatma aksiyonlarını önceliklendir, recheck çalıştır, regresyonu izle.",
+    "north_star.workflow.note": "Not: Lens Bulguları artık süreç aşamasına göre filtrelenir. Trend/BP/Lens yalnızca detaydaki kaynak tipidir.",
+    "north_star.flow2.title": "2. Akış Durumu",
+    "north_star.flow2.subtitle": "Assessment zinciri sağlığı (Assessment + Policy + Status).",
+    "north_star.flow2.assessment": "Assessment",
+    "north_star.flow2.policy": "Policy-check",
+    "north_star.flow2.system": "System-status",
+    "north_star.flow2.project": "Project-status",
+    "north_star.flow2.summary": "assessment_at={assessment_at} | system_at={system_at} | policy_inputs={policy_inputs}",
+    "north_star.flow2.summary_missing": "2. akış telemetri dosyaları bulunamadı.",
+    "north_star.flow2.line.assessment": "Assessment: controls={controls} metrics={metrics} packs={packs}",
+    "north_star.flow2.line.policy": "Policy-check: allow={allow} suspend={suspend} invalid={invalid} diff_nonzero={diff}",
+    "north_star.flow2.line.system": "System-status: actions={actions} script_budget_fail={sb_fail} script_budget_warn={sb_warn}",
+    "north_star.flow2.line.project": "Project-status: next_milestone={next_milestone} core_lock={core_lock}",
+    "north_star.flow2.invalid_expected": "invalid_envelope beklenen durum: negatif fixture örneği ({file}).",
+    "north_star.flow2.invalid_unexpected": "invalid_envelope bilinen negatif fixture dışında görünüyor. Üretim öncesi örnekleri inceleyin.",
+    "north_star.flow2.invalid_none": "invalid_envelope sayısı 0.",
     "north_star.perspective.locked_topics": "Bakış seti kilitli",
     "north_star.perspective.locked_hint": "Bakış seti kilitli; kriterler sabittir.",
     "north_star.preset.custom": "Filtre seti (manuel seçim)",
@@ -960,6 +1421,7 @@ const I18N = {
     "empty.no_actions": "Henüz aksiyon yok.",
     "empty.no_items": "Öğe yok.",
     "empty.no_findings_match": "Mevcut filtrelerle eşleşen bulgu yok.",
+    "empty.no_findings_transfer_scope": "Henüz aktarılmış katalog kapsamı yok. Önce katalogu değerlendirin, sonra ACTIVE + onaylı kayıtları Lens Bulguları'na aktarın.",
     "empty.select_finding_row": "Detay için bir bulgu satırı seçin.",
     "empty.no_lens_details": "Lens detayı yok.",
     "empty.no_active_claims": "Aktif claim yok.",
@@ -1037,10 +1499,15 @@ const endpoints = {
   notes: "/api/notes",
   notesSearch: "/api/notes/search",
   noteGet: "/api/notes/get",
+  search: "/api/search",
+  searchIndex: "/api/search/index",
+  searchCapabilities: "/api/search/capabilities",
   evidenceList: "/api/evidence/list",
   evidenceRead: "/api/evidence/read",
   evidenceRaw: "/api/evidence/raw",
+  timeline: "/api/timeline",
   file: "/api/file",
+  report: "/api/report",
   chat: "/api/chat",
   settingsSet: "/api/settings/set_override",
   extensionToggle: "/api/extensions/toggle",
@@ -1057,10 +1524,23 @@ const chatClassRegistryWorkspacePath = ".cache/ws_customer_default/.cache/index/
 const chatClassRegistryPath = "docs/OPERATIONS/llm_class_registry.v1.json";
 const chatProviderMapWorkspacePath = ".cache/ws_customer_default/.cache/index/llm_provider_map.v1.json";
 const chatProviderMapPath = "docs/OPERATIONS/llm_provider_map.v1.json";
+const chatProbeCatalogPath = ".cache/ws_customer_default/.cache/index/llm_probe_catalog.v1.json";
+const chatProbeStatePath = ".cache/ws_customer_default/.cache/state/llm_probe_state.v1.json";
+const memoryHealthReportPath = ".cache/ws_customer_default/.cache/reports/memory_health.v1.json";
 const northStarCriteriaPacksPath = "docs/OPERATIONS/north_star_criteria_packs.v1.json";
 const northStarMechanismsRegistryPath = ".cache/ws_customer_default/.cache/index/mechanisms.registry.v1.json";
 const northStarMechanismsSuggestionsPath = ".cache/ws_customer_default/.cache/index/mechanisms.suggestions.v1.json";
 const northStarMechanismsHistoryPath = ".cache/ws_customer_default/.cache/index/mechanisms.registry.history.v1.json";
+const northStarFlow2AssessmentPath = ".cache/ws_customer_default/.cache/index/assessment.v1.json";
+const northStarFlow2PolicySimPath = ".cache/policy_check/sim_report.json";
+const northStarFlow2PolicyDiffPath = ".cache/policy_check/policy_diff_report.json";
+const northStarFlow2SystemStatusPath = ".cache/ws_customer_default/.cache/reports/system_status.v1.json";
+const northStarFlow2ProjectStatusPath = ".cache/ws_customer_default/.cache/reports/project_status.v1.txt";
+const extensionUsageReportPath = ".cache/reports/extension_usage_from_ops_log.v1.json";
+const opsLogIndexPointerPath = ".cache/reports/ops_log_index_canonical_pointer.v0.3.json";
+const promptRegistryPath = "registry/prompt_registry.v1.json";
+const northStarPromptReportPath = ".cache/ws_customer_default/.cache/reports/prompt_refine_consolidated.v0.4.8.draft.md";
+const CATALOG_DRAFT_STORAGE_KEY = "cockpit_north_star_catalog_draft.v1";
 
 const state = {
   lang: "tr",
@@ -1070,6 +1550,8 @@ const state = {
   northStar: null,
   northStarFindings: null,
   northStarFindingsByLens: null,
+  northStarFindingsSourceByLens: null,
+  northStarFindingsTransferScopes: [],
   northStarFindingsLensName: "",
   northStarFindingSelected: null,
   northStarCatalogIndex: null,
@@ -1077,6 +1559,10 @@ const state = {
   northStarMechanismsRegistry: null,
   northStarMechanismsSuggestions: null,
   northStarMechanismsHistory: null,
+  northStarFlow2Status: null,
+  catalogDraft: null,
+  catalogPromptTemplate: null,
+  catalogPromptSource: "",
   northStarFindingsJoinStats: null,
   status: null,
   snapshot: null,
@@ -1086,6 +1572,7 @@ const state = {
   intakeSelected: null,
   intakeExpandedId: null,
   intakeInlineTab: {},
+  intakeInlineGroup: {},
   intakeEvidencePath: null,
   intakeEvidencePreview: null,
   intakePurposeIndex: null,
@@ -1108,6 +1595,37 @@ const state = {
   chatProviderRegistryError: null,
   chatProviderClassMap: null,
   chatProviderClassMeta: null,
+  memoryHealth: null,
+  searchQuery: "",
+  searchMode: "auto",
+  searchScope: "ssot",
+  searchLastMode: "",
+  searchEngineDebug: "",
+  searchResults: [],
+  searchStatus: "",
+  searchError: "",
+  searchPending: false,
+  searchIndex: null,
+  searchIndexStatus: "",
+  searchIndexError: "",
+  searchIndexPending: false,
+  searchCapabilities: null,
+  searchCapabilitiesError: "",
+  searchCapabilitiesPending: false,
+  searchIndexAutoTimer: null,
+  searchIndexPollTimer: null,
+  searchIndexPollUntil: 0,
+  searchRerunAfterIndex: false,
+  timeline: null,
+  timelineError: "",
+  timelinePending: false,
+  timelineViewGroup: "dashboard",
+  timelineViewTab: {
+    dashboard: "summary",
+    trend: "trend_pctl",
+  },
+  timelineExpandedCycleKey: "",
+  chatAllowlistSummary: null,
   aiSuggestProfile: "",
   aiSuggestProvider: "",
   aiSuggestModel: "",
@@ -1122,7 +1640,17 @@ const state = {
   claimOwnerTag: null,
   decisions: null,
   extensions: null,
+  extensionUsage: null,
+  opsLogIndex: null,
+  extensionUsageFilters: {
+    search: "",
+    extension: "",
+    kind: "",
+  },
   extensionDetail: null,
+  extensionDetailExpanded: "",
+  extensionDetailExtras: {},
+  extensionDetailExtrasLoading: "",
   overrides: null,
   overridesDetail: null,
   overridesSelected: null,
@@ -1201,7 +1729,7 @@ const state = {
       topic: [],
       theme: [],
       subtheme: [],
-      match: ["TRIGGERED"],
+      match: [],
       catalog: [],
       topic_locked_by_perspective: false,
     },
@@ -1225,7 +1753,7 @@ const state = {
       theme: [],
       subtheme: [],
       match: ["TRIGGERED", "NOT_TRIGGERED", "UNKNOWN"],
-      catalog: ["trend", "bp", "lens"],
+      catalog: ["reference", "assessment", "gap"],
     },
     northStarMechanisms: {
       subject: [],
@@ -1305,6 +1833,195 @@ async function fetchNorthStarMechanismsHistory() {
     showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_history", error: formatError(err) }), "warn");
     return null;
   }
+}
+
+function normalizeNorthStarStatusToken(raw, fallback = "UNKNOWN") {
+  const norm = String(raw || "").trim().toUpperCase();
+  if (!norm) return String(fallback || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+  if (norm.includes("FAIL")) return "FAIL";
+  if (norm.includes("WARN")) return "WARN";
+  if (norm.includes("OK") || norm.includes("PASS")) return "OK";
+  if (norm.includes("PENDING") || norm.includes("RUNNING")) return "PENDING";
+  if (norm.includes("IDLE")) return "IDLE";
+  return norm;
+}
+
+function mergeNorthStarStatuses(statuses) {
+  const normalized = (Array.isArray(statuses) ? statuses : [])
+    .map((item) => normalizeNorthStarStatusToken(item, "UNKNOWN"))
+    .filter((item) => item !== "UNKNOWN");
+  if (!normalized.length) return "UNKNOWN";
+  if (normalized.some((item) => item === "FAIL")) return "FAIL";
+  if (normalized.some((item) => item === "WARN")) return "WARN";
+  if (normalized.some((item) => item === "PENDING")) return "PENDING";
+  if (normalized.some((item) => item === "IDLE")) return "IDLE";
+  if (normalized.some((item) => item === "OK")) return "OK";
+  return normalized[0] || "UNKNOWN";
+}
+
+function toSafeInt(value, fallback = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.trunc(num);
+}
+
+function parseNorthStarProjectStatusText(rawText) {
+  const out = {
+    status: "UNKNOWN",
+    overall: "UNKNOWN",
+    next_milestone: "",
+    core_lock: "",
+    parsed: false,
+  };
+  const text = String(rawText || "");
+  if (!text.trim()) return out;
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => String(line || "").trim())
+    .filter(Boolean);
+
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (!line.startsWith("{")) continue;
+    try {
+      const obj = JSON.parse(line);
+      out.status = normalizeNorthStarStatusToken(obj?.status || out.status);
+      out.overall = normalizeNorthStarStatusToken(obj?.overall || obj?.overall_status || out.overall);
+      out.next_milestone = String(obj?.next_milestone || "");
+      out.core_lock = String(obj?.core_lock || "");
+      out.parsed = true;
+      return out;
+    } catch (_) {
+      // Continue to line-based parsing.
+    }
+  }
+
+  const resultLine = lines.find((line) => line.startsWith("status=")) || "";
+  const previewLine = lines.find((line) => line.startsWith("next_milestone=")) || "";
+  const statusMatch = resultLine.match(/\bstatus=([^\s]+)/i);
+  const overallMatch = resultLine.match(/\boverall=([^\s]+)/i);
+  const milestoneMatch = previewLine.match(/\bnext_milestone=([^\s]+)/i);
+  const coreLockMatch = resultLine.match(/\bcore_lock=([^\s]+)/i);
+  if (statusMatch) out.status = normalizeNorthStarStatusToken(statusMatch[1]);
+  if (overallMatch) out.overall = normalizeNorthStarStatusToken(overallMatch[1]);
+  if (milestoneMatch) out.next_milestone = String(milestoneMatch[1] || "");
+  if (coreLockMatch) out.core_lock = String(coreLockMatch[1] || "");
+  out.parsed = Boolean(statusMatch || overallMatch || milestoneMatch || coreLockMatch);
+  return out;
+}
+
+async function fetchNorthStarFlow2Status() {
+  const [assessmentPayload, policySimPayload, policyDiffPayload, systemStatusPayload, projectStatusText] = await Promise.all([
+    fetchOptionalJson(northStarFlow2AssessmentPath),
+    fetchOptionalJson(northStarFlow2PolicySimPath),
+    fetchOptionalJson(northStarFlow2PolicyDiffPath),
+    fetchOptionalJson(northStarFlow2SystemStatusPath),
+    fetchReportText(northStarFlow2ProjectStatusPath),
+  ]);
+
+  const assessment = unwrap(assessmentPayload || {}) || {};
+  const policySim = unwrap(policySimPayload || {}) || {};
+  const policyDiff = unwrap(policyDiffPayload || {}) || {};
+  const systemStatus = unwrap(systemStatusPayload || {}) || {};
+  const projectStatus = parseNorthStarProjectStatusText(projectStatusText || "");
+
+  const assessmentStatus = normalizeNorthStarStatusToken(assessment?.status || "UNKNOWN");
+  const assessmentControls = toSafeInt(assessment?.controls, 0);
+  const assessmentMetrics = toSafeInt(assessment?.metrics, 0);
+  const assessmentPacks = toSafeInt(assessment?.packs, 0);
+  const assessmentGeneratedAt = String(assessment?.generated_at || "");
+
+  const counts = policySim && typeof policySim.counts === "object" ? policySim.counts : {};
+  const allowCount = toSafeInt(counts?.allow, 0);
+  const suspendCount = toSafeInt(counts?.suspend, 0);
+  const blockUnknownCount = toSafeInt(counts?.block_unknown_intent, 0);
+  const invalidEnvelopeCount = toSafeInt(counts?.invalid_envelope, 0);
+  const diffNonzero = toSafeInt(policyDiff?.diff_nonzero, 0);
+  const policyStatus = normalizeNorthStarStatusToken(
+    policySim?.status ||
+      (invalidEnvelopeCount > 0 || suspendCount > 0 || blockUnknownCount > 0 || diffNonzero > 0 ? "WARN" : "OK"),
+    "UNKNOWN"
+  );
+  const thresholdUsed = Number.isFinite(Number(policySim?.threshold_used)) ? Number(policySim.threshold_used) : null;
+  const totalInputs = toSafeInt(policySim?.total_inputs, 0);
+
+  const actionsTop =
+    systemStatus && typeof systemStatus === "object" && Array.isArray(systemStatus?.sections?.actions?.top)
+      ? systemStatus.sections.actions.top
+      : [];
+  const scriptBudgetActions = actionsTop.filter(
+    (item) => item && typeof item === "object" && String(item.kind || "").trim().toUpperCase() === "SCRIPT_BUDGET"
+  );
+  const scriptBudgetFailCount = scriptBudgetActions.filter((item) =>
+    normalizeNorthStarStatusToken(item?.severity || "") === "FAIL"
+  ).length;
+  const scriptBudgetWarnCount = scriptBudgetActions.filter((item) =>
+    normalizeNorthStarStatusToken(item?.severity || "") === "WARN"
+  ).length;
+  const systemOverall = normalizeNorthStarStatusToken(systemStatus?.overall_status || systemStatus?.status || "UNKNOWN");
+  const systemGeneratedAt = String(systemStatus?.generated_at || "");
+  const systemActionsCount = toSafeInt(systemStatus?.sections?.actions?.actions_count, actionsTop.length);
+
+  const projectOverall = normalizeNorthStarStatusToken(projectStatus.overall || projectStatus.status || "UNKNOWN");
+  const nextMilestone = String(projectStatus.next_milestone || "");
+  const coreLock = String(projectStatus.core_lock || "");
+
+  const invalidExamples =
+    policySim && typeof policySim === "object" && Array.isArray(policySim?.examples?.invalid_envelope)
+      ? policySim.examples.invalid_envelope
+      : [];
+  const invalidSampleFile = invalidExamples.length ? String(invalidExamples[0]?.file || "") : "";
+  const invalidExpectedFixture =
+    invalidEnvelopeCount > 0 &&
+    invalidExamples.length > 0 &&
+    invalidExamples.every((row) => {
+      const file = String(row?.file || "");
+      return file.startsWith("fixtures/envelopes/") && file.includes("_invalid");
+    });
+
+  const overallStatus = mergeNorthStarStatuses([assessmentStatus, policyStatus, systemOverall, projectOverall]);
+  const available = Boolean(assessmentPayload || policySimPayload || systemStatusPayload || (projectStatusText || "").trim());
+
+  return {
+    available,
+    refreshed_at: new Date().toISOString(),
+    overall_status: overallStatus,
+    assessment: {
+      status: assessmentStatus,
+      controls: assessmentControls,
+      metrics: assessmentMetrics,
+      packs: assessmentPacks,
+      generated_at: assessmentGeneratedAt,
+    },
+    policy: {
+      status: policyStatus,
+      allow: allowCount,
+      suspend: suspendCount,
+      block_unknown_intent: blockUnknownCount,
+      invalid_envelope: invalidEnvelopeCount,
+      diff_nonzero: diffNonzero,
+      threshold_used: thresholdUsed,
+      total_inputs: totalInputs,
+    },
+    system: {
+      status: systemOverall,
+      generated_at: systemGeneratedAt,
+      actions_count: systemActionsCount,
+      script_budget_fail_count: scriptBudgetFailCount,
+      script_budget_warn_count: scriptBudgetWarnCount,
+    },
+    project: {
+      status: projectOverall,
+      next_milestone: nextMilestone,
+      core_lock: coreLock,
+      parsed: projectStatus.parsed,
+    },
+    invalid_envelope: {
+      count: invalidEnvelopeCount,
+      expected_fixture: invalidExpectedFixture,
+      sample_file: invalidSampleFile,
+    },
+  };
 }
 
 function xmlEscape(text) {
@@ -1743,6 +2460,27 @@ function renderJson(el, data) {
   el.textContent = text.length > 8000 ? text.slice(0, 8000) + "\n..." : text;
 }
 
+function renderPlainText(el, text) {
+  if (!el) return;
+  const raw = String(text || "");
+  el.textContent = raw.length > 8000 ? raw.slice(0, 8000) + "\n..." : raw;
+}
+
+function normalizeAboutSummary(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  if (raw.toLowerCase() === "skeleton_only") return "İskelet/şablon; üretim fonksiyonu sınırlı.";
+  return raw.replace(/_/g, " ");
+}
+
+function buildPolicyLabelList(policies, limit = 3) {
+  const list = Array.isArray(policies) ? policies : [];
+  const names = list.map((p) => String(p || "").split("/").slice(-1)[0]).filter(Boolean);
+  if (!names.length) return "Yok";
+  const shown = names.slice(0, limit).join(", ");
+  return names.length > limit ? `${shown} +${names.length - limit}` : shown;
+}
+
 function renderKeyValueGrid(container, rows) {
   if (!container) return;
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -1831,6 +2569,35 @@ function readThemeFromStorage(key, defaultValue = "dark") {
   }
   const norm = String(v || "").trim().toLowerCase();
   return ["dark", "light"].includes(norm) ? norm : String(defaultValue || "dark");
+}
+
+function normalizeCatalogSubject(value) {
+  return String(value || "").trim();
+}
+
+function readCatalogDraftFromStorage() {
+  try {
+    const raw = localStorage.getItem(CATALOG_DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const subject = normalizeCatalogSubject(parsed.subject || "");
+    if (!subject) return null;
+    const thread = String(parsed.thread || "").trim();
+    return { subject, thread };
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeCatalogDraftToStorage(draft) {
+  try {
+    if (!draft || !draft.subject) return false;
+    localStorage.setItem(CATALOG_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 function applyI18n() {
@@ -2193,6 +2960,7 @@ async function generateIntakePurposeSelected() {
 function clearIntakeSelection() {
   state.intakeSelectedId = null;
   state.intakeSelected = null;
+  state.intakeExpandedId = null;
   state.intakeEvidencePath = null;
   state.intakeEvidencePreview = null;
   state.intakeLinkedNotes = null;
@@ -2294,10 +3062,18 @@ async function previewIntakeEvidence(path) {
   }
 }
 
+function getIntakeInlineRoot(intakeId) {
+  const id = String(intakeId || "").trim();
+  if (!id) return null;
+  const selector = `.intake-inline-detail[data-inline-intake="${encodeTag(id)}"]`;
+  return document.querySelector(selector);
+}
+
 function renderIntakeEvidencePreview() {
-  const panel = $("#intake-evidence-preview-panel");
-  const meta = $("#intake-evidence-preview-meta");
-  const pre = $("#intake-evidence-preview");
+  const root = getIntakeInlineRoot(state.intakeSelectedId);
+  const panel = root ? root.querySelector("[data-intake-evidence-preview-panel]") : null;
+  const meta = root ? root.querySelector("[data-intake-evidence-preview-meta]") : null;
+  const pre = root ? root.querySelector("[data-intake-evidence-preview]") : null;
   if (!panel || !meta || !pre) return;
   const path = state.intakeEvidencePath;
   const payload = state.intakeEvidencePreview;
@@ -2378,8 +3154,9 @@ async function openNoteInNotesTab(noteId) {
 }
 
 function renderIntakeLinkedNotes() {
-  const meta = $("#intake-notes-meta");
-  const list = $("#intake-notes-list");
+  const root = getIntakeInlineRoot(state.intakeSelectedId);
+  const meta = root ? root.querySelector("[data-intake-notes-meta]") : null;
+  const list = root ? root.querySelector("[data-intake-notes-list]") : null;
   if (!meta || !list) return;
 
   const item = state.intakeSelected;
@@ -2433,8 +3210,10 @@ function renderIntakeLinkedNotes() {
     })
     .join("");
 
-  $$("[data-intake-note-open]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+  list.querySelectorAll("[data-intake-note-open]").forEach((btn) => {
+    btn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const noteId = decodeTag(btn.dataset.intakeNoteOpen || "");
       if (!noteId) return;
       await openNoteInNotesTab(noteId);
@@ -2496,12 +3275,19 @@ function createNoteForSelectedIntake() {
   showToast(t("toast.note_composer_prefilled"), "ok");
 }
 
-function prefillNoteForSnapshot(payload) {
+function prefillNoteForSnapshot(payload, attempt = 0) {
   const titleEl = $("#note-title");
   const bodyEl = $("#note-body");
   const tagsEl = $("#note-tags");
   const threadEl = $("#planner-thread");
   if (!titleEl || !bodyEl || !tagsEl) {
+    if (attempt === 0) {
+      navigateToTab("notes");
+    }
+    if (attempt < 12) {
+      setTimeout(() => prefillNoteForSnapshot(payload, attempt + 1), 220);
+      return;
+    }
     showToast(t("toast.notes_composer_unavailable"), "fail");
     return;
   }
@@ -2509,6 +3295,7 @@ function prefillNoteForSnapshot(payload) {
   const tabKeyMap = {
     "overview": "nav.overview",
     "north-star": "nav.north_star",
+    "timeline": "nav.timeline",
     "inbox": "nav.inbox",
     "intake": "nav.intake",
     "decisions": "nav.decisions",
@@ -2518,23 +3305,36 @@ function prefillNoteForSnapshot(payload) {
     "jobs": "nav.jobs",
     "locks": "nav.locks",
     "run-card": "nav.run_card",
+    "search": "nav.search",
     "planner-chat": "nav.planner_chat",
     "command-composer": "nav.command_composer",
     "evidence": "nav.evidence",
   };
-  const activeTab = String(state.activeTab || "overview");
+  const snapshotContext = state.snapshotContext || {};
+  const activeTab = String(snapshotContext.activeTab || state.activeTab || "overview");
   const tabLabel = t(tabKeyMap[activeTab] || "nav.overview");
-  const hash = String(window.location.hash || "");
+  const hash = String(snapshotContext.hash || window.location.hash || "");
   const ts = String(payload?.generated_at || new Date().toISOString());
 
   const evidencePaths = [];
   const reportPath = String(payload?.report_path || "").trim();
   if (reportPath) evidencePaths.push(reportPath);
+  const snapshotPath = String(payload?.ui_snapshot_path || "").trim();
+  if (snapshotPath) evidencePaths.push(snapshotPath);
+  const evidenceList = Array.isArray(payload?.evidence_paths) ? payload.evidence_paths : [];
+  evidenceList.forEach((p) => {
+    const v = String(p || "").trim();
+    if (v) evidencePaths.push(v);
+  });
   const pathsObj = payload && typeof payload.paths === "object" && payload.paths ? payload.paths : {};
   Object.values(pathsObj).forEach((val) => {
     const v = String(val || "").trim();
     if (v) evidencePaths.push(v);
   });
+  const dedupedEvidencePaths = Array.from(new Set(evidencePaths.filter(Boolean)));
+  if (!dedupedEvidencePaths.length) {
+    dedupedEvidencePaths.push(".cache/reports/ui_snapshot_bundle.v1.json");
+  }
 
   const body = [
     t("notes.snapshot.context_header"),
@@ -2543,7 +3343,7 @@ function prefillNoteForSnapshot(payload) {
     t("notes.snapshot.context_time", { ts }),
     "",
     t("notes.snapshot.evidence_header"),
-    ...(evidencePaths.length ? evidencePaths.slice(0, 12).map((p) => `- ${p}`) : [t("notes.prefill.none")]),
+    ...(dedupedEvidencePaths.length ? dedupedEvidencePaths.map((p) => `- ${p}`) : [t("notes.prefill.none")]),
     "",
     t("notes.prefill.next_header"),
     t("notes.prefill.next_placeholder"),
@@ -2555,23 +3355,25 @@ function prefillNoteForSnapshot(payload) {
   const baseTags = ["snapshot", "ui", activeTab.replace(/[^a-z0-9_\\-]/gi, "_")].filter(Boolean);
   tagsEl.value = Array.from(new Set(baseTags)).join(", ");
 
-  state.noteLinks = evidencePaths.map((p) => ({ kind: "evidence", id_or_path: p }));
+  state.noteLinks = dedupedEvidencePaths.map((p) => ({ kind: "evidence", id_or_path: p }));
   renderNoteLinks();
 
   if (threadEl && !threadEl.value) {
     threadEl.value = state.plannerThread || "default";
   }
 
+  state.snapshotContext = null;
   navigateToTab("notes");
   titleEl.focus();
   showToast(t("toast.note_composer_prefilled"), "ok");
 }
 
 function renderIntakeClaimControls(item) {
-  const meta = $("#intake-claim-meta");
-  const claimBtn = $("#intake-claim");
-  const releaseBtn = $("#intake-claim-release");
-  const forceReleaseBtn = $("#intake-claim-force-release");
+  const root = getIntakeInlineRoot(state.intakeSelectedId);
+  const meta = root ? root.querySelector("[data-intake-claim-meta]") : null;
+  const claimBtn = root ? root.querySelector("[data-intake-claim]") : null;
+  const releaseBtn = root ? root.querySelector("[data-intake-claim-release]") : null;
+  const forceReleaseBtn = root ? root.querySelector("[data-intake-claim-force-release]") : null;
   if (!meta || !claimBtn || !releaseBtn || !forceReleaseBtn) return;
 
   if (!item) {
@@ -2701,8 +3503,9 @@ async function forceReleaseIntakeClaim(intakeId) {
 }
 
 function renderIntakeCloseControls(item) {
-  const meta = $("#intake-close-meta");
-  const closeBtn = $("#intake-close");
+  const root = getIntakeInlineRoot(state.intakeSelectedId);
+  const meta = root ? root.querySelector("[data-intake-close-meta]") : null;
+  const closeBtn = root ? root.querySelector("[data-intake-close]") : null;
   if (!meta || !closeBtn) return;
 
   if (!item) {
@@ -2786,12 +3589,12 @@ async function closeSelectedIntakeItem() {
 }
 
 function renderIntakeDetail(item) {
-  const panel = $("#intake-detail-panel");
-  const meta = $("#intake-detail-meta");
-  const fields = $("#intake-detail-fields");
-  const evidence = $("#intake-evidence-paths");
-  const raw = $("#intake-detail-json");
-  if (!panel || !meta || !fields || !evidence || !raw) return;
+  const root = getIntakeInlineRoot(item?.intake_id);
+  const meta = root ? root.querySelector("[data-intake-detail-meta]") : null;
+  const fields = root ? root.querySelector("[data-intake-detail-fields]") : null;
+  const evidence = root ? root.querySelector("[data-intake-evidence-paths]") : null;
+  const raw = root ? root.querySelector("[data-intake-detail-json]") : null;
+  if (!root || !meta || !fields || !evidence || !raw) return;
 
   if (!item) {
     meta.textContent = t("common.no_selection");
@@ -2803,11 +3606,12 @@ function renderIntakeDetail(item) {
     state.intakeLinkedNotes = null;
     state.intakeLinkedNotesLoading = false;
     state.intakeLinkedNotesError = null;
+    const decisionPanel = root.querySelector("[data-intake-decision-panel]");
+    if (decisionPanel) decisionPanel.innerHTML = "";
     renderIntakeEvidencePreview();
     renderIntakeLinkedNotes();
     renderIntakeClaimControls(null);
     renderIntakeCloseControls(null);
-    panel.open = false;
     return;
   }
 
@@ -2878,7 +3682,12 @@ function renderIntakeDetail(item) {
   renderIntakeLinkedNotes();
   renderIntakeClaimControls(item);
   renderIntakeCloseControls(item);
-  panel.open = true;
+  renderIntakeDecisionPanel(item);
+  const intakeId = String(item?.intake_id || "").trim();
+  if (intakeId && !state.intakeInlineGroup[intakeId]) state.intakeInlineGroup[intakeId] = "summary";
+  if (intakeId && !state.intakeInlineTab[intakeId]) state.intakeInlineTab[intakeId] = "summary";
+  applyIntakeDetailTab(intakeId);
+  bindIntakeInlineActions(root);
 }
 
 function escapeHtml(text) {
@@ -2943,6 +3752,29 @@ function formatAgeShort(ms) {
   return `${hr}h`;
 }
 
+function formatSecondsShort(seconds) {
+  const s = Number(seconds);
+  if (!Number.isFinite(s) || s < 0) return "-";
+  const sec = Math.max(0, Math.floor(s));
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  if (min < 60) return rem ? `${min}m ${rem}s` : `${min}m`;
+  const hr = Math.floor(min / 60);
+  const remMin = min % 60;
+  if (hr < 24) return remMin ? `${hr}h ${remMin}m` : `${hr}h`;
+  const day = Math.floor(hr / 24);
+  const remHr = hr % 24;
+  return remHr ? `${day}d ${remHr}h` : `${day}d`;
+}
+
+function formatDurationMs(ms) {
+  const value = Number(ms);
+  if (!Number.isFinite(value) || value < 0) return "-";
+  if (value < 1000) return `${Math.round(value)}ms`;
+  return formatSecondsShort(value / 1000);
+}
+
 function getGithubOpsFreshness() {
   const data = unwrap(state.jobs || {});
   const raw = pickTimestamp(data, ["generated_at", "updated_at", "ts", "timestamp"]);
@@ -2984,6 +3816,236 @@ function shortIntakeId(intakeId) {
   const cleaned = raw.replace(/[^a-z0-9]/gi, "");
   if (cleaned.length >= 8) return cleaned.slice(-8).toUpperCase();
   return cleaned ? cleaned.toUpperCase() : raw.slice(-8).toUpperCase();
+}
+
+function applyIntakeDetailTab(intakeId) {
+  const id = String(intakeId || "").trim();
+  const group = id && state.intakeInlineGroup[id] ? state.intakeInlineGroup[id] : "summary";
+  const tabs = INTAKE_GROUP_TABS[group] || INTAKE_GROUP_TABS.summary;
+  let active = id && state.intakeInlineTab[id] ? state.intakeInlineTab[id] : tabs[0];
+  if (!tabs.includes(active)) active = tabs[0];
+  const root = getIntakeInlineRoot(id);
+  if (!root) return;
+  root.querySelectorAll("[data-intake-group-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.intakeGroupTab === group);
+  });
+  root.querySelectorAll("[data-intake-detail-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.intakeDetailTab === active);
+  });
+  root.querySelectorAll("[data-intake-detail-pane]").forEach((pane) => {
+    pane.classList.toggle("active", pane.dataset.intakeDetailPane === active);
+  });
+}
+
+function renderIntakeDecisionPanel(item) {
+  const root = getIntakeInlineRoot(state.intakeSelectedId);
+  const container = root ? root.querySelector("[data-intake-decision-panel]") : null;
+  if (!container) return;
+  if (!item) {
+    container.innerHTML = `<div class="subtle">${escapeHtml(t("common.no_selection"))}</div>`;
+    return;
+  }
+  const intakeId = String(item?.intake_id || "").trim();
+  const decision = getDecisionForIntake(intakeId);
+  const summaryTr = String(decision.overlay?.summary_tr || "").trim();
+  const summaryEn = String(decision.overlay?.summary_en || "").trim();
+  const qTr = String(decision.overlay?.decision_question_tr || "").trim();
+  const qEn = String(decision.overlay?.decision_question_en || "").trim();
+  const options = Array.isArray(decision.overlay?.options) ? decision.overlay.options : [];
+
+  const badgeRec = decision.recommended_action
+    ? `<span class="${decisionBadgeClass(decision.recommended_action)}">${escapeHtml(decision.recommended_action)}</span>`
+    : `<span class="subtle">-</span>`;
+  const badgeConf = decision.confidence ? `<span class="badge">${escapeHtml(decision.confidence)}</span>` : `<span class="subtle">-</span>`;
+  const badgeExec = decision.execution_mode ? `<span class="badge">${escapeHtml(decision.execution_mode)}</span>` : `<span class="subtle">-</span>`;
+  const badgeEv = decision.evidence_ready
+    ? `<span class="badge">${escapeHtml(decision.evidence_ready)}</span>`
+    : `<span class="subtle">-</span>`;
+  const badgeSel = decision.selected_option ? `<span class="badge ok">${escapeHtml(decision.selected_option)}</span>` : `<span class="subtle">-</span>`;
+
+  const optionCards = options.length
+    ? `<div class="decision-options">` +
+      options
+        .map((opt) => {
+          const id = String(opt?.id || "").trim().toUpperCase();
+          const titleTr = String(opt?.title_tr || "").trim();
+          const titleEn = String(opt?.title_en || "").trim();
+          const notesTr = String(opt?.notes_tr || "").trim();
+          const notesEn = String(opt?.notes_en || "").trim();
+          const isChecked = decision.selected_option && decision.selected_option === id;
+          const checkedAttr = isChecked ? "checked" : "";
+          const label = titleEn ? `${titleTr} (${titleEn})` : titleTr;
+          const notes = notesEn ? `${notesTr} (${notesEn})` : notesTr;
+          return `
+            <label class="decision-option">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <div class="opt-title">${escapeHtml(label || id)}</div>
+                <input type="radio" name="decision-opt-${encodeTag(intakeId)}" value="${escapeHtml(id)}" ${checkedAttr} />
+              </div>
+              <div class="opt-notes">${escapeHtml(notes)}</div>
+            </label>
+          `;
+        })
+        .join("") +
+      `</div>`
+    : `<div class="subtle">${escapeHtml(t("intake.decision.no_overlay"))}</div>`;
+
+  const noteValue = decision.mark?.note ? String(decision.mark.note || "") : "";
+
+  container.innerHTML = `
+    <div class="row" style="gap: 8px; flex-wrap: wrap;">
+      ${badgeRec}
+      ${badgeConf}
+      ${badgeExec}
+      ${badgeEv}
+      ${badgeSel}
+    </div>
+    <div class="subtle" style="margin-top: 8px;">${escapeHtml(summaryEn ? `${summaryTr} (${summaryEn})` : (summaryTr || ""))}</div>
+    <div style="margin-top: 8px; font-weight: 600;">${escapeHtml(qEn ? `${qTr} (${qEn})` : (qTr || ""))}</div>
+    <div class="subtle" style="margin-top: 6px;">${escapeHtml(decision.reason_code ? `reason_code=${decision.reason_code}` : "")}</div>
+    ${optionCards}
+    <div style="margin-top: 10px;">
+      <textarea class="input" data-decision-note="${encodeTag(intakeId)}" placeholder="${escapeHtml(t("intake.decision.note_placeholder"))}">${escapeHtml(noteValue)}</textarea>
+    </div>
+    <div class="row" style="margin-top: 10px;">
+      <button class="btn accent" type="button" data-decision-save="${encodeTag(intakeId)}">${escapeHtml(t("intake.decision.save"))}</button>
+      <div class="subtle">Öneri: ${badgeRec} ${badgeConf}</div>
+    </div>
+  `;
+}
+
+function bindIntakeInlineActions(root) {
+  if (!root) return;
+  const clearBtn = root.querySelector("[data-intake-clear]");
+  if (clearBtn && !clearBtn.dataset.bound) {
+    clearBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      clearIntakeSelection();
+    });
+    clearBtn.dataset.bound = "true";
+  }
+  root.querySelectorAll("[data-intake-group-tab]").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const intakeId = String(state.intakeSelectedId || "").trim();
+      const group = String(btn.dataset.intakeGroupTab || "").trim();
+      if (!intakeId || !group) return;
+      state.intakeInlineGroup[intakeId] = group;
+      const tabs = INTAKE_GROUP_TABS[group] || INTAKE_GROUP_TABS.summary;
+      state.intakeInlineTab[intakeId] = tabs[0];
+      renderIntakeTable((unwrap(state.intake || {}).items || []));
+      if (state.intakeExpandedId === intakeId && state.intakeSelected) {
+        renderIntakeDetail(state.intakeSelected);
+      }
+    });
+    btn.dataset.bound = "true";
+  });
+  root.querySelectorAll("[data-intake-detail-tab]").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const intakeId = String(state.intakeSelectedId || "").trim();
+      const tab = String(btn.dataset.intakeDetailTab || "").trim();
+      if (!intakeId || !tab) return;
+      state.intakeInlineTab[intakeId] = tab;
+      applyIntakeDetailTab(intakeId);
+    });
+    btn.dataset.bound = "true";
+  });
+  const createNoteBtn = root.querySelector("[data-intake-create-note]");
+  if (createNoteBtn && !createNoteBtn.dataset.bound) {
+    createNoteBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      createNoteForSelectedIntake();
+    });
+    createNoteBtn.dataset.bound = "true";
+  }
+  const openNotesBtn = root.querySelector("[data-intake-open-notes]");
+  if (openNotesBtn && !openNotesBtn.dataset.bound) {
+    openNotesBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateToTab("notes");
+    });
+    openNotesBtn.dataset.bound = "true";
+  }
+  const claimBtn = root.querySelector("[data-intake-claim]");
+  if (claimBtn && !claimBtn.dataset.bound) {
+    claimBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      claimIntakeItem(state.intakeSelectedId, "claim");
+    });
+    claimBtn.dataset.bound = "true";
+  }
+  const claimReleaseBtn = root.querySelector("[data-intake-claim-release]");
+  if (claimReleaseBtn && !claimReleaseBtn.dataset.bound) {
+    claimReleaseBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      claimIntakeItem(state.intakeSelectedId, "release");
+    });
+    claimReleaseBtn.dataset.bound = "true";
+  }
+  const claimForceBtn = root.querySelector("[data-intake-claim-force-release]");
+  if (claimForceBtn && !claimForceBtn.dataset.bound) {
+    claimForceBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const id = String(state.intakeSelectedId || "").trim();
+      if (!id) return;
+      await forceReleaseIntakeClaim(id);
+    });
+    claimForceBtn.dataset.bound = "true";
+  }
+  const closeBtn = root.querySelector("[data-intake-close]");
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await closeSelectedIntakeItem();
+    });
+    closeBtn.dataset.bound = "true";
+  }
+  const purposeGenerateSelectedBtn = root.querySelector("[data-intake-purpose-generate-selected]");
+  if (purposeGenerateSelectedBtn && !purposeGenerateSelectedBtn.dataset.bound) {
+    purposeGenerateSelectedBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await generateIntakePurposeSelected();
+    });
+    purposeGenerateSelectedBtn.dataset.bound = "true";
+  }
+  root.querySelectorAll("[data-decision-save]").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const intakeId = decodeTag(btn.dataset.decisionSave || "");
+      if (!intakeId) return;
+      const name = `decision-opt-${encodeTag(intakeId)}`;
+      const selected = root.querySelector(`input[name=\"${CSS.escape(name)}\"]:checked`);
+      const option = selected ? String(selected.value || "").trim() : "";
+      const noteEl = root.querySelector(`[data-decision-note=\"${CSS.escape(encodeTag(intakeId))}\"]`);
+      const note = noteEl ? String(noteEl.value || "") : "";
+      if (!option) {
+        showToast(t("toast.action_failed", { error: "OPTION_REQUIRED" }), "warn");
+        return;
+      }
+      try {
+        await saveCockpitDecisionMark(intakeId, option, note);
+        if (!state.cockpitDecisionArtifacts.userMarksById || typeof state.cockpitDecisionArtifacts.userMarksById !== "object") {
+          state.cockpitDecisionArtifacts.userMarksById = {};
+        }
+        state.cockpitDecisionArtifacts.userMarksById[intakeId] = {
+          selected_option: option,
+          note,
+          at: new Date().toISOString(),
+          user: "local",
+        };
+        showToast(t("toast.decision_saved"), "ok");
+        renderIntakeTable((unwrap(state.intake || {}).items || []));
+      } catch (err) {
+        showToast(t("toast.decision_save_failed", { error: formatError(err) }), "fail");
+      }
+    });
+    btn.dataset.bound = "true";
+  });
 }
 
 function encodeTag(value) {
@@ -3353,13 +4415,15 @@ function renderIntakeInlineDecisionDetailHtml(item) {
   const decision = getDecisionForIntake(intakeId);
   const title = String(decision.overlay?.user_title_tr || decision.queue?.user_title_tr || item?.title || "").trim();
   const titleEn = String(decision.overlay?.user_title_en || decision.queue?.user_title_en || "").trim();
-  const summaryTr = String(decision.overlay?.summary_tr || "").trim();
-  const summaryEn = String(decision.overlay?.summary_en || "").trim();
-  const qTr = String(decision.overlay?.decision_question_tr || "").trim();
-  const qEn = String(decision.overlay?.decision_question_en || "").trim();
-  const options = Array.isArray(decision.overlay?.options) ? decision.overlay.options : [];
 
-  const activeTab = state.intakeInlineTab && state.intakeInlineTab[intakeId] ? state.intakeInlineTab[intakeId] : "decision";
+  const activeGroup = state.intakeInlineGroup && state.intakeInlineGroup[intakeId]
+    ? state.intakeInlineGroup[intakeId]
+    : "summary";
+  const groupTabs = INTAKE_GROUP_TABS[activeGroup] || INTAKE_GROUP_TABS.summary;
+  let activeTab = state.intakeInlineTab && state.intakeInlineTab[intakeId]
+    ? state.intakeInlineTab[intakeId]
+    : groupTabs[0];
+  if (!groupTabs.includes(activeTab)) activeTab = groupTabs[0];
 
   const badgeRec = decision.recommended_action
     ? `<span class="${decisionBadgeClass(decision.recommended_action)}">${escapeHtml(decision.recommended_action)}</span>`
@@ -3372,78 +4436,27 @@ function renderIntakeInlineDecisionDetailHtml(item) {
   const badgeSel = decision.selected_option ? `<span class="badge ok">${escapeHtml(decision.selected_option)}</span>` : `<span class="subtle">-</span>`;
   const shortId = shortIntakeId(intakeId);
 
+  const groupButtons = [
+    { id: "summary", label: t("intake.group.summary") },
+    { id: "decision", label: t("intake.group.decision") },
+    { id: "evidence", label: t("intake.group.evidence") },
+    { id: "raw", label: t("intake.group.raw") },
+  ];
+  const groupTabsHtml = groupButtons
+    .map(
+      (g) =>
+        `<button class="intake-group-tab${activeGroup === g.id ? " active" : ""}" type="button" data-intake-group-tab="${g.id}">${escapeHtml(g.label)}</button>`
+    )
+    .join("");
   const tabs = `
-    <div class="inline-tabs">
-      <button class="btn ${activeTab === "decision" ? "accent" : ""}" type="button" data-intake-inline-tab="${encodeTag(intakeId)}" data-tab="decision">${escapeHtml(t("intake.inline.tab_decision"))}</button>
-      <button class="btn ${activeTab === "technical" ? "accent" : ""}" type="button" data-intake-inline-tab="${encodeTag(intakeId)}" data-tab="technical">${escapeHtml(t("intake.inline.tab_technical"))}</button>
-    </div>
-  `;
-
-  const decisionCardMissing = `<div class="subtle">${escapeHtml(t("intake.decision.no_overlay"))}</div>`;
-
-  const optionCards = options.length
-    ? `<div class="decision-options">` +
-      options
-        .map((opt) => {
-          const id = String(opt?.id || "").trim().toUpperCase();
-          const titleTr = String(opt?.title_tr || "").trim();
-          const titleEn = String(opt?.title_en || "").trim();
-          const notesTr = String(opt?.notes_tr || "").trim();
-          const notesEn = String(opt?.notes_en || "").trim();
-          const isChecked = decision.selected_option && decision.selected_option === id;
-          const checkedAttr = isChecked ? "checked" : "";
-          const label = titleEn ? `${titleTr} (${titleEn})` : titleTr;
-          const notes = notesEn ? `${notesTr} (${notesEn})` : notesTr;
-          return `
-            <label class="decision-option">
-              <div class="row" style="justify-content: space-between; align-items: center;">
-                <div class="opt-title">${escapeHtml(label || id)}</div>
-                <input type="radio" name="decision-opt-${encodeTag(intakeId)}" value="${escapeHtml(id)}" ${checkedAttr} />
-              </div>
-              <div class="opt-notes">${escapeHtml(notes)}</div>
-            </label>
-          `;
+    <div class="intake-detail-tabs">
+      ${groupTabs
+        .map((tabId) => {
+          const labelKey = `intake.detail.tab_${tabId}`;
+          const label = t(labelKey);
+          return `<button class="intake-detail-tab${activeTab === tabId ? " active" : ""}" type="button" data-intake-detail-tab="${tabId}">${escapeHtml(label)}</button>`;
         })
-        .join("") +
-      `</div>`
-    : decisionCardMissing;
-
-  const noteValue = decision.mark?.note ? String(decision.mark.note || "") : "";
-
-  const decisionBody = `
-    <div class="inline-section" style="${activeTab === "decision" ? "" : "display:none;"}">
-      <div class="subtle">${escapeHtml(summaryEn ? `${summaryTr} (${summaryEn})` : (summaryTr || ""))}</div>
-      <div style="margin-top: 8px; font-weight: 600;">${escapeHtml(qEn ? `${qTr} (${qEn})` : (qTr || ""))}</div>
-      <div class="subtle" style="margin-top: 6px;">${escapeHtml(decision.reason_code ? `reason_code=${decision.reason_code}` : "")}</div>
-      ${optionCards}
-      <div style="margin-top: 10px;">
-        <textarea class="input" data-decision-note="${encodeTag(intakeId)}" placeholder="${escapeHtml(t("intake.decision.note_placeholder"))}">${escapeHtml(noteValue)}</textarea>
-      </div>
-      <div class="row" style="margin-top: 10px;">
-        <button class="btn accent" type="button" data-decision-save="${encodeTag(intakeId)}">${escapeHtml(t("intake.decision.save"))}</button>
-        <div class="subtle">Öneri: ${badgeRec} ${badgeConf}</div>
-      </div>
-    </div>
-  `;
-
-  const evidencePaths = Array.isArray(item?.evidence_paths) ? item.evidence_paths.map(String) : [];
-  const evidenceChips = evidencePaths.length
-    ? `<div class="path-chips">` +
-      evidencePaths
-        .slice(0, 12)
-        .map((p) => `<button class="path-chip" type="button" data-intake-evidence="${encodeTag(p)}">${escapeHtml(p)}</button>`)
-        .join(" ") +
-      `</div>`
-    : `<span class="subtle">${escapeHtml(t("common.none"))}</span>`;
-
-  const technicalBody = `
-    <div class="inline-section" style="${activeTab === "technical" ? "" : "display:none;"}">
-      <div class="subtle">Evidence paths (click to preview)</div>
-      ${evidenceChips}
-      <details style="margin-top: 10px;">
-        <summary class="subtle">Raw intake item JSON (redacted)</summary>
-        <pre>${escapeHtml(JSON.stringify(item || {}, null, 2))}</pre>
-      </details>
+        .join("")}
     </div>
   `;
 
@@ -3451,18 +4464,65 @@ function renderIntakeInlineDecisionDetailHtml(item) {
     <div class="intake-inline-detail" data-inline-intake="${encodeTag(intakeId)}">
       <div class="inline-header">
         <div class="inline-title">${escapeHtml(titleEn ? `${title} (${titleEn})` : title)}</div>
-        <div class="row" style="gap: 8px;">
+        <div class="row" style="gap: 8px; flex-wrap: wrap;">
           ${badgeRec}
           ${badgeConf}
           ${badgeExec}
           ${badgeEv}
           ${badgeSel}
+          <button class="btn ghost" type="button" data-intake-clear>Clear</button>
         </div>
       </div>
-      <div class="subtle intake-short-id">ID: ${escapeHtml(shortId || "-")} | intake_id: ${escapeHtml(intakeId || "-")}</div>
-      ${tabs}
-      ${decisionBody}
-      ${technicalBody}
+      <div class="subtle intake-short-id" data-intake-detail-meta>ID: ${escapeHtml(shortId || "-")} | intake_id: ${escapeHtml(intakeId || "-")}</div>
+      <div class="intake-inline-body">
+        <div class="intake-group-tabs">${groupTabsHtml}</div>
+        <div class="intake-inline-content">
+          ${tabs}
+          <div class="intake-detail-pane${activeTab === "summary" ? " active" : ""}" data-intake-detail-pane="summary">
+            <div class="row" style="margin-top: 8px;">
+              <button class="btn" type="button" data-intake-purpose-generate-selected>${escapeHtml(t("intake.purpose.generate_selected"))}</button>
+              <div class="subtle" data-intake-purpose-generate-selected-meta>${escapeHtml(t("intake.purpose.generate_selected_hint"))}</div>
+            </div>
+            <div class="intake-detail-grid" data-intake-detail-fields></div>
+            <div class="row" style="margin-top: 10px;">
+              <div class="subtle" data-intake-claim-meta>${escapeHtml(t("intake.claim.meta_none"))}</div>
+              <button class="btn" type="button" data-intake-claim>${escapeHtml(t("intake.claim.btn_claim"))}</button>
+              <button class="btn ghost" type="button" data-intake-claim-release>${escapeHtml(t("intake.claim.btn_release"))}</button>
+              <button class="btn danger" type="button" data-intake-claim-force-release>${escapeHtml(t("intake.claim.btn_force_release"))}</button>
+            </div>
+            <div class="row" style="margin-top: 10px;">
+              <div class="subtle" data-intake-close-meta>${escapeHtml(t("intake.close.meta_none"))}</div>
+              <button class="btn warn" type="button" data-intake-close>${escapeHtml(t("intake.close.btn_close"))}</button>
+            </div>
+          </div>
+          <div class="intake-detail-pane${activeTab === "decision" ? " active" : ""}" data-intake-detail-pane="decision">
+            <div data-intake-decision-panel></div>
+          </div>
+          <div class="intake-detail-pane${activeTab === "notes" ? " active" : ""}" data-intake-detail-pane="notes">
+            <div class="row" style="margin-top: 10px;">
+              <div class="subtle" data-intake-notes-meta>Notes for this item: -</div>
+              <button class="btn accent" type="button" data-intake-create-note>Create note</button>
+              <button class="btn ghost" type="button" data-intake-open-notes>Open Notes tab</button>
+            </div>
+            <div class="note-list" data-intake-notes-list></div>
+          </div>
+          <div class="intake-detail-pane${activeTab === "evidence" ? " active" : ""}" data-intake-detail-pane="evidence">
+            <div class="subtle" style="margin-top: 10px;">Evidence paths (click to preview)</div>
+            <div class="path-chips" data-intake-evidence-paths></div>
+            <details style="margin-top: 10px;" data-intake-evidence-preview-panel>
+              <summary class="subtle">Evidence preview</summary>
+              <div class="subtle" data-intake-evidence-preview-meta></div>
+              <pre data-intake-evidence-preview></pre>
+            </details>
+          </div>
+          <div class="intake-detail-pane${activeTab === "raw" ? " active" : ""}" data-intake-detail-pane="raw">
+            <details style="margin-top: 10px;">
+              <summary class="subtle">Raw intake item JSON (redacted)</summary>
+              <pre data-intake-detail-json></pre>
+            </details>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -4082,23 +5142,65 @@ function renderNorthStarMechanisms() {
         ? `<span class="badge version" title="${escapeHtml(selectedVersionLabel)}">Güncel ${escapeHtml(latestLabel)}</span>`
         : "";
       const themes = Array.isArray(subject?.themes) ? subject.themes : [];
+      const transferState = getMechanismsSubjectTransferState(subject);
+      const transferEnabled = transferState.enabled;
+      const transferBtnLabel = t("north_star.mechanisms.transfer_btn");
+      const transferBtnTitle = t("north_star.mechanisms.transfer_title");
+      const transferBtnDisabledTitle = transferState.blockedTitle || t("north_star.mechanisms.transfer_blocked_hint");
+      const transferSubjectBtn = renderFindingsTransferButton({
+        enabled: transferEnabled,
+        subjectId,
+        themeLabel: "",
+        subthemeLabel: "",
+        targetLabel: subjectLabel || subjectId || t("north_star.unknown"),
+        buttonLabel: transferBtnLabel,
+        enabledTitle: transferBtnTitle,
+        disabledTitle: transferBtnDisabledTitle,
+      });
       const themeBlocks = themes
         .map((theme) => {
+          const themeId = String(theme?.theme_id || "").trim();
           const themeLabel = localizeTrEnLabel(
             theme?.title_tr || theme?.theme_title_tr,
             theme?.title_en || theme?.theme_title_en,
             theme?.theme_id
           );
+          const themeFilterLabel = formatTrEnLabel(
+            theme?.title_tr || theme?.theme_title_tr,
+            theme?.title_en || theme?.theme_title_en,
+            theme?.theme_id || ""
+          );
           const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
           const subList = subthemes
             .map((sub) => {
-              const subLabel = localizeTrEnLabel(sub?.title_tr || sub?.subtheme_title_tr, sub?.title_en || sub?.subtheme_title_en, sub?.subtheme_id);
+              const subLabel = localizeTrEnLabel(
+                sub?.title_tr || sub?.subtheme_title_tr,
+                sub?.title_en || sub?.subtheme_title_en,
+                sub?.subtheme_id
+              );
+              const subFilterLabel = formatTrEnLabel(
+                sub?.title_tr || sub?.subtheme_title_tr,
+                sub?.title_en || sub?.subtheme_title_en,
+                sub?.subtheme_id || ""
+              );
               const subId = String(sub?.subtheme_id || "").trim();
               const aiId = subId || `${themeId || "sub"}:${subLabel}`;
               const subIdHtml = subId
                 ? `<span class="meta-id">ID: <span class="meta-id__value">${escapeHtml(subId)}</span></span>`
                 : `<span class="meta-id">ID: <span class="meta-id__value">-</span></span>`;
-              return `<li>${escapeHtml(subLabel || t("north_star.unknown"))} ${subIdHtml} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subtheme" data-ai-id="${escapeHtml(aiId)}" data-ai-label="${escapeHtml(subLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" data-ai-subtheme="${escapeHtml(subLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></li>`;
+              const transferSubBtn = (themeFilterLabel || subFilterLabel)
+                ? renderFindingsTransferButton({
+                    enabled: transferEnabled,
+                    subjectId,
+                    themeLabel: themeFilterLabel || "",
+                    subthemeLabel: subFilterLabel || "",
+                    targetLabel: subLabel || t("north_star.unknown"),
+                    buttonLabel: transferBtnLabel,
+                    enabledTitle: transferBtnTitle,
+                    disabledTitle: transferBtnDisabledTitle,
+                  })
+                : "";
+              return `<li>${escapeHtml(subLabel || t("north_star.unknown"))} ${subIdHtml} ${transferSubBtn} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subtheme" data-ai-id="${escapeHtml(aiId)}" data-ai-label="${escapeHtml(subLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" data-ai-subtheme="${escapeHtml(subLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></li>`;
             })
             .join("");
           const def = localizeTrEnLabel(
@@ -4106,18 +5208,29 @@ function renderNorthStarMechanisms() {
             theme?.definition_en || theme?.theme_definition_en,
             ""
           );
-          const themeId = String(theme?.theme_id || "").trim();
           const themeIdHtml = themeId
             ? `<span class="meta-id">ID: <span class="meta-id__value">${escapeHtml(themeId)}</span></span>`
             : `<span class="meta-id">ID: <span class="meta-id__value">-</span></span>`;
-          return `<details><summary><strong>${escapeHtml(themeLabel || t("north_star.unknown"))}</strong> <span class="subtle">(${subthemes.length})</span> ${themeIdHtml} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="theme" data-ai-id="${escapeHtml(themeId || subjectId)}" data-ai-label="${escapeHtml(themeLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></summary>${def ? `<div class="subtle">${escapeHtml(def)}</div>` : ""}${subList ? `<ul class="subtle">${subList}</ul>` : `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}</details>`;
+          const transferThemeBtn = themeFilterLabel
+            ? renderFindingsTransferButton({
+                enabled: transferEnabled,
+                subjectId,
+                themeLabel: themeFilterLabel,
+                subthemeLabel: "",
+                targetLabel: themeLabel || t("north_star.unknown"),
+                buttonLabel: transferBtnLabel,
+                enabledTitle: transferBtnTitle,
+                disabledTitle: transferBtnDisabledTitle,
+              })
+            : "";
+          return `<details><summary><strong>${escapeHtml(themeLabel || t("north_star.unknown"))}</strong> <span class="subtle">(${subthemes.length})</span> ${themeIdHtml} ${transferThemeBtn} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="theme" data-ai-id="${escapeHtml(themeId || subjectId)}" data-ai-label="${escapeHtml(themeLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></summary>${def ? `<div class="subtle">${escapeHtml(def)}</div>` : ""}${subList ? `<ul class="subtle">${subList}</ul>` : `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}</details>`;
         })
         .join("");
       const aiSubjectBadge = `<button type="button" class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subject" data-ai-id="${escapeHtml(subjectId)}" data-ai-label="${escapeHtml(subjectLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" title="AI öneri"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span><span style="margin-left:4px;">AI öneri</span></button>`;
       const subjectIdHtml = subjectId ? `<span class="meta-id">ID: <span class="meta-id__value">${escapeHtml(subjectId)}</span></span>` : "";
       return `<div class="card" style="margin-bottom:12px;">
         <div class="row" style="justify-content:space-between;gap:8px;align-items:center;">
-          <div><strong>${escapeHtml(subjectLabel)}</strong> ${subjectIdHtml} ${aiSubjectBadge}</div>
+          <div><strong>${escapeHtml(subjectLabel)}</strong> ${subjectIdHtml} ${transferSubjectBtn} ${aiSubjectBadge}</div>
           <div class="row" style="gap:6px;align-items:center;">${versionBadge}<div class="badge">${escapeHtml(statusLabel)}</div></div>
         </div>
         ${themeBlocks || `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}
@@ -4135,11 +5248,21 @@ function renderNorthStarSuggestions() {
   const store = unwrap(state.northStarMechanismsSuggestions || {}) || {};
   const items = Array.isArray(store.suggestions) ? store.suggestions : [];
   const filters = state.northStarSuggestionsFilters || {
+    search: "",
     subject: "",
     theme: "",
     subtheme: "",
+    type: "",
+    date_from: "",
+    date_to: "",
   };
   state.northStarSuggestionsFilters = filters;
+  const formatDateInput = (date) => {
+    if (!date) return "";
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const local = new Date(date.getTime() - tzOffset);
+    return local.toISOString().slice(0, 10);
+  };
   if (!filters._initialized) {
     const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
     if (!filters.subject && Array.isArray(selectedSubjects) && selectedSubjects.length) {
@@ -4149,6 +5272,11 @@ function renderNorthStarSuggestions() {
     if (!filters.subject && ctx.subject) filters.subject = String(ctx.subject);
     if (!filters.theme && ctx.theme) filters.theme = String(ctx.theme);
     if (!filters.subtheme && ctx.subtheme) filters.subtheme = String(ctx.subtheme);
+    if (!filters.date_from && !filters.date_to) {
+      const today = formatDateInput(new Date());
+      filters.date_from = today;
+      filters.date_to = today;
+    }
     filters._initialized = true;
   }
 
@@ -4159,38 +5287,128 @@ function renderNorthStarSuggestions() {
       .map((v) => v.trim())
       .filter(Boolean)
       .map((v) => normalize(v));
+  const formatLocalDate = (value) => {
+    const ts = Date.parse(String(value || ""));
+    if (!Number.isFinite(ts)) return "";
+    const date = new Date(ts);
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const local = new Date(date.getTime() - tzOffset);
+    return local.toISOString().slice(0, 10);
+  };
+  const formatLocalDateTime = (value) => {
+    const ts = Date.parse(String(value || ""));
+    if (!Number.isFinite(ts)) return "";
+    const date = new Date(ts);
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const local = new Date(date.getTime() - tzOffset);
+    return `${local.toISOString().slice(0, 10)} ${local.toISOString().slice(11, 19)}`;
+  };
 
   const filteredItems = items.filter((s) => {
+    const searchTerm = normalize(filters.search);
     const subjList = parseMulti(filters.subject);
     const themeList = parseMulti(filters.theme);
     const subthemeList = parseMulti(filters.subtheme);
+    const typeList = parseMulti(filters.type);
     if (subjList.length && !subjList.includes(normalize(s?.subject_id))) return false;
     if (themeList.length && !themeList.includes(normalize(s?.target_id))) return false;
     if (subthemeList.length && !subthemeList.includes(normalize(s?.target_id))) return false;
+    if (typeList.length && !typeList.includes(normalize(s?.suggestion_type))) return false;
+    const createdAt = String(s?.created_at || "");
+    const createdLocal = formatLocalDate(createdAt);
+    if (searchTerm) {
+      const hay = [
+        s?.suggestion_id,
+        s?.subject_id,
+        s?.target_id,
+        s?.suggestion_type,
+        s?.target_type,
+        s?.status,
+        createdAt,
+        createdLocal,
+        s?.payload ? JSON.stringify(s.payload) : "",
+      ]
+        .map((v) => String(v || ""))
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(searchTerm)) return false;
+    }
+    const fromDate = String(filters.date_from || "").trim();
+    const toDate = String(filters.date_to || "").trim();
+    if ((fromDate || toDate) && !createdLocal) return false;
+    if (fromDate && createdLocal < fromDate) return false;
+    if (toDate && createdLocal > toDate) return false;
     return true;
   });
 
   const proposed = items.filter((s) => String(s?.status || "").toUpperCase() === "PROPOSED");
   if (meta) meta.textContent = t("north_star.suggestions.meta", { count: String(proposed.length) });
   const filterBar = `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.search"))}" value="${escapeHtml(filters.search || "")}" data-suggest-filter="search"/>
       <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.subject"))}" value="${escapeHtml(filters.subject || "")}" data-suggest-filter="subject"/>
       <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.theme"))}" value="${escapeHtml(filters.theme || "")}" data-suggest-filter="theme"/>
       <input class="input" style="min-width:180px" placeholder="${escapeHtml(t("north_star.suggestions.filter.subtheme"))}" value="${escapeHtml(filters.subtheme || "")}" data-suggest-filter="subtheme"/>
+      <input class="input" style="min-width:160px" placeholder="${escapeHtml(t("north_star.suggestions.filter.type"))}" value="${escapeHtml(filters.type || "")}" data-suggest-filter="type"/>
+      <label class="subtle" style="align-self:center;">${escapeHtml(t("north_star.suggestions.filter.date_from"))}</label>
+      <input class="input" type="date" style="min-width:150px" value="${escapeHtml(filters.date_from || "")}" data-suggest-filter="date_from"/>
+      <label class="subtle" style="align-self:center;">${escapeHtml(t("north_star.suggestions.filter.date_to"))}</label>
+      <input class="input" type="date" style="min-width:150px" value="${escapeHtml(filters.date_to || "")}" data-suggest-filter="date_to"/>
+      <div class="row" style="gap:6px;align-items:center;">
+        <button class="btn ghost small" type="button" data-suggest-range="today">${escapeHtml(t("north_star.suggestions.filter.quick.today"))}</button>
+        <button class="btn ghost small" type="button" data-suggest-range="7d">${escapeHtml(t("north_star.suggestions.filter.quick.week"))}</button>
+        <button class="btn ghost small" type="button" data-suggest-range="30d">${escapeHtml(t("north_star.suggestions.filter.quick.month"))}</button>
+        <button class="btn ghost small" type="button" data-suggest-range="all">${escapeHtml(t("north_star.suggestions.filter.quick.all"))}</button>
+      </div>
       <div class="subtle" style="align-self:center;">${escapeHtml(t("north_star.suggestions.filter.multi_hint") || "Çoklu değer için virgül kullanın.")}</div>
     </div>`;
 
-  if (!filteredItems.length) {
-    container.innerHTML = `${filterBar}<div class="subtle">${escapeHtml(t("north_star.suggestions.empty"))}</div>`;
-    attachNorthStarSuggestionHandlers();
+  const bindSuggestionFilters = () => {
     $$("[data-suggest-filter]").forEach((el) => {
-      el.oninput = () => {
+      const handler = () => {
         state.northStarSuggestionsFilters = {
           ...state.northStarSuggestionsFilters,
           [el.dataset.suggestFilter]: el.value,
         };
         renderNorthStarSuggestions();
       };
+      el.oninput = handler;
+      el.onchange = handler;
     });
+    $$("[data-suggest-range]").forEach((btn) => {
+      btn.onclick = () => {
+        const range = btn.dataset.suggestRange || "";
+        if (range === "all") {
+          state.northStarSuggestionsFilters = {
+            ...state.northStarSuggestionsFilters,
+            date_from: "",
+            date_to: "",
+          };
+          renderNorthStarSuggestions();
+          return;
+        }
+        const now = new Date();
+        let from = new Date(now.getTime());
+        if (range === "7d") {
+          from = new Date(now.getTime() - 6 * 86400000);
+        } else if (range === "30d") {
+          from = new Date(now.getTime() - 29 * 86400000);
+        }
+        const fromStr = formatDateInput(from);
+        const toStr = formatDateInput(now);
+        state.northStarSuggestionsFilters = {
+          ...state.northStarSuggestionsFilters,
+          date_from: fromStr,
+          date_to: toStr,
+        };
+        renderNorthStarSuggestions();
+      };
+    });
+  };
+
+  if (!filteredItems.length) {
+    container.innerHTML = `${filterBar}<div class="subtle">${escapeHtml(t("north_star.suggestions.empty"))}</div>`;
+    attachNorthStarSuggestionHandlers();
+    bindSuggestionFilters();
     return;
   }
 
@@ -4203,11 +5421,13 @@ function renderNorthStarSuggestions() {
       const payload = s?.payload ? JSON.stringify(s.payload) : "";
       const targetType = String(s?.target_type || "");
       const createdAt = String(s?.created_at || "");
+      const createdLocal = formatLocalDateTime(createdAt);
+      const createdLabel = createdLocal || createdAt;
       return `<div class="card" style="margin-bottom:8px;">
         <div class="row" style="justify-content:space-between;gap:8px;align-items:center;">
           <div>
             <div><strong>${escapeHtml(sType)}</strong> <span class="subtle">(${escapeHtml(target)})</span></div>
-            <div class="subtle">${escapeHtml(subjectId)} • ${escapeHtml(id)} • ${escapeHtml(createdAt)}</div>
+            <div class="subtle" title="${escapeHtml(createdAt)}">${escapeHtml(subjectId)} • ${escapeHtml(id)} • ${escapeHtml(createdLabel)}</div>
           </div>
           <div class="row" style="gap:6px;">
             <button class="btn small ghost" data-suggest-action="ACCEPT" data-suggest-id="${escapeHtml(id)}">${escapeHtml(t("north_star.suggestions.accept"))}</button>
@@ -4222,19 +5442,31 @@ function renderNorthStarSuggestions() {
     .join("");
   container.innerHTML = `${filterBar}${rows}`;
   attachNorthStarSuggestionHandlers();
-  $$("[data-suggest-filter]").forEach((el) => {
-    el.oninput = () => {
-      state.northStarSuggestionsFilters = {
-        ...state.northStarSuggestionsFilters,
-        [el.dataset.suggestFilter]: el.value,
-      };
-      renderNorthStarSuggestions();
-    };
-  });
+  bindSuggestionFilters();
+}
+
+function loadAiSuggestThreadStorage() {
+  try {
+    const raw = localStorage.getItem(AI_SUGGEST_THREAD_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed;
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveAiSuggestThreadStorage(map) {
+  try {
+    localStorage.setItem(AI_SUGGEST_THREAD_STORAGE_KEY, JSON.stringify(map || {}));
+  } catch (_) {
+    // ignore storage errors
+  }
 }
 
 function getAiSuggestThreadsByKey() {
-  if (!state.aiSuggestThreadsByKey) state.aiSuggestThreadsByKey = {};
+  if (!state.aiSuggestThreadsByKey) state.aiSuggestThreadsByKey = loadAiSuggestThreadStorage();
   return state.aiSuggestThreadsByKey;
 }
 
@@ -4242,11 +5474,23 @@ function rememberAiSuggestThread(threadKey, threadId) {
   if (!threadKey || !threadId) return;
   const map = getAiSuggestThreadsByKey();
   map[threadKey] = threadId;
+  saveAiSuggestThreadStorage(map);
 }
 
 function pickAiSuggestThread(threadKey, fallback) {
   const map = getAiSuggestThreadsByKey();
   return map[threadKey] || fallback || "";
+}
+
+function ensureOpOk(result, opName) {
+  if (!result) {
+    throw new Error(`${opName || "op"}: NO_RESPONSE`);
+  }
+  const status = String(result?.status || "").toUpperCase();
+  if (status.includes("FAIL") || result?.error) {
+    throw new Error(`${opName || "op"}: ${result?.error || result?.status || "FAIL"}`);
+  }
+  return result;
 }
 
 function collectSuggestionsForSelection(subjectId, focusType, focusId, sinceTs) {
@@ -4320,8 +5564,8 @@ function getAiSuggestThreadPrefix(subjectId, focusType, focusId) {
   return _trimThreadId(`ns_ai.${subject}.${type}.${id}`);
 }
 
-async function ensurePlannerThreadsLoaded() {
-  if (state.plannerThreads) return state.plannerThreads;
+async function ensurePlannerThreadsLoaded(force = false) {
+  if (state.plannerThreads && !force) return state.plannerThreads;
   try {
     state.plannerThreads = await fetchJson(endpoints.plannerThreads);
   } catch (_) {
@@ -4348,8 +5592,39 @@ function buildAiSuggestThreadId(prefix, suffix = "") {
 function formatAiSuggestThreadLabel(threadId) {
   const parts = String(threadId || "").split(":");
   const suffix = parts.slice(-1)[0] || threadId;
-  const selection = state.aiSuggestSelectionLabel || "";
-  return selection ? `${selection} · ${suffix}` : suffix;
+  return suffix;
+}
+
+function sanitizeOpArgValue(value, { maxLen = 1200, allowNewlines = false } = {}) {
+  let text = String(value ?? "");
+  if (allowNewlines) {
+    text = text.replace(/\r\n?/g, "\n");
+  }
+  text = text.replace(/[\u0000-\u0008\u000B-\u001F\u007F]+/g, "");
+  text = text.trim();
+  if (!allowNewlines) {
+    text = text.replace(/\s+/g, " ");
+  }
+  if (text.length > maxLen) text = text.slice(0, maxLen);
+  return text;
+}
+
+function buildAiSuggestPromptContext({ subjectLabel, subjectId, themeLabel, subthemeLabel } = {}) {
+  const topic = (subjectLabel || subjectId || "").trim();
+  const level = subthemeLabel ? "modül" : themeLabel ? "süreç" : "program";
+  const scopeParts = [topic, themeLabel, subthemeLabel].filter((part) => part && String(part).trim());
+  const scopeText = scopeParts.length ? scopeParts.join(" > ") : "belirtilmedi";
+  const topicText = topic || "belirtilmedi";
+  return `KONU: ${topicText}\nSEVİYE: ${level}\nKAPSAM: Dahil: ${scopeText}; Hariç: belirtilmedi\nBAĞLAM: varsayılan`;
+}
+
+function mergeAiSuggestPromptContext(comment, autoContext) {
+  const base = String(comment || "").trim();
+  const context = String(autoContext || "").trim();
+  if (!context) return base;
+  if (base && /KONU\s*:/i.test(base)) return base;
+  if (!base) return context;
+  return `${context}\n\n${base}`;
 }
 
 async function loadAiSuggestThreadMessages(threadId) {
@@ -4384,24 +5659,34 @@ function renderAiSuggestHistory(container, items) {
 async function openNorthStarSuggestModal({
   title,
   hint,
+  promptIntent,
   selectionLabel,
   showMergeTarget,
   showModelSelect,
   profileDefault,
   threadKey,
   threadLabel,
+  defaultComment,
+  autoPromptContext,
+  disableEnterSubmit,
+  commentMaxLen,
+  skipSuggestionWait,
+  openChatLabel,
+  onOpenChat,
   keepOpenOnSubmit,
   onSubmit,
 }) {
   const modal = $("#ai-suggest-modal");
   const titleEl = $("#ai-suggest-title");
   const hintEl = $("#ai-suggest-hint");
+  const intentEl = $("#ai-suggest-intent");
   const commentEl = $("#ai-suggest-comment");
   const selectsWrap = $("#ai-suggest-selects");
   const historyEl = $("#ai-suggest-history");
   const threadEl = $("#ai-suggest-thread");
   const contextEl = $("#ai-suggest-context");
   const statusEl = $("#ai-suggest-status");
+  const openChatBtn = $("#ai-suggest-open-chat");
   const threadSelect = $("#ai-suggest-thread-select");
   const threadNewBtn = $("#ai-suggest-thread-new");
   const mergeWrap = $("#ai-suggest-merge-wrap");
@@ -4415,7 +5700,25 @@ async function openNorthStarSuggestModal({
 
   titleEl.textContent = title || t("north_star.suggestions.modal_title");
   hintEl.textContent = hint || t("north_star.suggestions.modal_hint");
-  commentEl.value = "";
+  if (intentEl) {
+    const intentText = String(promptIntent || "").trim();
+    if (intentText) {
+      intentEl.textContent = `${t("north_star.suggestions.modal_intent")}: ${intentText}`;
+      intentEl.style.display = "block";
+    } else {
+      intentEl.textContent = "";
+      intentEl.style.display = "none";
+    }
+  }
+  const commentDefault = String(defaultComment || "");
+  const promptContext = String(autoPromptContext || "");
+  commentEl.dataset.autoPromptContext = promptContext;
+  commentEl.value = mergeAiSuggestPromptContext(commentDefault, promptContext);
+  if (disableEnterSubmit) {
+    commentEl.dataset.disableEnterSubmit = "1";
+  } else {
+    commentEl.dataset.disableEnterSubmit = "";
+  }
   mergeEl.value = "";
   if (statusEl) {
     statusEl.textContent = t("north_star.suggestions.modal_status_idle") || "";
@@ -4430,9 +5733,13 @@ async function openNorthStarSuggestModal({
     const label = selectionLabel ? `<strong>${escapeHtml(t("north_star.suggestions.modal_context_label"))}:</strong> ${escapeHtml(selectionLabel)}` : "";
     contextEl.innerHTML = label || `<span class="subtle">${escapeHtml(t("north_star.unknown"))}</span>`;
   }
-  await ensurePlannerThreadsLoaded();
+  await ensurePlannerThreadsLoaded(true);
   const prefix = threadKey || "";
   let availableThreads = filterAiSuggestThreads(prefix);
+  const rememberedThread = prefix ? pickAiSuggestThread(prefix, "") : "";
+  if (rememberedThread && !availableThreads.some((t) => t.thread === rememberedThread)) {
+    availableThreads = [{ thread: rememberedThread, count: 0, last: "" }].concat(availableThreads);
+  }
   if (!availableThreads.length && prefix) {
     const created = buildAiSuggestThreadId(prefix, "default");
     availableThreads = [{ thread: created, count: 0, last: "" }];
@@ -4445,6 +5752,31 @@ async function openNorthStarSuggestModal({
   }
   let activeThread = threadSelect ? threadSelect.value : availableThreads[0]?.thread || "";
   rememberAiSuggestThread(prefix, activeThread);
+  if (openChatBtn) {
+    if (openChatLabel) {
+      openChatBtn.textContent = String(openChatLabel);
+    } else {
+      openChatBtn.textContent = t("north_star.suggestions.modal_open_chat");
+    }
+    openChatBtn.onclick = () => {
+      if (!activeThread) return;
+      if (typeof onOpenChat === "function") {
+        onOpenChat({
+          thread: activeThread,
+          comment: mergeAiSuggestPromptContext(commentEl.value || "", commentEl.dataset.autoPromptContext || ""),
+          selectionLabel: selectionLabel || "",
+        });
+        close(null);
+        return;
+      }
+      state.plannerThread = activeThread;
+      const threadInput = $("#planner-thread");
+      if (threadInput) threadInput.value = activeThread;
+      navigateToTab("planner-chat");
+      refreshNotes();
+      close(null);
+    };
+  }
   if (historyEl) {
     const items = await loadAiSuggestThreadMessages(activeThread);
     renderAiSuggestHistory(historyEl, items);
@@ -4511,6 +5843,7 @@ async function openNorthStarSuggestModal({
   };
   const onCommentKeydown = (event) => {
     if (event.key !== "Enter") return;
+    if (commentEl.dataset.disableEnterSubmit === "1") return;
     if (event.shiftKey || event.altKey) return;
     if (event.isComposing) return;
     event.preventDefault();
@@ -4530,28 +5863,44 @@ async function openNorthStarSuggestModal({
   };
 
   submitBtn.onclick = async () => {
-    const comment = String(commentEl.value || "").trim();
-    const mergeTarget = String(mergeEl.value || "").trim();
-    const provider = showModelSelect ? String(state.aiSuggestProvider || "") : "";
-    const model = showModelSelect ? String(state.aiSuggestModel || "") : "";
-    const profile = showModelSelect ? String(state.aiSuggestProfile || "") : "";
+    const commentRaw = commentEl.value || "";
+    const autoContext = commentEl.dataset.autoPromptContext || "";
+    const mergedComment = mergeAiSuggestPromptContext(commentRaw, autoContext);
+    const maxLen = Number.isFinite(Number(commentMaxLen)) ? Number(commentMaxLen) : 1200;
+    const commentOpBase = sanitizeOpArgValue(mergedComment, { maxLen, allowNewlines: false });
+    const commentChatBase = sanitizeOpArgValue(mergedComment, { maxLen, allowNewlines: true });
+    const mergeTarget = sanitizeOpArgValue(mergeEl.value, { maxLen: 120 });
+    const provider = showModelSelect ? sanitizeOpArgValue(state.aiSuggestProvider || "", { maxLen: 80 }) : "";
+    const model = showModelSelect ? sanitizeOpArgValue(state.aiSuggestModel || "", { maxLen: 120 }) : "";
+    const profile = showModelSelect ? sanitizeOpArgValue(state.aiSuggestProfile || "", { maxLen: 80 }) : "";
     if (showModelSelect && (!provider || !model)) {
       showToast("Provider/model required.", "warn");
       return;
     }
     const modelHint = provider && model ? `[model_hint=${provider}/${model}]` : "";
-    const commentWithModel = modelHint ? `${comment} ${modelHint}`.trim() : comment;
-    const payload = { comment: commentWithModel, mergeTarget, provider, model, profile };
+    const commentForOp = sanitizeOpArgValue(modelHint ? `${commentOpBase} ${modelHint}`.trim() : commentOpBase, {
+      maxLen: 1200,
+      allowNewlines: false,
+    });
+    const commentWithModel = sanitizeOpArgValue(modelHint ? `${commentChatBase} ${modelHint}`.trim() : commentChatBase, {
+      maxLen: 1200,
+      allowNewlines: true,
+    });
+    const payload = { comment: commentForOp, comment_chat: commentWithModel, mergeTarget, provider, model, profile };
     const threadId = activeThread || (threadSelect ? threadSelect.value : "");
+    payload.thread = threadId;
     const submitTs = Date.now();
     if (threadId) {
-      await postOpInternal("planner-chat-send", {
+      const chatRes = await postOpInternal("planner-chat-send", {
         thread: threadId,
         title: "User",
         body: commentWithModel || "(boş)",
         tags: "user,ns_ai",
         links_json: "[]",
       });
+      if (!chatRes?.res?.ok) {
+        showToast(t("toast.op_failed", { error: chatRes?.data?.error || "CHAT_WRITE_FAILED" }), "warn");
+      }
       const items = await loadAiSuggestThreadMessages(threadId);
       renderAiSuggestHistory(historyEl, items);
     }
@@ -4567,26 +5916,40 @@ async function openNorthStarSuggestModal({
           statusEl.textContent = t("north_star.suggestions.modal_status_done") || "";
           statusEl.classList.remove("warn");
         }
-        const selection = {
-          subjectId: result?.subject_id || "",
-          focusType: result?.focus_type || "",
-          focusId: result?.focus_id || "",
-          sinceTs: submitTs - 2000,
-        };
-        const found = await waitForSuggestions({ ...selection });
-        const suggestionSummary = summarizeSuggestions(found);
-        if (threadId) {
-          await postOpInternal("planner-chat-send", {
-            thread: threadId,
-            title: "Assistant",
-            body:
-              suggestionSummary ||
-              (result && result.note ? String(result.note) : t("north_star.suggestions.thread_sent") || "İstek gönderildi."),
-            tags: "assistant,ns_ai",
-            links_json: "[]",
-          });
-          const items = await loadAiSuggestThreadMessages(threadId);
-          renderAiSuggestHistory(historyEl, items);
+        if (skipSuggestionWait) {
+          if (threadId && result && result.note) {
+            await postOpInternal("planner-chat-send", {
+              thread: threadId,
+              title: "Assistant",
+              body: String(result.note),
+              tags: "assistant,ns_ai",
+              links_json: "[]",
+            });
+            const items = await loadAiSuggestThreadMessages(threadId);
+            renderAiSuggestHistory(historyEl, items);
+          }
+        } else {
+          const selection = {
+            subjectId: result?.subject_id || "",
+            focusType: result?.focus_type || "",
+            focusId: result?.focus_id || "",
+            sinceTs: submitTs - 2000,
+          };
+          const found = await waitForSuggestions({ ...selection });
+          const suggestionSummary = summarizeSuggestions(found);
+          if (threadId) {
+            await postOpInternal("planner-chat-send", {
+              thread: threadId,
+              title: "Assistant",
+              body:
+                suggestionSummary ||
+                (result && result.note ? String(result.note) : t("north_star.suggestions.thread_sent") || "İstek gönderildi."),
+              tags: "assistant,ns_ai",
+              links_json: "[]",
+            });
+            const items = await loadAiSuggestThreadMessages(threadId);
+            renderAiSuggestHistory(historyEl, items);
+          }
         }
       } catch (err) {
         if (statusEl) {
@@ -4637,25 +6000,31 @@ function attachNorthStarSuggestionHandlers() {
     seedBtn.onclick = async () => {
       const subjectId = String(getPrimaryMechanismsSubjectFilter() || "").trim();
       const subjectLabel = subjectId ? getMechanismsSubjectLabel(subjectId) || subjectId : "";
+      const autoPromptContext = buildAiSuggestPromptContext({ subjectLabel, subjectId });
       const selectionLabel = subjectLabel
         ? `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`
         : "";
       const modalResult = await openNorthStarSuggestModal({
         title: t("north_star.suggestions.seed_btn"),
         hint: t("north_star.suggestions.seed_confirm"),
+        promptIntent: t("north_star.suggestions.modal_intent_seed"),
         selectionLabel,
         showMergeTarget: false,
         showModelSelect: true,
         profileDefault: resolveSuggestProfileDefault("seed"),
         threadKey: getAiSuggestThreadPrefix(subjectId, "subject", subjectId),
         threadLabel: subjectId ? `${subjectId} · seed` : "",
+        autoPromptContext,
         keepOpenOnSubmit: true,
         onSubmit: async (payload) => {
-          await postOp("north-star-theme-seed", {
-            subject_id: subjectId,
-            provider_id: payload.provider || "",
-            model: payload.model || "",
-          });
+          ensureOpOk(
+            await postOp("north-star-theme-seed", {
+              subject_id: subjectId,
+              provider_id: sanitizeOpArgValue(payload.provider || "", { maxLen: 80 }),
+              model: sanitizeOpArgValue(payload.model || "", { maxLen: 120 }),
+            }),
+            "north-star-theme-seed",
+          );
           await refreshNorthStar();
           return {
             note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
@@ -4673,25 +6042,31 @@ function attachNorthStarSuggestionHandlers() {
     consultBtn.onclick = async () => {
       const subjectId = String(getPrimaryMechanismsSubjectFilter() || "").trim();
       const subjectLabel = subjectId ? getMechanismsSubjectLabel(subjectId) || subjectId : "";
+      const autoPromptContext = buildAiSuggestPromptContext({ subjectLabel, subjectId });
       const selectionLabel = subjectLabel
         ? `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`
         : "";
       const modalResult = await openNorthStarSuggestModal({
         title: t("north_star.suggestions.consult_btn"),
         hint: t("north_star.suggestions.modal_hint"),
+        promptIntent: t("north_star.suggestions.modal_intent_consult"),
         selectionLabel,
         showMergeTarget: false,
         showModelSelect: true,
         profileDefault: resolveSuggestProfileDefault("consult"),
         threadKey: getAiSuggestThreadPrefix(subjectId, "subject", subjectId),
         threadLabel: subjectId ? `${subjectId} · consult` : "",
+        autoPromptContext,
         keepOpenOnSubmit: true,
         onSubmit: async (payload) => {
-          await postOp("north-star-theme-consult", {
-            subject_id: subjectId,
-            providers: payload.provider || "",
-            comment: payload.comment || "",
-          });
+          ensureOpOk(
+            await postOp("north-star-theme-consult", {
+              subject_id: subjectId,
+              providers: sanitizeOpArgValue(payload.provider || "", { maxLen: 120 }),
+              comment: payload.comment || "",
+            }),
+            "north-star-theme-consult",
+          );
           await refreshNorthStar();
           return {
             note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
@@ -4721,6 +6096,12 @@ function attachNorthStarSuggestionHandlers() {
       const subjectLabel = btn.dataset.aiSubjectLabel || btn.dataset.aiLabel || subjectId;
       const themeLabel = btn.dataset.aiTheme || "";
       const subthemeLabel = btn.dataset.aiSubtheme || "";
+      const autoPromptContext = buildAiSuggestPromptContext({
+        subjectLabel,
+        subjectId,
+        themeLabel,
+        subthemeLabel,
+      });
       let selectionLabel = "";
       if (focusType === "subtheme") {
         selectionLabel = `${t("north_star.suggestions.modal_context_subject")}: ${subjectLabel}`;
@@ -4735,21 +6116,26 @@ function attachNorthStarSuggestionHandlers() {
       const modalResult = await openNorthStarSuggestModal({
         title: t("north_star.suggestions.modal_title"),
         hint: t("north_star.suggestions.modal_hint"),
+        promptIntent: t("north_star.suggestions.modal_intent_consult"),
         selectionLabel,
         showMergeTarget: false,
         showModelSelect: true,
         profileDefault: resolveSuggestProfileDefault(focusType || "consult"),
         threadKey: getAiSuggestThreadPrefix(subjectId, focusType, focusId),
         threadLabel: selectionLabel,
+        autoPromptContext,
         keepOpenOnSubmit: true,
         onSubmit: async (payload) => {
-          await postOp("north-star-theme-consult", {
-            subject_id: subjectId,
-            providers: payload.provider || "",
-            focus_type: focusType,
-            focus_id: focusId,
-            comment: payload.comment || "",
-          });
+          ensureOpOk(
+            await postOp("north-star-theme-consult", {
+              subject_id: subjectId,
+              providers: sanitizeOpArgValue(payload.provider || "", { maxLen: 120 }),
+              focus_type: sanitizeOpArgValue(focusType, { maxLen: 80 }),
+              focus_id: sanitizeOpArgValue(focusId, { maxLen: 120 }),
+              comment: payload.comment || "",
+            }),
+            "north-star-theme-consult",
+          );
           await refreshNorthStar();
           return {
             note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
@@ -4760,6 +6146,23 @@ function attachNorthStarSuggestionHandlers() {
         },
       });
       if (!modalResult) return;
+    });
+  });
+  $$("[data-findings-transfer]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      if (String(btn.dataset.findingsTransferDisabled || "") === "1" || btn.classList.contains("is-disabled")) return;
+      const subjectId = String(btn.dataset.findingsSubjectId || "").trim();
+      const themeLabel = String(btn.dataset.findingsTheme || "").trim();
+      const subthemeLabel = String(btn.dataset.findingsSubtheme || "").trim();
+      const targetLabel = String(
+        btn.dataset.findingsTargetLabel || subthemeLabel || themeLabel || subjectId || t("north_star.unknown")
+      ).trim();
+      applyMechanismTransferToFindings({ subjectId, themeLabel, subthemeLabel });
+      showToast(t("north_star.mechanisms.transfer_done", { target: targetLabel || t("north_star.unknown") }), "ok");
     });
   });
   $$("[data-suggest-action]").forEach((btn) => {
@@ -4779,12 +6182,15 @@ function attachNorthStarSuggestionHandlers() {
         showToast(t("north_star.suggestions.merge_prompt"), "warn");
         return;
       }
-      await postOp("north-star-theme-suggestion-apply", {
-        suggestion_id: suggestionId,
-        action,
-        comment,
-        merge_target: mergeTarget,
-      });
+      ensureOpOk(
+        await postOp("north-star-theme-suggestion-apply", {
+          suggestion_id: suggestionId,
+          action,
+          comment,
+          merge_target: mergeTarget,
+        }),
+        "north-star-theme-suggestion-apply",
+      );
       await refreshNorthStar();
     });
   });
@@ -4794,26 +6200,38 @@ function attachNorthStarSuggestionHandlers() {
       const focusType = btn.dataset.aiType || "";
       const focusId = btn.dataset.aiId || "";
       const targetLabel = btn.dataset.aiLabel || focusId;
+      const subjectLabel = subjectId ? getMechanismsSubjectLabel(subjectId) || subjectId : "";
+      const autoPromptContext = buildAiSuggestPromptContext({
+        subjectLabel,
+        subjectId,
+        themeLabel: focusType === "theme" ? targetLabel : "",
+        subthemeLabel: focusType === "subtheme" ? targetLabel : "",
+      });
       let selectionLabel = "";
       if (subjectId) selectionLabel = `${t("north_star.suggestions.modal_context_subject")}: ${subjectId}`;
       if (focusType) selectionLabel += ` · ${t("north_star.suggestions.modal_context_theme")}: ${targetLabel}`;
       const modalResult = await openNorthStarSuggestModal({
         title: t("north_star.suggestions.discuss"),
         hint: t("north_star.suggestions.modal_hint"),
+        promptIntent: t("north_star.suggestions.modal_intent_discuss"),
         selectionLabel,
         showMergeTarget: false,
         showModelSelect: true,
         profileDefault: resolveSuggestProfileDefault("consult"),
         threadKey: getAiSuggestThreadPrefix(subjectId, focusType || "theme", focusId || targetLabel),
+        autoPromptContext,
         keepOpenOnSubmit: true,
         onSubmit: async (payload) => {
-          await postOp("north-star-theme-consult", {
-            subject_id: subjectId,
-            providers: payload.provider || "",
-            focus_type: focusType || "theme",
-            focus_id: focusId || targetLabel,
-            comment: payload.comment || "",
-          });
+          ensureOpOk(
+            await postOp("north-star-theme-consult", {
+              subject_id: subjectId,
+              providers: sanitizeOpArgValue(payload.provider || "", { maxLen: 120 }),
+              focus_type: sanitizeOpArgValue(focusType || "theme", { maxLen: 80 }),
+              focus_id: sanitizeOpArgValue(focusId || targetLabel, { maxLen: 120 }),
+              comment: payload.comment || "",
+            }),
+            "north-star-theme-consult",
+          );
           await refreshNorthStar();
           return {
             note: t("north_star.suggestions.thread_sent") || "İstek gönderildi.",
@@ -4826,6 +6244,325 @@ function attachNorthStarSuggestionHandlers() {
       if (!modalResult) return;
     });
   });
+}
+
+
+function buildCatalogThreadId(subject) {
+  const safe = _threadSafePart(subject || "");
+  const base = safe ? `catalog.${safe}` : "catalog";
+  return _trimThreadId(base);
+}
+
+function applySubjectToPrompt(template, subject) {
+  const subjectText = normalizeCatalogSubject(subject);
+  if (!template) return "";
+  return String(template)
+    .replace(/\$\{subject_id\}/g, subjectText)
+    .replace(/\{subject_id\}/g, subjectText);
+}
+
+function extractPromptFromReport(text) {
+  const raw = String(text || "");
+  if (!raw) return "";
+  const start = raw.indexOf("```");
+  if (start === -1) return raw.trim();
+  const end = raw.indexOf("```", start + 3);
+  if (end === -1) return raw.trim();
+  return raw.slice(start + 3, end).trim();
+}
+
+function pickPromptFromRegistry(payload, promptId) {
+  const registry = unwrap(payload || {}) || {};
+  const versions = Array.isArray(registry.versions) ? registry.versions : [];
+  const activeId = String(registry.active_version_id || "").trim();
+  const version = versions.find((v) => String(v?.version_id || "") === activeId) || versions[0] || {};
+  const prompts = version.prompts || {};
+  const entry = prompts[promptId] || null;
+  return entry && entry.user_template ? String(entry.user_template) : "";
+}
+
+async function loadCatalogPromptTemplate() {
+  if (state.catalogPromptTemplate) {
+    return { template: state.catalogPromptTemplate, source: state.catalogPromptSource };
+  }
+  const reportPayload = await fetchOptionalJson(northStarPromptReportPath);
+  const reportText = String(reportPayload?.data?.text || reportPayload?.text || "");
+  if (reportText) {
+    const extracted = extractPromptFromReport(reportText) || reportText.trim();
+    if (extracted) {
+      state.catalogPromptTemplate = extracted;
+      state.catalogPromptSource = "report:v0.4.8";
+      return { template: extracted, source: state.catalogPromptSource };
+    }
+  }
+  const reportRaw = await fetchReportText(northStarPromptReportPath);
+  if (reportRaw) {
+    const extracted = extractPromptFromReport(reportRaw) || reportRaw.trim();
+    if (extracted) {
+      state.catalogPromptTemplate = extracted;
+      state.catalogPromptSource = "report:v0.4.8";
+      return { template: extracted, source: state.catalogPromptSource };
+    }
+  }
+  const registry = await fetchOptionalJson(promptRegistryPath);
+  const registryPrompt = pickPromptFromRegistry(registry, "north_star.seed");
+  if (registryPrompt) {
+    state.catalogPromptTemplate = registryPrompt;
+    state.catalogPromptSource = "prompt_registry:north_star.seed";
+    return { template: registryPrompt, source: state.catalogPromptSource };
+  }
+  return { template: "", source: "" };
+}
+
+async function buildCatalogPrompt(subject) {
+  const subjectText = normalizeCatalogSubject(subject);
+  const info = await loadCatalogPromptTemplate();
+  if (!info.template) return { text: "", source: info.source || "" };
+  return { text: applySubjectToPrompt(info.template, subjectText), source: info.source || "" };
+}
+
+function renderCatalogDraft() {
+  const input = $("#ns-catalog-subject");
+  const statusEl = $("#ns-catalog-status");
+  const metaEl = $("#ns-catalog-meta");
+  const subject = state.catalogDraft?.subject || "";
+  const thread = subject ? buildCatalogThreadId(subject) : "";
+  if (input && document.activeElement !== input) input.value = subject;
+  if (statusEl) statusEl.textContent = t("north_star.catalog_create.status_ready");
+  if (metaEl) {
+    metaEl.textContent = subject ? t("north_star.catalog_create.meta_saved", { subject, thread }) : "";
+  }
+}
+
+function saveCatalogDraft(subject) {
+  const subjectText = normalizeCatalogSubject(subject);
+  if (!subjectText) return null;
+  const thread = buildCatalogThreadId(subjectText);
+  const draft = { subject: subjectText, thread };
+  state.catalogDraft = draft;
+  writeCatalogDraftToStorage(draft);
+  renderCatalogDraft();
+  renderPlannerChatSuggestions();
+  return draft;
+}
+
+function prefillPlannerChatComposer({ title, body, tags, thread }) {
+  const titleEl = $("#note-title");
+  const bodyEl = $("#note-body");
+  const tagsEl = $("#note-tags");
+  const threadEl = $("#planner-thread");
+  if (!titleEl || !bodyEl || !tagsEl) {
+    showToast(t("toast.notes_composer_unavailable"), "fail");
+    return;
+  }
+  titleEl.value = title || "";
+  bodyEl.value = body || "";
+  tagsEl.value = tags || "";
+  state.noteLinks = [];
+  renderNoteLinks();
+  if (threadEl) {
+    threadEl.value = thread || state.plannerThread || "default";
+    state.plannerThread = threadEl.value;
+  }
+  navigateToTab("planner-chat");
+  bodyEl.focus();
+  showToast(t("toast.catalog_prefilled"), "ok");
+}
+
+const CATALOG_CHAT_SUGGESTIONS = [
+  {
+    id: "seed_first",
+    label: "1) Reference: ilk üretim (detaylı seed)",
+    prompt: "{{subject}}\nPrompt v0.4.8'e göre ilk tema/subtheme setini DETAYLI ve kapsamlı üret. Gerekirse tema yoğunluğunu \"maksimal\" seç ve kısa gerekçe ekle.",
+  },
+  {
+    id: "consult_all",
+    label: "2) Reference: 6 sağlayıcı istişare",
+    prompt: "{{subject}}\n6 sağlayıcı (openai, google, claude, deepseek, qwen, xai) ile istişare başlat. Her sağlayıcı için ayrı özet çıkar.",
+  },
+  {
+    id: "consolidate_review",
+    label: "3) Reference: konsolidasyon & çakışma",
+    prompt: "{{subject}}\nMüzakere çıktılarını birleştir; çakışmaları/tekrarları çıkar ve konsolidasyon önerisi yaz.",
+  },
+  {
+    id: "merge_review",
+    label: "4) Reference: kabul/ret/merge",
+    prompt: "{{subject}}\nKabul/ret/merge karar listesi üret. Her karar için kısa gerekçe ekle.",
+  },
+  {
+    id: "apply_active",
+    label: "5) Reference: ACTIVE güncelle",
+    prompt: "{{subject}}\nOnaylanan katalogu ACTIVE set olarak registry'ye bağla; versiyon notu yaz.",
+  },
+  {
+    id: "ui_sync",
+    label: "6) Reference: UI doğrulama/yayın",
+    prompt: "{{subject}}\nUI'da aktif katalog görünümünü güncelle ve doğrula.",
+  },
+  {
+    id: "assessment_run",
+    label: "7) Assessment: mevcut durumu ölç",
+    prompt: "{{subject}}\nMevcut sistemi referansa göre ölç. Hangi konu/tema/alt tema karşılanıyor, hangileri eksik net ve izlenebilir bir özet üret.",
+  },
+  {
+    id: "gap_extract",
+    label: "8) Gap: sapmaları çıkar",
+    prompt: "{{subject}}\nAssessment sonucundan sapmaları (gap) çıkar. Her gap için etki, risk sınıfı, efor ve kısa gerekçe yaz.",
+  },
+  {
+    id: "closure_plan",
+    label: "9) Gap->PDCA: kapatma planı",
+    prompt: "{{subject}}\nGap listesinden deterministik Top 5 aksiyon çıkar. Her aksiyon için owner, sıra, kapanış kanıtı ve recheck adımını yaz.",
+  },
+];
+
+function renderPlannerChatSuggestions() {
+  const container = $("#planner-chat-suggestions");
+  const titleEl = $("#planner-chat-suggestions-title");
+  if (!container) return;
+  if (titleEl) titleEl.style.display = CATALOG_CHAT_SUGGESTIONS.length ? "block" : "none";
+  const subject = state.catalogDraft?.subject || "";
+  const subjectLine = subject ? `Konu: ${subject}` : "Konu: (belirtilmedi)";
+  const items = CATALOG_CHAT_SUGGESTIONS.map((item) => {
+    const prompt = String(item.prompt || "").replace(/\{\{subject\}\}/g, subjectLine);
+    return `<button class="btn ghost small" type="button" data-chat-suggest="${escapeHtml(item.id)}" data-chat-prompt="${encodeTag(prompt)}">${escapeHtml(item.label)}</button>`;
+  });
+  container.innerHTML = items.join(" ");
+  $$('[data-chat-suggest]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const bodyEl = $("#note-body");
+      const titleEl = $("#note-title");
+      const prompt = decodeTag(btn.dataset.chatPrompt || "");
+      if (!bodyEl) return;
+      bodyEl.value = prompt;
+      if (titleEl && !titleEl.value.trim()) {
+        const firstLine = prompt.split(/\r?\n/)[0] || "";
+        titleEl.value = firstLine.slice(0, 80);
+      }
+      bodyEl.focus();
+    });
+  });
+}
+
+async function openCatalogModal(subjectValue) {
+  const subjectText = normalizeCatalogSubject(subjectValue);
+  if (!subjectText) {
+    showToast(t("toast.catalog_subject_required"), "warn");
+    return;
+  }
+  saveCatalogDraft(subjectText);
+  const promptInfo = await buildCatalogPrompt(subjectText);
+  if (!promptInfo.text) {
+    showToast(t("toast.catalog_prompt_missing"), "warn");
+    return;
+  }
+
+  const threadPrefix = buildCatalogThreadId(subjectText);
+  const selectionLabel = `${t("north_star.catalog_create.subject_label")}: ${subjectText}`;
+  const sourceNote = promptInfo.source ? ` • ${promptInfo.source}` : "";
+  const preferredProfile = "REASONING_TEXT";
+  state.aiSuggestProfile = preferredProfile;
+  state.aiSuggestProvider = "";
+  state.aiSuggestModel = "";
+
+  await openNorthStarSuggestModal({
+    title: t("north_star.catalog_create.modal_title"),
+    hint: `${t("north_star.catalog_create.modal_hint")}${sourceNote}`,
+    promptIntent: "Katalog üretimi",
+    selectionLabel,
+    showMergeTarget: false,
+    showModelSelect: true,
+    profileDefault: preferredProfile,
+    threadKey: threadPrefix,
+    defaultComment: promptInfo.text,
+    disableEnterSubmit: true,
+    commentMaxLen: 12000,
+    skipSuggestionWait: true,
+    openChatLabel: t("north_star.catalog_create.modal_open_chat"),
+    onOpenChat: ({ thread, comment }) => {
+      const tags = ["catalog", "north_star", "seed"];
+      const slug = _threadSafePart(subjectText);
+      if (slug) tags.push(`subject:${slug}`);
+      prefillPlannerChatComposer({
+        title: `[CATALOG] ${subjectText}`,
+        body: comment || "",
+        tags: tags.join(","),
+        thread,
+      });
+    },
+    onSubmit: async (payload) => {
+      await ensureChatProviderRegistryLoaded();
+      if (!payload.provider || !payload.model) {
+        showToast("Provider/model required.", "warn");
+        return { note: t("toast.catalog_prompt_ready") || "" };
+      }
+      const prompt = payload.comment_chat || payload.comment || "";
+      if (!prompt.trim()) {
+        showToast(t("toast.title_or_body_required"), "warn");
+        return { note: t("toast.catalog_prompt_ready") || "" };
+      }
+      const thread = String(payload.thread || state.plannerThread || "default");
+      state.plannerThread = thread;
+      const tags = ["catalog", "north_star", "seed"];
+      const slug = _threadSafePart(subjectText);
+      if (slug) tags.push(`subject:${slug}`);
+      const autoTags = buildChatAutoTags();
+      const mergedTags = Array.from(new Set([...tags, ...autoTags]));
+      await postOp("planner-chat-send-llm", {
+        thread,
+        title: `[CATALOG] ${subjectText}`,
+        body: prompt,
+        tags: mergedTags.join(","),
+        provider_id: payload.provider || "",
+        model: payload.model || "",
+        profile: payload.profile || "",
+      });
+      navigateToTab("planner-chat");
+      refreshNotes();
+      showToast(t("toast.catalog_sent"), "ok");
+      return { note: t("toast.catalog_sent") || "İstek gönderildi." };
+    },
+  });
+}
+
+function setupNorthStarCatalogControls() {
+  const subjectInput = $("#ns-catalog-subject");
+  const saveBtn = $("#ns-catalog-save");
+  const createBtn = $("#ns-catalog-create");
+  renderCatalogDraft();
+  if (subjectInput) {
+    subjectInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const subject = normalizeCatalogSubject(subjectInput.value || "");
+      if (!subject) {
+        showToast(t("toast.catalog_subject_required"), "warn");
+        return;
+      }
+      saveCatalogDraft(subject);
+    });
+  }
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => {
+      const subject = normalizeCatalogSubject(subjectInput ? subjectInput.value : "");
+      if (!subject) {
+        showToast(t("toast.catalog_subject_required"), "warn");
+        return;
+      }
+      saveCatalogDraft(subject);
+    });
+  }
+  if (createBtn) {
+    createBtn.addEventListener("click", () => {
+      const subject = normalizeCatalogSubject(subjectInput ? subjectInput.value : "") || state.catalogDraft?.subject || "";
+      if (!subject) {
+        showToast(t("toast.catalog_subject_required"), "warn");
+        return;
+      }
+      openCatalogModal(subject);
+    });
+  }
 }
 
 function normalizeNorthStarFindingDomains(domains) {
@@ -4956,7 +6693,7 @@ function updateNorthStarFindingsFilterOptions(items) {
     const join = getNorthStarJoinForItem(item);
     addOption(themes, join.theme_label);
     addOption(subthemes, join.subtheme_label);
-    addOption(catalogs, String(item?.catalog || ""));
+    addOption(catalogs, deriveNorthStarWorkflowStage(item));
   });
 
   const registryOptions = extractMechanismsRegistryOptions(state.northStarMechanismsRegistry);
@@ -4996,11 +6733,16 @@ function updateNorthStarFindingsFilterOptions(items) {
   }
   state.filterOptions.northStarFindings.theme = Array.from(themes.values()).sort((a, b) => a.localeCompare(b));
   state.filterOptions.northStarFindings.subtheme = Array.from(subthemes.values()).sort((a, b) => a.localeCompare(b));
-  const nextCatalogs = Array.from(catalogs.values())
-    .map((c) => String(c || "").trim())
-    .filter((c) => Boolean(c))
-    .sort((a, b) => a.localeCompare(b));
-  state.filterOptions.northStarFindings.catalog = nextCatalogs.length ? nextCatalogs : state.filterOptions.northStarFindings.catalog;
+  const stageDefaults = ["reference", "assessment", "gap"];
+  const nextCatalogs = Array.from(
+    new Set([
+      ...stageDefaults,
+      ...Array.from(catalogs.values())
+        .map((c) => String(c || "").trim())
+        .filter((c) => Boolean(c)),
+    ])
+  ).sort((a, b) => a.localeCompare(b));
+  state.filterOptions.northStarFindings.catalog = nextCatalogs;
 
   // Prune selections that no longer exist (fail-closed).
   ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
@@ -5038,7 +6780,8 @@ function renderNorthStarFindingsTagSelect(field) {
         return { value: id, label };
       }
       const value = String(opt || "").trim();
-      return { value, label: value };
+      const label = field === "catalog" ? formatNorthStarWorkflowStageLabel(value) : value;
+      return { value, label };
     })
     .filter((opt) => opt.value && !selectedKeys.has(normalizeKey(opt.value)))
     .filter((opt) => (query ? opt.label.toLowerCase().includes(query) : true))
@@ -5063,7 +6806,8 @@ function renderNorthStarFindingsTagSelect(field) {
   tagsEl.innerHTML = selected
     .map((value) => {
       const encoded = encodeTag(value);
-      const label = labelLookup?.get(String(value || "")) || String(value || "");
+      const fallback = field === "catalog" ? formatNorthStarWorkflowStageLabel(value) : String(value || "");
+      const label = labelLookup?.get(String(value || "")) || fallback;
       return `<span class="tag">${escapeHtml(label)}<button data-remove="${encoded}" aria-label="${escapeHtml(t("actions.remove_tag"))}">x</button></span>`;
     })
     .join("");
@@ -5120,11 +6864,46 @@ function renderNorthStarFindingsBadge(status) {
   return `<span class="badge ${cls}">${escapeHtml(norm)}</span>`;
 }
 
+const NORTH_STAR_SOURCE_REFERENCE_KEYS = new Set(["REFERENCE", "TREND", "TREND_CATALOG", "TREND_CATALOG_V1"]);
+const NORTH_STAR_SOURCE_BP_KEYS = new Set(["CAPABILITY", "BP", "BEST_PRACTICE", "BP_CATALOG", "BP_CATALOG_V1"]);
+const NORTH_STAR_SOURCE_ASSESSMENT_KEYS = new Set(["CRITERION", "LENS", "LENS_REQUIREMENT"]);
+
+function normalizeNorthStarWorkflowStage(value) {
+  const norm = normalizeKey(value);
+  if (["REFERENCE", "REF"].includes(norm)) return "reference";
+  if (["ASSESSMENT", "ASSESS", "EVALUATION", "EVAL"].includes(norm)) return "assessment";
+  if (["GAP", "DEVIATION"].includes(norm)) return "gap";
+  return "";
+}
+
+function deriveNorthStarWorkflowStage(item) {
+  const explicit = normalizeNorthStarWorkflowStage(
+    item?.workflow_stage || item?.workflowStage || item?.stage || item?.phase || item?.process_stage || item?.processStage
+  );
+  if (explicit) return explicit;
+
+  const matchNorm = normalizeKey(item?.match_status);
+  if (["NOT_TRIGGERED", "UNKNOWN", "FAIL", "FAILED", "WARN", "WARNING"].includes(matchNorm)) return "gap";
+
+  const catalogNorm = normalizeKey(item?.catalog);
+  if (NORTH_STAR_SOURCE_REFERENCE_KEYS.has(catalogNorm) || NORTH_STAR_SOURCE_BP_KEYS.has(catalogNorm)) return "reference";
+  if (NORTH_STAR_SOURCE_ASSESSMENT_KEYS.has(catalogNorm)) return "assessment";
+  return "assessment";
+}
+
+function formatNorthStarWorkflowStageLabel(raw) {
+  const stage = normalizeNorthStarWorkflowStage(raw);
+  if (stage === "reference") return t("north_star.stage.reference");
+  if (stage === "assessment") return t("north_star.stage.assessment");
+  if (stage === "gap") return t("north_star.stage.gap");
+  return String(raw || "");
+}
+
 function formatNorthStarCatalogLabel(raw) {
   const norm = normalizeKey(raw);
-  if (["REFERENCE", "TREND", "TREND_CATALOG", "TREND_CATALOG_V1"].includes(norm)) return t("north_star.catalog.reference");
-  if (["CAPABILITY", "BP", "BEST_PRACTICE", "BP_CATALOG", "BP_CATALOG_V1"].includes(norm)) return t("north_star.catalog.capability");
-  if (["CRITERION", "LENS", "LENS_REQUIREMENT"].includes(norm)) return t("north_star.catalog.criterion");
+  if (NORTH_STAR_SOURCE_REFERENCE_KEYS.has(norm)) return t("north_star.catalog.reference");
+  if (NORTH_STAR_SOURCE_BP_KEYS.has(norm)) return t("north_star.catalog.capability");
+  if (NORTH_STAR_SOURCE_ASSESSMENT_KEYS.has(norm)) return t("north_star.catalog.criterion");
   return String(raw || "");
 }
 
@@ -5203,6 +6982,50 @@ function getMechanismsStatusLabel(status) {
   if (norm === "HIDDEN") return t("north_star.mechanisms.status.hidden");
   if (norm === "ACTIVE") return t("north_star.mechanisms.status.active");
   return norm || t("north_star.unknown");
+}
+
+function getMechanismsSubjectById(subjectId) {
+  const targetId = String(subjectId || "").trim();
+  if (!targetId) return null;
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  return subjects.find((entry) => String(entry?.subject_id || "").trim() === targetId) || null;
+}
+
+function getMechanismsSubjectTransferState(subject) {
+  const status = String(subject?.status || "").toUpperCase();
+  const isActive = status === "ACTIVE";
+  const approvedAt = String(subject?.approved_at || "").trim();
+  const isApproved = Boolean(approvedAt);
+  const reasons = [];
+  if (!isActive) reasons.push(t("north_star.mechanisms.transfer_reason_not_active"));
+  if (!isApproved) reasons.push(t("north_star.mechanisms.transfer_reason_not_approved"));
+  const blockedTitle = reasons.length
+    ? t("north_star.mechanisms.transfer_blocked_detail", { reasons: reasons.join(" · ") })
+    : "";
+  return { enabled: isActive && isApproved, blockedTitle, isActive, isApproved };
+}
+
+function renderFindingsTransferButton({
+  enabled = false,
+  subjectId = "",
+  themeLabel = "",
+  subthemeLabel = "",
+  targetLabel = "",
+  buttonLabel = "",
+  enabledTitle = "",
+  disabledTitle = "",
+} = {}) {
+  const subjectNorm = String(subjectId || "").trim();
+  if (!subjectNorm) return "";
+  const cls = `btn ghost tiny${enabled ? "" : " is-disabled"}`;
+  const title = enabled ? String(enabledTitle || "") : String(disabledTitle || enabledTitle || "");
+  const disabledAttrs = enabled ? "" : ` data-findings-transfer-disabled="1" aria-disabled="true"`;
+  const target = String(targetLabel || "").trim() || t("north_star.unknown");
+  const lockIcon = enabled
+    ? ""
+    : '<span class="transfer-lock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 8V6a3 3 0 0 1 6 0v3H9zm3 4a2 2 0 0 1 1 3.732V19h-2v-2.268A2 2 0 0 1 12 13z"></path></svg></span>';
+  return `<button class="${cls}" type="button" data-findings-transfer="1" data-findings-subject-id="${escapeHtml(subjectNorm)}" data-findings-theme="${escapeHtml(String(themeLabel || "").trim())}" data-findings-subtheme="${escapeHtml(String(subthemeLabel || "").trim())}" data-findings-target-label="${escapeHtml(target)}" title="${escapeHtml(title)}"${disabledAttrs}>${lockIcon}${escapeHtml(buttonLabel || t("north_star.mechanisms.transfer_btn"))}</button>`;
 }
 
 function mechanismSubjectMatchesSearch(subject, query) {
@@ -5312,6 +7135,230 @@ function getNorthStarFindingKey(item) {
   return lens ? `${lens}:${catalog}:${id}` : `${catalog}:${id}`;
 }
 
+function extractNorthStarFindingSubjectRaw(item) {
+  return (
+    item?.subject ||
+    item?.subject_id ||
+    (Array.isArray(item?.tags)
+      ? item.tags.find((t) => String(t || "").toLowerCase().startsWith("subject:"))?.split(":").slice(1).join(":")
+      : "")
+  );
+}
+
+function extractNorthStarFindingSubjectNorm(item) {
+  return normalizeNorthStarFindingSubject(extractNorthStarFindingSubjectRaw(item));
+}
+
+function normalizeNorthStarFindingsTransferScope(scope = {}) {
+  return {
+    subject_id: normalizeValue(scope.subject_id || scope.subjectId || ""),
+    theme_label: normalizeValue(scope.theme_label || scope.themeLabel || ""),
+    subtheme_label: normalizeValue(scope.subtheme_label || scope.subthemeLabel || ""),
+  };
+}
+
+function getNorthStarFindingsTransferScopeKey(scope = {}) {
+  const normalized = normalizeNorthStarFindingsTransferScope(scope);
+  return [normalized.subject_id, normalized.theme_label, normalized.subtheme_label].map((value) => normalizeKey(value)).join("|");
+}
+
+function getNorthStarFindingsTransferScopes() {
+  const scopes = Array.isArray(state.northStarFindingsTransferScopes) ? state.northStarFindingsTransferScopes : [];
+  const seen = new Set();
+  const normalized = [];
+  scopes.forEach((scope) => {
+    const current = normalizeNorthStarFindingsTransferScope(scope);
+    if (!current.subject_id) return;
+    const subject = getMechanismsSubjectById(current.subject_id);
+    const transferState = getMechanismsSubjectTransferState(subject || {});
+    if (!subject || !transferState.enabled) return;
+    const key = getNorthStarFindingsTransferScopeKey(current);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    normalized.push(current);
+  });
+  state.northStarFindingsTransferScopes = normalized;
+  return normalized;
+}
+
+function addNorthStarFindingsTransferScope(scope = {}) {
+  const normalized = normalizeNorthStarFindingsTransferScope(scope);
+  if (!normalized.subject_id) return false;
+  const existing = getNorthStarFindingsTransferScopes();
+  const key = getNorthStarFindingsTransferScopeKey(normalized);
+  if (existing.some((entry) => getNorthStarFindingsTransferScopeKey(entry) === key)) {
+    state.northStarFindingsTransferScopes = existing;
+    return false;
+  }
+  state.northStarFindingsTransferScopes = [...existing, normalized];
+  return true;
+}
+
+function removeNorthStarFindingsTransferScope(scopeKey) {
+  const target = String(scopeKey || "").trim();
+  if (!target) return false;
+  const existing = getNorthStarFindingsTransferScopes();
+  const next = existing.filter((scope) => getNorthStarFindingsTransferScopeKey(scope) !== target);
+  if (next.length === existing.length) {
+    state.northStarFindingsTransferScopes = existing;
+    return false;
+  }
+  state.northStarFindingsTransferScopes = next;
+  return true;
+}
+
+function formatNorthStarFindingsTransferScopeLabel(scope) {
+  const current = normalizeNorthStarFindingsTransferScope(scope);
+  const subjectLabel = getMechanismsSubjectLabel(current.subject_id) || current.subject_id || t("north_star.unknown");
+  const parts = [subjectLabel];
+  if (current.theme_label) parts.push(current.theme_label);
+  if (current.subtheme_label) parts.push(current.subtheme_label);
+  return parts.join(" > ");
+}
+
+function renderNorthStarFindingsTransferScopes() {
+  const container = $("#ns-findings-transfer-scopes");
+  if (!container) return;
+  const scopes = getNorthStarFindingsTransferScopes();
+  const title = t("north_star.findings.transfer_scopes.title");
+  if (!scopes.length) {
+    container.innerHTML = `<span class="subtle">${escapeHtml(title)}: ${escapeHtml(t("north_star.findings.transfer_scopes.empty"))}</span>`;
+    return;
+  }
+  const removeTitle = t("north_star.findings.transfer_scopes.remove_title");
+  const chips = scopes
+    .map((scope) => {
+      const key = encodeTag(getNorthStarFindingsTransferScopeKey(scope));
+      const label = formatNorthStarFindingsTransferScopeLabel(scope);
+      return `<span class="badge" style="display:inline-flex;align-items:center;gap:6px;">${escapeHtml(label)}<button type="button" data-findings-scope-remove="${key}" title="${escapeHtml(removeTitle)}" aria-label="${escapeHtml(removeTitle)}" style="border:0;background:transparent;color:inherit;cursor:pointer;padding:0;line-height:1;font-size:12px;">x</button></span>`;
+    })
+    .join(" ");
+  container.innerHTML = `<span class="subtle">${escapeHtml(`${title} (${scopes.length})`)}:</span> <span class="row" style="display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;">${chips}</span>`;
+  container.querySelectorAll("[data-findings-scope-remove]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = decodeTag(btn.dataset.findingsScopeRemove || "");
+      if (!removeNorthStarFindingsTransferScope(key)) return;
+      const findingsByLens = buildNorthStarFindingsByLensFromSource();
+      mountNorthStarFindingsByLens(findingsByLens, {
+        preferredKey: state.northStarFindingsLensName || NORTH_STAR_FINDINGS_ALL_LENSES_KEY,
+      });
+      showToast(t("north_star.findings.transfer_scopes.removed"), "ok");
+    });
+  });
+}
+
+function findingMatchesNorthStarTransferScope(item, scope) {
+  const current = normalizeNorthStarFindingsTransferScope(scope);
+  if (!current.subject_id) return false;
+  const subjectNorm = extractNorthStarFindingSubjectNorm(item);
+  if (normalizeKey(subjectNorm) !== normalizeKey(current.subject_id)) return false;
+
+  if (!current.theme_label && !current.subtheme_label) return true;
+
+  const join = getNorthStarJoinForItem(item);
+  if (current.theme_label && normalizeKey(join.theme_label) !== normalizeKey(current.theme_label)) return false;
+  if (current.subtheme_label && normalizeKey(join.subtheme_label) !== normalizeKey(current.subtheme_label)) return false;
+  return true;
+}
+
+function summarizeNorthStarFindingsItems(items) {
+  const rows = Array.isArray(items) ? items : [];
+  const norm = (x) => String(x || "").toUpperCase();
+  return {
+    total: rows.length,
+    triggered: rows.filter((x) => norm(x?.match_status) === "TRIGGERED").length,
+    not_triggered: rows.filter((x) => norm(x?.match_status) === "NOT_TRIGGERED").length,
+    unknown: rows.filter((x) => norm(x?.match_status) === "UNKNOWN").length,
+  };
+}
+
+function applyNorthStarFindingsTransferGate(sourceByLens) {
+  const source = sourceByLens && typeof sourceByLens === "object" ? sourceByLens : {};
+  const scopes = getNorthStarFindingsTransferScopes();
+  const hasScopes = scopes.length > 0;
+  const gated = {};
+  Object.entries(source).forEach(([lensName, findings]) => {
+    if (lensName === NORTH_STAR_FINDINGS_ALL_LENSES_KEY) return;
+    const sourceItems = Array.isArray(findings?.items) ? findings.items : [];
+    const items = hasScopes
+      ? sourceItems.filter((item) => scopes.some((scope) => findingMatchesNorthStarTransferScope(item, scope)))
+      : [];
+    gated[lensName] = {
+      ...(findings && typeof findings === "object" ? findings : {}),
+      summary: summarizeNorthStarFindingsItems(items),
+      items,
+    };
+  });
+  return gated;
+}
+
+function buildNorthStarFindingsByLensFromSource() {
+  const sourceByLens = state.northStarFindingsSourceByLens && typeof state.northStarFindingsSourceByLens === "object"
+    ? state.northStarFindingsSourceByLens
+    : {};
+  const byLens = applyNorthStarFindingsTransferGate(sourceByLens);
+  const allItems = [];
+  Object.keys(byLens)
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((lensName) => {
+      const items = Array.isArray(byLens[lensName]?.items) ? byLens[lensName].items : [];
+      items.forEach((item) => {
+        if (!item || typeof item !== "object") return;
+        allItems.push({ ...item, lens: lensName });
+      });
+    });
+  byLens[NORTH_STAR_FINDINGS_ALL_LENSES_KEY] = {
+    version: "v1",
+    summary: summarizeNorthStarFindingsItems(allItems),
+    items: allItems,
+  };
+  return byLens;
+}
+
+function mountNorthStarFindingsByLens(findingsByLens, { preferredKey = null } = {}) {
+  const byLens = findingsByLens && typeof findingsByLens === "object" ? findingsByLens : {};
+  state.northStarFindingsByLens = byLens;
+  renderNorthStarFindingsTransferScopes();
+
+  const findingsLensSelect = $("#ns-findings-lens");
+  const availableFindingsLenses = Object.keys(byLens)
+    .filter((name) => name !== NORTH_STAR_FINDINGS_ALL_LENSES_KEY)
+    .sort((a, b) => a.localeCompare(b));
+  const options = [
+    { key: NORTH_STAR_FINDINGS_ALL_LENSES_KEY, label: t("north_star.all_lenses") },
+    ...availableFindingsLenses.map((name) => ({ key: name, label: name })),
+  ];
+  const explicitPreferred = String(preferredKey || "").trim();
+  const preferredFromState = String(state.northStarFindingsLensName || "").trim();
+  const selectedKey = options.some((opt) => opt.key === explicitPreferred)
+    ? explicitPreferred
+    : options.some((opt) => opt.key === preferredFromState)
+      ? preferredFromState
+      : NORTH_STAR_FINDINGS_ALL_LENSES_KEY;
+  const selectedLabel = selectedKey === NORTH_STAR_FINDINGS_ALL_LENSES_KEY ? t("north_star.all_lenses") : selectedKey;
+  const selectedFindings = byLens[selectedKey] || byLens[NORTH_STAR_FINDINGS_ALL_LENSES_KEY] || null;
+
+  if (findingsLensSelect) {
+    findingsLensSelect.innerHTML = options.length
+      ? options.map((opt) => `<option value="${escapeHtml(opt.key)}">${escapeHtml(opt.label)}</option>`).join("")
+      : `<option value="">${escapeHtml(t("north_star.no_findings"))}</option>`;
+    findingsLensSelect.value = selectedKey;
+    if (!findingsLensSelect.dataset.bound) {
+      findingsLensSelect.addEventListener("change", () => {
+        const key = String(findingsLensSelect.value || "");
+        const label = key === NORTH_STAR_FINDINGS_ALL_LENSES_KEY ? t("north_star.all_lenses") : key;
+        const picked = key ? state.northStarFindingsByLens?.[key] : null;
+        setupNorthStarFindingsUi(picked, { lensKey: key, lensLabel: label });
+      });
+      findingsLensSelect.dataset.bound = "1";
+    }
+  }
+
+  setupNorthStarFindingsUi(selectedFindings, { lensKey: selectedKey, lensLabel: selectedLabel });
+}
+
 function renderNorthStarFindings() {
   const findings = state.northStarFindings;
   const itemsRaw = Array.isArray(findings?.items) ? findings.items : [];
@@ -5336,16 +7383,12 @@ function renderNorthStarFindings() {
 
   let items = itemsRaw.map((item) => {
     const topicNorm = normalizeNorthStarFindingTopic(item?.topic);
-    const subjectRaw =
-      item?.subject ||
-      item?.subject_id ||
-      (Array.isArray(item?.tags)
-        ? item.tags.find((t) => String(t || "").toLowerCase().startsWith("subject:"))?.split(":").slice(1).join(":")
-        : "");
-    const subjectNorm = normalizeNorthStarFindingSubject(subjectRaw);
+    const subjectNorm = extractNorthStarFindingSubjectNorm(item);
     const subjectLabelFromRegistry = getMechanismsSubjectLabel(subjectNorm);
     const join = getNorthStarJoinForItem(item);
-    const catalogLabel = formatNorthStarCatalogLabel(item?.catalog);
+    const workflowStage = deriveNorthStarWorkflowStage(item);
+    const workflowStageLabel = formatNorthStarWorkflowStageLabel(workflowStage);
+    const sourceLabel = formatNorthStarCatalogLabel(item?.catalog);
     return {
       ...item,
       _topic_norm: topicNorm,
@@ -5358,7 +7401,9 @@ function renderNorthStarFindings() {
       _subtheme_label: join.subtheme_label,
       _join_miss: join.miss,
       _join_fallback: join.fallback,
-      _catalog_label: catalogLabel,
+      _catalog_value: workflowStage,
+      _catalog_label: workflowStageLabel,
+      _source_label: sourceLabel,
     };
   });
 
@@ -5384,7 +7429,7 @@ function renderNorthStarFindings() {
   }
   if (catalog.length) {
     const catalogKeys = new Set(catalog.map((val) => normalizeKey(val)));
-    items = items.filter((item) => catalogKeys.has(normalizeKey(item.catalog)));
+    items = items.filter((item) => catalogKeys.has(normalizeKey(item._catalog_value)));
   }
   if (search) {
     const q = search.toUpperCase();
@@ -5392,6 +7437,8 @@ function renderNorthStarFindings() {
       const hay = [
         item.catalog,
         item._catalog_label,
+        item._catalog_value,
+        item._source_label,
         item.id,
         item.title,
         item._topic_norm,
@@ -5418,7 +7465,7 @@ function renderNorthStarFindings() {
     }
     const t = String(a._topic_norm || "").localeCompare(String(b._topic_norm || ""));
     if (t !== 0) return t;
-    const c = String(a.catalog || "").localeCompare(String(b.catalog || ""));
+    const c = String(a._catalog_value || "").localeCompare(String(b._catalog_value || ""));
     if (c !== 0) return c;
     return String(a.id || "").localeCompare(String(b.id || ""));
   });
@@ -5458,7 +7505,17 @@ function renderNorthStarFindings() {
   renderNorthStarJoinBanner(joinStats);
 
   if (items.length === 0) {
-    tableEl.innerHTML = `<div class="empty">${escapeHtml(t("empty.no_findings_match"))}</div>`;
+    const hasTransferScope = getNorthStarFindingsTransferScopes().length > 0;
+    const sourceByLens = state.northStarFindingsSourceByLens && typeof state.northStarFindingsSourceByLens === "object"
+      ? state.northStarFindingsSourceByLens
+      : {};
+    const sourceHasAny = Object.keys(sourceByLens).some((lensName) => {
+      if (lensName === NORTH_STAR_FINDINGS_ALL_LENSES_KEY) return false;
+      const lensItems = Array.isArray(sourceByLens[lensName]?.items) ? sourceByLens[lensName].items : [];
+      return lensItems.length > 0;
+    });
+    const emptyKey = !hasTransferScope && sourceHasAny ? "empty.no_findings_transfer_scope" : "empty.no_findings_match";
+    tableEl.innerHTML = `<div class="empty">${escapeHtml(t(emptyKey))}</div>`;
   } else {
     const headers = [
       includeLens ? t("north_star.table.lens") : null,
@@ -5469,6 +7526,7 @@ function renderNorthStarFindings() {
       t("north_star.table.theme"),
       t("north_star.table.subtheme"),
       t("north_star.table.catalog"),
+      t("north_star.table.source_type"),
       t("north_star.table.id"),
       t("north_star.table.reasons"),
       t("north_star.table.evidence"),
@@ -5490,6 +7548,7 @@ function renderNorthStarFindings() {
             <td>${escapeHtml(String(item._theme_label || "—"))}</td>
             <td>${escapeHtml(String(item._subtheme_label || "—"))}</td>
             <td>${escapeHtml(String(item._catalog_label || item.catalog || ""))}</td>
+            <td>${escapeHtml(String(item._source_label || item.catalog || ""))}</td>
             <td>${escapeHtml(String(item.id || ""))}</td>
             <td>${escapeHtml(String(item._reasons_count))}</td>
             <td>${escapeHtml(String(item._evidence_count))}</td>
@@ -5548,7 +7607,8 @@ function renderNorthStarFindingsDetail() {
     : [];
   const themeLabel = String(item._theme_label || "");
   const subthemeLabel = String(item._subtheme_label || "");
-  const catalogLabel = String(item._catalog_label || formatNorthStarCatalogLabel(item.catalog || "") || "");
+  const stageLabel = String(item._catalog_label || formatNorthStarWorkflowStageLabel(item._catalog_value || deriveNorthStarWorkflowStage(item)) || "");
+  const sourceLabel = String(item._source_label || formatNorthStarCatalogLabel(item.catalog || "") || "");
   const subjectLabel = String(item._subject_label || item._subject_norm || "");
 
   const evidenceButtons = evidence.length
@@ -5566,7 +7626,7 @@ function renderNorthStarFindingsDetail() {
   detailEl.innerHTML = `
     <div class="note-item">
       <div class="note-title">${escapeHtml(String(item.title || ""))}</div>
-      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | subject=${escapeHtml(subjectLabel || "—")} | topic=${escapeHtml(topic)} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | catalog=${escapeHtml(catalogLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
+      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | subject=${escapeHtml(subjectLabel || "—")} | topic=${escapeHtml(topic)} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | stage=${escapeHtml(stageLabel)} | source=${escapeHtml(sourceLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
       <div class="note-tags">${tags.slice(0, 18).map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("")}</div>
       ${
         summary
@@ -5612,7 +7672,7 @@ function renderNorthStarFindingsDetail() {
   });
 }
 
-function clearNorthStarFindingsFilters() {
+function clearNorthStarFindingsFilters({ clearData = false } = {}) {
   state.filters.northStarFindings.search = "";
   state.filters.northStarFindings.subject = [];
   state.filters.northStarFindings.topic = [];
@@ -5620,7 +7680,7 @@ function clearNorthStarFindingsFilters() {
   state.filters.northStarFindings.topic_locked_by_perspective = false;
   state.filters.northStarFindings.theme = [];
   state.filters.northStarFindings.subtheme = [];
-  state.filters.northStarFindings.match = ["TRIGGERED"];
+  state.filters.northStarFindings.match = [];
   state.filters.northStarFindings.catalog = [];
   setNorthStarFindingsPresetKey("CUSTOM");
   state.northStarFindingSelected = null;
@@ -5635,6 +7695,87 @@ function clearNorthStarFindingsFilters() {
   });
   applyNorthStarPerspectiveCriteria(state.filters.northStarFindings.perspective);
   renderNorthStarFindingsTagSelect("topic");
+  if (clearData) {
+    state.northStarFindingsTransferScopes = [];
+    const findingsByLens = buildNorthStarFindingsByLensFromSource();
+    mountNorthStarFindingsByLens(findingsByLens, { preferredKey: NORTH_STAR_FINDINGS_ALL_LENSES_KEY });
+    // Enforce empty tag state after UI setup to avoid stale chip remnants.
+    state.filters.northStarFindings.search = "";
+    state.filters.northStarFindings.preset = "CUSTOM";
+    state.filters.northStarFindings.perspective = [];
+    state.filters.northStarFindings.topic = [];
+    state.filters.northStarFindings.subject = [];
+    state.filters.northStarFindings.theme = [];
+    state.filters.northStarFindings.subtheme = [];
+    state.filters.northStarFindings.match = [];
+    state.filters.northStarFindings.catalog = [];
+    state.filters.northStarFindings.topic_locked_by_perspective = false;
+    ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
+      const wrap = $(`#ns-findings-filter-${field}`);
+      if (wrap) wrap.classList.remove("open");
+      const tagsEl = $(`#ns-findings-filter-${field}-tags`);
+      if (tagsEl) tagsEl.innerHTML = "";
+      const input = $(`#ns-findings-filter-${field}-input`);
+      if (input) {
+        input.value = "";
+        setAriaExpanded(input, false);
+      }
+      renderNorthStarFindingsTagSelect(field);
+    });
+    renderNorthStarFindings();
+  }
+}
+
+function applyMechanismTransferToFindings({ subjectId = "", themeLabel = "", subthemeLabel = "" } = {}) {
+  const normalizedSubjectId = normalizeValue(subjectId);
+  if (!normalizedSubjectId) return;
+  const subject = getMechanismsSubjectById(normalizedSubjectId);
+  const transferState = getMechanismsSubjectTransferState(subject || {});
+  if (!subject || !transferState.enabled) {
+    const hint = transferState.blockedTitle || t("north_star.mechanisms.transfer_blocked_hint");
+    if (hint) showToast(hint, "warn");
+    return;
+  }
+
+  addNorthStarFindingsTransferScope({
+    subject_id: normalizedSubjectId,
+    theme_label: normalizeValue(themeLabel),
+    subtheme_label: normalizeValue(subthemeLabel),
+  });
+  const findingsByLens = buildNorthStarFindingsByLensFromSource();
+  mountNorthStarFindingsByLens(findingsByLens, { preferredKey: NORTH_STAR_FINDINGS_ALL_LENSES_KEY });
+
+  const currentItems = Array.isArray(state.northStarFindings?.items) ? state.northStarFindings.items : [];
+  updateNorthStarFindingsFilterOptions(currentItems);
+
+  state.filters.northStarFindings.search = "";
+  state.filters.northStarFindings.preset = "CUSTOM";
+  state.filters.northStarFindings.perspective = [];
+  state.filters.northStarFindings.topic = [];
+  state.filters.northStarFindings.topic_locked_by_perspective = false;
+  state.filters.northStarFindings.subject = normalizedSubjectId ? [normalizedSubjectId] : [];
+  state.filters.northStarFindings.theme = themeLabel ? [normalizeValue(themeLabel)] : [];
+  state.filters.northStarFindings.subtheme = subthemeLabel ? [normalizeValue(subthemeLabel)] : [];
+  state.filters.northStarFindings.match = [];
+  state.filters.northStarFindings.catalog = [];
+  state.northStarFindingSelected = null;
+  setNorthStarFindingsPresetKey("CUSTOM");
+
+  const searchInput = $("#ns-findings-search");
+  if (searchInput) searchInput.value = "";
+
+  ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
+    const input = $(`#ns-findings-filter-${field}-input`);
+    if (input) input.value = "";
+    renderNorthStarFindingsTagSelect(field);
+  });
+
+  renderNorthStarFindings();
+
+  const findingsAnchor = $("#ns-findings-meta") || $("#ns-findings-table");
+  if (findingsAnchor && typeof findingsAnchor.scrollIntoView === "function") {
+    findingsAnchor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function setupNorthStarFindingsTagSelects() {
@@ -5785,10 +7926,23 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
 
   if (meta) {
     const summary = state.northStarFindings?.summary && typeof state.northStarFindings.summary === "object" ? state.northStarFindings.summary : {};
-    meta.textContent = normalizedLensKey
+    const hasTransferScope = getNorthStarFindingsTransferScopes().length > 0;
+    const sourceByLens = state.northStarFindingsSourceByLens && typeof state.northStarFindingsSourceByLens === "object"
+      ? state.northStarFindingsSourceByLens
+      : {};
+    const sourceHasAny = Object.keys(sourceByLens).some((lensName) => {
+      if (lensName === NORTH_STAR_FINDINGS_ALL_LENSES_KEY) return false;
+      const lensItems = Array.isArray(sourceByLens[lensName]?.items) ? sourceByLens[lensName].items : [];
+      return lensItems.length > 0;
+    });
+    const lensMeta = normalizedLensKey
       ? `lens=${normalizedLensLabel} | total=${summary.total ?? itemsRaw.length} triggered=${summary.triggered ?? "-"} not_triggered=${summary.not_triggered ?? "-"} unknown=${summary.unknown ?? "-"}`
       : t("north_star.select_lens_hint");
+    meta.textContent = !hasTransferScope && sourceHasAny
+      ? `${lensMeta} | ${t("empty.no_findings_transfer_scope")}`
+      : lensMeta;
   }
+  renderNorthStarFindingsTransferScopes();
 
   if (!northStarFindingsControlsAttached) {
     const presetSelect = $("#ns-findings-preset");
@@ -5807,15 +7961,6 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
       searchInput.addEventListener("input", () => renderNorthStarFindings());
     }
 
-    const clearBtn = $("#ns-findings-clear");
-    if (clearBtn) {
-      clearBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        clearNorthStarFindingsFilters();
-        renderNorthStarFindings();
-      });
-    }
-
     setupNorthStarFindingsTagSelects();
     northStarFindingsControlsAttached = true;
   }
@@ -5828,6 +7973,14 @@ function setupNorthStarFindingsUi(findings, { lensKey = null, lensLabel = null }
   ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
     renderNorthStarFindingsTagSelect(field);
   });
+  const clearBtn = $("#ns-findings-clear");
+  if (clearBtn && !clearBtn.dataset.bound) {
+    clearBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      clearNorthStarFindingsFilters({ clearData: true });
+    });
+    clearBtn.dataset.bound = "1";
+  }
   renderNorthStarFindings();
 }
 
@@ -5950,8 +8103,121 @@ function setSseStatus(connected) {
   el.textContent = t("status.sse", { status });
 }
 
+function setMemoryStatus(payload) {
+  const el = $("#memory-status");
+  if (!el) return;
+  const statusRaw = String(payload?.status || "").trim().toUpperCase();
+  const status = statusRaw || "WARN";
+  setBadge(el, status);
+  el.textContent = t("status.memory", { status });
+  const reason = payload?.availability?.reason || payload?.reason || "";
+  const generatedAt = payload?.generated_at || "";
+  el.title = [generatedAt ? `generated_at=${generatedAt}` : "", reason ? `reason=${reason}` : ""]
+    .filter(Boolean)
+    .join(" • ");
+}
+
 function pickStatus(data) {
   return data?.overall_status || data?.status || "UNKNOWN";
+}
+
+function renderTimelineDashboard() {
+  const metaEl = $("#timeline-meta");
+  const errorEl = $("#timeline-error");
+  const totalToolEl = $("#timeline-total-tool");
+  const processCountEl = $("#timeline-process-count");
+  const processP95El = $("#timeline-process-p95");
+  const nonToolRatioEl = $("#timeline-non-tool-ratio");
+  const slowListEl = $("#timeline-slowest-list");
+  const toolListEl = $("#timeline-tool-list");
+  const refreshBtn = $("#timeline-refresh");
+
+  if (refreshBtn) refreshBtn.disabled = Boolean(state.timelinePending);
+  if (errorEl) {
+    errorEl.textContent = state.timelineError || "";
+    errorEl.style.display = state.timelineError ? "block" : "none";
+  }
+  if (state.timelinePending) {
+    if (metaEl) metaEl.textContent = t("timeline.pending");
+    return;
+  }
+
+  const payload = state.timeline && typeof state.timeline === "object" ? state.timeline : {};
+  const dashboard = payload.dashboard && typeof payload.dashboard === "object" ? payload.dashboard : {};
+  const rawReport = payload.report && typeof payload.report === "object" ? payload.report : {};
+  const rangeSeconds = Number(rawReport?.detail?.time_range?.duration_seconds ?? 0);
+  const rangeLabel = rangeSeconds > 0 ? formatSecondsShort(rangeSeconds) : "-";
+  const generated = formatTimestamp(dashboard.generated_at) || dashboard.generated_at || "-";
+  const eventsCount = Number(dashboard?.stats?.events_in_window ?? 0);
+
+  if (!dashboard || !Object.keys(dashboard).length) {
+    if (metaEl) metaEl.textContent = t("timeline.empty");
+    if (totalToolEl) totalToolEl.textContent = "-";
+    if (processCountEl) processCountEl.textContent = "-";
+    if (processP95El) processP95El.textContent = "-";
+    if (nonToolRatioEl) nonToolRatioEl.textContent = "-";
+    if (slowListEl) slowListEl.innerHTML = "";
+    if (toolListEl) toolListEl.innerHTML = "";
+    return;
+  }
+
+  if (metaEl) {
+    metaEl.textContent = t("timeline.meta", {
+      generated: generated || "-",
+      range: rangeLabel,
+      events: Number.isFinite(eventsCount) ? String(eventsCount) : "-",
+    });
+  }
+  if (totalToolEl) totalToolEl.textContent = formatDurationMs(dashboard?.tool_summary?.completed_total_ms ?? 0);
+  if (processCountEl) processCountEl.textContent = String(Number(dashboard?.cycle_summary?.count ?? 0));
+  if (processP95El) processP95El.textContent = formatDurationMs(dashboard?.cycle_summary?.p95_ms ?? 0);
+  if (nonToolRatioEl) {
+    const ratio = Number(dashboard?.cycle_summary?.non_tool_ratio ?? 0);
+    nonToolRatioEl.textContent = Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : "-";
+  }
+
+  const slowCycles = Array.isArray(dashboard?.slow_cycles) ? dashboard.slow_cycles : [];
+  if (slowListEl) {
+    if (!slowCycles.length) {
+      slowListEl.innerHTML = `<div class="entry subtle">${escapeHtml(t("empty.no_items"))}</div>`;
+    } else {
+      slowListEl.innerHTML = slowCycles
+        .slice(0, 8)
+        .map((item, idx) => {
+          const hint = escapeHtml(_shortenText(String(item?.user_hint || "-"), 140));
+          const dur = formatDurationMs(item?.duration_ms ?? 0);
+          const toolDur = formatDurationMs(item?.tool_total_ms ?? 0);
+          const nonTool = formatDurationMs(item?.non_tool_ms ?? 0);
+          const topTool = escapeHtml(String(item?.top_tool || "-"));
+          return `<div class="entry">
+            <div><strong>#${idx + 1}</strong> ${hint}</div>
+            <div class="subtle">toplam=${dur} • tool=${toolDur} • non_tool=${nonTool} • top_tool=${topTool}</div>
+          </div>`;
+        })
+        .join("");
+    }
+  }
+
+  const tools = Array.isArray(dashboard?.tool_summary?.completed_by_tool) ? dashboard.tool_summary.completed_by_tool : [];
+  if (toolListEl) {
+    if (!tools.length) {
+      toolListEl.innerHTML = `<div class="entry subtle">${escapeHtml(t("empty.no_items"))}</div>`;
+    } else {
+      toolListEl.innerHTML = tools
+        .slice(0, 8)
+        .map((item) => {
+          const tool = escapeHtml(String(item?.tool || "-"));
+          const total = formatDurationMs(item?.total_ms ?? 0);
+          const p95 = formatDurationMs(item?.p95_ms ?? 0);
+          const count = Number(item?.count ?? 0);
+          return `<div class="entry">
+            <div><strong>${tool}</strong></div>
+            <div class="subtle">count=${count} • total=${total} • p95=${p95}</div>
+          </div>`;
+        })
+        .join("");
+    }
+  }
 }
 
 function renderOverview() {
@@ -6008,6 +8274,522 @@ function renderOverview() {
 
   renderActionResponse();
   renderActionLog();
+  renderSearchPanel();
+  renderTimelineDashboard();
+}
+
+function renderSearchPanel() {
+  const queryInput = $("#search-query");
+  if (queryInput && queryInput.value !== state.searchQuery) {
+    queryInput.value = state.searchQuery || "";
+  }
+  const globalInput = $("#global-search-query");
+  if (globalInput && globalInput.value !== state.searchQuery) {
+    globalInput.value = state.searchQuery || "";
+  }
+  const modeSelect = $("#search-mode");
+  if (modeSelect && modeSelect.value !== state.searchMode) {
+    modeSelect.value = state.searchMode || "auto";
+  }
+  const scopeSelect = $("#search-scope");
+  if (scopeSelect && scopeSelect.value !== state.searchScope) {
+    scopeSelect.value = state.searchScope || "ssot";
+  }
+
+  const statusEl = $("#search-status");
+  if (statusEl) {
+    if (state.searchPending) {
+      statusEl.textContent = t("search.status.running");
+    } else if (state.searchError) {
+      statusEl.textContent = t("search.status.error", { error: state.searchError });
+    } else if (state.searchQuery) {
+      const modeLabel = state.searchLastMode || state.searchMode || "auto";
+      statusEl.textContent = t("search.status.done", {
+        count: Array.isArray(state.searchResults) ? state.searchResults.length : 0,
+        mode: modeLabel,
+      });
+    } else {
+      statusEl.textContent = t("search.status.idle");
+    }
+  }
+
+  const engineEl = $("#search-engine-debug");
+  const engineBadgeEl = $("#search-engine-badge");
+  const engineText = String(state.searchEngineDebug || "").trim();
+  const capForEngine = state.searchCapabilities && typeof state.searchCapabilities === "object" ? state.searchCapabilities : null;
+  let semResolvedForEngine = "";
+  let semStatusForEngine = "";
+  let semReasonForEngine = "";
+  if (capForEngine && Array.isArray(capForEngine.adapters)) {
+    const semPrimary = String(capForEngine?.selection?.semantic_primary || "").trim().toLowerCase();
+    const semAdapters = capForEngine.adapters.filter((item) => String(item?.engine || "").toLowerCase() === "semantic");
+    const semAdapter =
+      semAdapters.find((item) => String(item?.adapter_id || "").toLowerCase() === semPrimary) ||
+      semAdapters[0] ||
+      null;
+    if (semAdapter) {
+      semResolvedForEngine = String(semAdapter?.tooling?.resolved_adapter || "").trim();
+      semStatusForEngine = String(semAdapter?.status || "").trim().toUpperCase();
+      semReasonForEngine = String(semAdapter?.reason || "").trim();
+    }
+  }
+  if (engineEl) {
+    engineEl.textContent = engineText ? t("search.engine.value", { engine: engineText }) : t("search.engine.none");
+  }
+  if (engineBadgeEl) {
+    engineBadgeEl.classList.remove("ok", "warn", "fail", "idle");
+    if (engineText) {
+      engineBadgeEl.classList.add("ok");
+      engineBadgeEl.textContent = t("search.engine.badge.value", { engine: engineText });
+      const titleParts = [
+        t("search.engine.value", { engine: engineText }),
+        t("search.status.done", {
+          count: Array.isArray(state.searchResults) ? state.searchResults.length : 0,
+          mode: state.searchLastMode || state.searchMode || "auto",
+        }),
+      ];
+      if (semStatusForEngine || semResolvedForEngine || semReasonForEngine) {
+        titleParts.push(`semantic_status=${semStatusForEngine || "-"}`);
+        titleParts.push(`semantic_adapter=${semResolvedForEngine || "-"}`);
+        if (semReasonForEngine) titleParts.push(`semantic_reason=${semReasonForEngine}`);
+      }
+      engineBadgeEl.title = titleParts.join(" • ");
+    } else {
+      engineBadgeEl.classList.add("idle");
+      engineBadgeEl.textContent = t("search.engine.badge.none");
+      engineBadgeEl.title = t("search.engine.none");
+    }
+  }
+
+  const indexEl = $("#search-index-status");
+  const spinnerEl = $("#search-index-spinner");
+  if (indexEl) {
+    const idx = state.searchIndex && typeof state.searchIndex === "object" ? state.searchIndex : null;
+    const buildStatus = String(idx?.build_status || "").trim().toUpperCase();
+    const isBuilding = String(state.searchIndexStatus || "").trim().toUpperCase() === "BUILDING" || buildStatus === "BUILDING";
+    const st = String(state.searchIndexStatus || "").trim().toUpperCase();
+
+    if (state.searchIndexPending) {
+      indexEl.textContent = t("search.index.refreshing");
+    } else if (state.searchIndexError) {
+      indexEl.textContent = t("search.index.error", { error: state.searchIndexError });
+    } else if (isBuilding) {
+      const done = Number(idx?.build_progress?.processed_files ?? 0);
+      const total = Number(idx?.build_progress?.total_files ?? 0);
+      const eta = Number(idx?.build_eta_seconds ?? idx?.predicted_eta_seconds ?? 0);
+      const etaLabel = eta > 0 ? formatSecondsShort(eta) : "-";
+      if (total > 0) {
+        indexEl.textContent = t("search.index.building", { done: String(done), total: String(total), eta: etaLabel });
+      } else {
+        indexEl.textContent = t("search.index.building_scan");
+      }
+    } else if (st === "MISSING") {
+      indexEl.textContent = t("search.index.none");
+    } else if (idx) {
+      indexEl.textContent = t("search.index.ready", {
+        indexed_at: formatTimestamp(idx.indexed_at) || idx.indexed_at || "-",
+        files: idx.file_count ?? "-",
+        records: idx.record_count ?? "-",
+        adapter: idx.adapter_id || "-",
+      });
+    } else {
+      indexEl.textContent = t("search.index.none");
+    }
+  }
+  if (spinnerEl) {
+    const idx = state.searchIndex && typeof state.searchIndex === "object" ? state.searchIndex : null;
+    const buildStatus = String(idx?.build_status || "").trim().toUpperCase();
+    const isBuilding = String(state.searchIndexStatus || "").trim().toUpperCase() === "BUILDING" || buildStatus === "BUILDING";
+    spinnerEl.style.display = state.searchIndexPending || isBuilding ? "block" : "none";
+  }
+
+  const etaEl = $("#search-index-eta");
+  if (etaEl) {
+    const idx = state.searchIndex && typeof state.searchIndex === "object" ? state.searchIndex : null;
+    const buildStatus = String(idx?.build_status || "").trim().toUpperCase();
+    const isBuilding = String(state.searchIndexStatus || "").trim().toUpperCase() === "BUILDING" || buildStatus === "BUILDING";
+
+    if (isBuilding) {
+      const eta = Number(idx?.build_eta_seconds ?? idx?.predicted_eta_seconds ?? 0);
+      etaEl.textContent = eta > 0 ? t("search.index.predicted", { eta: formatSecondsShort(eta) }) : "";
+    } else if (idx) {
+      const indexedAt = parseTimestampMs(idx.indexed_at);
+      const pieces = [];
+      if (indexedAt) {
+        const ageMs = Math.max(0, Date.now() - indexedAt);
+        const remainingMs = Math.max(0, SEARCH_INDEX_AUTO_REFRESH_MS - ageMs);
+        const ageLabel = formatAgeShort(ageMs);
+        const remainingLabel = formatAgeShort(remainingMs);
+        pieces.push(t("search.index.age", { age: ageLabel }));
+        pieces.push(t("search.index.remaining", { remaining: remainingLabel }));
+      }
+      const predicted = Number(idx.predicted_eta_seconds ?? 0);
+      if (predicted > 0) {
+        pieces.push(t("search.index.predicted", { eta: formatSecondsShort(predicted) }));
+      }
+      etaEl.textContent = pieces.filter(Boolean).join(" • ");
+    } else {
+      etaEl.textContent = "";
+    }
+  }
+
+  const cap = state.searchCapabilities && typeof state.searchCapabilities === "object" ? state.searchCapabilities : null;
+  const capStatusEl = $("#search-capabilities-status");
+  const capRoutingEl = $("#search-capabilities-routing");
+  const capSelectionEl = $("#search-capabilities-selection");
+  const capAdaptersEl = $("#search-capabilities-adapters");
+  const semanticBadgeEl = $("#search-semantic-badge");
+
+  const setSemanticBadge = (tone, textKey, titleText = "") => {
+    if (!semanticBadgeEl) return;
+    semanticBadgeEl.classList.remove("ok", "warn", "fail", "idle");
+    semanticBadgeEl.classList.add(tone);
+    semanticBadgeEl.textContent = t(textKey);
+    semanticBadgeEl.title = titleText || "";
+  };
+
+  if (semanticBadgeEl) {
+    if (state.searchCapabilitiesPending) {
+      setSemanticBadge("idle", "search.capabilities.semantic.pending", t("search.capabilities.loading"));
+    } else if (state.searchCapabilitiesError) {
+      setSemanticBadge(
+        "fail",
+        "search.capabilities.semantic.failed",
+        t("search.capabilities.error", { error: state.searchCapabilitiesError })
+      );
+    } else if (cap) {
+      const adapters = Array.isArray(cap?.adapters) ? cap.adapters : [];
+      const semanticPrimary = String(cap?.selection?.semantic_primary || "").trim().toLowerCase();
+      const semanticAdapters = adapters.filter((item) => String(item?.engine || "").toLowerCase() === "semantic");
+      let semanticAdapter =
+        semanticAdapters.find((item) => String(item?.adapter_id || "").toLowerCase() === semanticPrimary) ||
+        semanticAdapters[0] ||
+        null;
+      if (!semanticAdapter && semanticPrimary) {
+        semanticAdapter = adapters.find((item) => String(item?.adapter_id || "").toLowerCase() === semanticPrimary) || null;
+      }
+      if (!semanticAdapter) {
+        setSemanticBadge("idle", "search.capabilities.semantic.none");
+      } else {
+        const adapterId = String(semanticAdapter?.adapter_id || "-");
+        const status = String(semanticAdapter?.status || "").trim().toUpperCase();
+        const reason = String(semanticAdapter?.reason || "").trim();
+        const titleParts = [`${adapterId} • ${status || "-"}`];
+        if (reason) {
+          titleParts.push(t("search.capabilities.semantic.reason", { reason }));
+        }
+        if (status === "READY") {
+          setSemanticBadge("ok", "search.capabilities.semantic.ready", titleParts.join(" • "));
+        } else if (status === "UNAVAILABLE") {
+          setSemanticBadge("warn", "search.capabilities.semantic.unavailable", titleParts.join(" • "));
+        } else {
+          setSemanticBadge("fail", "search.capabilities.semantic.failed", titleParts.join(" • "));
+        }
+      }
+    } else {
+      setSemanticBadge("idle", "search.capabilities.semantic.none");
+    }
+  }
+
+  if (capStatusEl) {
+    if (state.searchCapabilitiesPending) {
+      capStatusEl.textContent = t("search.capabilities.loading");
+    } else if (state.searchCapabilitiesError) {
+      capStatusEl.textContent = t("search.capabilities.error", { error: state.searchCapabilitiesError });
+    } else if (cap) {
+      capStatusEl.textContent = t("search.capabilities.status", {
+        contract: String(cap.contract_id || "-"),
+        scope: String(cap.scope || state.searchScope || "ssot"),
+        index: String(cap.index?.status || "-"),
+      });
+    } else {
+      capStatusEl.textContent = "";
+    }
+  }
+  if (capRoutingEl) {
+    if (cap && !state.searchCapabilitiesPending && !state.searchCapabilitiesError) {
+      capRoutingEl.textContent = t("search.capabilities.routing", {
+        auto: String(cap.routing?.auto_mode_primary || "-"),
+        keyword: String(cap.selection?.keyword_primary || "-"),
+        semantic: String(cap.selection?.semantic_primary || "-"),
+      });
+    } else {
+      capRoutingEl.textContent = "";
+    }
+  }
+  if (capSelectionEl) {
+    if (cap && !state.searchCapabilitiesPending && !state.searchCapabilitiesError) {
+      capSelectionEl.textContent = t("search.capabilities.selection", {
+        keyword: String(cap.fallback_chain?.keyword || []),
+        semantic: String(cap.fallback_chain?.semantic || []),
+      });
+    } else {
+      capSelectionEl.textContent = "";
+    }
+  }
+  if (capAdaptersEl) {
+    if (state.searchCapabilitiesPending) {
+      capAdaptersEl.innerHTML = `<div class="entry subtle">${escapeHtml(t("search.capabilities.loading"))}</div>`;
+    } else if (state.searchCapabilitiesError) {
+      capAdaptersEl.innerHTML = `<div class="entry subtle">${escapeHtml(
+        t("search.capabilities.error", { error: state.searchCapabilitiesError })
+      )}</div>`;
+    } else {
+      const adapters = Array.isArray(cap?.adapters) ? cap.adapters : [];
+      if (!adapters.length) {
+        capAdaptersEl.innerHTML = `<div class="entry subtle">${escapeHtml(t("search.capabilities.adapters.none"))}</div>`;
+      } else {
+        const rows = adapters.map((item) => {
+          const adapterId = String(item?.adapter_id || "-");
+          const engine = String(item?.engine || "-");
+          const status = String(item?.status || "-");
+          const reason = String(item?.reason || "-");
+          const tooling = String(item?.tooling?.primary || "-");
+          return `<div class="entry"><div class="row" style="justify-content: space-between; gap: 8px; align-items: center;"><div><b>${escapeHtml(
+            adapterId
+          )}</b> • ${escapeHtml(engine)}</div><div class="subtle">${escapeHtml(status)}</div></div><div class="subtle">${escapeHtml(
+            tooling
+          )} • ${escapeHtml(reason)}</div></div>`;
+        });
+        capAdaptersEl.innerHTML = rows.join("");
+      }
+    }
+  }
+
+  const resultsEl = $("#search-results");
+  if (!resultsEl) return;
+  const results = Array.isArray(state.searchResults) ? state.searchResults : [];
+  if (!results.length) {
+    if (state.searchQuery && !state.searchPending && !state.searchError) {
+      resultsEl.innerHTML = `<div class="entry subtle">${escapeHtml(t("search.no_results"))}</div>`;
+    } else {
+      resultsEl.innerHTML = "";
+    }
+    return;
+  }
+  const rows = results.map((hit) => {
+    const path = String(hit?.path || "");
+    const line = Number.isFinite(Number(hit?.line)) ? `:${hit.line}` : "";
+    const score = Number.isFinite(Number(hit?.score)) ? ` score=${Number(hit.score).toFixed(4)}` : "";
+    const meta = `${path}${line}${score}`.trim();
+    const preview = _shortenText(String(hit?.preview || ""), 320);
+    const openPath = path ? `${path}${line}` : "";
+    const openBtn = openPath
+      ? `<button class="btn ghost btn-mini" data-search-open="${escapeHtml(openPath)}">${escapeHtml(
+          t("actions.open")
+        )}</button>`
+      : "";
+    return `<div class="entry"><div class="row" style="justify-content: space-between; align-items: center; gap: 8px;"><div class="subtle">${escapeHtml(
+      meta || "-"
+    )}</div>${openBtn}</div><div>${escapeHtml(preview)}</div></div>`;
+  });
+  resultsEl.innerHTML = rows.join("");
+}
+
+function _shortenText(text, limit) {
+  const raw = String(text || "");
+  if (raw.length <= limit) return raw;
+  return raw.slice(0, Math.max(0, limit - 3)) + "...";
+}
+
+function normalizeSearchMode(mode) {
+  const raw = String(mode || "").trim().toLowerCase();
+  if (raw === "semantic" || raw === "keyword" || raw === "auto") return raw;
+  return "auto";
+}
+
+function normalizeSearchScope(scope) {
+  const raw = String(scope || "").trim().toLowerCase();
+  if (raw === "repo" || raw === "ssot") return raw;
+  return "ssot";
+}
+
+function deriveSearchEngineDebug(payload, requestedMode) {
+  const payloadObj = payload && typeof payload === "object" ? payload : null;
+  const explicitEngine = String(payloadObj?.engine || "").trim();
+  if (explicitEngine) return explicitEngine;
+  const mode = String(payloadObj?.mode || requestedMode || "auto").trim().toLowerCase();
+  const adapter = String(payloadObj?.index?.adapter_id || "").trim();
+  const patternMode = String(payloadObj?.pattern_mode || "").trim().toLowerCase();
+
+  if (mode === "semantic") {
+    return adapter ? `semantic/${adapter}` : "semantic";
+  }
+  if (mode === "keyword") {
+    const base = adapter || "keyword";
+    return patternMode ? `${base} • rg:${patternMode}` : base;
+  }
+  return mode || "";
+}
+
+function isSearchIndexBuilding() {
+  const status = String(state.searchIndexStatus || "").trim().toUpperCase();
+  const buildStatus = String(state.searchIndex?.build_status || "").trim().toUpperCase();
+  return status === "BUILDING" || buildStatus === "BUILDING";
+}
+
+function stopSearchIndexPolling() {
+  if (state.searchIndexPollTimer) clearInterval(state.searchIndexPollTimer);
+  state.searchIndexPollTimer = null;
+  state.searchIndexPollUntil = 0;
+}
+
+function startSearchIndexPolling({ rerunSearch = false } = {}) {
+  state.searchRerunAfterIndex = rerunSearch ? true : state.searchRerunAfterIndex;
+  if (state.searchIndexPollTimer) return;
+  state.searchIndexPollUntil = Date.now() + 5 * 60 * 1000; // 5 min hard stop
+  state.searchIndexPollTimer = setInterval(async () => {
+    await refreshSearchIndexStatus();
+    const building = isSearchIndexBuilding();
+    const timedOut = state.searchIndexPollUntil && Date.now() > state.searchIndexPollUntil;
+    if (!building || timedOut) {
+      stopSearchIndexPolling();
+      if (!building && state.searchRerunAfterIndex) {
+        state.searchRerunAfterIndex = false;
+        runSearch();
+      }
+    }
+  }, 900);
+}
+
+async function refreshSearchIndexStatus() {
+  try {
+    const scope = normalizeSearchScope(state.searchScope);
+    const payload = await fetchJson(`${endpoints.searchIndex}?action=status&scope=${encodeURIComponent(scope)}`);
+    state.searchIndexStatus = String(payload?.status || "");
+    state.searchIndex = payload?.index || null;
+    state.searchIndexError = "";
+  } catch (err) {
+    state.searchIndexStatus = "FAIL";
+    state.searchIndexError = formatError(err);
+  }
+  renderSearchPanel();
+}
+
+async function refreshSearchCapabilities() {
+  state.searchCapabilitiesPending = true;
+  state.searchCapabilitiesError = "";
+  renderSearchPanel();
+  try {
+    const scope = normalizeSearchScope(state.searchScope);
+    const payload = await fetchJson(`${endpoints.searchCapabilities}?scope=${encodeURIComponent(scope)}`);
+    state.searchCapabilities = payload && typeof payload === "object" ? payload : null;
+    state.searchCapabilitiesError = "";
+  } catch (err) {
+    state.searchCapabilities = null;
+    state.searchCapabilitiesError = formatError(err);
+  } finally {
+    state.searchCapabilitiesPending = false;
+    renderSearchPanel();
+  }
+}
+
+async function refreshSearchContext() {
+  await Promise.all([refreshSearchIndexStatus(), refreshSearchCapabilities()]);
+}
+
+async function updateSearchIndex({ rebuild = true } = {}) {
+  if (state.searchIndexPending) return;
+  state.searchIndexPending = true;
+  state.searchIndexError = "";
+  renderSearchPanel();
+  try {
+    const scope = normalizeSearchScope(state.searchScope);
+    const url = `${endpoints.searchIndex}?action=build&scope=${encodeURIComponent(scope)}&rebuild=${rebuild ? "true" : "false"}`;
+    const payload = await fetchJson(url);
+    state.searchIndexStatus = String(payload?.status || "");
+    state.searchIndex = payload?.index || null;
+    const st = String(payload?.status || "").trim().toUpperCase();
+    if (st === "BUILDING") {
+      state.searchIndexError = "";
+      startSearchIndexPolling({ rerunSearch: true });
+    } else {
+      state.searchIndexError = payload?.error ? String(payload.error) : "";
+      if (payload?.status !== "OK" && payload?.status !== "STALE" && payload?.status !== "MISSING" && !state.searchIndexError) {
+        state.searchIndexError = t("error.unknown");
+      }
+    }
+  } catch (err) {
+    state.searchIndexStatus = "FAIL";
+    state.searchIndexError = formatError(err);
+  } finally {
+    state.searchIndexPending = false;
+    renderSearchPanel();
+  }
+}
+
+async function runSearch() {
+  const query = String(state.searchQuery || "").trim();
+  if (!query) {
+    state.searchResults = [];
+    state.searchError = "";
+    state.searchLastMode = "";
+    state.searchEngineDebug = "";
+    renderSearchPanel();
+    return;
+  }
+  if (state.searchPending) return;
+  state.searchPending = true;
+  state.searchError = "";
+  renderSearchPanel();
+  const mode = normalizeSearchMode(state.searchMode);
+  const scope = normalizeSearchScope(state.searchScope);
+  const url =
+    mode === "auto"
+      ? `${endpoints.search}?q=${encodeURIComponent(query)}&scope=${encodeURIComponent(scope)}`
+      : `${endpoints.search}?q=${encodeURIComponent(query)}&scope=${encodeURIComponent(scope)}&mode=${encodeURIComponent(mode)}`;
+  try {
+    const payload = await fetchJson(url);
+    const st = String(payload?.status || "").trim().toUpperCase();
+    state.searchLastMode = String(payload?.mode || mode || "");
+    state.searchEngineDebug = deriveSearchEngineDebug(payload, mode);
+
+    if (st === "INDEX_BUILDING") {
+      state.searchResults = [];
+      state.searchError = "";
+      if (payload?.index && typeof payload.index === "object") {
+        state.searchIndex = payload.index;
+        state.searchIndexStatus = "BUILDING";
+      }
+      startSearchIndexPolling({ rerunSearch: true });
+    } else if (st === "OK" || !payload?.status) {
+      state.searchResults = Array.isArray(payload?.hits) ? payload.hits : [];
+      state.searchError = "";
+      if (payload?.index && typeof payload.index === "object") {
+        state.searchIndex = payload.index;
+      }
+    } else {
+      state.searchResults = Array.isArray(payload?.hits) ? payload.hits : [];
+      state.searchError = payload?.error ? String(payload.error) : t("error.unknown");
+      if (payload?.index && typeof payload.index === "object") {
+        state.searchIndex = payload.index;
+      }
+    }
+  } catch (err) {
+    state.searchError = formatError(err);
+    state.searchResults = [];
+    state.searchEngineDebug = "";
+  } finally {
+    state.searchPending = false;
+    renderSearchPanel();
+  }
+}
+
+function maybeAutoRefreshSearchIndex(reason = "") {
+  if (state.searchIndexPending) return;
+  const indexedAt = parseTimestampMs(state.searchIndex?.indexed_at);
+  const now = Date.now();
+  if (!indexedAt) return;
+  if (now - indexedAt >= SEARCH_INDEX_AUTO_REFRESH_MS) {
+    updateSearchIndex({ rebuild: true });
+  }
+}
+
+function scheduleSearchIndexAutoRefresh() {
+  if (state.searchIndexAutoTimer) clearInterval(state.searchIndexAutoTimer);
+  state.searchIndexAutoTimer = setInterval(() => {
+    maybeAutoRefreshSearchIndex("timer");
+  }, SEARCH_INDEX_POLL_MS);
 }
 
 function renderNorthStarRunnerBadges(meta) {
@@ -6091,6 +8873,102 @@ function renderNorthStarRunnerBadges(meta) {
   return pieces.join("");
 }
 
+function renderNorthStarFlow2Status() {
+  const payload = state.northStarFlow2Status || {};
+  const badgeEl = $("#north-star-flow2-status");
+  const summaryEl = $("#north-star-flow2-summary");
+  const badgesEl = $("#north-star-flow2-badges");
+  const linesEl = $("#north-star-flow2-lines");
+  const invalidNoteEl = $("#north-star-flow2-invalid-note");
+
+  const assessment = payload.assessment || {};
+  const policy = payload.policy || {};
+  const system = payload.system || {};
+  const project = payload.project || {};
+  const invalidEnvelope = payload.invalid_envelope || {};
+  const overall = normalizeNorthStarStatusToken(payload.overall_status || "UNKNOWN");
+  const available = Boolean(payload.available);
+
+  setBadge(badgeEl, overall);
+
+  const assessmentAt = formatTimestamp(assessment.generated_at || "") || "-";
+  const systemAt = formatTimestamp(system.generated_at || "") || "-";
+  const policyInputs = Number.isFinite(Number(policy.total_inputs)) ? String(toSafeInt(policy.total_inputs, 0)) : "-";
+
+  if (summaryEl) {
+    summaryEl.textContent = available
+      ? t("north_star.flow2.summary", {
+          assessment_at: assessmentAt,
+          system_at: systemAt,
+          policy_inputs: policyInputs,
+        })
+      : t("north_star.flow2.summary_missing");
+  }
+
+  if (badgesEl) {
+    const chips = [
+      {
+        label: t("north_star.flow2.assessment"),
+        status: normalizeNorthStarStatusToken(assessment.status || "UNKNOWN"),
+      },
+      {
+        label: t("north_star.flow2.policy"),
+        status: normalizeNorthStarStatusToken(policy.status || "UNKNOWN"),
+      },
+      {
+        label: t("north_star.flow2.system"),
+        status: normalizeNorthStarStatusToken(system.status || "UNKNOWN"),
+      },
+      {
+        label: t("north_star.flow2.project"),
+        status: normalizeNorthStarStatusToken(project.status || "UNKNOWN"),
+      },
+    ];
+    badgesEl.innerHTML = chips
+      .map((chip) => `<span class="badge ${chip.status === "FAIL" ? "fail" : chip.status === "WARN" ? "warn" : chip.status === "OK" ? "ok" : "idle"}">${escapeHtml(chip.label)}=${escapeHtml(chip.status)}</span>`)
+      .join("");
+  }
+
+  if (linesEl) {
+    const details = [
+      t("north_star.flow2.line.assessment", {
+        controls: String(toSafeInt(assessment.controls, 0)),
+        metrics: String(toSafeInt(assessment.metrics, 0)),
+        packs: String(toSafeInt(assessment.packs, 0)),
+      }),
+      t("north_star.flow2.line.policy", {
+        allow: String(toSafeInt(policy.allow, 0)),
+        suspend: String(toSafeInt(policy.suspend, 0)),
+        invalid: String(toSafeInt(policy.invalid_envelope, 0)),
+        diff: String(toSafeInt(policy.diff_nonzero, 0)),
+      }),
+      t("north_star.flow2.line.system", {
+        actions: String(toSafeInt(system.actions_count, 0)),
+        sb_fail: String(toSafeInt(system.script_budget_fail_count, 0)),
+        sb_warn: String(toSafeInt(system.script_budget_warn_count, 0)),
+      }),
+      t("north_star.flow2.line.project", {
+        next_milestone: String(project.next_milestone || "-"),
+        core_lock: String(project.core_lock || "-"),
+      }),
+    ];
+    linesEl.innerHTML = details.map((line) => `<div>${escapeHtml(line)}</div>`).join("");
+  }
+
+  if (invalidNoteEl) {
+    const invalidCount = toSafeInt(invalidEnvelope.count, 0);
+    if (invalidCount <= 0) {
+      invalidNoteEl.textContent = t("north_star.flow2.invalid_none");
+    } else if (invalidEnvelope.expected_fixture) {
+      invalidNoteEl.textContent = t("north_star.flow2.invalid_expected", {
+        file: String(invalidEnvelope.sample_file || "fixtures/envelopes/0999_invalid.json"),
+      });
+    } else {
+      invalidNoteEl.textContent = t("north_star.flow2.invalid_unexpected");
+    }
+  }
+}
+
 function renderNorthStar() {
   const payload = state.northStar || {};
   const summary = payload.summary || {};
@@ -6115,6 +8993,7 @@ function renderNorthStar() {
   if (runnerBadgesEl) {
     runnerBadgesEl.innerHTML = renderNorthStarRunnerBadges(payload.runner_meta || {});
   }
+  renderNorthStarFlow2Status();
 
   const evalLenses = evalData && typeof evalData === "object" ? evalData.lenses : null;
   const evalLensMap = evalLenses && typeof evalLenses === "object" ? evalLenses : {};
@@ -6186,69 +9065,18 @@ function renderNorthStar() {
   renderNorthStarMechanisms();
   renderNorthStarSuggestions();
 
-  // Lens Findings (lens-by-lens explorer)
-  const findingsByLens = {};
+  // Lens Findings source comes from eval; visible rows are fail-closed behind manual transfer scopes.
+  const sourceFindingsByLens = {};
   evalLensNames.forEach((name) => {
     const lens = evalLensMap?.[name];
     const findings = lens?.findings;
     if (findings && typeof findings === "object" && Array.isArray(findings.items)) {
-      findingsByLens[name] = findings;
+      sourceFindingsByLens[name] = findings;
     }
   });
-  // Add an aggregated view across all lenses.
-  const allItems = [];
-  Object.keys(findingsByLens)
-    .sort((a, b) => a.localeCompare(b))
-    .forEach((lensName) => {
-      const items = Array.isArray(findingsByLens[lensName]?.items) ? findingsByLens[lensName].items : [];
-      items.forEach((item) => {
-        if (!item || typeof item !== "object") return;
-        allItems.push({ ...item, lens: lensName });
-      });
-    });
-
-  const summaryCounts = (items) => {
-    const norm = (x) => String(x || "").toUpperCase();
-    return {
-      total: items.length,
-      triggered: items.filter((x) => norm(x?.match_status) === "TRIGGERED").length,
-      not_triggered: items.filter((x) => norm(x?.match_status) === "NOT_TRIGGERED").length,
-      unknown: items.filter((x) => norm(x?.match_status) === "UNKNOWN").length,
-    };
-  };
-
-  findingsByLens[NORTH_STAR_FINDINGS_ALL_LENSES_KEY] = {
-    version: "v1",
-    summary: summaryCounts(allItems),
-    items: allItems,
-  };
-
-  state.northStarFindingsByLens = findingsByLens;
-
-  const findingsLensSelect = $("#ns-findings-lens");
-  const availableFindingsLenses = Object.keys(findingsByLens)
-    .filter((name) => name !== NORTH_STAR_FINDINGS_ALL_LENSES_KEY)
-    .sort((a, b) => a.localeCompare(b));
-  if (findingsLensSelect) {
-    const options = [
-      { key: NORTH_STAR_FINDINGS_ALL_LENSES_KEY, label: t("north_star.all_lenses") },
-      ...availableFindingsLenses.map((name) => ({ key: name, label: name })),
-    ];
-    findingsLensSelect.innerHTML = options.length
-      ? options.map((opt) => `<option value="${escapeHtml(opt.key)}">${escapeHtml(opt.label)}</option>`).join("")
-      : `<option value="">${escapeHtml(t("north_star.no_findings"))}</option>`;
-
-    const preferredKey = options.some((opt) => opt.key === state.northStarFindingsLensName)
-      ? state.northStarFindingsLensName
-      : options.some((opt) => opt.key === NORTH_STAR_FINDINGS_ALL_LENSES_KEY)
-        ? NORTH_STAR_FINDINGS_ALL_LENSES_KEY
-        : (availableFindingsLenses.includes("trend_best_practice") ? "trend_best_practice" : (availableFindingsLenses[0] || ""));
-
-    findingsLensSelect.value = preferredKey;
-    const preferredLabel = preferredKey === NORTH_STAR_FINDINGS_ALL_LENSES_KEY ? t("north_star.all_lenses") : preferredKey;
-    const selectedFindings = preferredKey ? findingsByLens[preferredKey] : null;
-    setupNorthStarFindingsUi(selectedFindings, { lensKey: preferredKey, lensLabel: preferredLabel });
-  }
+  state.northStarFindingsSourceByLens = sourceFindingsByLens;
+  const findingsByLens = buildNorthStarFindingsByLensFromSource();
+  mountNorthStarFindingsByLens(findingsByLens);
 
   renderJson($("#north-star-eval-json"), payload.assessment_eval || {});
   renderJson($("#north-star-trend-catalog-json"), payload.trend_catalog || {});
@@ -6708,16 +9536,19 @@ function renderIntakeTable(items) {
         state.intakeSelected = item;
         if (state.intakeExpandedId && id && state.intakeExpandedId === id) state.intakeExpandedId = null;
         else state.intakeExpandedId = id;
-        if (id && !state.intakeInlineTab[id]) state.intakeInlineTab[id] = "decision";
+        if (id && !state.intakeInlineGroup[id]) state.intakeInlineGroup[id] = "summary";
+        if (id && !state.intakeInlineTab[id]) state.intakeInlineTab[id] = "summary";
         state.intakeEvidencePath = null;
         state.intakeEvidencePreview = null;
         state.intakeLinkedNotes = null;
         state.intakeLinkedNotesLoading = false;
         state.intakeLinkedNotesError = null;
-        renderIntakeDetail(item);
         renderIntakeTable((unwrap(state.intake || {}).items || []));
-        refreshIntakeLinkedNotes(item);
-        renderIntakeClaimControls(item);
+        if (state.intakeExpandedId) {
+          renderIntakeDetail(item);
+          refreshIntakeLinkedNotes(item);
+          renderIntakeClaimControls(item);
+        }
       },
     }
   );
@@ -6734,18 +9565,9 @@ function renderIntakeTable(items) {
     });
   }
 
-  // Inline handlers (decision tab)
-  $$("[data-intake-inline-tab]").forEach((btn) => {
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const intakeId = decodeTag(btn.dataset.intakeInlineTab || "");
-      const tab = String(btn.dataset.tab || "").trim();
-      if (!intakeId || !tab) return;
-      state.intakeInlineTab[intakeId] = tab;
-      renderIntakeTable((unwrap(state.intake || {}).items || []));
-    });
-  });
+  if (state.intakeExpandedId && state.intakeSelected && state.intakeSelected.intake_id === state.intakeExpandedId) {
+    renderIntakeDetail(state.intakeSelected);
+  }
 
   $$("[data-decision-save]").forEach((btn) => {
     btn.addEventListener("click", async (event) => {
@@ -7106,6 +9928,324 @@ function renderRunCard() {
   }
 }
 
+function deriveExtensionAbout(detail) {
+  const manifest = detail?.manifest || {};
+  const notes = Array.isArray(manifest.notes) ? manifest.notes.map((item) => String(item)) : [];
+  const entrypoints = manifest.entrypoints || {};
+  const policies = Array.isArray(manifest.policies) ? manifest.policies : [];
+  const docsRef = String(manifest.docs_ref || "");
+  return {
+    summary: notes[0] || "",
+    notes,
+    entrypoints,
+    policies,
+    docs_ref: docsRef,
+  };
+}
+
+function buildExtensionAbout(detail, overrideEntry, extras) {
+  const extId = String(detail?.extension_id || "");
+  const manifest = detail?.manifest || {};
+  const entrypoints = manifest.entrypoints || {};
+  const ops = Array.isArray(entrypoints.ops) ? entrypoints.ops : [];
+  const cockpitSections = Array.isArray(entrypoints.cockpit_sections) ? entrypoints.cockpit_sections : [];
+  const policies = Array.isArray(manifest.policies) ? manifest.policies : [];
+  const docsRef = String(manifest.docs_ref || "");
+  const enabled = typeof detail?.enabled === "boolean" ? detail.enabled : manifest.enabled;
+  const overrideEnabled = overrideEntry?.enabled;
+  const effectiveEnabled = typeof overrideEnabled === "boolean" ? overrideEnabled : enabled;
+  const notes = Array.isArray(manifest.notes) ? manifest.notes.map((item) => String(item)) : [];
+  const derived = extras?.about || deriveExtensionAbout(detail);
+  const mapped = EXTENSION_DESCRIPTIONS_TR[extId] || {};
+  const summary = normalizeAboutSummary(mapped.summary || derived.summary || notes[0] || "") ||
+    `${extId} eklentisi için kısa açıklama bulunamadı.`;
+  const policyLabel = buildPolicyLabelList(policies, 3);
+  const bullets = [];
+  if (mapped.value) bullets.push({ label: "Ne sağlar", value: mapped.value });
+  if (mapped.when) bullets.push({ label: "Ne zaman", value: mapped.when });
+  if (mapped.output) bullets.push({ label: "Çıktı", value: mapped.output });
+  bullets.push({ label: "Durum", value: effectiveEnabled ? "Etkin" : "Devre dışı" });
+  if (docsRef) bullets.push({ label: "Doküman", value: docsRef });
+  if (ops.length) bullets.push({ label: "Ops komutları", value: ops.join(", ") });
+  if (cockpitSections.length) bullets.push({ label: "Cockpit yüzeyi", value: cockpitSections.join(", ") });
+  if (policies.length) bullets.push({ label: "Policy’ler", value: policyLabel });
+  return { summary, bullets };
+}
+
+function buildExtensionDetailSections(detail, overrideEntry, extras, loading) {
+  const sections = [];
+  const about = buildExtensionAbout(detail, overrideEntry, extras);
+  sections.push({ id: "about", label: t("extensions.detail.about"), kind: "about", data: about });
+  const manifest = detail?.manifest && Object.keys(detail.manifest || {}).length ? detail.manifest : null;
+  if (manifest) {
+    sections.push({ id: "manifest", label: t("extensions.detail.manifest"), kind: "json", data: manifest });
+  }
+  const readmeText = extras?.readme?.text || "";
+  sections.push({
+    id: "readme",
+    label: t("extensions.detail.readme"),
+    kind: "readme",
+    text: readmeText || (loading ? t("extensions.detail.loading") : t("extensions.detail.empty")),
+    path: extras?.readme?.path || "",
+  });
+  const policyItems = Array.isArray(extras?.policies) ? extras.policies : [];
+  sections.push({
+    id: "policies",
+    label: t("extensions.detail.policies"),
+    kind: "policy",
+    items: policyItems,
+    loading,
+  });
+  const opsMetrics = extras?.opsMetrics || (loading ? { status: t("extensions.detail.loading") } : {});
+  sections.push({ id: "ops", label: t("extensions.detail.ops"), kind: "json", data: opsMetrics });
+  const meta = {
+    extension_id: detail?.extension_id || "",
+    manifest_path: detail?.manifest_path || "",
+    registry_path: state.extensions?.registry_path || "",
+    registry_exists: state.extensions?.registry_exists ?? null,
+    registry_json_valid: state.extensions?.registry_json_valid ?? null,
+  };
+  sections.push({ id: "meta", label: t("extensions.detail.meta"), kind: "json", data: meta });
+  if (overrideEntry && Object.keys(overrideEntry || {}).length) {
+    sections.push({ id: "overrides", label: t("extensions.detail.overrides"), kind: "json", data: overrideEntry });
+  }
+  return sections;
+}
+
+function buildExtensionDetailHtml(extId, sections) {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return `<div class="ext-detail-panel"><div class="subtle">${escapeHtml(t("extensions.detail.empty"))}</div></div>`;
+  }
+  const showTabs = sections.length > 1;
+  const tabsHtml = showTabs
+    ? `<div class="ext-detail-tabs">
+        ${sections
+          .map(
+            (section, idx) =>
+              `<button class="ext-detail-tab${idx === 0 ? " active" : ""}" data-ext-tab="${escapeHtml(section.id)}">${escapeHtml(
+                section.label
+              )}</button>`
+          )
+          .join("")}
+      </div>`
+    : "";
+  const panesHtml = sections
+    .map((section, idx) => {
+      const paneClass = `ext-detail-pane${idx === 0 ? " active" : ""}`;
+      if (section.kind === "policy") {
+        const items = Array.isArray(section.items) ? section.items : [];
+        if (!items.length) {
+          const emptyLabel = section.loading ? t("extensions.detail.loading") : t("extensions.detail.empty");
+          return `<div class="${paneClass}" data-ext-pane="${escapeHtml(section.id)}">
+              <div class="subtle">${escapeHtml(emptyLabel)}</div>
+            </div>`;
+        }
+        const tabs = items
+          .map(
+            (item, itemIndex) =>
+              `<button class="ext-subtab${itemIndex === 0 ? " active" : ""}" data-ext-subtab="${escapeHtml(
+                item.policy_id
+              )}">${escapeHtml(item.label)}</button>`
+          )
+          .join("");
+        const panes = items
+          .map(
+            (item, itemIndex) =>
+              `<div class="ext-subpane${itemIndex === 0 ? " active" : ""}" data-ext-subpane="${escapeHtml(
+                item.policy_id
+              )}">
+                <pre data-ext-policy="${escapeHtml(item.policy_id)}"></pre>
+              </div>`
+          )
+          .join("");
+        return `<div class="${paneClass}" data-ext-pane="${escapeHtml(section.id)}">
+            <div class="ext-subtabs">${tabs}</div>
+            <div class="ext-subpanes">${panes}</div>
+          </div>`;
+      }
+      if (section.kind === "readme") {
+        return `<div class="${paneClass}" data-ext-pane="${escapeHtml(section.id)}">
+            <pre data-ext-text="${escapeHtml(section.id)}"></pre>
+          </div>`;
+      }
+      if (section.kind === "about") {
+        const data = section.data || {};
+        const bullets = Array.isArray(data.bullets) ? data.bullets : [];
+        const bulletHtml = bullets
+          .map(
+            (item) =>
+              `<div class="ext-about-item"><span class="ext-about-label">${escapeHtml(
+                item.label
+              )}</span><span class="ext-about-value">${escapeHtml(item.value)}</span></div>`
+          )
+          .join("");
+        return `<div class="${paneClass}" data-ext-pane="${escapeHtml(section.id)}">
+            <div class="ext-about">
+              <div class="ext-about-summary">${escapeHtml(String(data.summary || ""))}</div>
+              <div class="ext-about-list">${bulletHtml}</div>
+            </div>
+          </div>`;
+      }
+      return `<div class="${paneClass}" data-ext-pane="${escapeHtml(section.id)}">
+          <pre data-ext-json="${escapeHtml(section.id)}"></pre>
+        </div>`;
+    })
+    .join("");
+  return `
+    <div class="ext-detail-panel">
+      <div class="ext-detail-header">
+        <div class="ext-detail-title">${escapeHtml(extId)}</div>
+        ${tabsHtml}
+      </div>
+      <div class="ext-detail-body">
+        ${panesHtml}
+      </div>
+    </div>
+  `;
+}
+
+function hydrateExtensionDetailPanel(list, extId, sections) {
+  const row = list.querySelector(`[data-ext-detail="${encodeTag(extId)}"]`);
+  if (!row) return;
+  sections.forEach((section) => {
+    if (section.kind === "readme") {
+      const pre = row.querySelector(`[data-ext-text="${section.id}"]`);
+      renderPlainText(pre, section.text || "");
+      return;
+    }
+    if (section.kind === "policy") {
+      const items = Array.isArray(section.items) ? section.items : [];
+      items.forEach((item) => {
+        const pre = row.querySelector(`[data-ext-policy="${item.policy_id}"]`);
+        renderJson(pre, item.data || {});
+      });
+      return;
+    }
+    const pre = row.querySelector(`[data-ext-json="${section.id}"]`);
+    renderJson(pre, section.data);
+  });
+  row.querySelectorAll(".ext-detail-panel").forEach((panel) => {
+    panel.querySelectorAll("[data-ext-tab]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const target = btn.dataset.extTab || "";
+        if (!target) return;
+        panel.querySelectorAll(".ext-detail-tab").forEach((tab) => tab.classList.remove("active"));
+        btn.classList.add("active");
+        panel.querySelectorAll(".ext-detail-pane").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.extPane === target);
+        });
+      });
+    });
+    panel.querySelectorAll("[data-ext-subtab]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const target = btn.dataset.extSubtab || "";
+        if (!target) return;
+        const container = btn.closest(".ext-detail-pane");
+        if (!container) return;
+        container.querySelectorAll(".ext-subtab").forEach((tab) => tab.classList.remove("active"));
+        btn.classList.add("active");
+        container.querySelectorAll(".ext-subpane").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.extSubpane === target);
+        });
+      });
+    });
+  });
+}
+
+async function loadExtensionDetailExtras(extId, detail) {
+  const extras = {
+    about: deriveExtensionAbout(detail),
+    readme: null,
+    policies: [],
+    opsMetrics: null,
+  };
+  const manifestPath = String(detail?.manifest_path || "");
+  if (manifestPath) {
+    const parts = manifestPath.split("/");
+    const extDir = parts.slice(0, -1).join("/");
+    const candidates = ["README.md", "README.v1.md", "README.v2.md", "README.txt"];
+    for (const name of candidates) {
+      const path = `${extDir}/${name}`;
+      try {
+        const payload = await fetchJson(`${endpoints.file}?path=${encodeURIComponent(path)}`);
+        if (payload?.exists && payload?.data?.text) {
+          extras.readme = { path, text: payload.data.text };
+          break;
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+  }
+  const policyPaths = Array.isArray(detail?.manifest?.policies) ? detail.manifest.policies : [];
+  const uniquePolicies = Array.from(new Set(policyPaths.map((p) => String(p || "").trim()).filter(Boolean)));
+  for (const path of uniquePolicies) {
+    let payload = null;
+    try {
+      payload = await fetchJson(`${endpoints.file}?path=${encodeURIComponent(path)}`);
+    } catch (err) {
+      payload = null;
+    }
+    extras.policies.push({
+      path,
+      label: path.split("/").slice(-1)[0] || path,
+      policy_id: `pol_${extras.policies.length + 1}`,
+      data: payload?.data || {},
+      exists: payload?.exists ?? false,
+    });
+  }
+  const usage = state.extensionUsage || {};
+  const byExt = usage.by_extension || {};
+  const count = Number(byExt?.[extId] || 0);
+  const matched = Number(usage.matched_entries || 0);
+  const total = Number(usage.total_entries || 0);
+  const share = matched ? Math.round((count / matched) * 1000) / 10 : 0;
+  extras.opsMetrics = {
+    usage_count: count,
+    matched_entries: matched,
+    total_entries: total,
+    share_percent: share,
+    generated_at: usage.generated_at || "",
+  };
+  return extras;
+}
+
+async function toggleExtensionDetail(extId) {
+  if (!extId) return;
+  if (state.extensionDetailExpanded === extId) {
+    state.extensionDetailExpanded = "";
+    renderExtensionsList(state.extensions?.items || []);
+    return;
+  }
+  state.extensionDetailExpanded = extId;
+  if (!state.extensionDetail || state.extensionDetail.extension_id !== extId) {
+    try {
+      state.extensionDetail = await fetchJson(`${endpoints.extensions}?extension_id=${encodeURIComponent(extId)}`);
+    } catch (err) {
+      showToast(t("toast.refresh_failed", { name: t("h.extension_detail"), error: formatError(err) }), "warn");
+      state.extensionDetail = null;
+    }
+  }
+  renderExtensionsList(state.extensions?.items || []);
+  if (!state.extensionDetail) return;
+  if (!state.extensionDetailExtras[extId]) {
+    state.extensionDetailExtrasLoading = extId;
+    renderExtensionsList(state.extensions?.items || []);
+    try {
+      state.extensionDetailExtras[extId] = await loadExtensionDetailExtras(extId, state.extensionDetail);
+    } finally {
+      state.extensionDetailExtrasLoading = "";
+      renderExtensionsList(state.extensions?.items || []);
+    }
+  }
+  const row = $("#extensions-list")?.querySelector(`[data-ext-row="${encodeTag(extId)}"]`);
+  row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function renderExtensionsList(items) {
   const list = $("#extensions-list");
   if (!list) return;
@@ -7114,6 +10254,14 @@ function renderExtensionsList(items) {
     return;
   }
   const overrides = state.extensions?.overrides?.overrides || {};
+  const openId = state.extensionDetailExpanded;
+  const detail = state.extensionDetail;
+  const extras = openId ? state.extensionDetailExtras?.[openId] : null;
+  const loading = state.extensionDetailExtrasLoading === openId;
+  const openSections =
+    openId && detail?.extension_id === openId
+      ? buildExtensionDetailSections(detail, overrides?.[openId], extras, loading)
+      : [];
   const rows = items
     .map((item) => {
       const extId = String(item.extension_id || "");
@@ -7128,8 +10276,10 @@ function renderExtensionsList(items) {
         : `<span class="badge warn">${escapeHtml(badgeLabel)}</span>`;
       const toggleLabel = effective ? t("actions.disable") : t("actions.enable");
       const toggleTarget = effective ? "false" : "true";
+      const isOpen = openId === extId;
+      const detailHtml = isOpen ? buildExtensionDetailHtml(extId, openSections) : `<div class="ext-detail-panel"></div>`;
       return `
-        <tr>
+        <tr class="ext-row" data-ext-row="${extAttr}">
           <td>${escapeHtml(extId)}</td>
           <td>${escapeHtml(semver)}</td>
           <td>${badge}</td>
@@ -7137,6 +10287,9 @@ function renderExtensionsList(items) {
             <button class="btn" data-ext-view="${extAttr}">${escapeHtml(t("actions.view"))}</button>
             <button class="btn warn" data-ext-toggle="${extAttr}" data-ext-enable="${toggleTarget}">${escapeHtml(toggleLabel)}</button>
           </td>
+        </tr>
+        <tr class="ext-detail-row${isOpen ? " open" : ""}" data-ext-detail="${extAttr}">
+          <td colspan="4">${detailHtml}</td>
         </tr>
       `;
     })
@@ -7147,16 +10300,25 @@ function renderExtensionsList(items) {
       <tbody>${rows}</tbody>
     </table>
   `;
-  $$("[data-ext-view]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+  list.querySelectorAll("[data-ext-row]").forEach((row) => {
+    row.addEventListener("click", async (event) => {
+      if (event.target.closest("button")) return;
+      const extId = decodeTag(row.dataset.extRow || "");
+      await toggleExtensionDetail(extId);
+    });
+  });
+  list.querySelectorAll("[data-ext-view]").forEach((btn) => {
+    btn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const extId = decodeTag(btn.dataset.extView || "");
-      if (!extId) return;
-      state.extensionDetail = await fetchJson(`${endpoints.extensions}?extension_id=${encodeURIComponent(extId)}`);
-      renderExtensionDetail();
+      await toggleExtensionDetail(extId);
     });
   });
   $$("[data-ext-toggle]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const extId = decodeTag(btn.dataset.extToggle || "");
       const enable = btn.dataset.extEnable === "true";
       if (!extId) return;
@@ -7164,18 +10326,388 @@ function renderExtensionsList(items) {
     });
   });
   applyAdminModeToWriteControls();
+  if (openId && openSections.length) {
+    hydrateExtensionDetailPanel(list, openId, openSections);
+  }
 }
 
 function renderExtensionDetail() {
-  const meta = $("#extension-meta");
-  const viewer = $("#extension-json");
-  const detail = state.extensionDetail || {};
-  if (meta) {
-    const extId = detail.extension_id || "";
-    const path = detail.manifest_path || "";
-    meta.textContent = `extension_id=${extId} manifest=${path}`;
+  renderExtensionsList(state.extensions?.items || []);
+}
+
+function inferTimestampFromPath(path) {
+  const text = String(path || "");
+  const match = text.match(/(20\d{2})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/);
+  if (match) {
+    const iso = `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z`;
+    const ts = Date.parse(iso);
+    if (Number.isFinite(ts)) return ts;
   }
-  renderJson(viewer, detail.manifest || {});
+  const matchDate = text.match(/(20\d{2}-\d{2}-\d{2})/);
+  if (matchDate) {
+    const ts = Date.parse(`${matchDate[1]}T00:00:00Z`);
+    if (Number.isFinite(ts)) return ts;
+  }
+  return 0;
+}
+
+function buildExtensionKeywordMap(extIds) {
+  const map = {};
+  extIds.forEach((extId) => {
+    const raw = String(extId || "");
+    const lower = raw.toLowerCase();
+    const clean = lower.replace(/^prj-/, "");
+    const slug = clean.replace(/[^a-z0-9]+/g, "_");
+    map[raw] = [lower, clean, slug, clean.replace(/_/g, "-")];
+  });
+  return map;
+}
+
+function inferExtensionFromPath(path, extIds, keywordMap) {
+  const lower = String(path || "").toLowerCase();
+  for (const extId of extIds) {
+    if (!extId) continue;
+    const extLower = String(extId || "").toLowerCase();
+    if (extLower && lower.includes(extLower)) return extId;
+    const keywords = keywordMap[extId] || [];
+    for (const token of keywords) {
+      if (token && lower.includes(token)) return extId;
+    }
+  }
+  return "";
+}
+
+function normalizeWorkspaceAbsolutePath(path) {
+  const raw = String(path || "").trim();
+  if (!raw || !raw.startsWith("/")) return raw;
+  const wsRoot = String(state.ws?.workspace_root || "").trim();
+  if (!wsRoot) return raw;
+  if (!raw.startsWith(wsRoot)) return raw;
+  const suffix = raw.slice(wsRoot.length);
+  const normalized = suffix.startsWith("/") ? suffix : `/${suffix}`;
+  return `.cache/ws_customer_default${normalized}`;
+}
+
+function renderExtensionUsage() {
+  const table = $("#extensions-usage-table");
+  if (!table) return;
+  const report = state.extensionUsage || {};
+  const entries = Array.isArray(state.opsLogIndex?.entries) ? state.opsLogIndex.entries : [];
+
+  const extensionItems = Array.isArray(state.extensions?.items) ? state.extensions.items : [];
+  const extIds = extensionItems.map((item) => String(item.extension_id || "")).filter((x) => x);
+  const keywordMap = buildExtensionKeywordMap(extIds);
+
+  const rowsRaw = entries.map((entry, idx) => {
+    const path = String(entry.path || "");
+    const kind = String(entry.kind || entry.type || "");
+    const ext = String(entry.extension_id || entry?.meta?.extension_id || inferExtensionFromPath(path, extIds, keywordMap) || "UNKNOWN");
+    const ts = entry.created_at ? Date.parse(String(entry.created_at || "")) : inferTimestampFromPath(path);
+    const time = Number.isFinite(ts) && ts > 0 ? new Date(ts).toISOString() : "";
+    return { idx, time, ts: Number.isFinite(ts) ? ts : 0, kind, extension: ext, path };
+  });
+
+  const extFilter = String(state.extensionUsageFilters.extension || "");
+  const kindFilter = String(state.extensionUsageFilters.kind || "");
+  const search = String(state.extensionUsageFilters.search || "").trim().toLowerCase();
+
+  let rows = rowsRaw.filter((row) => {
+    if (extFilter && row.extension !== extFilter) return false;
+    if (kindFilter && row.kind !== kindFilter) return false;
+    if (search) {
+      const hay = `${row.time} ${row.kind} ${row.extension} ${row.path}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  rows.sort((a, b) => (b.ts || 0) - (a.ts || 0) || a.idx - b.idx);
+
+  const total = rowsRaw.length || Number(report.total_entries || 0);
+  const matched = rows.length || Number(report.matched_entries || 0);
+  const unknownCount = rowsRaw.length
+    ? rowsRaw.filter((row) => row.extension === "UNKNOWN").length
+    : Number(report.unknown_entries || 0);
+  const pills = $("#extensions-usage-pills");
+  if (pills) {
+    const byExtension = report.by_extension && typeof report.by_extension === "object" ? report.by_extension : {};
+    const topEntries = Object.entries(byExtension)
+      .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+      .slice(0, 5);
+    const usedTotal = Object.values(byExtension).reduce((acc, v) => acc + Number(v || 0), 0);
+    const sumTop = topEntries.reduce((acc, [, count]) => acc + Number(count || 0), 0);
+    const extSegments = [];
+    topEntries.forEach(([id, count]) => {
+      extSegments.push({ id: String(id), count: Number(count || 0) });
+    });
+    if (unknownCount) extSegments.push({ id: "UNKNOWN", count: Number(unknownCount || 0) });
+    if (usedTotal > sumTop) extSegments.push({ id: "OTHER", count: Math.max(0, usedTotal - sumTop) });
+    const palette = ["#2fdbAA", "#8aa6ff", "#f0b25c", "#ff7aa2", "#9ad0f5", "#b388ff", "#7bd389"];
+    const maxTop = topEntries.length ? Math.max(...topEntries.map(([, count]) => Number(count) || 0)) : 0;
+    const topBars = topEntries
+      .map(([id, count]) => {
+        const pct = maxTop ? Math.round((Number(count) || 0) / maxTop * 100) : 0;
+        return `
+          <div class="mini-bar" style="--w:${pct}%">
+            <span class="label">${escapeHtml(String(id))}</span>
+            <span class="count">${escapeHtml(String(count))}</span>
+          </div>
+        `;
+      })
+      .join("");
+    const dailyBuckets = (() => {
+      const now = new Date();
+      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const windowDays = 14;
+      const buckets = [];
+      const byDay = new Map();
+      rowsRaw.forEach((row) => {
+        const ts = Number(row.ts || 0);
+        if (!ts) return;
+        const dayKey = new Date(ts).toISOString().slice(0, 10);
+        const ext = String(row.extension || "UNKNOWN");
+        if (!byDay.has(dayKey)) byDay.set(dayKey, new Map());
+        const extMap = byDay.get(dayKey);
+        extMap.set(ext, (extMap.get(ext) || 0) + 1);
+      });
+      for (let offset = windowDays - 1; offset >= 0; offset -= 1) {
+        const day = new Date(end.getTime() - offset * 86400000);
+        const key = day.toISOString().slice(0, 10);
+        const extMap = byDay.get(key) || new Map();
+        const totalCount = Array.from(extMap.values()).reduce((acc, v) => acc + Number(v || 0), 0);
+        buckets.push({ key, count: totalCount, extMap });
+      }
+      return buckets;
+    })();
+    const maxDaily = dailyBuckets.reduce((acc, bucket) => Math.max(acc, Number(bucket.count) || 0), 0);
+    const topIds = topEntries.map(([id]) => String(id));
+    const dailyBars = dailyBuckets
+      .map((bucket) => {
+        const height = maxDaily ? Math.max(6, Math.round((Number(bucket.count) || 0) / maxDaily * 64)) : 6;
+        const dim = bucket.count ? "" : " dim";
+        const label = bucket.key.slice(5);
+        const extMap = bucket.extMap || new Map();
+        const segs = [];
+        let otherCount = 0;
+        const keys = Array.from(extMap.keys());
+        keys.forEach((ext) => {
+          const count = Number(extMap.get(ext) || 0);
+          if (!count) return;
+          if (topIds.includes(ext)) {
+            segs.push({ id: ext, count });
+          } else {
+            otherCount += count;
+          }
+        });
+        if (otherCount) segs.push({ id: "OTHER", count: otherCount });
+        if (!segs.length && bucket.count) segs.push({ id: "UNKNOWN", count: bucket.count });
+        const segHtml = segs
+          .map((seg) => {
+            const segPct = bucket.count ? Math.max(5, Math.round((seg.count / bucket.count) * 100)) : 0;
+            const colorIdx = extSegments.findIndex((s) => s.id === seg.id);
+            const color = palette[(colorIdx >= 0 ? colorIdx : segs.indexOf(seg)) % palette.length];
+            return `<span class="bar-seg" style="--seg:${segPct}%; --c:${color}"></span>`;
+          })
+          .join("");
+        return `
+          <div class="usage-day${dim}" title="${escapeHtml(`${bucket.key}: ${bucket.count}`)}">
+            <div class="bar-stack" style="--h:${height}px">${segHtml}</div>
+            <span class="label">${escapeHtml(label)}</span>
+          </div>
+        `;
+      })
+      .join("");
+    const summary = t("extensions.usage.summary", { matched, total, unknown: unknownCount });
+    let accPct = 0;
+    const donutStops = extSegments.length
+      ? extSegments.map((seg, idx) => {
+        const pct = usedTotal ? (seg.count / usedTotal) * 100 : 0;
+        const start = accPct;
+        accPct += pct;
+        const color = palette[idx % palette.length];
+        return `${color} ${start.toFixed(2)}% ${accPct.toFixed(2)}%`;
+      }).join(", ")
+      : "";
+    const legendItems = extSegments.length
+      ? extSegments.map((seg, idx) => {
+        const pct = usedTotal ? Math.round((seg.count / usedTotal) * 100) : 0;
+        const color = palette[idx % palette.length];
+        return `
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:${color}"></span>
+            <span class="legend-label">${escapeHtml(String(seg.id))}</span>
+            <span class="legend-value">${escapeHtml(String(seg.count))} (${pct}%)</span>
+          </div>
+        `;
+      }).join("")
+      : "";
+    const topBlock = topBars
+      ? `<div class="mini-bars" title="${escapeHtml(t("extensions.usage.top"))}">${topBars}</div>`
+      : "";
+    const dailyBlock = dailyBars
+      ? `
+        <div class="usage-chart">
+          <div class="chart-title">${escapeHtml(t("extensions.usage.by_day"))}</div>
+          <div class="chart-bars">${dailyBars}</div>
+        </div>
+      `
+      : `
+        <div class="usage-chart empty">
+          <div class="chart-title">${escapeHtml(t("extensions.usage.by_day"))}</div>
+          <div class="empty-note">${escapeHtml(t("extensions.usage.by_day_empty"))}</div>
+        </div>
+      `;
+    const donutBlock = extSegments.length
+      ? `
+        <div class="donut-card">
+          <div class="donut" style="--donut:${donutStops}"></div>
+          <div class="donut-legend">${legendItems}</div>
+        </div>
+      `
+      : "";
+    pills.innerHTML = `
+      <div class="row" style="gap:6px; flex-wrap:wrap; align-items:center;">
+        <span class="badge">${escapeHtml(summary)}</span>
+        ${topEntries.length ? `<span class="badge subtle">${escapeHtml(t("extensions.usage.top"))}</span>` : ""}
+      </div>
+      <div class="row mini-usage-row">
+        ${donutBlock}
+        ${topBlock}
+        ${dailyBlock}
+      </div>
+    `;
+  }
+
+  const extSelect = $("#extensions-usage-extension");
+  if (extSelect) {
+    const extOptions = Array.from(new Set(rowsRaw.map((row) => row.extension).filter((x) => x))).sort((a, b) => a.localeCompare(b));
+    if (extOptions.length === 0) {
+      extSelect.innerHTML = `<option value="">${escapeHtml(t("extensions.usage.select_placeholder"))}</option>`;
+      extSelect.value = "";
+      extSelect.disabled = true;
+    } else {
+      extSelect.innerHTML = `<option value="">${escapeHtml(t("extensions.usage.select_placeholder"))}</option>` +
+        extOptions.map((ext) => `<option value="${escapeHtml(ext)}">${escapeHtml(ext)}</option>`).join("");
+      extSelect.disabled = false;
+      if (extFilter && extOptions.includes(extFilter)) extSelect.value = extFilter;
+      else extSelect.value = "";
+    }
+  }
+
+  const kindSelect = $("#extensions-usage-kind");
+  if (kindSelect) {
+    const kindOptions = Array.from(new Set(rowsRaw.map((row) => row.kind).filter((x) => x))).sort((a, b) => a.localeCompare(b));
+    if (kindOptions.length === 0) {
+      kindSelect.innerHTML = `<option value="">${escapeHtml(t("extensions.usage.select_placeholder"))}</option>`;
+      kindSelect.value = "";
+      kindSelect.disabled = true;
+    } else {
+      kindSelect.innerHTML = `<option value="">${escapeHtml(t("extensions.usage.select_placeholder"))}</option>` +
+        kindOptions.map((kind) => `<option value="${escapeHtml(kind)}">${escapeHtml(kind)}</option>`).join("");
+      kindSelect.disabled = false;
+      if (kindFilter && kindOptions.includes(kindFilter)) kindSelect.value = kindFilter;
+      else kindSelect.value = "";
+    }
+  }
+
+  const rowsHtml = rows
+    .map((row) => {
+      const pathAttr = encodeTag(row.path || "");
+      const openBtn = row.path
+        ? `<button class="btn small ghost" data-ext-usage-open="${pathAttr}" title="${escapeHtml(t("actions.view"))}">${escapeHtml(t("actions.view"))}</button>`
+        : "";
+      return `
+        <tr>
+          <td>${escapeHtml(row.time || "")}</td>
+          <td>${escapeHtml(row.kind || "")}</td>
+          <td>${escapeHtml(row.extension || "")}</td>
+          <td class="subtle" style="word-break: break-all;">${escapeHtml(row.path || "")} ${openBtn}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  if (!entries.length) {
+    table.innerHTML = `<div class="empty">${escapeHtml(t("extensions.usage.empty_hint"))}</div>`;
+  } else {
+    table.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>${escapeHtml(t("table.time"))}</th>
+          <th>${escapeHtml(t("table.kind"))}</th>
+          <th>${escapeHtml(t("table.extension"))}</th>
+          <th>${escapeHtml(t("table.path"))}</th>
+        </tr></thead>
+        <tbody>${rowsHtml || `<tr><td colspan="4">${escapeHtml(t("empty.no_items"))}</td></tr>`}</tbody>
+      </table>
+    `;
+  }
+
+  table.querySelectorAll("[data-ext-usage-open]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const path = decodeTag(btn.dataset.extUsageOpen || "");
+      if (!path) return;
+      openEvidencePreview(path);
+      navigateToTab("evidence");
+    });
+  });
+
+  const unknownDetails = $("#extensions-usage-unknown");
+  const unknownList = $("#extensions-usage-unknown-list");
+  if (unknownList && unknownDetails) {
+    const unknownSample = Array.isArray(report.unknown_sample) ? report.unknown_sample : [];
+    if (!unknownSample.length) {
+      unknownDetails.style.display = "none";
+    } else {
+      unknownDetails.style.display = "";
+      unknownList.innerHTML = unknownSample.map((path) => `<div class="subtle">${escapeHtml(path)}</div>`).join("");
+    }
+  }
+
+  const unusedEl = $("#extensions-usage-unused");
+  if (unusedEl) {
+    if (!rowsRaw.length) {
+      unusedEl.textContent = t("extensions.usage.no_data");
+    } else {
+      const usedSet = new Set(rowsRaw.map((row) => row.extension).filter((x) => x && x !== "UNKNOWN"));
+      const unused = extIds.filter((ext) => !usedSet.has(ext));
+      if (!unused.length) {
+        unusedEl.textContent = "";
+      } else {
+        unusedEl.textContent = t("extensions.usage.unused", { list: unused.join(", ") });
+      }
+    }
+  }
+}
+
+async function refreshExtensionUsage() {
+  const reportPath = resolveEvidencePathForApi(extensionUsageReportPath);
+  const reportPayload = await fetchOptionalJson(reportPath);
+  state.extensionUsage = unwrap(reportPayload || {});
+  let opsLogPath = state.extensionUsage?.canonical_ops_log || "";
+  if (!opsLogPath) {
+    const ptrPayload = await fetchOptionalJson(resolveEvidencePathForApi(opsLogIndexPointerPath));
+    const ptr = unwrap(ptrPayload || {});
+    opsLogPath = ptr?.canonical_path || "";
+  }
+  if (opsLogPath) {
+    const candidates = [
+      opsLogPath,
+      normalizeWorkspaceAbsolutePath(opsLogPath),
+      resolveEvidencePathForApi(opsLogPath),
+    ].filter((val, idx, arr) => val && arr.indexOf(val) === idx);
+    let payload = null;
+    for (const candidate of candidates) {
+      payload = await fetchOptionalJson(candidate);
+      if (payload) break;
+    }
+    state.opsLogIndex = unwrap(payload || {});
+  } else {
+    state.opsLogIndex = null;
+  }
+  renderExtensionUsage();
 }
 
 function renderSettingsList(items) {
@@ -7272,8 +10804,14 @@ function renderNoteLinks() {
   }
   container.innerHTML = state.noteLinks
     .map((link, idx) => {
-      const label = `${escapeHtml(link.kind)}:${escapeHtml(link.id_or_path)}`;
-      return `<span class="note-tag">${label}</span><button class="btn ghost" data-link-remove="${idx}">${escapeHtml(t("notes.links.remove"))}</button>`;
+      const kind = String(link.kind || "").trim() || "link";
+      const path = String(link.id_or_path || "").trim();
+      const label = `${escapeHtml(kind)}:${escapeHtml(path)}`;
+      const canOpen = kind === "evidence" && path;
+      const openBtn = canOpen
+        ? `<button class="btn small ghost" type="button" data-note-link-open="${encodeTag(path)}" title="${escapeHtml(t("evidence.open_in_evidence_title"))}">${escapeHtml(t("actions.view"))}</button>`
+        : "";
+      return `<div class="note-link-row"><span class="note-tag">${label}</span>${openBtn}<button class="btn ghost" data-link-remove="${idx}">${escapeHtml(t("notes.links.remove"))}</button></div>`;
     })
     .join(" ");
   $$('[data-link-remove]').forEach((btn) => {
@@ -7283,6 +10821,16 @@ function renderNoteLinks() {
         state.noteLinks.splice(idx, 1);
         renderNoteLinks();
       }
+    });
+  });
+  $$('[data-note-link-open]').forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const path = decodeTag(btn.dataset.noteLinkOpen || "");
+      if (!path) return;
+      previewIntakeEvidence(path);
+      navigateToTab("evidence");
     });
   });
 }
@@ -7719,7 +11267,18 @@ function dedupeList(items) {
 
 async function fetchOptionalJson(path) {
   try {
-    return await fetchJson(`${endpoints.file}?path=${encodeURIComponent(path)}`);
+    const endpoint = isWorkspaceReportsPath(path) ? endpoints.evidenceRead : endpoints.file;
+    return await fetchJson(`${endpoint}?path=${encodeURIComponent(path)}`);
+  } catch (_) {
+    return null;
+  }
+}
+
+async function fetchReportText(path) {
+  try {
+    const res = await fetch(`${endpoints.report}?path=${encodeURIComponent(path)}`);
+    if (!res.ok) return null;
+    return await res.text();
   } catch (_) {
     return null;
   }
@@ -7868,7 +11427,34 @@ function buildChatProviderClassMap(providerMapPayload) {
   return result;
 }
 
-function buildChatProviderClassMeta(providerMapPayload) {
+function buildAllowlistModelStatus(allowPayload) {
+  const payload = unwrap(allowPayload || {}) || {};
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  const generatedAt = payload.generated_at ? String(payload.generated_at) : null;
+  const result = {};
+  items.forEach((item) => {
+    const providerId = String(item?.provider_id || "").trim();
+    const modelId = String(item?.model_id || "").trim();
+    if (!providerId || !modelId) return;
+    const classes = Array.isArray(item?.classes_target) ? item.classes_target : [];
+    const status = String(item?.status || "").toUpperCase();
+    classes.forEach((classIdRaw) => {
+      const classId = String(classIdRaw || "").trim().toUpperCase();
+      if (!classId) return;
+      if (!result[classId]) result[classId] = {};
+      if (!result[classId][providerId]) result[classId][providerId] = {};
+      result[classId][providerId][modelId] = {
+        status,
+        generated_at: generatedAt,
+        error_code: item?.error_code || null,
+        http_status: Number.isFinite(item?.http_status) ? Number(item.http_status) : null,
+      };
+    });
+  });
+  return result;
+}
+
+function buildChatProviderClassMeta(providerMapPayload, allowlistByClass) {
   const registry = unwrap(providerMapPayload || {}) || {};
   const classes = registry.classes && typeof registry.classes === "object" ? registry.classes : {};
   const result = {};
@@ -7880,21 +11466,147 @@ function buildChatProviderClassMeta(providerMapPayload) {
       const p = providers[providerId] || {};
       const eligible = [];
       const status = {};
+      const allowlistProvider =
+        allowlistByClass && allowlistByClass[classId] && allowlistByClass[classId][providerId]
+          ? allowlistByClass[classId][providerId]
+          : null;
       if (Array.isArray(p.models)) {
         p.models.forEach((item) => {
           const modelId = String(item?.model_id || "").trim();
           if (!modelId) return;
           const stage = String(item?.stage || "").trim().toLowerCase();
           const probe = String(item?.probe_status || "").trim().toLowerCase();
-          status[modelId] = { stage: stage || null, probe_status: probe || null };
+          const latency = Number.isFinite(item?.probe_latency_ms_p95) ? Number(item.probe_latency_ms_p95) : null;
+          const verifiedAt = item?.verified_at ? String(item.verified_at) : null;
+          status[modelId] = {
+            stage: stage || null,
+            probe_status: probe || null,
+            latency_ms_p95: latency,
+            verified_at: verifiedAt,
+          };
           if (stage === "verified" && probe === "ok") eligible.push(modelId);
+          if (allowlistProvider && allowlistProvider[modelId] && !status[modelId].probe_status) {
+            const allowEntry = allowlistProvider[modelId] || {};
+            const allowStatus = String(allowEntry.status || "").toUpperCase();
+            status[modelId].probe_status = allowStatus === "OK" ? "ok" : "fail";
+            status[modelId].stage = allowStatus === "OK" ? "verified" : "unverified";
+            if (!status[modelId].verified_at && allowEntry.generated_at) {
+              status[modelId].verified_at = String(allowEntry.generated_at);
+            }
+            if (allowStatus === "OK") eligible.push(modelId);
+          }
         });
       }
-      providerMeta[providerId] = { eligible: dedupeList(eligible), status };
+      if (allowlistProvider) {
+        Object.keys(allowlistProvider).forEach((modelId) => {
+          if (status[modelId]) return;
+          const allowEntry = allowlistProvider[modelId] || {};
+          const allowStatus = String(allowEntry.status || "").toUpperCase();
+          status[modelId] = {
+            stage: allowStatus === "OK" ? "verified" : "unverified",
+            probe_status: allowStatus === "OK" ? "ok" : "fail",
+            latency_ms_p95: null,
+            verified_at: allowEntry.generated_at ? String(allowEntry.generated_at) : null,
+          };
+          if (allowStatus === "OK") eligible.push(modelId);
+        });
+      }
+      const pinnedModelId = String(p?.pinned_model_id || "").trim();
+      const preferredCandidateModelId = String(p?.preferred_candidate_model_id || "").trim();
+      providerMeta[providerId] = {
+        eligible: dedupeList(eligible),
+        status,
+        pinned_model_id: pinnedModelId || null,
+        preferred_candidate_model_id: preferredCandidateModelId || null,
+      };
     });
     result[classId] = providerMeta;
   });
   return result;
+}
+
+function mergeProviderMapWithProbeState(providerMapPayload, probeStatePayload) {
+  const baseRegistry = unwrap(providerMapPayload || {}) || {};
+  const probeRegistry = unwrap(probeStatePayload || {}) || {};
+  const merged = { ...baseRegistry };
+  const baseClasses =
+    baseRegistry.classes && typeof baseRegistry.classes === "object" ? { ...baseRegistry.classes } : {};
+  const probeClasses = probeRegistry.classes && typeof probeRegistry.classes === "object" ? probeRegistry.classes : {};
+  const ensureProviders = (entry) => (entry && typeof entry.providers === "object" ? entry.providers : {});
+  const normalizeProbeModels = (providerEntry) => {
+    if (!providerEntry || typeof providerEntry !== "object") return [];
+    const raw = providerEntry.models;
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object") {
+      return Object.keys(raw).map((modelId) => ({
+        model_id: modelId,
+        ...(raw[modelId] || {}),
+      }));
+    }
+    return [];
+  };
+
+  Object.keys(probeClasses).forEach((classId) => {
+    const baseEntry = baseClasses[classId] || {};
+    const probeEntry = probeClasses[classId] || {};
+    const baseProviders = { ...ensureProviders(baseEntry) };
+    const probeProviders = ensureProviders(probeEntry);
+    Object.keys(probeProviders).forEach((providerId) => {
+      const baseProvider = baseProviders[providerId] || {};
+      const baseModels = Array.isArray(baseProvider.models) ? baseProvider.models : [];
+      const modelMap = {};
+      baseModels.forEach((item) => {
+        const modelId = String(item?.model_id || "").trim();
+        if (!modelId) return;
+        modelMap[modelId] = { ...item, model_id: modelId };
+      });
+      const probeModels = normalizeProbeModels(probeProviders[providerId]);
+      probeModels.forEach((item) => {
+        const modelId = String(item?.model_id || "").trim();
+        if (!modelId) return;
+        const existing = modelMap[modelId] || { model_id: modelId };
+        const probeStatus = String(item?.probe_status || existing.probe_status || "").trim();
+        const stageRaw = String(item?.stage || existing.stage || "").trim();
+        const stage = stageRaw || (probeStatus.toLowerCase() === "ok" ? "verified" : existing.stage);
+        modelMap[modelId] = {
+          ...existing,
+          ...item,
+          stage,
+          probe_status: probeStatus || existing.probe_status,
+        };
+      });
+      const mergedProvider = { ...baseProvider, ...probeProviders[providerId] };
+      const mergedModels = Object.values(modelMap);
+      mergedProvider.models = mergedModels.length ? mergedModels : probeModels.slice();
+      baseProviders[providerId] = mergedProvider;
+    });
+    baseClasses[classId] = { ...baseEntry, ...probeEntry, providers: baseProviders };
+  });
+
+  merged.classes = baseClasses;
+  const path = providerMapPayload?.path || probeStatePayload?.path || "";
+  return { path, data: merged };
+}
+
+function isAllowlistWarn() {
+  const summary = state.chatAllowlistSummary || {};
+  const status = String(summary.status || "").toUpperCase();
+  const fail = Number(summary.fail || summary.fail_count || summary.failed || 0);
+  return status === "WARN" && fail > 0;
+}
+
+function renderChatAllowlistHint(targetId) {
+  const el = targetId ? document.getElementById(targetId) : null;
+  if (!el) return;
+  if (!isAllowlistWarn()) {
+    el.textContent = "";
+    el.style.display = "none";
+    return;
+  }
+  const summary = state.chatAllowlistSummary || {};
+  const fail = Number(summary.fail || summary.fail_count || summary.failed || 0);
+  el.textContent = t("chat.allowlist_warn", { fail: Number.isFinite(fail) ? fail : "-" });
+  el.style.display = "block";
 }
 
 function filterModelsForProfile(profileId, models) {
@@ -7931,6 +11643,102 @@ function filterModelsForProfile(profileId, models) {
   });
   if (filtered.length) return filtered;
   return rule.include.length ? [] : items;
+}
+
+function resolveProfileSelectionPolicy(profileId) {
+  const id = String(profileId || "").toUpperCase();
+  const map = {
+    GOVERNANCE_ASSURANCE: "SECURITY",
+    MODERATION_SAFETY: "SECURITY",
+    REALTIME_STREAMING: "STABILITY",
+    CODE_AGENTIC: "STABILITY",
+    REASONING_TEXT: "STABILITY",
+  };
+  return map[id] || "PRICE_PERF";
+}
+
+function resolveTimestamp(value) {
+  if (!value) return null;
+  const ts = Date.parse(String(value));
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function pickPreferredModel(snapshot, policy) {
+  const candidates = Array.isArray(snapshot.availableModels) && snapshot.availableModels.length
+    ? snapshot.availableModels.slice()
+    : Array.isArray(snapshot.models)
+      ? snapshot.models.slice()
+      : [];
+  if (!candidates.length) return "";
+  const defaultModel = String(snapshot.defaultModel || "").trim();
+  if (defaultModel && candidates.includes(defaultModel)) return defaultModel;
+  const pinnedModelId = String(snapshot.pinnedModelId || "").trim();
+  if (pinnedModelId && candidates.includes(pinnedModelId)) return pinnedModelId;
+  const preferredCandidateModelId = String(snapshot.preferredCandidateModelId || "").trim();
+  if (preferredCandidateModelId && candidates.includes(preferredCandidateModelId)) return preferredCandidateModelId;
+
+  if (policy === "PRICE_PERF") {
+    let best = "";
+    let bestLatency = Infinity;
+    candidates.forEach((model) => {
+      const latency = snapshot.latencyByModel?.[model];
+      if (Number.isFinite(latency) && latency < bestLatency) {
+        bestLatency = latency;
+        best = model;
+      }
+    });
+    if (best) return best;
+  }
+
+  if (policy === "STABILITY" || policy === "SECURITY") {
+    let best = "";
+    let bestTs = Infinity;
+    candidates.forEach((model) => {
+      const ts = resolveTimestamp(snapshot.verifiedAtByModel?.[model]);
+      if (Number.isFinite(ts) && ts < bestTs) {
+        bestTs = ts;
+        best = model;
+      }
+    });
+    if (best) return best;
+  }
+
+  return candidates[0];
+}
+
+function pickDefaultSelection(providers, getSnapshot, policy, providerOrder) {
+  if (!providers.length) return { provider: "", model: "" };
+  const orderIndex = new Map((providerOrder || []).map((id, idx) => [id, idx]));
+  let best = null;
+  providers.forEach((providerId) => {
+    const snapshot = getSnapshot(providerId);
+    const model = pickPreferredModel(snapshot, policy);
+    if (!model) return;
+    let primary = 0;
+    let secondary = 0;
+    if (policy === "PRICE_PERF") {
+      const latency = snapshot.latencyByModel?.[model];
+      primary = Number.isFinite(latency) ? latency : 1e12;
+      secondary = orderIndex.has(providerId) ? orderIndex.get(providerId) : 999;
+    } else {
+      primary = snapshot.pinnedModelId && model === snapshot.pinnedModelId ? 0 : 1;
+      const ts = resolveTimestamp(snapshot.verifiedAtByModel?.[model]);
+      secondary = Number.isFinite(ts) ? ts : 9e15;
+    }
+    const order = orderIndex.has(providerId) ? orderIndex.get(providerId) : 999;
+    const candidate = { provider: providerId, model, primary, secondary, order };
+    if (
+      !best ||
+      candidate.primary < best.primary ||
+      (candidate.primary === best.primary && candidate.secondary < best.secondary) ||
+      (candidate.primary === best.primary && candidate.secondary === best.secondary && candidate.order < best.order)
+    ) {
+      best = candidate;
+    }
+  });
+  if (best) return { provider: best.provider, model: best.model };
+  const fallbackProvider = providers[0];
+  return { provider: fallbackProvider, model: pickPreferredModel(getSnapshot(fallbackProvider), policy) };
 }
 
 function resolveChatProviderMap() {
@@ -7971,6 +11779,58 @@ function renderChatModelSelectors() {
   const classProviders = classProviderMap[state.chatProfile] || {};
   const classProviderKeys = Object.keys(classProviders || {});
   const classHasProviderData = classProviderKeys.length > 0;
+  const classMetaMap = state.chatProviderClassMeta || {};
+  const classMeta = classMetaMap[state.chatProfile] || {};
+  const providerSnapshots = {};
+
+  const buildProviderSnapshot = (providerId) => {
+    const modelInfo = providerMap[providerId] || {};
+    const classModels = Array.isArray(classProviders?.[providerId])
+      ? classProviders[providerId].slice()
+      : [];
+    const policyModels = Array.isArray(modelInfo.models) ? modelInfo.models.slice() : [];
+    let models = dedupeList([...classModels, ...policyModels]);
+    models = filterModelsForProfile(state.chatProfile, models);
+    const defaultModel = modelInfo.defaultModel;
+    if (defaultModel && models.includes(defaultModel) && models[0] !== defaultModel) {
+      models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
+    }
+    const providerMeta = classMeta[providerId] || {};
+    const eligibleModels = Array.isArray(providerMeta.eligible) ? providerMeta.eligible.slice() : [];
+    const eligibleSet = new Set(eligibleModels);
+    const hasVerificationMeta =
+      eligibleModels.length || (providerMeta.status && Object.keys(providerMeta.status).length);
+    const verifiedModels = hasVerificationMeta ? models.filter((m) => eligibleSet.has(m)) : [];
+    const availableModels = verifiedModels.length ? verifiedModels : models;
+    const latencyByModel = {};
+    const verifiedAtByModel = {};
+    const status = providerMeta.status || {};
+    Object.keys(status).forEach((modelId) => {
+      const item = status[modelId] || {};
+      if (Number.isFinite(item.latency_ms_p95)) latencyByModel[modelId] = Number(item.latency_ms_p95);
+      if (item.verified_at) verifiedAtByModel[modelId] = String(item.verified_at);
+    });
+    return {
+      models,
+      verifiedModels,
+      hasVerificationMeta,
+      availableModels,
+      eligibleSet,
+      defaultModel: defaultModel || "",
+      pinnedModelId: providerMeta.pinned_model_id || "",
+      preferredCandidateModelId: providerMeta.preferred_candidate_model_id || "",
+      latencyByModel,
+      verifiedAtByModel,
+      statusByModel: status,
+    };
+  };
+
+  const getSnapshot = (providerId) => {
+    if (!providerSnapshots[providerId]) {
+      providerSnapshots[providerId] = buildProviderSnapshot(providerId);
+    }
+    return providerSnapshots[providerId];
+  };
   let providers = providerOrder.filter((p) => providerMap[p] && providerMap[p].enabled !== false);
   if (classHasProviderData) {
     providers = providers.filter((p) => classProviderKeys.includes(p));
@@ -7999,58 +11859,68 @@ function renderChatModelSelectors() {
     return;
   }
 
-  state.chatProvider = providers.includes(state.chatProvider) ? state.chatProvider : providers[0];
+  providers = providers.filter((p) => getSnapshot(p).models.length > 0);
+  if (!providers.length) {
+    providerEl.innerHTML = `<option value="">${escapeHtml(t("select.none"))}</option>`;
+    modelEl.innerHTML = `<option value="">${escapeHtml(t("select.no_verified_model"))}</option>`;
+    state.chatProvider = "";
+    state.chatModel = "";
+    return;
+  }
+
+  const selectionPolicy = resolveProfileSelectionPolicy(state.chatProfile);
+  const recommended = pickDefaultSelection(providers, getSnapshot, selectionPolicy, providerOrder);
+  state.chatProvider = providers.includes(state.chatProvider) ? state.chatProvider : recommended.provider || providers[0];
   providerEl.innerHTML = providers.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
   providerEl.value = state.chatProvider;
 
-  const modelInfo = providerMap[state.chatProvider] || {};
-  const classModels = Array.isArray(classProviders?.[state.chatProvider])
-    ? classProviders[state.chatProvider].slice()
-    : [];
-  let models = classModels.length ? classModels : [];
-  if (!models.length && Array.isArray(modelInfo.models)) {
-    models = modelInfo.models.slice();
-  }
-  models = filterModelsForProfile(state.chatProfile, models);
-  const defaultModel = modelInfo.defaultModel;
-  if (defaultModel && models.includes(defaultModel) && models[0] !== defaultModel) {
-    models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
-  }
-  const classMetaMap = state.chatProviderClassMeta || {};
-  const classMeta = classMetaMap[state.chatProfile] || {};
-  const providerMeta = classMeta[state.chatProvider] || {};
-  const eligibleModels = Array.isArray(providerMeta.eligible) ? providerMeta.eligible.slice() : [];
-  const eligibleSet = new Set(eligibleModels);
-  const hasVerificationMeta =
-    eligibleModels.length || (providerMeta.status && Object.keys(providerMeta.status).length);
-  const verifiedModels = hasVerificationMeta ? models.filter((m) => eligibleSet.has(m)) : [];
+  const snapshot = getSnapshot(state.chatProvider);
+  const models = snapshot.models.slice();
+  const hasVerificationMeta = snapshot.hasVerificationMeta;
+  const eligibleSet = snapshot.eligibleSet || new Set();
+  const recommendedModel = recommended.provider === state.chatProvider ? recommended.model : "";
+  const displayModels = models;
 
-  if (verifiedModels.length) {
-    state.chatModel = verifiedModels.includes(state.chatModel)
-      ? state.chatModel
-      : verifiedModels[0] || "";
+  if (displayModels.length) {
+    if (displayModels.includes(state.chatModel)) {
+      state.chatModel = state.chatModel;
+    } else if (recommendedModel && displayModels.includes(recommendedModel)) {
+      state.chatModel = recommendedModel;
+    } else {
+      state.chatModel = displayModels[0] || "";
+    }
+  } else if (hasVerificationMeta) {
+    state.chatModel = "";
   } else {
     state.chatModel = "";
   }
 
   const options = [];
-  const displayModels = verifiedModels.length ? verifiedModels : models;
-  if (!displayModels.length || (hasVerificationMeta && !verifiedModels.length)) {
+  if (!displayModels.length) {
     options.push(`<option value="" disabled selected>${escapeHtml(t("select.no_verified_model"))}</option>`);
   }
   displayModels.forEach((m) => {
-    const eligible = hasVerificationMeta ? eligibleSet.has(m) : verifiedModels.length ? true : false;
-    const showAsUnverified = hasVerificationMeta && !eligible;
-    const label = showAsUnverified ? `${m} (unverified)` : m;
+    const statusByModel = snapshot.statusByModel || {};
+    const meta = statusByModel && statusByModel[m] ? statusByModel[m] : {};
+    const metaStage = String(meta.stage || "").toLowerCase();
+    const metaProbe = String(meta.probe_status || "").toLowerCase();
+    const verified = hasVerificationMeta
+      ? eligibleSet.has(m) || metaStage === "verified" || metaProbe === "ok"
+      : true;
+    const showAsUnverified = hasVerificationMeta && !verified;
+    const label = showAsUnverified
+      ? `${m} (${t(isAllowlistWarn() ? "chat.model.skeleton" : "chat.model.unverified")})`
+      : m;
     options.push(
       `<option value="${escapeHtml(m)}" ${
-        showAsUnverified ? 'disabled data-unverified="1" style="color:#6b7a7a;opacity:0.6"' : ""
+        showAsUnverified ? 'data-unverified="1" style="color:#6b7a7a;opacity:0.6"' : ""
       }>${escapeHtml(label)}</option>`
     );
   });
   modelEl.innerHTML = options.join("");
   modelEl.value = state.chatModel;
   saveChatSelection();
+  renderChatAllowlistHint("chat-model-verified-hint");
 }
 
 function resolveSuggestProfileDefault(kind) {
@@ -8091,6 +11961,58 @@ function renderAiSuggestModelSelectors(profileDefault) {
   const classProviders = classProviderMap[state.aiSuggestProfile] || {};
   const classProviderKeys = Object.keys(classProviders || {});
   const classHasProviderData = classProviderKeys.length > 0;
+  const classMetaMap = state.chatProviderClassMeta || {};
+  const classMeta = classMetaMap[state.aiSuggestProfile] || {};
+  const providerSnapshots = {};
+
+  const buildProviderSnapshot = (providerId) => {
+    const modelInfo = providerMap[providerId] || {};
+    const classModels = Array.isArray(classProviders?.[providerId])
+      ? classProviders[providerId].slice()
+      : [];
+    const policyModels = Array.isArray(modelInfo.models) ? modelInfo.models.slice() : [];
+    let models = dedupeList([...classModels, ...policyModels]);
+    models = filterModelsForProfile(state.aiSuggestProfile, models);
+    const defaultModel = modelInfo.defaultModel;
+    if (defaultModel && models.includes(defaultModel) && models[0] !== defaultModel) {
+      models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
+    }
+    const providerMeta = classMeta[providerId] || {};
+    const eligibleModels = Array.isArray(providerMeta.eligible) ? providerMeta.eligible.slice() : [];
+    const eligibleSet = new Set(eligibleModels);
+    const hasVerificationMeta =
+      eligibleModels.length || (providerMeta.status && Object.keys(providerMeta.status).length);
+    const verifiedModels = hasVerificationMeta ? models.filter((m) => eligibleSet.has(m)) : [];
+    const availableModels = verifiedModels.length ? verifiedModels : models;
+    const latencyByModel = {};
+    const verifiedAtByModel = {};
+    const status = providerMeta.status || {};
+    Object.keys(status).forEach((modelId) => {
+      const item = status[modelId] || {};
+      if (Number.isFinite(item.latency_ms_p95)) latencyByModel[modelId] = Number(item.latency_ms_p95);
+      if (item.verified_at) verifiedAtByModel[modelId] = String(item.verified_at);
+    });
+    return {
+      models,
+      verifiedModels,
+      hasVerificationMeta,
+      availableModels,
+      eligibleSet,
+      defaultModel: defaultModel || "",
+      pinnedModelId: providerMeta.pinned_model_id || "",
+      preferredCandidateModelId: providerMeta.preferred_candidate_model_id || "",
+      latencyByModel,
+      verifiedAtByModel,
+      statusByModel: status,
+    };
+  };
+
+  const getSnapshot = (providerId) => {
+    if (!providerSnapshots[providerId]) {
+      providerSnapshots[providerId] = buildProviderSnapshot(providerId);
+    }
+    return providerSnapshots[providerId];
+  };
   let providers = providerOrder.filter((p) => providerMap[p] && providerMap[p].enabled !== false);
   if (classHasProviderData) {
     providers = providers.filter((p) => classProviderKeys.includes(p));
@@ -8103,6 +12025,7 @@ function renderAiSuggestModelSelectors(profileDefault) {
       providers = providers.filter((p) => classProviderKeys.includes(p));
     }
   }
+  providers = providers.filter((p) => getSnapshot(p).models.length > 0);
   if (!providers.length) {
     providerEl.innerHTML = `<option value="">${escapeHtml(t("select.none"))}</option>`;
     modelEl.innerHTML = `<option value="">${escapeHtml(t("select.no_verified_model"))}</option>`;
@@ -8111,57 +12034,60 @@ function renderAiSuggestModelSelectors(profileDefault) {
     return { profile: state.aiSuggestProfile, provider: "", model: "" };
   }
 
-  state.aiSuggestProvider = providers.includes(state.aiSuggestProvider) ? state.aiSuggestProvider : providers[0];
+  const selectionPolicy = resolveProfileSelectionPolicy(state.aiSuggestProfile);
+  const recommended = pickDefaultSelection(providers, getSnapshot, selectionPolicy, providerOrder);
+  state.aiSuggestProvider = providers.includes(state.aiSuggestProvider)
+    ? state.aiSuggestProvider
+    : recommended.provider || providers[0];
   providerEl.innerHTML = providers.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
   providerEl.value = state.aiSuggestProvider;
 
-  const modelInfo = providerMap[state.aiSuggestProvider] || {};
-  const classModels = Array.isArray(classProviders?.[state.aiSuggestProvider])
-    ? classProviders[state.aiSuggestProvider].slice()
-    : [];
-  let models = classModels.length ? classModels : [];
-  if (!models.length && Array.isArray(modelInfo.models)) {
-    models = modelInfo.models.slice();
-  }
-  models = filterModelsForProfile(state.aiSuggestProfile, models);
-  const defaultModel = modelInfo.defaultModel;
-  if (defaultModel && models.includes(defaultModel) && models[0] !== defaultModel) {
-    models = [defaultModel, ...models.filter((m) => m !== defaultModel)];
-  }
-  const classMetaMap = state.chatProviderClassMeta || {};
-  const classMeta = classMetaMap[state.aiSuggestProfile] || {};
-  const providerMeta = classMeta[state.aiSuggestProvider] || {};
-  const eligibleModels = Array.isArray(providerMeta.eligible) ? providerMeta.eligible.slice() : [];
-  const eligibleSet = new Set(eligibleModels);
-  const hasVerificationMeta =
-    eligibleModels.length || (providerMeta.status && Object.keys(providerMeta.status).length);
-  const verifiedModels = hasVerificationMeta ? models.filter((m) => eligibleSet.has(m)) : [];
+  const snapshot = getSnapshot(state.aiSuggestProvider);
+  const models = snapshot.models.slice();
+  const hasVerificationMeta = snapshot.hasVerificationMeta;
+  const eligibleSet = snapshot.eligibleSet || new Set();
+  const recommendedModel = recommended.provider === state.aiSuggestProvider ? recommended.model : "";
 
-  if (verifiedModels.length) {
-    state.aiSuggestModel = verifiedModels.includes(state.aiSuggestModel)
-      ? state.aiSuggestModel
-      : verifiedModels[0] || "";
+  const displayModels = models;
+  if (displayModels.length) {
+    if (displayModels.includes(state.aiSuggestModel)) {
+      state.aiSuggestModel = state.aiSuggestModel;
+    } else if (recommendedModel && displayModels.includes(recommendedModel)) {
+      state.aiSuggestModel = recommendedModel;
+    } else {
+      state.aiSuggestModel = displayModels[0] || "";
+    }
+  } else if (hasVerificationMeta) {
+    state.aiSuggestModel = "";
   } else {
     state.aiSuggestModel = "";
   }
 
   const options = [];
-  const displayModels = verifiedModels.length ? verifiedModels : models;
-  if (!displayModels.length || (hasVerificationMeta && !verifiedModels.length)) {
+  if (!displayModels.length) {
     options.push(`<option value="" disabled selected>${escapeHtml(t("select.no_verified_model"))}</option>`);
   }
   displayModels.forEach((m) => {
-    const eligible = hasVerificationMeta ? eligibleSet.has(m) : verifiedModels.length ? true : false;
-    const showAsUnverified = hasVerificationMeta && !eligible;
-    const label = showAsUnverified ? `${m} (unverified)` : m;
+    const statusByModel = snapshot.statusByModel || {};
+    const meta = statusByModel && statusByModel[m] ? statusByModel[m] : {};
+    const metaStage = String(meta.stage || "").toLowerCase();
+    const metaProbe = String(meta.probe_status || "").toLowerCase();
+    const verified = hasVerificationMeta
+      ? eligibleSet.has(m) || metaStage === "verified" || metaProbe === "ok"
+      : true;
+    const showAsUnverified = hasVerificationMeta && !verified;
+    const label = showAsUnverified
+      ? `${m} (${t(isAllowlistWarn() ? "chat.model.skeleton" : "chat.model.unverified")})`
+      : m;
     options.push(
       `<option value="${escapeHtml(m)}" ${
-        showAsUnverified ? 'disabled data-unverified="1" style="color:#6b7a7a;opacity:0.6"' : ""
+        showAsUnverified ? 'data-unverified="1" style="color:#6b7a7a;opacity:0.6"' : ""
       }>${escapeHtml(label)}</option>`
     );
   });
   modelEl.innerHTML = options.join("");
   modelEl.value = state.aiSuggestModel;
+  renderChatAllowlistHint("ai-suggest-verified-hint");
 
   profileEl.onchange = () => {
     state.aiSuggestProfile = profileEl.value;
@@ -8194,41 +12120,67 @@ async function refreshChatModelSelectors() {
   profileEl.disabled = true;
   providerEl.disabled = true;
   modelEl.disabled = true;
-  let classPayload = await fetchOptionalJson(chatClassRegistryWorkspacePath);
-  if (!classPayload) classPayload = await fetchOptionalJson(chatClassRegistryPath);
-  let providerMapPayload = await fetchOptionalJson(chatProviderMapWorkspacePath);
-  if (!providerMapPayload) providerMapPayload = await fetchOptionalJson(chatProviderMapPath);
-  const registryPayload = await fetchOptionalJson(chatProvidersRegistryPath);
-  const allowPayload = await fetchOptionalJson(chatProviderAllowlistPath);
-  let policyPayload = await fetchOptionalJson(chatProviderPolicyWorkspacePath);
-  if (!policyPayload) {
-    policyPayload = await fetchOptionalJson(chatProviderPolicyRepoPath);
+  try {
+    let classPayload = await fetchOptionalJson(chatClassRegistryWorkspacePath);
+    if (!classPayload) classPayload = await fetchOptionalJson(chatClassRegistryPath);
+    let providerMapPayload = await fetchOptionalJson(chatProviderMapWorkspacePath);
+    if (!providerMapPayload) providerMapPayload = await fetchOptionalJson(chatProviderMapPath);
+    const probeCatalogPayload = await fetchOptionalJson(chatProbeCatalogPath);
+    const probeStatePayload = await fetchOptionalJson(chatProbeStatePath);
+    const probeSummary = probeCatalogPayload?.summary || probeCatalogPayload?.data?.summary || null;
+    if (probeSummary?.allowlist_probe) {
+      state.chatAllowlistSummary = probeSummary.allowlist_probe;
+    } else {
+      state.chatAllowlistSummary = null;
+    }
+    const probeProviderMap =
+      probeCatalogPayload?.provider_map ||
+      probeCatalogPayload?.data?.provider_map ||
+      null;
+    if (probeProviderMap && typeof probeProviderMap === "object" && probeProviderMap.classes) {
+      providerMapPayload = {
+        path: probeCatalogPayload.path || chatProbeCatalogPath,
+        data: probeProviderMap,
+      };
+    }
+    providerMapPayload = mergeProviderMapWithProbeState(providerMapPayload, probeStatePayload);
+    const registryPayload = await fetchOptionalJson(chatProvidersRegistryPath);
+    const allowPayload = await fetchOptionalJson(chatProviderAllowlistPath);
+    let policyPayload = await fetchOptionalJson(chatProviderPolicyWorkspacePath);
+    if (!policyPayload) {
+      policyPayload = await fetchOptionalJson(chatProviderPolicyRepoPath);
+    }
+    const profileOptions = buildChatProfileOptions(classPayload);
+    state.chatProfileOptions = profileOptions;
+    state.chatProviderClassMap = buildChatProviderClassMap(providerMapPayload);
+    const allowlistByClass = buildAllowlistModelStatus(allowPayload);
+    state.chatProviderClassMeta = buildChatProviderClassMeta(providerMapPayload, allowlistByClass);
+    const providerMap = buildChatProviderMap(registryPayload, policyPayload);
+    const allowlist = buildProviderAllowlist(allowPayload);
+    Object.keys(providerMap).forEach((id) => {
+      providerMap[id].enabled = providerMap[id].enabled !== false && allowlist.isAllowed(id);
+    });
+    if (!Object.keys(providerMap).length) {
+      state.chatProviderRegistryError = "NO_PROVIDER_REGISTRY";
+    } else {
+      state.chatProviderRegistryError = null;
+    }
+    state.chatProviderRegistry = {
+      providers: providerMap,
+      loaded_at: new Date().toISOString(),
+      registry_path: registryPayload?.path || chatProvidersRegistryPath,
+      policy_path: policyPayload?.path || chatProviderPolicyWorkspacePath,
+      allowlist_path: allowPayload?.path || chatProviderAllowlistPath,
+    };
+    renderChatModelSelectors();
+  } catch (err) {
+    state.chatProviderRegistryError = "PROVIDER_SELECTOR_RENDER_FAILED";
+    console.error("refreshChatModelSelectors failed", err);
+  } finally {
+    profileEl.disabled = false;
+    providerEl.disabled = false;
+    modelEl.disabled = false;
   }
-  const profileOptions = buildChatProfileOptions(classPayload);
-  state.chatProfileOptions = profileOptions;
-  state.chatProviderClassMap = buildChatProviderClassMap(providerMapPayload);
-  state.chatProviderClassMeta = buildChatProviderClassMeta(providerMapPayload);
-  const providerMap = buildChatProviderMap(registryPayload, policyPayload);
-  const allowlist = buildProviderAllowlist(allowPayload);
-  Object.keys(providerMap).forEach((id) => {
-    providerMap[id].enabled = providerMap[id].enabled !== false && allowlist.isAllowed(id);
-  });
-  if (!Object.keys(providerMap).length) {
-    state.chatProviderRegistryError = "NO_PROVIDER_REGISTRY";
-  } else {
-    state.chatProviderRegistryError = null;
-  }
-  state.chatProviderRegistry = {
-    providers: providerMap,
-    loaded_at: new Date().toISOString(),
-    registry_path: registryPayload?.path || chatProvidersRegistryPath,
-    policy_path: policyPayload?.path || chatProviderPolicyWorkspacePath,
-    allowlist_path: allowPayload?.path || chatProviderAllowlistPath,
-  };
-  renderChatModelSelectors();
-  profileEl.disabled = false;
-  providerEl.disabled = false;
-  modelEl.disabled = false;
 }
 
 let chatSelectorsInitialized = false;
@@ -8365,24 +12317,52 @@ async function refreshEvidence() {
   renderEvidenceList(items);
 }
 
+async function refreshTimeline({ run = false } = {}) {
+  state.timelinePending = true;
+  renderTimelineDashboard();
+  try {
+    const url = `${endpoints.timeline}?run=${run ? "true" : "false"}`;
+    state.timeline = await fetchJson(url);
+    state.timelineError = "";
+  } catch (err) {
+    state.timelineError = formatError(err);
+    if (run) {
+      showToast(t("toast.refresh_failed", { name: "timeline", error: state.timelineError }), "warn");
+    }
+  } finally {
+    state.timelinePending = false;
+    renderTimelineDashboard();
+  }
+}
+
 async function refreshOverview() {
-  state.overview = await fetchJson(endpoints.overview);
+  const [overviewRes, timelineRes] = await Promise.allSettled([fetchJson(endpoints.overview), fetchJson(endpoints.timeline)]);
+  if (overviewRes.status === "rejected") throw overviewRes.reason;
+  state.overview = overviewRes.value;
+  if (timelineRes.status === "fulfilled") {
+    state.timeline = timelineRes.value;
+    state.timelineError = "";
+  } else {
+    state.timelineError = formatError(timelineRes.reason);
+  }
   renderOverview();
 }
 
 async function refreshNorthStar() {
-  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory] = await Promise.all([
+  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory, flow2Status] = await Promise.all([
     fetchJson(endpoints.northStar),
     fetchNorthStarCriteriaPacks(),
     fetchNorthStarMechanismsRegistry(),
     fetchNorthStarMechanismsSuggestions(),
     fetchNorthStarMechanismsHistory(),
+    fetchNorthStarFlow2Status(),
   ]);
   state.northStar = northStar;
   if (criteriaPacks) state.northStarCriteriaPacks = criteriaPacks;
   if (mechanismsRegistry) state.northStarMechanismsRegistry = mechanismsRegistry;
   if (mechanismsSuggestions) state.northStarMechanismsSuggestions = mechanismsSuggestions;
   if (mechanismsHistory) state.northStarMechanismsHistory = mechanismsHistory;
+  state.northStarFlow2Status = flow2Status || null;
   renderNorthStar();
 }
 
@@ -8456,6 +12436,7 @@ async function refreshExtensions() {
   const items = Array.isArray(state.extensions.items) ? state.extensions.items : [];
   renderExtensionsList(items);
   renderExtensionDetail();
+  await refreshExtensionUsage();
 }
 
 async function refreshSettings() {
@@ -8580,6 +12561,13 @@ async function refreshWsMeta() {
   } catch (_) {
     setConnectionStatus(false);
   }
+  try {
+    const memPayload = await fetchOptionalJson(memoryHealthReportPath);
+    state.memoryHealth = unwrap(memPayload || {}) || null;
+    setMemoryStatus(state.memoryHealth);
+  } catch (_) {
+    setMemoryStatus(null);
+  }
 }
 
 async function refreshAutoLoop() {
@@ -8592,6 +12580,7 @@ async function refreshActiveTab() {
   await refreshWsMeta();
   const tab = String(state.activeTab || "overview").trim();
   if (tab === "overview") return refreshOverview();
+  if (tab === "timeline") return refreshTimeline();
   if (tab === "north-star") return refreshNorthStar();
   if (tab === "inbox") return refreshInbox();
   if (tab === "intake") return refreshIntake();
@@ -8602,6 +12591,7 @@ async function refreshActiveTab() {
   if (tab === "jobs") return refreshJobs();
   if (tab === "locks") return refreshLocks();
   if (tab === "run-card") return refreshRunCard();
+  if (tab === "search") return refreshSearchContext();
   if (tab === "planner-chat") return refreshNotes();
   if (tab === "evidence") return refreshEvidence();
 }
@@ -8611,6 +12601,7 @@ async function refreshAll() {
 
   const tasks = [
     ["overview", refreshOverview],
+    ["timeline", refreshTimeline],
     ["north_star", refreshNorthStar],
     ["inbox", refreshInbox],
     ["intake", refreshIntake],
@@ -8623,6 +12614,8 @@ async function refreshAll() {
     ["notes", refreshNotes],
     ["budget", refreshBudget],
     ["auto_loop", refreshAutoLoop],
+    ["search_index", refreshSearchIndexStatus],
+    ["search_capabilities", refreshSearchCapabilities],
   ];
 
   const results = await Promise.allSettled(tasks.map(([, fn]) => fn()));
@@ -8717,319 +12710,6 @@ function confirmAction(op, args) {
   });
 }
 
-function buildSnapshotThreadId(suffix = "") {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "").toLowerCase();
-  const safeSuffix = _threadSafePart(suffix);
-  const base = safeSuffix ? `snapshot.${stamp}.${safeSuffix}` : `snapshot.${stamp}`;
-  return _trimThreadId(base);
-}
-
-async function openSnapshotTargetModal() {
-  const modal = $("#snapshot-target-modal");
-  const titleEl = $("#snapshot-target-title");
-  const hintEl = $("#snapshot-target-hint");
-  const previewLabelEl = $("#snapshot-target-thread-preview");
-  const currentThreadEl = $("#snapshot-target-current-thread");
-
-  const currentModeEl = $("#snapshot-target-mode-current");
-  const pickModeEl = $("#snapshot-target-mode-pick");
-  const newModeEl = $("#snapshot-target-mode-new");
-
-  const currentModeLabel = $("#snapshot-target-mode-current-label");
-  const pickModeLabel = $("#snapshot-target-mode-pick-label");
-  const newModeLabel = $("#snapshot-target-mode-new-label");
-  const pickHintEl = $("#snapshot-target-mode-pick-sub");
-  const newHintEl = $("#snapshot-target-mode-new-sub");
-
-  const threadSelectEl = $("#snapshot-target-thread-select");
-  const newSuffixEl = $("#snapshot-target-thread-new-suffix");
-  const newGenerateBtn = $("#snapshot-target-thread-new-generate");
-  const openChatEl = $("#snapshot-target-open-chat");
-  const openChatLabelEl = $("#snapshot-target-open-chat-label");
-  const cancelBtn = $("#snapshot-target-cancel");
-  const continueBtn = $("#snapshot-target-continue");
-  const closeBtn = $("#snapshot-target-close");
-
-  if (
-    !modal ||
-    !titleEl ||
-    !hintEl ||
-    !previewLabelEl ||
-    !currentThreadEl ||
-    !currentModeEl ||
-    !pickModeEl ||
-    !newModeEl ||
-    !threadSelectEl ||
-    !newSuffixEl ||
-    !newGenerateBtn ||
-    !openChatEl ||
-    !openChatLabelEl ||
-    !cancelBtn ||
-    !continueBtn
-  ) {
-    return Promise.resolve({
-      threadId: state.plannerThread || "default",
-      openChat: true,
-      mode: "current",
-    });
-  }
-
-  titleEl.textContent = t("snapshot.target.title") || "Snapshot hedefi";
-  hintEl.textContent = t("snapshot.target.hint") || "Bu snapshot hangi Planner Chat thread'ine eklensin?";
-  currentModeLabel.textContent = t("snapshot.target.mode_current") || "Mevcut thread";
-  pickModeLabel.textContent = t("snapshot.target.mode_pick") || "Başka thread seç";
-  newModeLabel.textContent = t("snapshot.target.mode_new") || "Yeni thread oluştur";
-  pickHintEl.textContent = t("snapshot.target.pick_hint") || "Mevcut thread listesinden seç.";
-  newHintEl.textContent = t("snapshot.target.new_hint") || "Opsiyonel ad ver; sistem yeni bir thread_id üretir.";
-  openChatLabelEl.textContent = t("snapshot.target.open_chat") || "Snapshot sonrası Planner Chat’e geç";
-  cancelBtn.textContent = t("snapshot.target.cancel") || "Vazgeç";
-  continueBtn.textContent = t("snapshot.target.continue") || "Devam et";
-
-  const activeThread = String(state.plannerThread || "default");
-  currentThreadEl.textContent = activeThread;
-
-  await ensurePlannerThreadsLoaded(true);
-  const threads = Array.isArray(state.plannerThreads?.threads) ? state.plannerThreads.threads : [];
-  const threadRows = threads
-    .map((entry) => ({
-      id: String(entry?.thread || entry?.thread_id || "").trim() || "default",
-      count: entry?.count,
-      last: entry?.last,
-    }))
-    .filter((row) => row.id);
-  const sorted = threadRows.sort((a, b) => String(b.last || "").localeCompare(String(a.last || "")));
-  const optionIds = dedupeList([activeThread, ...sorted.map((r) => r.id)]);
-
-  threadSelectEl.innerHTML = optionIds
-    .map((id) => {
-      const label = id;
-      const safe = escapeHtml(label);
-      const selected = id === activeThread ? " selected" : "";
-      return `<option value="${escapeHtml(id)}"${selected}>${safe}</option>`;
-    })
-    .join("\n");
-
-  openChatEl.checked = true;
-  currentModeEl.checked = true;
-  pickModeEl.checked = false;
-  newModeEl.checked = false;
-  threadSelectEl.disabled = true;
-  newSuffixEl.disabled = true;
-  newGenerateBtn.disabled = true;
-
-  let generatedNewThreadId = buildSnapshotThreadId("");
-  const updatePreview = () => {
-    const mode = currentModeEl.checked ? "current" : pickModeEl.checked ? "pick" : "new";
-    let id = activeThread;
-    if (mode === "pick") {
-      id = String(threadSelectEl.value || activeThread || "default").trim() || "default";
-    } else if (mode === "new") {
-      id = String(generatedNewThreadId || "").trim() || buildSnapshotThreadId(newSuffixEl.value || "");
-    }
-    previewLabelEl.textContent = id;
-  };
-
-  const applyMode = () => {
-    const mode = currentModeEl.checked ? "current" : pickModeEl.checked ? "pick" : "new";
-    threadSelectEl.disabled = mode !== "pick";
-    newSuffixEl.disabled = mode !== "new";
-    newGenerateBtn.disabled = mode !== "new";
-    if (mode === "new") {
-      generatedNewThreadId = buildSnapshotThreadId(newSuffixEl.value || "");
-    }
-    updatePreview();
-  };
-
-  const onModeChange = () => applyMode();
-  const onGenerate = (event) => {
-    event.preventDefault();
-    generatedNewThreadId = buildSnapshotThreadId(newSuffixEl.value || "");
-    updatePreview();
-  };
-  const onSuffixInput = () => {
-    if (!newModeEl.checked) return;
-    generatedNewThreadId = buildSnapshotThreadId(newSuffixEl.value || "");
-    updatePreview();
-  };
-  const onPickChange = () => {
-    if (!pickModeEl.checked) return;
-    updatePreview();
-  };
-
-  currentModeEl.addEventListener("change", onModeChange);
-  pickModeEl.addEventListener("change", onModeChange);
-  newModeEl.addEventListener("change", onModeChange);
-  newGenerateBtn.addEventListener("click", onGenerate);
-  newSuffixEl.addEventListener("input", onSuffixInput);
-  threadSelectEl.addEventListener("change", onPickChange);
-
-  applyMode();
-
-  const lastFocus = document.activeElement;
-  modal.classList.add("open");
-  modal.setAttribute("aria-hidden", "false");
-  requestAnimationFrame(() => {
-    try {
-      continueBtn.focus();
-    } catch (_) {
-      // ignore
-    }
-  });
-
-  return new Promise((resolve) => {
-    const cleanup = (result) => {
-      modal.classList.remove("open");
-      modal.setAttribute("aria-hidden", "true");
-      currentModeEl.removeEventListener("change", onModeChange);
-      pickModeEl.removeEventListener("change", onModeChange);
-      newModeEl.removeEventListener("change", onModeChange);
-      newGenerateBtn.removeEventListener("click", onGenerate);
-      newSuffixEl.removeEventListener("input", onSuffixInput);
-      threadSelectEl.removeEventListener("change", onPickChange);
-      modal.removeEventListener("mousedown", onBackdrop);
-      document.removeEventListener("keydown", onKeyDown);
-      cancelBtn.onclick = null;
-      continueBtn.onclick = null;
-      if (closeBtn) closeBtn.onclick = null;
-      if (lastFocus && typeof lastFocus.focus === "function") {
-        try {
-          lastFocus.focus();
-        } catch (_) {
-          // ignore
-        }
-      }
-      resolve(result);
-    };
-
-    const onBackdrop = (event) => {
-      if (event.target !== modal) return;
-      event.preventDefault();
-      cleanup(null);
-    };
-
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        cleanup(null);
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        event.preventDefault();
-        continueBtn.click();
-      }
-    };
-
-    modal.addEventListener("mousedown", onBackdrop);
-    document.addEventListener("keydown", onKeyDown);
-
-    cancelBtn.onclick = () => cleanup(null);
-    if (closeBtn) closeBtn.onclick = () => cleanup(null);
-    continueBtn.onclick = () => {
-      const mode = currentModeEl.checked ? "current" : pickModeEl.checked ? "pick" : "new";
-      let id = activeThread;
-      if (mode === "pick") id = String(threadSelectEl.value || activeThread || "default").trim() || "default";
-      if (mode === "new") id = String(generatedNewThreadId || "").trim() || buildSnapshotThreadId(newSuffixEl.value || "");
-      cleanup({
-        mode,
-        threadId: id,
-        openChat: Boolean(openChatEl.checked),
-      });
-    };
-  });
-}
-
-function buildSnapshotEvidencePaths(payload) {
-  const evidencePaths = [];
-  const reportPath = String(payload?.report_path || "").trim();
-  if (reportPath) evidencePaths.push(reportPath);
-  const snapshotPath = String(payload?.ui_snapshot_path || "").trim();
-  if (snapshotPath) evidencePaths.push(snapshotPath);
-  const evidenceList = Array.isArray(payload?.evidence_paths) ? payload.evidence_paths : [];
-  evidenceList.forEach((p) => {
-    const v = String(p || "").trim();
-    if (v) evidencePaths.push(v);
-  });
-  const pathsObj = payload && typeof payload.paths === "object" && payload.paths ? payload.paths : {};
-  Object.values(pathsObj).forEach((val) => {
-    const v = String(val || "").trim();
-    if (v) evidencePaths.push(v);
-  });
-  const deduped = Array.from(new Set(evidencePaths.filter(Boolean)));
-  if (!deduped.length) deduped.push(".cache/reports/ui_snapshot_bundle.v1.json");
-  return deduped;
-}
-
-function buildSnapshotChatBody(payload) {
-  const tabKeyMap = {
-    "overview": "nav.overview",
-    "north-star": "nav.north_star",
-    "inbox": "nav.inbox",
-    "intake": "nav.intake",
-    "decisions": "nav.decisions",
-    "extensions": "nav.extensions",
-    "overrides": "nav.overrides",
-    "auto-loop": "nav.auto_loop",
-    "jobs": "nav.jobs",
-    "locks": "nav.locks",
-    "run-card": "nav.run_card",
-    "search": "nav.search",
-    "planner-chat": "nav.planner_chat",
-    "command-composer": "nav.command_composer",
-    "evidence": "nav.evidence",
-  };
-  const snapshotContext = state.snapshotContext || {};
-  const activeTab = String(snapshotContext.activeTab || state.activeTab || "overview");
-  const tabLabel = t(tabKeyMap[activeTab] || "nav.overview");
-  const hash = String(snapshotContext.hash || window.location.hash || "");
-  const ts = String(payload?.generated_at || new Date().toISOString());
-  const paths = buildSnapshotEvidencePaths(payload);
-
-  return [
-    `[SNAPSHOT] ${tabLabel}`,
-    `- page: ${tabLabel}`,
-    `- url: ${hash || "-"}`,
-    `- captured_at: ${ts}`,
-    "",
-    "Evidence:",
-    ...paths.map((p) => `- ${p}`),
-  ].join("\n");
-}
-
-async function handleSnapshotBundleCompleted(payload) {
-  const target = state.snapshotTarget;
-  state.snapshotTarget = null;
-  const body = buildSnapshotChatBody(payload);
-  const threadId = String(target?.threadId || "").trim();
-  if (!threadId) {
-    prefillNoteForSnapshot(payload);
-    return;
-  }
-  try {
-    const { res, data } = await postOpInternal("planner-chat-send", {
-      thread: threadId,
-      title: "System",
-      body,
-      tags: "system,snapshot,ui",
-      links_json: "[]",
-    });
-    if (!res?.ok) {
-      showToast(t("snapshot.chat_append_failed", { error: data?.error || data?.status || "UNKNOWN" }), "warn");
-      prefillNoteForSnapshot(payload);
-      return;
-    }
-    showToast(t("snapshot.chat_appended") || "Snapshot Planner Chat’e eklendi.", "ok");
-    if (target?.openChat) {
-      state.plannerThread = threadId;
-      navigateToTab("planner-chat");
-      scheduleRefresh("notes", refreshNotes, 120);
-    }
-  } catch (err) {
-    showToast(t("snapshot.chat_append_failed", { error: formatError(err) }), "warn");
-    prefillNoteForSnapshot(payload);
-  } finally {
-    state.snapshotContext = null;
-  }
-}
-
 function applyOpButtonsDisabledState() {
   $$("[data-op]").forEach((btn) => {
     const opName = String(btn?.dataset?.op || "").trim();
@@ -9065,6 +12745,7 @@ function setActionDisabled(disabled) {
   [
     "lock-refresh",
     "extensions-refresh",
+    "extensions-usage-refresh",
     "settings-refresh",
     "settings-save",
     "settings-clear",
@@ -9149,14 +12830,13 @@ function pollOpJob(jobId, pollUrl = "", opHint = "") {
       return;
     }
 
+    const kind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     if (
       !status.includes("FAIL") &&
       (opName === "ui-snapshot-bundle" || String(data.op || "").trim() === "ui-snapshot-bundle")
     ) {
-      await handleSnapshotBundleCompleted(data);
+      prefillNoteForSnapshot(data);
     }
-
-    const kind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op: data.op || "op", status: status || "DONE" }), kind);
     scheduleRefresh("active_tab", refreshActiveTab, 140);
     cleanup();
@@ -9187,7 +12867,6 @@ async function postOp(op, args = {}) {
     "north-star-theme-seed",
     "north-star-theme-consult",
     "north-star-theme-suggestion-apply",
-    "ui-snapshot-bundle",
   ]);
   if (!confirmBypassOps.has(opName)) {
     const ok = await confirmAction(op, args);
@@ -9214,10 +12893,14 @@ async function postOp(op, args = {}) {
       const effectiveOp = String(data.op || opName || op).trim() || "op";
       const notes = Array.isArray(data.notes) ? data.notes.map((x) => String(x)) : [];
       const reused = notes.some((n) => n.includes("JOB_REUSED=true"));
-      showToast(
-        t(reused ? "job.already_running" : "job.started", { op: effectiveOp, id: jobId || "-" }),
-        "warn"
-      );
+      if (effectiveOp === "ui-snapshot-bundle" && !reused) {
+        showToast(t("snapshot.started", { id: jobId || "-" }), "ok");
+      } else {
+        showToast(
+          t(reused ? "job.already_running" : "job.started", { op: effectiveOp, id: jobId || "-" }),
+          "warn"
+        );
+      }
       if (jobId) markOpJobInProgress(effectiveOp, jobId);
       pollOpJob(jobId, data.poll_url || "", effectiveOp);
       return data;
@@ -9226,7 +12909,7 @@ async function postOp(op, args = {}) {
     const toastKind = status.includes("FAIL") ? "fail" : status.includes("WARN") ? "warn" : "ok";
     showToast(t("job.done", { op, status: data.status || "UNKNOWN" }), toastKind);
     if (opName === "ui-snapshot-bundle") {
-      await handleSnapshotBundleCompleted(data);
+      prefillNoteForSnapshot(data);
       return data;
     }
     if (op === "planner-chat-send" || op === "planner-chat-send-llm") {
@@ -9235,6 +12918,15 @@ async function postOp(op, args = {}) {
     } else {
       await refreshAll();
     }
+  } catch (err) {
+    const errorText = formatError(err);
+    showToast(t("toast.op_failed", { error: errorText }), "fail");
+    return {
+      status: "FAIL",
+      op: opName || op,
+      error: errorText,
+      error_code: "UI_POST_OP_EXCEPTION",
+    };
   } finally {
     setActionDisabled(false);
   }
@@ -9533,16 +13225,94 @@ function setupTagSelects() {
 function setupOps() {
   setupTagSelects();
 
+  setupNorthStarCatalogControls();
+  renderPlannerChatSuggestions();
+
   $("#refresh-all").addEventListener("click", () => {
     refreshAll();
     refreshEvidence();
   });
+  const timelineRefresh = $("#timeline-refresh");
+  if (timelineRefresh) {
+    timelineRefresh.addEventListener("click", () => refreshTimeline({ run: true }));
+  }
+
+  const searchInput = $("#search-query");
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      state.searchQuery = searchInput.value || "";
+      renderSearchPanel();
+    });
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") runSearch();
+    });
+  }
+  const globalSearchInput = $("#global-search-query");
+  if (globalSearchInput) {
+    globalSearchInput.addEventListener("input", () => {
+      state.searchQuery = globalSearchInput.value || "";
+      renderSearchPanel();
+    });
+    globalSearchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        state.searchScope = "ssot";
+        const scopeSelect = $("#search-scope");
+        if (scopeSelect) scopeSelect.value = state.searchScope;
+        refreshSearchIndexStatus();
+        runSearch().then(() => navigateToTab("search"));
+      }
+    });
+  }
+  const globalSearchRun = $("#global-search-run");
+  if (globalSearchRun) {
+    globalSearchRun.addEventListener("click", () => {
+      state.searchScope = "ssot";
+      const scopeSelect = $("#search-scope");
+      if (scopeSelect) scopeSelect.value = state.searchScope;
+      refreshSearchIndexStatus();
+      runSearch().then(() => navigateToTab("search"));
+    });
+  }
+  const searchScope = $("#search-scope");
+  if (searchScope) {
+    searchScope.addEventListener("change", () => {
+      state.searchScope = normalizeSearchScope(searchScope.value);
+      refreshSearchContext();
+      renderSearchPanel();
+    });
+  }
+  const searchMode = $("#search-mode");
+  if (searchMode) {
+    searchMode.addEventListener("change", () => {
+      state.searchMode = normalizeSearchMode(searchMode.value);
+      renderSearchPanel();
+    });
+  }
+  const searchRun = $("#search-run");
+  if (searchRun) {
+    searchRun.addEventListener("click", () => runSearch());
+  }
+  const searchRebuild = $("#search-rebuild");
+  if (searchRebuild) {
+    searchRebuild.addEventListener("click", () => updateSearchIndex({ rebuild: true }));
+  }
+  const searchResults = $("#search-results");
+  if (searchResults) {
+    searchResults.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!target || !target.dataset) return;
+      const raw = target.dataset.searchOpen;
+      if (!raw) return;
+      event.preventDefault();
+      openEvidencePreview(raw);
+    });
+  }
+  refreshSearchContext();
+  scheduleSearchIndexAutoRefresh();
+
   const snapshotTopbar = $("#snapshot-page");
   if (snapshotTopbar) {
-    snapshotTopbar.addEventListener("click", async () => {
-      const target = await openSnapshotTargetModal();
-      if (!target) return;
-      state.snapshotTarget = target;
+    snapshotTopbar.addEventListener("click", () => {
       state.snapshotContext = {
         activeTab: state.activeTab || "overview",
         hash: String(window.location.hash || ""),
@@ -9733,6 +13503,31 @@ function setupOps() {
   }
 
   $("#extensions-refresh").addEventListener("click", () => refreshExtensions());
+  const usageRefresh = $("#extensions-usage-refresh");
+  if (usageRefresh) {
+    usageRefresh.addEventListener("click", () => refreshExtensionUsage());
+  }
+  const usageSearch = $("#extensions-usage-search");
+  if (usageSearch) {
+    usageSearch.addEventListener("input", () => {
+      state.extensionUsageFilters.search = usageSearch.value || "";
+      renderExtensionUsage();
+    });
+  }
+  const usageExt = $("#extensions-usage-extension");
+  if (usageExt) {
+    usageExt.addEventListener("change", () => {
+      state.extensionUsageFilters.extension = usageExt.value || "";
+      renderExtensionUsage();
+    });
+  }
+  const usageKind = $("#extensions-usage-kind");
+  if (usageKind) {
+    usageKind.addEventListener("change", () => {
+      state.extensionUsageFilters.kind = usageKind.value || "";
+      renderExtensionUsage();
+    });
+  }
 
   $("#settings-refresh").addEventListener("click", () => refreshSettings());
   $("#settings-save").addEventListener("click", () => {
@@ -9924,19 +13719,27 @@ function setupOps() {
     const pendingToken = startChatPending(thread);
     clearNoteComposer();
     renderNotes(Array.isArray(state.notes?.items) ? state.notes.items : []);
-    const result = await postOp("planner-chat-send-llm", {
-      thread,
-      title,
-      body,
-      tags: mergedTags.join(","),
-      links_json: linksJson,
-      provider_id: state.chatProvider || "",
-      model: state.chatModel || "",
-      profile: state.chatProfile || "",
-    });
-    if (!result || String(result.status || "").toUpperCase().includes("FAIL")) {
-      clearChatPending(pendingToken);
-      renderNotes(Array.isArray(state.notes?.items) ? state.notes.items : []);
+    let result = null;
+    try {
+      result = await postOp("planner-chat-send-llm", {
+        thread,
+        title,
+        body,
+        tags: mergedTags.join(","),
+        provider_id: state.chatProvider || "",
+        model: state.chatModel || "",
+        profile: state.chatProfile || "",
+      });
+    } finally {
+      const status = String(result?.status || "").toUpperCase();
+      if (!result || status.includes("FAIL")) {
+        clearChatPending(pendingToken);
+        try {
+          await refreshNotes();
+        } catch (_) {
+          renderNotes(Array.isArray(state.notes?.items) ? state.notes.items : []);
+        }
+      }
     }
   });
 
@@ -10006,6 +13809,7 @@ function setupStream() {
   const stream = new EventSource("/api/stream");
   stream.addEventListener("overview_tick", () => {
     if (state.activeTab === "overview") scheduleRefresh("overview", refreshOverview, 180);
+    if (state.activeTab === "timeline") scheduleRefresh("timeline", refreshTimeline, 180);
   });
   stream.addEventListener("inbox_tick", () => {
     if (state.activeTab === "inbox") scheduleRefresh("inbox", refreshInbox, 220);
@@ -10053,6 +13857,7 @@ state.theme = readThemeFromStorage(THEME_STORAGE_KEY, "dark");
 state.adminModeEnabled = readBoolFromStorage("cockpit_admin_mode.v1", false);
 state.lockClaimsLimit = readIntFromStorage("cockpit_lock_claims_limit.v1", 20, [10, 20, 50]);
 state.lockClaimsGroupByOwner = readBoolFromStorage("cockpit_lock_claims_group_owner.v1", false);
+state.catalogDraft = readCatalogDraftFromStorage();
 setupLanguageSelector();
 setupThemeSelector();
 applyTheme(state.theme);

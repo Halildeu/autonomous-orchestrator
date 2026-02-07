@@ -122,6 +122,16 @@ Hedef: her işte aynı zinciri otomatikleştirmek (O(delta), pointer‑only).
 **C1 — North Star (Standards catalog)**  
 Controls + Metrics + Maturity (0–5) deterministik kriterlerle (pointer + schema + index sinyali).
 
+Kısa işletim sırası (canonical):
+1) Theme/Subtheme (mekanizma kataloğu) yaşam döngüsü ve onay.
+2) Değerlendirme zinciri (ölçüm hattı) yalnız onaylı katalog üzerinden çalışır.
+
+İşletim terim notu (canonical):
+- Reference: trend_catalog + bp_catalog + onaylı mekanizma kataloğu (hedef durum).
+- Assessment: assessment_raw + assessment_eval (mevcut durum ölçümü).
+- Gap: gap_register (referans ile mevcut durum sapmaları).
+- Lens Findings içindeki `trend/bp/lens` değerleri süreç aşaması değil, yalnızca bulgu kaynak tipidir.
+
 **C2 — Assessment (O(delta))**  
 system_status + pack index + quality + repo hygiene + harvest sinyallerini okur.
 

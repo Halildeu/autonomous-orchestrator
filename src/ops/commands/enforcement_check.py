@@ -35,9 +35,30 @@ def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _resolve_profile_name(profile: str) -> str:
+def _resolve_profile_mode(profile: str) -> str:
     p = str(profile or "").strip().lower()
-    if p == "strict":
+    return "strict" if p == "strict" else "default"
+
+
+def _load_enforcement_policy(root: Path) -> tuple[dict[str, Any] | None, Path, str | None]:
+    policy_path = root / "policies" / "policy_enforcement_pack.v1.json"
+    if not policy_path.exists():
+        return (None, policy_path, "MISSING_ENFORCEMENT_POLICY")
+    policy_obj, err = _load_json(policy_path)
+    if err or not isinstance(policy_obj, dict):
+        return (None, policy_path, "INVALID_ENFORCEMENT_POLICY")
+    return (policy_obj, policy_path, None)
+
+
+def _resolve_profile_name(profile: str, policy_obj: dict[str, Any] | None = None) -> str:
+    mode = _resolve_profile_mode(profile)
+    profiles = policy_obj.get("profiles") if isinstance(policy_obj, dict) else None
+    if isinstance(profiles, dict):
+        key = f"{mode}_mode"
+        pinned = profiles.get(key)
+        if isinstance(pinned, str) and pinned:
+            return pinned
+    if mode == "strict":
         return "strict_profile"
     return "default_profile"
 
@@ -330,7 +351,9 @@ def run_enforcement_check(
     outdir.mkdir(parents=True, exist_ok=True)
 
     intake_id_norm = (str(intake_id).strip() if intake_id else "") or "UNKNOWN"
-    profile_name = _resolve_profile_name(profile)
+    profile_mode = _resolve_profile_mode(profile)
+    policy_obj, policy_path, policy_err = _load_enforcement_policy(root)
+    profile_name = _resolve_profile_name(profile_mode, policy_obj)
 
     extension_root = root / "extensions" / "PRJ-ENFORCEMENT-PACK"
     manifest_path = extension_root / "extension.manifest.v1.json"
@@ -342,9 +365,12 @@ def run_enforcement_check(
         str(schema_path.relative_to(root).as_posix()) if schema_path.exists() else "",
         str(matrix_path.relative_to(root).as_posix()) if matrix_path.exists() else "",
         str(ruleset.relative_to(root).as_posix()) if ruleset.exists() else "",
+        str(policy_path.relative_to(root).as_posix()) if policy_path.exists() else "",
     ]
     evidence_paths = [p for p in evidence_paths if p]
 
+    if policy_err:
+        reasons.append(policy_err)
     if not schema_path.exists():
         reasons.append("MISSING_CONTRACT_SCHEMA")
     if not matrix_path.exists():
@@ -474,7 +500,7 @@ def run_enforcement_check(
     if chat:
         print("PREVIEW:")
         print("PROGRAM-LED: enforcement-check (offline-first)")
-        print(f"profile={profile_name} baseline={baseline_ref or ''}")
+        print(f"profile_mode={profile_mode} profile={profile_name} baseline={baseline_ref or ''}")
         print("RESULT:")
         print(f"status={report.get('status')}")
         print("EVIDENCE:")
@@ -489,7 +515,9 @@ def run_enforcement_check(
 
     return {
         "status": str(report.get("status") or "UNKNOWN"),
+        "profile_mode": profile_mode,
         "profile": profile_name,
+        "policy_path": str(policy_path),
         "outdir": str(outdir),
         "contract_json": str(contract_json_path),
         "contract_md": str(contract_md_path),

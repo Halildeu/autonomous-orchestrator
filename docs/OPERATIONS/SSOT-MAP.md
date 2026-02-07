@@ -24,7 +24,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/LAYER-MODEL-LOCK.v1.md
 - docs/OPERATIONS/EXTENSIONS.md
 - docs/OPERATIONS/NORTH-STAR-EVAL-LENSES.v1.md
-- docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules/tiers/demos; vendor-neutral)
+- docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules tiers demos; vendor-neutral)
 - docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
 
 ## Operations SSOT (Kalıcı)
@@ -82,6 +82,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-integrity.schema.json
 - schemas/policy-integrity.schema.v1.json
 - schemas/policy-layer-boundary.schema.v1.json
+- schemas/policy-llm-batch.schema.json
 - schemas/policy-llm-live.schema.json
 - schemas/policy-llm-providers-guardrails.schema.json
 - schemas/policy-north-star-eval-lenses.schema.v1.json
@@ -101,6 +102,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/north_star.control.schema.json
 - schemas/north_star.maturity.schema.json
 - schemas/north_star.metric.schema.json
+- schemas/north-star-catalog.schema.v1.json
 - schemas/manual-request.schema.v1.json
 - schemas/pack-advisor-suggestions.schema.json
 - schemas/pack-manifest.schema.v1.json
@@ -259,12 +261,12 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - packs/standards/pack-release-automation/metrics.v1.json
 
 ## Extensions (SSOT)
-- extensions/release-automation/extension.manifest.v1.json
+- extensions/PRJ-RELEASE-AUTOMATION/extension.manifest.v1.json
 - extensions/PRJ-DEPLOY/extension.manifest.v1.json
 - extensions/PRJ-DEPLOY/README.md
 - extensions/PRJ-DEPLOY/tests/contract_test.py
 - extensions/PRJ-AIRUNNER/extension.manifest.v1.json
-- extensions/prj-github-ops/extension.manifest.v1.json
+- extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json
 - extensions/PRJ-KERNEL-API/extension.manifest.v1.json
 - extensions/PRJ-M0-MAINTAINABILITY/extension.manifest.v1.json
 - extensions/PRJ-PM-SUITE/extension.manifest.v1.json

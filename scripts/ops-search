@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+ops-search "sorgu" [--scope ssot|repo] [--mode auto|keyword|semantic] [--limit N] [--host HOST:PORT] [--raw]
+
+Örnek:
+  ops-search "policy gate"
+  ops-search "pgvector" --mode keyword --scope ssot --limit 40
+USAGE
+}
+
+QUERY=""
+SCOPE="ssot"
+MODE="auto"
+LIMIT="80"
+HOST="127.0.0.1:8787"
+RAW="0"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --scope)
+      SCOPE="${2:-}"
+      shift 2
+      ;;
+    --mode)
+      MODE="${2:-}"
+      shift 2
+      ;;
+    --limit)
+      LIMIT="${2:-}"
+      shift 2
+      ;;
+    --host)
+      HOST="${2:-}"
+      shift 2
+      ;;
+    --raw)
+      RAW="1"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      if [[ -z "${QUERY}" ]]; then
+        QUERY="$1"
+      else
+        QUERY="${QUERY} $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "${QUERY}" ]]; then
+  usage
+  exit 2
+fi
+
+URLENC_QUERY="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "${QUERY}")"
+URLENC_SCOPE="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "${SCOPE}")"
+URLENC_MODE="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "${MODE}")"
+URLENC_LIMIT="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "${LIMIT}")"
+URL="http://${HOST}/api/search?q=${URLENC_QUERY}&scope=${URLENC_SCOPE}&mode=${URLENC_MODE}&limit=${URLENC_LIMIT}"
+
+HTTP_BUNDLE="$(curl -sS -w '\n__HTTP__%{http_code}' "${URL}")" || {
+  echo "ops-search: endpoint erişimi başarısız (${URL})" >&2
+  exit 1
+}
+HTTP_CODE="${HTTP_BUNDLE##*__HTTP__}"
+RESP="${HTTP_BUNDLE%__HTTP__*}"
+
+if [[ "${RAW}" == "1" ]]; then
+  printf 'HTTP %s\n%s\n' "${HTTP_CODE}" "${RESP}"
+  exit 0
+fi
+
+python3 - "${RESP}" "${HTTP_CODE}" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1]
+http_code = sys.argv[2]
+try:
+    payload = json.loads(raw)
+except Exception as exc:
+    print(f"JSON parse hatası: {exc}")
+    print(raw[:1000])
+    sys.exit(1)
+
+status = str(payload.get("status") or "")
+mode = str(payload.get("mode") or "")
+engine = str(payload.get("engine") or "")
+pattern_mode = str(payload.get("pattern_mode") or "")
+error = str(payload.get("error") or "")
+note = str(payload.get("note") or "")
+stats = payload.get("stats") if isinstance(payload.get("stats"), dict) else {}
+duration_ms = stats.get("duration_ms")
+candidate_files = stats.get("candidate_files")
+hits = payload.get("hits") if isinstance(payload.get("hits"), list) else []
+
+print(f"status={status} mode={mode} engine={engine or '-'} pattern_mode={pattern_mode or '-'}")
+print(f"http={http_code}")
+if duration_ms is not None or candidate_files is not None:
+    print(f"stats: duration_ms={duration_ms if duration_ms is not None else '-'} candidate_files={candidate_files if candidate_files is not None else '-'}")
+print(f"hits={len(hits)}")
+if error:
+    print(f"error={error}")
+if note:
+    print(f"note={note}")
+
+for idx, hit in enumerate(hits[:20], start=1):
+    if not isinstance(hit, dict):
+        continue
+    path = str(hit.get("path") or "-")
+    line = hit.get("line")
+    line_suffix = f":{line}" if line is not None else ""
+    preview = str(hit.get("preview") or "").strip().replace("\n", " ")
+    if len(preview) > 180:
+        preview = preview[:177] + "..."
+    print(f"{idx:02d}. {path}{line_suffix} | {preview}")
+PY

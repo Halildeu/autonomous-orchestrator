@@ -217,6 +217,11 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
     chat = parse_reaper_bool(str(args.chat))
     detail = parse_reaper_bool(str(args.detail))
     dry_run = getattr(args, "dry_run", "false")
+    mode = str(args.mode or "report").strip().lower()
+    if mode not in {"report", "strict"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+    strict_mode = mode == "strict"
 
     manual_request_id = str(args.request_id or "").strip() or None
     manual_submit_res = None
@@ -254,7 +259,8 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
     from src.ops.work_intake_from_sources import run_work_intake_build
     from src.ops.system_status_report import run_system_status
 
-    build_res = build_context_pack(workspace_root=ws, request_id=manual_request_id, mode="summary")
+    build_mode = "detail" if strict_mode else "summary"
+    build_res = build_context_pack(workspace_root=ws, request_id=manual_request_id, mode=build_mode)
     pack_rel = build_res.get("context_pack_path") if isinstance(build_res, dict) else None
     pack_path = (ws / pack_rel).resolve() if isinstance(pack_rel, str) and pack_rel else None
     route_res = route_context_pack(workspace_root=ws, context_pack_path=pack_path)
@@ -288,8 +294,19 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
         plan_dir = ws / ".cache" / "reports" / "chg"
         plans = list(plan_dir.glob("CHG-INTAKE-*.plan.json")) if plan_dir.exists() else []
         if not plans:
-            status = "IDLE"
+            status = "FAIL" if strict_mode else "IDLE"
             error_code = "NO_PLAN_FOUND"
+
+    strict_doc_nav_rel = str(Path(".cache") / "reports" / "doc_graph_report.strict.v1.json")
+    strict_doc_nav_path = ws / strict_doc_nav_rel
+    if strict_mode:
+        if not strict_doc_nav_path.exists():
+            status = "FAIL"
+            error_code = "DOC_NAV_STRICT_MISSING"
+        elif status != "OK":
+            status = "FAIL"
+            if not isinstance(error_code, str) or not error_code:
+                error_code = "STRICT_ROUTER_NOT_OK"
 
     payload = {
         "status": status,
@@ -300,13 +317,20 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
         "context_router_result_path": str(Path(".cache") / "reports" / "context_pack_router_result.v1.json"),
         "work_intake_path": work_intake_path,
         "system_status_path": str(sys_rel) if isinstance(sys_rel, Path) else None,
-        "notes": ["PROGRAM_LED=true"],
+        "notes": [
+            f"mode={mode}",
+            "PROGRAM_LED=true",
+            f"build_mode={build_mode}",
+            f"strict_doc_nav_path={strict_doc_nav_rel}" if strict_mode else "",
+        ],
     }
+    payload["notes"] = [str(x) for x in payload.get("notes", []) if isinstance(x, str) and x]
 
     if chat:
         print("PREVIEW:")
         print("PROGRAM-LED: manual-request-submit + context-pack-build + context-pack-route + work-intake-check + system-status")
         print(f"workspace_root={payload.get('workspace_root')}")
+        print(f"mode={mode}")
         if manual_request_id:
             print(f"request_id={manual_request_id}")
         print("RESULT:")

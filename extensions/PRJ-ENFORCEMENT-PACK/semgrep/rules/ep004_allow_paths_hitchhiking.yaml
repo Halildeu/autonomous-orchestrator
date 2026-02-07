@@ -3,6 +3,9 @@ rules:
     languages: [generic]
     message: "EP-004 Allow-Paths Hitchhiking (skeleton): replace placeholder regex with real rule(s)."
     severity: WARNING
+    paths:
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
     pattern-regex: "ENF_V1_TODO_EP004_ALLOW_PATHS_HITCHHIKING"
     metadata:
       enforcement_pack: ENF_V1

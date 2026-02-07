@@ -3,6 +3,9 @@ rules:
     languages: [generic]
     message: "EP-003 Contract Drift (skeleton): replace placeholder regex with real rule(s)."
     severity: WARNING
+    paths:
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
     pattern-regex: "ENF_V1_TODO_EP003_CONTRACT_DRIFT"
     metadata:
       enforcement_pack: ENF_V1

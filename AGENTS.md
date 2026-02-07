@@ -10,7 +10,7 @@ Bu repo “JSON‑first” bir orchestrator iskeleti (WWV) olarak tasarlanır.
 - Agent her cevapta **AUTOPILOT CHAT** formatını kullanır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
 - Fail-closed: şüphede dur, `report_only`/no-side-effect yönünde davran; network default kapalıdır.
 - Secrets asla log’a/evidence’a yazılmaz; token/anahtar basılmaz.
-- Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, vendor_packs/semgrep/, docs/OPERATIONS/, docs/ROADMAP.md, roadmaps/SSOT/roadmap.v1.json, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, .github/workflows/gate-enforcement-check.yml, .pre-commit-config.yaml, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
+- Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, `vendor_packs` altı semgrep klasörü, docs/OPERATIONS/, docs/ROADMAP.md, roadmaps/SSOT/roadmap.v1.json, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, `.github` altı `gate-enforcement-check.yml`, .pre-commit-config.yaml, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
 - Living roadmap değişikliği: açık istenmedikçe sessizce SSOT edit yapmak yok; gerekiyorsa **Change Proposal (CHG)** üret.
 
 ## SSOT Entrypoint Map / Router (AGENTS-only entrypoint)
@@ -55,6 +55,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - Kullanıcı komut yazmaz.
 - “Neredeyiz?” sorusunda tek kapı: **project-status** (yoksa **system-status** fallback).
 - Doc navigation için tek kapı: doc-nav-check (summary default; detail/strict on-demand).
+- Kullanıcıya yönelik arama (keyword/semantic) için ortak kanal: `scripts/codex-search` (altında `ops-search` → `/api/search`); böylece Cockpit ve Codex aynı arama hattını kullanır.
 
 ## Repo conventions
 

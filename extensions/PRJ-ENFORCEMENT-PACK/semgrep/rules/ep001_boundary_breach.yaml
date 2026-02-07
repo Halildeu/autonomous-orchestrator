@@ -6,6 +6,8 @@ rules:
     paths:
       include:
         - src/prj_github_ops/**/*.py
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
     pattern-regex: "from\\s+src\\.prj_kernel_api\\.|import\\s+src\\.prj_kernel_api"
     metadata:
       enforcement_pack: ENF_V1

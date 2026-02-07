@@ -32,6 +32,8 @@ def main() -> int:
     ext = root / "extensions" / "PRJ-ENFORCEMENT-PACK"
     schema_path = ext / "contract" / "enforcement-check.schema.v1.json"
     matrix_path = ext / "contract" / "severity_matrix.v1.json"
+    policy_path = root / "policies" / "policy_enforcement_pack.v1.json"
+    policy_schema_path = root / "schemas" / "policy-enforcement-pack.schema.v1.json"
 
     if not schema_path.exists():
         warn("FAIL error=MISSING_CONTRACT_SCHEMA")
@@ -39,9 +41,24 @@ def main() -> int:
     if not matrix_path.exists():
         warn("FAIL error=MISSING_SEVERITY_MATRIX")
         return 2
+    if not policy_path.exists():
+        warn("FAIL error=MISSING_ENFORCEMENT_POLICY")
+        return 2
+    if not policy_schema_path.exists():
+        warn("FAIL error=MISSING_ENFORCEMENT_POLICY_SCHEMA")
+        return 2
 
     schema = _load_json(schema_path)
     matrix = _load_json(matrix_path)
+    policy_obj = _load_json(policy_path)
+    policy_schema = _load_json(policy_schema_path)
+
+    policy_errors = _validate(policy_schema, policy_obj)
+    if policy_errors:
+        warn(f"FAIL error=POLICY_SCHEMA_INVALID errors_count={len(policy_errors)}")
+        for e in policy_errors[:5]:
+            warn(f"  - {e}")
+        return 2
 
     # Minimal synthetic semgrep payload (no semgrep binary required).
     semgrep_payload = {
@@ -61,12 +78,22 @@ def main() -> int:
         "errors": [],
     }
 
-    from src.ops.commands.enforcement_check import _build_contract_report, _load_severity_matrix
+    from src.ops.commands.enforcement_check import _build_contract_report, _load_severity_matrix, _resolve_profile_name
+
+    pinned_profiles = policy_obj.get("profiles") if isinstance(policy_obj.get("profiles"), dict) else {}
+    expected_default_profile = str(pinned_profiles.get("default_mode") or "default_profile")
+    expected_strict_profile = str(pinned_profiles.get("strict_mode") or "strict_profile")
+    if _resolve_profile_name("default", policy_obj) != expected_default_profile:
+        warn("FAIL error=POLICY_PROFILE_PIN_DEFAULT_MISMATCH")
+        return 2
+    if _resolve_profile_name("strict", policy_obj) != expected_strict_profile:
+        warn("FAIL error=POLICY_PROFILE_PIN_STRICT_MISMATCH")
+        return 2
 
     out = []
     for profile_name, expected_status in [
-        ("default_profile", "WARN"),
-        ("strict_profile", "BLOCKED"),
+        (expected_default_profile, "WARN"),
+        (expected_strict_profile, "BLOCKED"),
     ]:
         m, err = _load_severity_matrix(root, matrix_path, profile_name)
         if err:

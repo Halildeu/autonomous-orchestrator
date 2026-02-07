@@ -102,6 +102,27 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Outputs: .cache/index/plans/PLN-*.v1.json, .cache/reports/planner_plan_summary.v1.md, .cache/index/work_intake_selection.v1.json
 - Policies: policies/policy_planner.v1.json
 
+<a id="ext-PRJ-EXECUTORPORT"></a>
+### PRJ-EXECUTORPORT
+- Purpose: vendor-neutral executor port baseline (offline-first; local/manual default, Codex optional adapter).
+- Single gate: none (contract-first in v0.1).
+- Outputs: .cache/reports/executorport_contract_test.v1.txt
+- Policies: none (v0.1).
+
+<a id="ext-PRJ-OBSERVABILITY-OTEL"></a>
+### PRJ-OBSERVABILITY-OTEL
+- Purpose: observability pack for trace_meta/run correlation (OTel optional, offline-first).
+- Single gate: none (contract-first in v0.1).
+- Outputs: .cache/reports/otel_pack.contract_test.v1.txt
+- Policies: none (v0.1).
+
+<a id="ext-PRJ-MEMORYPORT"></a>
+### PRJ-MEMORYPORT
+- Purpose: vendor-neutral, local-first memory port baseline (offline-first; optional Qdrant/pgvector adapters are skeleton-only).
+- Single gate: none (contract-first in v0.1).
+- Outputs: .cache/reports/memoryport.contract_test.v1.txt
+- Policies: none (v0.1).
+
 <a id="ext-PRJ-AIRUNNER"></a>
 ### PRJ-AIRUNNER
 - Purpose: background automation runner: intake->plan->apply (policy gated).
@@ -117,9 +138,16 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Outputs: .cache/reports/ui_cockpit_lite_status.v1.json
 - Policies: none (read-only).
 
+<a id="ext-PRJ-SEARCH"></a>
+### PRJ-SEARCH
+- Purpose: controlled search adapter migration (phase-1 contract + phase-2 backend move with shim compatibility).
+- Single gate: search-check.
+- Outputs: .cache/ws_customer_default/.cache/reports/search_adapter_contract.v1.json
+- Policies: none (phase-1).
+
 <a id="ext-PRJ-ENFORCEMENT-PACK"></a>
 ### PRJ-ENFORCEMENT-PACK
 - Purpose: Enforcement Pack v1 (vendor-neutral; Semgrep OSS adapter skeleton + canonical JSON contract).
-- Single gate: none in V1 (wiring deferred to V2).
-- Outputs: contract-only in V1 (runner deferred).
+- Single gate: enforcement-check.
+- Outputs: .cache/reports/enforcement_check/* (contract JSON/MD + semgrep raw output pointers).
 - Policies: none (V1).

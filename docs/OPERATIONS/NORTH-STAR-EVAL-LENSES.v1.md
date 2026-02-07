@@ -1,9 +1,28 @@
-# North Star Eval Lenses (SSOT) — v1.1
+# North Star Eval Lenses (SSOT) — v1.2
 
 Bu dokuman Eval icindeki lensleri SSOT olarak kilitler.
-Zincir: Define -> Seed/Consult -> Raw -> Eval(A/B/C/...) -> Gap -> Cockpit -> PDCA.
+Canonical isletim sirasi:
+Define -> Theme/Subtheme Lifecycle (Seed/Consult/Gate) -> Raw -> Eval(A/B/C/...) -> Gap -> Cockpit -> PDCA.
 
-Reuse-first kuralı: Yeni PROJECT once bu zinciri (raw->eval->gap->pdca) calistirir; sonucunda mevcut extension/packs onerilir. Eksik kalanlar icin gap uretilir ve is (PROJECT/TICKET/ROADMAP) acilir.
+Reuse-first kurali:
+- Yeni PROJECT once Theme/Subtheme yasam dongusunu calistirir (seed/consult -> proposed -> approval -> active).
+- Sonra olcum zincirini calistirir (raw -> eval -> gap -> pdca).
+- Sonucunda mevcut extension/packs onerilir; eksik kalanlar icin gap uretilir ve is (PROJECT/TICKET/ROADMAP) acilir.
+
+## Isletim Sozlesmesi: Reference -> Assessment -> Gap
+- Reference (normatif hedef): trend_catalog + bp_catalog + onayli Theme/Subtheme mekanizma katalogu.
+- Assessment (mevcut durum olcumu): assessment_raw + assessment_eval; sistemin referansa gore neyi sagladigini olcer.
+- Gap (sapma): assessment sonucundan deterministik uretilen eksik/fark kayitlari (gap_register).
+
+Asama sirasi (zorunlu):
+1) Reference havuzunu hazirla/onayla (seed/consult/gate -> ACTIVE).
+2) Assessment olcum hattini calistir (raw -> eval).
+3) Gap kayitlarini uret ve onceliklendir.
+4) Cockpit + PDCA ile kapatma/recheck dongusune al.
+
+Terminoloji notu (UI):
+- "Reference / Assessment / Gap" surec asamalaridir.
+- Lens Findings icindeki "catalog/source type" alani (trend, bp, lens) sadece bulgunun kaynak tipidir; surec asamasi degildir.
 
 ## Not: Lens kavrami (UI vs arka plan)
 - Lens, arka plan "olcum paketi"dir (eval ruleset).

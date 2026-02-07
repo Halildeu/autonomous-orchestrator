@@ -205,6 +205,44 @@ def cmd_deploy_check(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE", "SKIP"} else 2
 
 
+def cmd_search_check(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(args.chat))
+    scope = str(getattr(args, "scope", "ssot") or "ssot")
+    query = str(getattr(args, "query", "policy") or "policy")
+    mode = str(getattr(args, "mode", "keyword") or "keyword")
+
+    from src.extensions.prj_search.search_check import run_search_check
+
+    res = run_search_check(workspace_root=ws, scope=scope, query=query, mode=mode, chat=chat)
+    status = res.get("status") if isinstance(res, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_extension_run_bulk_diff(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    chat = parse_reaper_bool(str(getattr(args, "chat", "true")))
+    emit_chg = parse_reaper_bool(str(getattr(args, "emit_chg", "true")))
+    extension_ids = _parse_csv_list(str(getattr(args, "extension_ids", "") or ""))
+
+    from src.ops.extension_run_bulk_diff import run_extension_run_bulk_diff
+
+    res = run_extension_run_bulk_diff(
+        workspace_root=ws,
+        extension_ids=extension_ids if extension_ids else None,
+        emit_chg=emit_chg,
+        chat=chat,
+    )
+    status = res.get("status") if isinstance(res, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_deploy_job_start(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:
@@ -667,6 +705,20 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_run.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_run.set_defaults(func=cmd_extension_run)
 
+    ap_run_bulk = parent.add_parser(
+        "extension-run-bulk-diff",
+        help="Run report/strict for ops_single_gate extensions and write diff matrix + CHG drafts.",
+    )
+    ap_run_bulk.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_run_bulk.add_argument(
+        "--extension-ids",
+        default="",
+        help="Optional comma-separated extension ids filter (default: all ops_single_gate extensions).",
+    )
+    ap_run_bulk.add_argument("--emit-chg", default="true", help="true|false (default: true).")
+    ap_run_bulk.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_run_bulk.set_defaults(func=cmd_extension_run_bulk_diff)
+
     ap_airunner_status = parent.add_parser("airunner-status", help="Airunner status (program-led).")
     ap_airunner_status.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_airunner_status.set_defaults(func=cmd_airunner_status)
@@ -752,6 +804,28 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_airunner_watchdog.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_airunner_watchdog.set_defaults(func=cmd_airunner_watchdog)
 
+    ap_planner_build = parent.add_parser("planner-build-plan", help="Build planner plan (program-led, local).")
+    ap_planner_build.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_planner_build.add_argument("--mode", default="plan_first", help="Plan mode (default: plan_first).")
+    ap_planner_build.add_argument("--out", default="latest", help="latest|<plan_id> (default: latest).")
+    ap_planner_build.set_defaults(func=cmd_planner_build_plan)
+
+    ap_planner_show = parent.add_parser("planner-show-plan", help="Show planner plan (program-led, local).")
+    ap_planner_show.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_planner_show.add_argument("--plan-id", dest="plan_id", default="", help="Optional plan id.")
+    ap_planner_show.add_argument("--latest", default="true", help="true|false (default: true).")
+    ap_planner_show.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_planner_show.set_defaults(func=cmd_planner_show_plan)
+
+    ap_planner_apply = parent.add_parser(
+        "planner-apply-selection",
+        help="Apply selected intake ids from planner plan (workspace-only).",
+    )
+    ap_planner_apply.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_planner_apply.add_argument("--plan-id", dest="plan_id", default="", help="Optional plan id.")
+    ap_planner_apply.add_argument("--latest", default="true", help="true|false (default: true).")
+    ap_planner_apply.set_defaults(func=cmd_planner_apply_selection)
+
     ap_plan = parent.add_parser("release-plan", help="Build release plan (workspace, program-led).")
     ap_plan.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_plan.add_argument("--channel", default="", help="rc|final (default: policy default).")
@@ -821,6 +895,14 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_deploy_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_deploy_check.add_argument("--chat", default="true", help="true|false (default: true).")
     ap_deploy_check.set_defaults(func=cmd_deploy_check)
+
+    ap_search_check = parent.add_parser("search-check", help="Search adapter check + report (program-led, local).")
+    ap_search_check.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_search_check.add_argument("--scope", default="ssot", help="ssot|repo (default: ssot).")
+    ap_search_check.add_argument("--query", default="policy", help="Probe query (default: policy).")
+    ap_search_check.add_argument("--mode", default="keyword", help="keyword|semantic|auto (default: keyword).")
+    ap_search_check.add_argument("--chat", default="true", help="true|false (default: true).")
+    ap_search_check.set_defaults(func=cmd_search_check)
 
     ap_deploy_start = parent.add_parser("deploy-job-start", help="Start deploy job (program-led).")
     ap_deploy_start.add_argument("--workspace-root", required=True, help="Workspace root path.")

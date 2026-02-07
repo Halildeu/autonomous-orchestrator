@@ -66,6 +66,10 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
       }
       [data-theme="light"] .sidebar {
         background: #f7faf9;
@@ -241,6 +245,184 @@
       .badge.warn { border-color: var(--accent-2); color: var(--accent-2); }
       .badge.fail { border-color: var(--danger); color: var(--danger); }
       .badge.idle { border-color: #8aa6ff; color: #8aa6ff; }
+      .mini-usage-row {
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .mini-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 220px;
+      }
+      .mini-bar {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        font-size: 11px;
+        letter-spacing: 0.02em;
+        overflow: hidden;
+      }
+      .mini-bar::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--w, 0%);
+        background: linear-gradient(90deg, rgba(47, 219, 170, 0.3), rgba(47, 219, 170, 0.08));
+      }
+      .mini-bar .label,
+      .mini-bar .count {
+        position: relative;
+        z-index: 1;
+      }
+      .mini-bar .count {
+        opacity: 0.8;
+        font-variant-numeric: tabular-nums;
+      }
+      .mini-trend {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        height: 44px;
+      }
+      .mini-trend .trend-bar {
+        width: 7px;
+        border-radius: 3px;
+        background: rgba(47, 219, 170, 0.55);
+        transition: height 0.2s ease;
+      }
+      .mini-trend .trend-bar.dim {
+        opacity: 0.2;
+      }
+      [data-theme="light"] .mini-bar,
+      [data-theme="light"] .mini-trend {
+        background: #ffffff;
+      }
+      .usage-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 8px;
+        min-width: 240px;
+        border-radius: 8px;
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .usage-chart.empty {
+        opacity: 0.7;
+      }
+      .usage-chart .chart-title {
+        font-size: 11px;
+        letter-spacing: 0.02em;
+        color: var(--muted);
+      }
+      .usage-chart .chart-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 72px;
+      }
+      .usage-chart .usage-day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 14px;
+        font-size: 9px;
+        color: var(--muted);
+      }
+      .usage-chart .usage-day.dim {
+        opacity: 0.4;
+      }
+      .usage-chart .usage-day .bar {
+        width: 10px;
+        border-radius: 4px;
+        background: linear-gradient(180deg, rgba(47, 219, 170, 0.95), rgba(47, 219, 170, 0.25));
+        box-shadow: inset 0 0 0 1px rgba(47, 219, 170, 0.2);
+      }
+      .usage-chart .usage-day .bar-stack {
+        width: 10px;
+        height: var(--h, 8px);
+        display: flex;
+        flex-direction: column-reverse;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .usage-chart .usage-day .bar-seg {
+        height: var(--seg, 0%);
+        background: var(--c, rgba(47, 219, 170, 0.6));
+      }
+      .usage-chart .usage-day .label {
+        font-variant-numeric: tabular-nums;
+      }
+      .usage-chart .empty-note {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      [data-theme="light"] .usage-chart {
+        background: #ffffff;
+      }
+      .donut-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .donut {
+        position: relative;
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: conic-gradient(var(--donut));
+      }
+      .donut::after {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: 50%;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .donut-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 11px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text);
+      }
+      .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+      }
+      .legend-item .count {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      [data-theme="light"] .donut::after {
+        background: #ffffff;
+        border-color: rgba(0, 0, 0, 0.08);
+      }
       .meta-id {
         display: inline-flex;
         align-items: center;
@@ -310,6 +492,14 @@
         cursor: not-allowed;
         transform: none;
       }
+      .btn.is-disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn.is-disabled:hover {
+        transform: none;
+      }
       .btn.accent { border-color: var(--accent); }
       .btn.warn { border-color: var(--accent-2); }
       .btn.danger { border-color: var(--danger); }
@@ -322,6 +512,20 @@
         padding: 2px 6px;
         font-size: 10px;
         line-height: 1;
+      }
+      .transfer-lock-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 10px;
+        height: 10px;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+      .transfer-lock-icon svg {
+        width: 10px;
+        height: 10px;
+        fill: currentColor;
       }
       .btn.ai-icon {
         border-color: rgba(255, 255, 255, 0.12);
@@ -375,6 +579,161 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--accent);
+      }
+      .ext-row {
+        cursor: pointer;
+      }
+      .ext-row:hover {
+        background: rgba(61, 214, 176, 0.06);
+      }
+      [data-theme="light"] .ext-row:hover {
+        background: rgba(31, 159, 134, 0.08);
+      }
+      .ext-detail-row td {
+        padding: 0;
+        border-top: none;
+      }
+      .ext-detail-panel {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        padding: 0 12px;
+        transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.2s ease;
+        background: var(--card-2);
+        border-radius: 10px;
+        margin: 0 8px 8px;
+      }
+      .ext-detail-row.open .ext-detail-panel {
+        max-height: 520px;
+        opacity: 1;
+        padding: 12px;
+      }
+      .ext-detail-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .ext-detail-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .ext-detail-tabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: thin;
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .ext-detail-tab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .ext-detail-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        background: transparent;
+      }
+      [data-theme="light"] .ext-detail-tab.active {
+        background: transparent;
+      }
+      .ext-detail-pane {
+        display: none;
+      }
+      .ext-detail-pane.active {
+        display: block;
+      }
+      .ext-detail-pane pre {
+        margin: 0;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        color: var(--text);
+        font-size: 12px;
+        max-height: 360px;
+        overflow: auto;
+      }
+      .ext-subtabs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 10px;
+        scrollbar-width: thin;
+      }
+      .ext-subtab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .ext-subtab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        background: transparent;
+      }
+      [data-theme="light"] .ext-subtab.active {
+        background: transparent;
+      }
+      .ext-subpane {
+        display: none;
+      }
+      .ext-subpane.active {
+        display: block;
+      }
+      .ext-about {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 8px 0 4px;
+      }
+      .ext-about-summary {
+        font-size: 13px;
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .ext-about-list {
+        display: grid;
+        grid-template-columns: minmax(120px, 180px) 1fr;
+        gap: 6px 14px;
+        align-items: start;
+      }
+      .ext-about-item {
+        display: contents;
+      }
+      .ext-about-label {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ext-about-value {
+        color: var(--text);
+        font-size: 12px;
       }
       .card .subtle {
         color: var(--muted);
@@ -639,20 +998,114 @@
 
       .intake-inline-detail .inline-tabs {
         display: flex;
-        gap: 8px;
+        gap: 12px;
         margin: 8px 0 10px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        scrollbar-width: thin;
       }
 
-      .intake-inline-detail .inline-tabs .btn {
-        padding: 6px 10px;
+      [data-theme="light"] .intake-inline-detail .inline-tabs {
+        border-bottom-color: rgba(0, 0, 0, 0.08);
       }
 
+      .intake-inline-detail .inline-tabs .intake-inline-tab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .intake-inline-detail .inline-tabs .intake-inline-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .intake-detail-tabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        margin-top: 10px;
+        scrollbar-width: thin;
+      }
+      .intake-detail-tab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .intake-detail-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .intake-detail-pane {
+        display: none;
+        margin-top: 10px;
+      }
+      .intake-detail-pane.active {
+        display: block;
+      }
       .intake-inline-detail .inline-section {
         border-top: 1px solid rgba(255, 255, 255, 0.06);
         padding-top: 10px;
       }
       [data-theme="light"] .intake-inline-detail .inline-section {
         border-top-color: rgba(0, 0, 0, 0.08);
+      }
+      .intake-inline-body {
+        display: flex;
+        gap: 16px;
+        margin-top: 10px;
+      }
+      .intake-group-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 140px;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-right: 12px;
+      }
+      [data-theme="light"] .intake-group-tabs {
+        border-right-color: rgba(0, 0, 0, 0.08);
+      }
+      .intake-group-tab {
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        padding: 6px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .intake-group-tab.active {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .intake-group-tab.active {
+        background: rgba(31, 159, 134, 0.12);
+      }
+      .intake-inline-content {
+        flex: 1 1 auto;
+        min-width: 0;
       }
 
       .intake-inline-detail .decision-options {
@@ -812,6 +1265,16 @@
         border-top: 1px solid var(--border);
         padding-top: 12px;
       }
+      .chat-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .chat-suggestions .btn {
+        font-size: 11px;
+        padding: 6px 10px;
+      }
       .chat-panel {
         display: grid;
         grid-template-rows: 1fr auto;
@@ -831,6 +1294,27 @@
       }
       [data-theme="light"] .chat-log {
         background: #ffffff;
+      }
+      .chat-attachments {
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: rgba(14, 20, 22, 0.35);
+        display: grid;
+        gap: 6px;
+      }
+      [data-theme="light"] .chat-attachments {
+        background: #f8fafb;
+      }
+      .note-links {
+        display: grid;
+        gap: 6px;
+      }
+      .note-link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
       }
       .chat-message {
         padding: 8px 10px;
@@ -1067,6 +1551,21 @@
       .modal-card.ai-suggest .modal-status.warn {
         color: #ffb37a;
       }
+      .modal-card.ai-suggest .modal-intent {
+        margin: 8px 0;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(78, 174, 242, 0.25);
+        background: rgba(78, 174, 242, 0.12);
+        font-size: 12px;
+        color: rgba(228, 243, 255, 0.95);
+        letter-spacing: 0.01em;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-intent {
+        color: #13425c;
+        background: rgba(78, 174, 242, 0.18);
+        border-color: rgba(78, 174, 242, 0.35);
+      }
       .modal-card.ai-suggest .modal-context {
         display: flex;
         flex-direction: column;
@@ -1232,6 +1731,192 @@
       [data-theme="light"] .action-log .entry {
         background: #ffffff;
       }
+      .timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .timeline-grid .entry {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1516;
+      }
+      [data-theme="light"] .timeline-grid .entry {
+        background: #ffffff;
+      }
+      .timeline-grid .label {
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .timeline-grid .value {
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .timeline-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 320px;
+        overflow: auto;
+      }
+      .timeline-list .entry {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1516;
+      }
+      [data-theme="light"] .timeline-list .entry {
+        background: #ffffff;
+      }
+      .timeline-workbench {
+        display: flex;
+        gap: 16px;
+        margin-top: 10px;
+      }
+      .timeline-group-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 148px;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-right: 12px;
+      }
+      [data-theme="light"] .timeline-group-tabs {
+        border-right-color: rgba(0, 0, 0, 0.08);
+      }
+      .timeline-group-tab {
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        padding: 7px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .timeline-group-tab.active {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .timeline-group-tab.active {
+        background: rgba(31, 159, 134, 0.12);
+      }
+      .timeline-group-content {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .timeline-group-pane {
+        display: none;
+      }
+      .timeline-group-pane.active {
+        display: block;
+      }
+      .timeline-subtabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: thin;
+      }
+      .timeline-subtab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .timeline-subtab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .timeline-pane {
+        display: none;
+        margin-top: 10px;
+      }
+      .timeline-pane.active {
+        display: block;
+      }
+      .timeline-inline-detail {
+        padding: 10px 12px;
+        border-top: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      [data-theme="light"] .timeline-inline-detail {
+        background: rgba(0, 0, 0, 0.02);
+      }
+      .timeline-inline-grid {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 8px 12px;
+      }
+      .timeline-inline-grid .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .timeline-inline-grid .value {
+        font-size: 12px;
+      }
+      .timeline-trend-chart {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px;
+        background: #0f1516;
+        min-height: 220px;
+      }
+      [data-theme="light"] .timeline-trend-chart {
+        background: #ffffff;
+      }
+      .timeline-trend-legend {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .timeline-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+      }
+      .timeline-dot.p50 {
+        background: #3dd6b0;
+      }
+      .timeline-dot.p95 {
+        background: #ff8c42;
+      }
+      .search-results {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 65vh;
+        overflow: auto;
+        margin-top: 6px;
+      }
+      .search-results .entry {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: #0f1516;
+        border: 1px solid var(--border);
+      }
+      [data-theme="light"] .search-results .entry {
+        background: #ffffff;
+      }
       .evidence-tree details {
         margin-bottom: 6px;
         border: 1px solid var(--border);
@@ -1303,6 +1988,19 @@
       .pill.warn::before { content: "⚠️"; margin-right: 4px; }
       .pill.block::before { content: "⛔"; margin-right: 4px; }
       .pill.miss::before { content: "—"; margin-right: 4px; }
+
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 2px solid rgba(159, 176, 181, 0.35);
+        border-top-color: var(--accent);
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
       .sidebar-collapsed .app,
       .app.sidebar-collapsed { --sidebar-width: 72px; }
       .sidebar-collapsed { --sidebar-width: 72px; }
@@ -1339,13 +2037,44 @@
         to { opacity: 1; transform: translateY(0); }
       }
       @media (max-width: 960px) {
-        .app { grid-template-columns: 1fr; }
-        .sidebar { flex-direction: row; overflow-x: auto; }
-        .nav { flex-direction: row; }
+        .app { grid-template-columns: 72px 1fr; }
+        .sidebar {
+          width: 72px;
+          padding: 16px 10px;
+          flex-direction: column;
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+        .nav { flex-direction: column; }
+        .nav-label { display: none; }
+        .nav button { justify-content: center; padding: 10px 8px; }
+        .sidebar-footer { display: none; }
+        .sidebar-header { justify-content: center; align-items: center; }
+        .brand-full { display: none; }
+        .brand-short { display: inline-flex; }
         .split { grid-template-columns: 1fr; }
         .table-wrap { max-height: 40vh; }
         .evidence-tree { max-height: 40vh; }
         #evidence-viewer { max-height: 40vh; }
+        .timeline-workbench {
+          flex-direction: column;
+        }
+        .timeline-group-tabs {
+          flex-direction: row;
+          border-right: none;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          padding-right: 0;
+          padding-bottom: 10px;
+          min-width: 0;
+          overflow-x: auto;
+        }
+        [data-theme="light"] .timeline-group-tabs {
+          border-bottom-color: rgba(0, 0, 0, 0.08);
+        }
+        .timeline-group-tab {
+          text-align: center;
+          white-space: nowrap;
+        }
       }
     </style>
     <script>
@@ -1380,6 +2109,9 @@
 	          <button data-tab="north-star" type="button" data-i18n-title="nav.north_star" data-i18n-aria-label="nav.north_star" title="North Star" aria-label="North Star" aria-controls="tab-north-star">
 	            <span class="nav-icon" aria-hidden="true">NS</span><span class="nav-label" data-i18n="nav.north_star">North Star</span>
 	          </button>
+	          <button data-tab="timeline" type="button" data-i18n-title="nav.timeline" data-i18n-aria-label="nav.timeline" title="Timeline" aria-label="Timeline" aria-controls="tab-timeline">
+	            <span class="nav-icon" aria-hidden="true">TM</span><span class="nav-label" data-i18n="nav.timeline">Timeline</span>
+	          </button>
 	          <button data-tab="inbox" type="button" data-i18n-title="nav.inbox" data-i18n-aria-label="nav.inbox" title="Inbox" aria-label="Inbox" aria-controls="tab-inbox">
 	            <span class="nav-icon" aria-hidden="true">IB</span><span class="nav-label" data-i18n="nav.inbox">Inbox</span>
 	          </button>
@@ -1407,6 +2139,9 @@
 	          <button data-tab="run-card" type="button" data-i18n-title="nav.run_card" data-i18n-aria-label="nav.run_card" title="Run-Card" aria-label="Run-Card" aria-controls="tab-run-card">
 	            <span class="nav-icon" aria-hidden="true">RC</span><span class="nav-label" data-i18n="nav.run_card">Run-Card</span>
 	          </button>
+	          <button data-tab="search" type="button" data-i18n-title="nav.search" data-i18n-aria-label="nav.search" title="Search" aria-label="Search" aria-controls="tab-search">
+	            <span class="nav-icon" aria-hidden="true">SR</span><span class="nav-label" data-i18n="nav.search">Search</span>
+	          </button>
 	          <button data-tab="planner-chat" type="button" data-i18n-title="nav.planner_chat" data-i18n-aria-label="nav.planner_chat" title="Planner Chat" aria-label="Planner Chat" aria-controls="tab-planner-chat">
 	            <span class="nav-icon" aria-hidden="true">PC</span><span class="nav-label" data-i18n="nav.planner_chat">Planner Chat</span>
 	          </button>
@@ -1428,8 +2163,13 @@
             <div class="topbar-title" data-i18n="ui.title">Operator Console</div>
             <span class="badge" id="conn-status">API: ...</span>
             <span class="badge" id="sse-status">SSE: ...</span>
+            <span class="badge" id="memory-status">MEM: ...</span>
+            <span class="badge idle" id="search-engine-badge" data-i18n="search.engine.badge.none">SRCH: -</span>
+            <span class="badge" id="timeline-alert-badge" data-i18n="timeline.alert.idle">TIME: -</span>
           </div>
 	          <div class="topbar-right row">
+              <input class="input" id="global-search-query" data-i18n-placeholder="search.placeholder" placeholder="Search (auto)" style="min-width: 220px;" />
+              <button class="btn ghost" id="global-search-run" data-i18n="search.run">Search</button>
 	            <button class="btn accent" id="refresh-all" data-i18n="actions.refresh_all">Refresh All</button>
               <button class="btn ghost" id="snapshot-page" data-i18n="actions.snapshot_page">Snapshot this page</button>
               <select class="input" id="theme-select" data-i18n-aria-label="theme.label" data-i18n-title="theme.label">
@@ -1503,6 +2243,84 @@
             </div>
           </section>
 
+          <section id="tab-timeline" class="tab">
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center; gap: 8px;">
+                <h3 data-i18n="h.timeline_dashboard" style="margin: 0;">Codex Time Sink</h3>
+                <button class="btn ghost btn-mini" id="timeline-refresh" type="button" data-i18n="timeline.refresh">Yenile</button>
+              </div>
+              <div class="subtle" id="timeline-meta">-</div>
+              <div class="subtle" id="timeline-error"></div>
+              <div class="timeline-workbench">
+                <div class="timeline-group-tabs">
+                  <button class="timeline-group-tab active" type="button" data-timeline-group-tab="dashboard" data-i18n="timeline.group.dashboard">Dashboard</button>
+                  <button class="timeline-group-tab" type="button" data-timeline-group-tab="trend" data-i18n="timeline.group.trend">Trend</button>
+                </div>
+                <div class="timeline-group-content">
+                  <div class="timeline-group-pane active" data-timeline-group-pane="dashboard">
+                    <div class="timeline-subtabs">
+                      <button class="timeline-subtab active" type="button" data-timeline-sub-tab="summary" data-i18n="timeline.tab.summary">Özet</button>
+                      <button class="timeline-subtab" type="button" data-timeline-sub-tab="processes" data-i18n="timeline.tab.processes">İşlemler</button>
+                      <button class="timeline-subtab" type="button" data-timeline-sub-tab="tools" data-i18n="timeline.tab.tools">Araçlar</button>
+                    </div>
+                    <div class="timeline-pane active" data-timeline-pane="summary">
+                      <div class="timeline-grid">
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.total_tool_time">Toplam Araç Süresi</div>
+                          <div class="value" id="timeline-total-tool">-</div>
+                        </div>
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.process_count">İşlem Sayısı</div>
+                          <div class="value" id="timeline-process-count">-</div>
+                        </div>
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.process_p95">İşlem P95</div>
+                          <div class="value" id="timeline-process-p95">-</div>
+                        </div>
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.non_tool_ratio">Araç Dışı Oran</div>
+                          <div class="value" id="timeline-non-tool-ratio">-</div>
+                        </div>
+                      </div>
+                      <div class="grid" style="margin-top: 10px;">
+                        <div class="card">
+                          <h3 data-i18n="timeline.slowest_processes">En Yavaş İşlemler</h3>
+                          <div id="timeline-slowest-list" class="timeline-list"></div>
+                        </div>
+                        <div class="card">
+                          <h3 data-i18n="timeline.tool_breakdown">Araç Bazlı Kırılım</h3>
+                          <div id="timeline-tool-list" class="timeline-list"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="timeline-pane" data-timeline-pane="processes">
+                      <div class="subtle" id="timeline-process-meta">-</div>
+                      <div id="timeline-process-table" class="table-wrap" style="margin-top: 8px;"></div>
+                    </div>
+                    <div class="timeline-pane" data-timeline-pane="tools">
+                      <div class="subtle" id="timeline-tools-meta">-</div>
+                      <div id="timeline-tools-table" class="table-wrap" style="margin-top: 8px;"></div>
+                    </div>
+                  </div>
+                  <div class="timeline-group-pane" data-timeline-group-pane="trend">
+                    <div class="timeline-subtabs">
+                      <button class="timeline-subtab active" type="button" data-timeline-sub-tab="trend_pctl" data-i18n="timeline.tab.pctl">P50 / P95</button>
+                      <button class="timeline-subtab" type="button" data-timeline-sub-tab="trend_alert" data-i18n="timeline.tab.alerts">Alarmlar</button>
+                    </div>
+                    <div class="timeline-pane active" data-timeline-pane="trend_pctl">
+                      <div class="subtle" id="timeline-trend-meta">-</div>
+                      <div id="timeline-trend-chart" class="timeline-trend-chart" style="margin-top: 8px;"></div>
+                      <div id="timeline-trend-table" class="table-wrap" style="margin-top: 8px;"></div>
+                    </div>
+                    <div class="timeline-pane" data-timeline-pane="trend_alert">
+                      <div id="timeline-alert-details" class="timeline-list"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section id="tab-north-star" class="tab">
             <div class="grid">
               <div class="card">
@@ -1536,6 +2354,43 @@
 	              <div class="subtle" data-i18n="north_star.lens_details_hint">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
 	              <div id="north-star-lens-details"></div>
 	            </div>
+	            <div class="card">
+	              <h3 data-i18n="north_star.workflow.title" style="margin: 0;">North Star Workflow v1</h3>
+	              <div class="subtle" style="margin-top: 6px;" data-i18n="north_star.workflow.subtitle">Canonical flow: Reference -> Assessment -> Gap -> PDCA</div>
+	              <ol class="subtle" style="margin: 8px 0 0 18px;">
+                <li data-i18n="north_star.workflow.step1">Reference: Theme/Subtheme + Trend/BP reference set is approved (ACTIVE).</li>
+                <li data-i18n="north_star.workflow.step2">Assessment: Run raw/eval measurement against the approved reference.</li>
+                <li data-i18n="north_star.workflow.step3">Gap: Produce deterministic deviations with impact/risk/effort.</li>
+                <li data-i18n="north_star.workflow.step4">PDCA: Prioritize closure actions, recheck, and track regression.</li>
+	              </ol>
+	              <div class="subtle" style="margin-top: 8px;" data-i18n="north_star.workflow.note">Note: In Lens Findings, Trend/BP/Lens means source type, not workflow stage.</div>
+	            </div>
+	            <div class="card">
+	              <div class="row" style="justify-content: space-between; align-items: center;">
+	                <h3 data-i18n="north_star.flow2.title" style="margin: 0;">Flow 2 Status</h3>
+	                <div class="badge" id="north-star-flow2-status">UNKNOWN</div>
+	              </div>
+	              <div class="subtle" id="north-star-flow2-summary" data-i18n="north_star.flow2.subtitle">Assessment chain health (Assessment + Policy + Status)</div>
+	              <div class="row" id="north-star-flow2-badges" style="margin-top: 8px;"></div>
+	              <div class="subtle" id="north-star-flow2-lines" style="margin-top: 8px;"></div>
+	              <div class="subtle" id="north-star-flow2-invalid-note" style="margin-top: 6px;"></div>
+	            </div>
+	            <div class="card">
+	              <div class="row" style="justify-content: space-between; align-items: center;">
+	                <h3 data-i18n="north_star.catalog_create.title" style="margin: 0;">Yeni Katalog Oluştur</h3>
+	                <div class="badge" id="ns-catalog-status">hazır</div>
+	              </div>
+              <div class="subtle" id="ns-catalog-hint" data-i18n="north_star.catalog_create.hint">Prompt: v0.4.8 (prompt_refine_consolidated)</div>
+              <div class="row" style="gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+                <div class="field-stack" style="min-width: 240px; flex: 1 1 240px;">
+                  <label class="subtle" for="ns-catalog-subject" data-i18n="north_star.catalog_create.subject_label">Konu</label>
+                  <input class="input" id="ns-catalog-subject" placeholder="Örn: İç Denetim" data-i18n-placeholder="north_star.catalog_create.subject_placeholder" />
+                </div>
+                <button class="btn ghost" id="ns-catalog-save" type="button" data-i18n="north_star.catalog_create.save">Kaydet</button>
+                <button class="btn accent" id="ns-catalog-create" type="button" data-i18n="north_star.catalog_create.create">Katalog oluştur</button>
+              </div>
+              <div class="subtle" id="ns-catalog-meta"></div>
+            </div>
             <div class="card">
               <div class="row" style="justify-content: space-between; align-items: center;">
                 <h3 data-i18n="north_star.mechanisms.title" style="margin: 0;">Tema / Alt Tema Kataloğu</h3>
@@ -1580,10 +2435,12 @@
               <div class="subtle" id="north-star-suggestions-meta"></div>
               <div id="north-star-suggestions"></div>
             </div>
-		            <div class="card">
-			              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
-			              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>
-			              <div class="row" style="margin-top: 10px;">
+			            <div class="card">
+				              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
+				              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>
+				              <div class="subtle" data-i18n="north_star.findings.scope_hint">Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu workflow aşamasına göre sınıflar; detayda kaynak tipi (Trend/BP/Lens) gösterilir.</div>
+				              <div class="subtle" id="ns-findings-transfer-scopes">Aktif kapsamlar: -</div>
+				              <div class="row" style="margin-top: 10px;">
 			                <input class="input" id="ns-findings-search" placeholder="Bulgu ara (id/başlık/kriter/etiket/gerekçe)" data-i18n-placeholder="north_star.findings.search_placeholder" aria-label="Bulgu ara" />
 			                <div class="field-stack">
 			                  <label class="subtle" for="ns-findings-filter-subject-input" data-i18n="north_star.filter.subject.label">Konu/Subject</label>
@@ -1641,7 +2498,7 @@
 			                  </div>
 			                </div>
 			                <div class="field-stack">
-			                  <label class="subtle" for="ns-findings-filter-catalog-input" data-i18n="north_star.filter.catalog.label">Katalog (Referans/BP)</label>
+			                  <label class="subtle" for="ns-findings-filter-catalog-input" data-i18n="north_star.filter.catalog.label">İş Akışı Aşaması (Reference/Assessment/Gap)</label>
 			                  <div class="tag-select" id="ns-findings-filter-catalog">
 			                    <div class="tag-select-input">
 			                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
@@ -1656,7 +2513,7 @@
 			                  <div class="tag-select" id="ns-findings-filter-match">
 			                    <div class="tag-select-input">
 			                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
-			                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Triggered only (default)" data-i18n-placeholder="north_star.filter.match.placeholder" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
+			                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Select match status" data-i18n-placeholder="north_star.filter.match.placeholder" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
 			                      <button class="tag-toggle" type="button" aria-label="Toggle match options">v</button>
 			                    </div>
 			                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
@@ -1804,45 +2661,6 @@
               <div class="subtle" id="intake-purpose-report-meta"></div>
               <div class="subtle" id="intake-purpose-report-summary"></div>
               <div id="intake-table" class="table-wrap"></div>
-	              <details id="intake-detail-panel">
-	                <summary class="subtle">Selected item details</summary>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-detail-meta">no selection</div>
-                  <button class="btn ghost" id="intake-clear-selection" type="button">Clear</button>
-                </div>
-                <div class="row" style="margin-top: 8px;">
-                  <button class="btn" id="intake-purpose-generate-selected" type="button" data-i18n="intake.purpose.generate_selected">Generate for selected</button>
-                  <div class="subtle" id="intake-purpose-generate-selected-meta" data-i18n="intake.purpose.generate_selected_hint">Selected item only</div>
-                </div>
-                <div id="intake-detail-fields" class="intake-detail-grid"></div>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-claim-meta" data-i18n="intake.claim.meta_none">Claim: -</div>
-                  <button class="btn" id="intake-claim" type="button" data-i18n="intake.claim.btn_claim">Claim</button>
-                  <button class="btn ghost" id="intake-claim-release" type="button" data-i18n="intake.claim.btn_release">Release</button>
-                  <button class="btn danger" id="intake-claim-force-release" type="button" data-i18n="intake.claim.btn_force_release">Force release</button>
-                </div>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-close-meta" data-i18n="intake.close.meta_none">Close: -</div>
-                  <button class="btn warn" id="intake-close" type="button" data-i18n="intake.close.btn_close">Close</button>
-                </div>
-                <div class="row" style="margin-top: 10px;">
-                  <div class="subtle" id="intake-notes-meta">Notes for this item: -</div>
-                  <button class="btn accent" id="intake-create-note" type="button">Create note</button>
-                  <button class="btn ghost" id="intake-open-notes" type="button">Open Notes tab</button>
-                </div>
-                <div id="intake-notes-list" class="note-list"></div>
-                <div class="subtle" style="margin-top: 10px;">Evidence paths (click to preview)</div>
-                <div id="intake-evidence-paths" class="path-chips"></div>
-                <details id="intake-evidence-preview-panel" style="margin-top: 10px;">
-                  <summary class="subtle">Evidence preview</summary>
-                  <div class="subtle" id="intake-evidence-preview-meta"></div>
-                  <pre id="intake-evidence-preview"></pre>
-                </details>
-                <details style="margin-top: 10px;">
-                  <summary class="subtle">Raw intake item JSON (redacted)</summary>
-                  <pre id="intake-detail-json"></pre>
-                </details>
-              </details>
             </div>
           </section>
 
@@ -1867,11 +2685,24 @@
                 </div>
                 <div id="extensions-list" class="table-wrap"></div>
               </div>
-              <div class="card">
-                <h3 data-i18n="h.extension_detail">Extension Detail</h3>
-                <div class="subtle" id="extension-meta"></div>
-                <pre id="extension-json"></pre>
+            </div>
+            <div class="card" style="margin-top: 16px;">
+              <h3 data-i18n="h.extension_usage">Extension Usage</h3>
+              <div class="row" style="gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="extensions-usage-refresh">Refresh</button>
+                <div id="extensions-usage-pills" class="row" style="gap:6px; flex-wrap:wrap;"></div>
               </div>
+              <div class="row" style="gap:8px; flex-wrap:wrap; margin-top: 8px;">
+                <input class="input" id="extensions-usage-search" data-i18n-placeholder="extensions.usage.search" placeholder="Search path/kind" />
+                <select id="extensions-usage-extension"></select>
+                <select id="extensions-usage-kind"></select>
+              </div>
+              <div id="extensions-usage-table" class="table-wrap" style="margin-top: 10px;"></div>
+              <details id="extensions-usage-unknown" style="margin-top: 10px;">
+                <summary data-i18n="extensions.usage.unknown_title">Unknown samples</summary>
+                <div id="extensions-usage-unknown-list" class="subtle" style="margin-top: 6px;"></div>
+              </details>
+              <div id="extensions-usage-unused" class="subtle" style="margin-top: 10px;"></div>
             </div>
           </section>
 
@@ -1969,6 +2800,44 @@
             </div>
           </section>
 
+          <section id="tab-search" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.search">Search</h3>
+              <div class="row" style="gap: 8px; flex-wrap: wrap;">
+                <input class="input" id="search-query" data-i18n-placeholder="search.placeholder" placeholder="Search (auto)" />
+                <select class="input" id="search-scope" data-i18n-aria-label="search.scope.label">
+                  <option value="ssot" data-i18n="search.scope.ssot">SSOT (fast)</option>
+                  <option value="repo" data-i18n="search.scope.repo">Repo</option>
+                </select>
+                <select class="input" id="search-mode" data-i18n-aria-label="search.mode.label">
+                  <option value="auto" data-i18n="search.mode.auto">Auto</option>
+                  <option value="keyword" data-i18n="search.mode.keyword">Keyword (rg)</option>
+                  <option value="semantic" data-i18n="search.mode.semantic">Semantic (pgvector)</option>
+                </select>
+                <button class="btn" id="search-run" data-i18n="search.run">Search</button>
+                <button class="btn ghost" id="search-rebuild" data-i18n="search.rebuild">Update index</button>
+              </div>
+              <div class="subtle" id="search-status"></div>
+              <div class="subtle" id="search-engine-debug"></div>
+              <div class="row" style="align-items: center; gap: 8px;">
+                <div class="subtle" id="search-index-status" style="flex: 1 1 auto;"></div>
+                <div class="spinner" id="search-index-spinner" style="display: none;" aria-hidden="true"></div>
+              </div>
+              <div class="subtle" id="search-index-eta"></div>
+              <div style="margin-top: 10px;">
+                <h4 data-i18n="search.capabilities.title">Adapter Contract</h4>
+                <div class="row" style="align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <span class="badge idle" id="search-semantic-badge" data-i18n="search.capabilities.semantic.none">SEM: -</span>
+                </div>
+                <div class="subtle" id="search-capabilities-status"></div>
+                <div class="subtle" id="search-capabilities-routing"></div>
+                <div class="subtle" id="search-capabilities-selection"></div>
+                <div class="table-wrap" id="search-capabilities-adapters"></div>
+              </div>
+              <div class="search-results" id="search-results"></div>
+            </div>
+          </section>
+
           <section id="tab-planner-chat" class="tab">
             <div class="card chat-shell">
               <div class="chat-sidebar">
@@ -1986,13 +2855,35 @@
                   <button class="btn ghost" id="notes-refresh">Refresh</button>
                 </div>
                 <div id="chat-log" class="chat-log"></div>
+                <div class="chat-attachments">
+                  <div class="subtle" data-i18n="notes.links.header">Evidence & Attachments</div>
+                  <div id="note-links-list" class="note-links"></div>
+                  <div class="row">
+                    <select class="input" id="note-link-kind">
+                      <option value="">Tür seç</option>
+                      <option value="evidence">evidence</option>
+                      <option value="url">url</option>
+                      <option value="file">file</option>
+                    </select>
+                    <input class="input" id="note-link-id" placeholder="link / path" />
+                    <button class="btn" id="note-link-add">Ekle</button>
+                    <button class="btn ghost" id="note-link-clear">Temizle</button>
+                  </div>
+                </div>
                 <div class="chat-composer">
                   <div class="row">
                     <select class="input" id="chat-profile"></select>
                     <select class="input" id="chat-provider"></select>
                     <select class="input" id="chat-model"></select>
                   </div>
+                  <div class="subtle" id="chat-model-verified-hint" aria-live="polite"></div>
+                  <div class="row">
+                    <input class="input" id="note-title" placeholder="Title (optional)" data-i18n-placeholder="notes.title_placeholder" />
+                    <input class="input" id="note-tags" placeholder="Tags (comma separated)" data-i18n-placeholder="notes.tags_placeholder" />
+                  </div>
                   <textarea class="input chat-input" id="note-body" placeholder="Mesajını yaz..."></textarea>
+                  <div class="subtle" id="planner-chat-suggestions-title" data-i18n="planner_chat.suggestions.title">Önerilen adımlar</div>
+                  <div class="chat-suggestions" id="planner-chat-suggestions"></div>
                   <div class="row">
                     <button class="btn accent" id="note-save">Gönder</button>
                     <button class="btn ghost" id="note-clear">Temizle</button>
@@ -2098,11 +2989,13 @@
 	        <div class="modal-body">
         <div class="modal-thread" id="ai-suggest-thread"></div>
         <div class="modal-status subtle" id="ai-suggest-status" aria-live="polite"></div>
+        <div class="modal-intent" id="ai-suggest-intent" style="display:none;"></div>
         <div class="modal-context" id="ai-suggest-context"></div>
         <div class="modal-thread-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
           <label class="subtle" for="ai-suggest-thread-select">Thread</label>
           <select class="input" id="ai-suggest-thread-select" aria-label="AI thread"></select>
           <button class="btn ghost small" id="ai-suggest-thread-new" type="button">Yeni</button>
+          <button class="btn ghost small" id="ai-suggest-open-chat" type="button" data-i18n="north_star.suggestions.modal_open_chat">Open chat</button>
         </div>
         <div class="modal-history" id="ai-suggest-history" aria-live="polite"></div>
         <textarea class="input modal-textarea" id="ai-suggest-comment" rows="4" placeholder="Optional context" data-i18n-placeholder="north_star.suggestions.modal_placeholder"></textarea>
@@ -2113,6 +3006,7 @@
           <select class="input" id="ai-suggest-provider"></select>
           <label class="subtle sr-only" for="ai-suggest-model" data-i18n="north_star.suggestions.modal_model">Model</label>
           <select class="input" id="ai-suggest-model"></select>
+          <div class="subtle" id="ai-suggest-verified-hint" style="grid-column: 1 / -1;" aria-live="polite"></div>
 	        </div>
 	        <div id="ai-suggest-merge-wrap" style="display:none;">
 	          <label class="subtle" for="ai-suggest-merge" data-i18n="north_star.suggestions.modal_merge_label">Merge target theme_id</label>
@@ -2126,72 +3020,6 @@
 	      </div>
 	    </div>
 
-      <div class="modal" id="snapshot-target-modal" role="dialog" aria-modal="true" aria-labelledby="snapshot-target-title">
-        <div class="modal-card" role="document">
-          <div class="modal-header">
-            <div>
-              <h3 class="modal-title" id="snapshot-target-title">Snapshot hedefi</h3>
-              <div class="modal-hint" id="snapshot-target-hint">Bu snapshot hangi Planner Chat thread'ine eklensin?</div>
-            </div>
-            <button class="btn ghost icon modal-close" id="snapshot-target-close" type="button" aria-label="Close">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 6l12 12"></path>
-                <path d="M18 6l-12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <div class="subtle" style="margin-bottom:10px;">
-              <span class="subtle">Önizleme:</span>
-              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;" id="snapshot-target-thread-preview">default</span>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
-                <input type="radio" name="snapshot-target-mode" id="snapshot-target-mode-current" value="current" checked />
-                <span>
-                  <div><strong id="snapshot-target-mode-current-label">Mevcut thread</strong></div>
-                  <div class="subtle" id="snapshot-target-mode-current-sub">Aktif thread: <span id="snapshot-target-current-thread">default</span></div>
-                </span>
-              </label>
-
-              <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
-                <input type="radio" name="snapshot-target-mode" id="snapshot-target-mode-pick" value="pick" />
-                <span style="flex:1;">
-                  <div><strong id="snapshot-target-mode-pick-label">Başka thread seç</strong></div>
-                  <div class="subtle" id="snapshot-target-mode-pick-sub">Mevcut thread listesinden seç.</div>
-                  <div style="margin-top:8px;">
-                    <select class="input" id="snapshot-target-thread-select" aria-label="Planner thread" disabled></select>
-                  </div>
-                </span>
-              </label>
-
-              <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
-                <input type="radio" name="snapshot-target-mode" id="snapshot-target-mode-new" value="new" />
-                <span style="flex:1;">
-                  <div><strong id="snapshot-target-mode-new-label">Yeni thread oluştur</strong></div>
-                  <div class="subtle" id="snapshot-target-mode-new-sub">Opsiyonel ad ver; sistem yeni bir thread_id üretir.</div>
-                  <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <input class="input" id="snapshot-target-thread-new-suffix" type="text" placeholder="örn: iso9001_4_1" style="flex:1;min-width:220px;" />
-                    <button class="btn ghost small" id="snapshot-target-thread-new-generate" type="button">Yenile</button>
-                  </div>
-                </span>
-              </label>
-            </div>
-
-            <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-              <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
-                <input type="checkbox" id="snapshot-target-open-chat" checked />
-                <span id="snapshot-target-open-chat-label">Snapshot sonrası Planner Chat’e geç</span>
-              </label>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn ghost" id="snapshot-target-cancel" type="button">Vazgeç</button>
-            <button class="btn accent" id="snapshot-target-continue" type="button">Devam et</button>
-          </div>
-        </div>
-      </div>
 
     <div class="toast-container" id="toast-container"></div>
 

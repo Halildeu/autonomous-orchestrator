@@ -7,6 +7,8 @@ rules:
       include:
         - extensions/prj-github-ops/extension.manifest.v1.json
         - extensions/release-automation/extension.manifest.v1.json
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
     pattern-regex: '"extension_id"\s*:\s*"PRJ-(GITHUB-OPS|RELEASE-AUTOMATION)"'
     metadata:
       enforcement_pack: ENF_V1
