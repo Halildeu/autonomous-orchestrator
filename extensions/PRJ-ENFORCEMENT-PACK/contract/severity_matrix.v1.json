@@ -1,0 +1,22 @@
+{
+  "profiles": {
+    "default_profile": {
+      "EP-001": "WARN",
+      "EP-002": "WARN",
+      "EP-003": "WARN",
+      "EP-004": "WARN",
+      "EP-005": "WARN"
+    },
+    "strict_profile": {
+      "EP-001": "BLOCKED",
+      "EP-002": "BLOCKED",
+      "EP-003": "WARN",
+      "EP-004": "BLOCKED",
+      "EP-005": "WARN"
+    }
+  },
+  "defaults": {
+    "unknown_rule": "WARN",
+    "advisory_mode": false
+  }
+}

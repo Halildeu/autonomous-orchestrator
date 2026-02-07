@@ -1,0 +1,5 @@
+{
+  "id": "{{MODULE_ID}}",
+  "context_strategy": "inherit",
+  "allowed_tools": []
+}

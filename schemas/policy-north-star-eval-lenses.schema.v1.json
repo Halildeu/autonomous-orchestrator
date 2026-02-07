@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-north-star-eval-lenses.schema.v1.json",
+  "title": "Policy North Star Eval Lenses",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "eval_lenses_enabled",
+    "trend_best_practice",
+    "integrity_compat",
+    "integration_coherence",
+    "ai_ops_fit",
+    "github_ops_release",
+    "operability"
+  ],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "eval_lenses_enabled": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["trend", "integrity_compat", "integration_coherence", "ai_ops_fit", "github_ops_release", "operability"]
+      }
+    },
+    "trend_best_practice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_coverage_ok", "min_coverage_warn"],
+      "properties": {
+        "min_coverage_ok": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_coverage_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "integrity_compat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_score_ok", "min_score_warn"],
+      "properties": {
+        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "integration_coherence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weight", "required_signals"],
+      "properties": {
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "required_signals": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "ai_ops_fit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_fields", "min_score_ok", "min_score_warn"],
+      "properties": {
+        "required_fields": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "github_ops_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_fields", "min_score_ok", "min_score_warn"],
+      "properties": {
+        "required_fields": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "operability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_fields", "min_score_ok", "min_score_warn", "weights"],
+      "properties": {
+        "required_fields": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 },
+        "weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["simplicity", "sustainability", "continuity"],
+          "properties": {
+            "simplicity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "sustainability": { "type": "number", "minimum": 0, "maximum": 1 },
+            "continuity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

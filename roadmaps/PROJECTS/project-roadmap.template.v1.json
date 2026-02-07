@@ -1,0 +1,81 @@
+{
+  "roadmap_id": "PROJECT-ROADMAP-TEMPLATE",
+  "version": "v1",
+  "iso_core_required": false,
+  "global_gates": [],
+  "milestones": [
+    {
+      "id": "M0-PROJECT-BOOTSTRAP",
+      "title": "Project bootstrap (workspace-only)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false"
+      ],
+      "steps": [
+        {
+          "type": "workspace_root_guard",
+          "paths": [
+            "${WORKSPACE_ROOT}/**",
+            "${EXTERNAL_ROOT}/<ALLOWLISTED_OUTPUT_PREFIX>/**"
+          ]
+        },
+        {
+          "type": "write_file_allowlist",
+          "allowed_paths": [
+            "${WORKSPACE_ROOT}/**",
+            "${EXTERNAL_ROOT}/<ALLOWLISTED_OUTPUT_PREFIX>/**"
+          ]
+        },
+        {
+          "type": "ensure_dir",
+          "path": "project/${PROJECT_ID}"
+        },
+        {
+          "type": "create_json_from_template",
+          "path": "project/${PROJECT_ID}/project.manifest.v1.json",
+          "json": {
+            "version": "v1",
+            "project_id": "${PROJECT_ID}",
+            "purpose": "Describe the project purpose here.",
+            "domain_tags": [],
+            "iso_refs": {
+              "context": "tenant/TENANT-DEFAULT/context.v1.md",
+              "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+              "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+              "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+            },
+            "selected_pack_ids": [],
+            "target_maturity_level": 0
+          },
+          "overwrite": false
+        },
+        {
+          "type": "create_file",
+          "path": "project/${PROJECT_ID}/README.md",
+          "content": "# Project\n\nThis workspace project is isolated from CORE.\n",
+          "overwrite": false
+        },
+        {
+          "type": "run_cmd",
+          "cmd": "python -m src.ops.manage project-status --workspace-root ${WORKSPACE_ROOT} --roadmap ${ROADMAP_PATH} --mode autopilot_chat",
+          "must_succeed": true,
+          "apply_only": true
+        },
+        {
+          "type": "assert_paths_exist",
+          "paths": [
+            "project/${PROJECT_ID}/project.manifest.v1.json",
+            "project/${PROJECT_ID}/README.md"
+          ],
+          "apply_only": true
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "All writes are under workspace_root or allowlisted external_root.",
+        "Project manifest and README exist under project/<project_id>/."
+      ]
+    }
+  ]
+}
+

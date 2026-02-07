@@ -1,0 +1,184 @@
+name: gate-schema
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  validate-schemas:
+    runs-on: ubuntu-latest
+    env:
+      SUPPLY_CHAIN_SIGNING_KEY: ${{ secrets.SUPPLY_CHAIN_SIGNING_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Validate JSON schemas + instances
+        run: |
+          python ci/validate_schemas.py
+
+      - name: Validate pack manifests (warn-only for soft conflicts)
+        run: |
+          python ci/validate_pack_manifest.py --out .cache/pack_validation/report.json
+
+      - name: Upload pack validation report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-validation-report
+          path: .cache/pack_validation/report.json
+          if-no-files-found: error
+
+      - name: Run smoke test (local runner + policy dry-run)
+        run: |
+          python ci/smoke_test.py
+      
+      - name: Run full smoke (ci_smoke skipped by default)
+        env:
+          SMOKE_FULL_INCLUDE_CI: "0"
+        run: |
+          python smoke_test.py
+
+      - name: Script budget guardrails (soft=warn, hard=fail)
+        run: |
+          python ci/check_script_budget.py --out .cache/script_budget/report.json
+
+      - name: Upload script budget report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-budget-report
+          path: .cache/script_budget/report.json
+          if-no-files-found: error
+
+      - name: Repo hygiene report (warn-only)
+        run: |
+          python -m src.ops.manage repo-hygiene --mode report --out .cache/repo_hygiene/report.json
+
+      - name: Doc graph report (warn-only)
+        run: |
+          python -m src.ops.manage doc-graph --workspace-root . --mode report --out .cache/reports/doc_graph_report.v1.json
+
+      - name: Doc graph summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path(".cache/reports/doc_graph_report.v1.json")
+          summary = Path("${GITHUB_STEP_SUMMARY}")
+          if not report_path.exists():
+              summary.open("a", encoding="utf-8").write("Doc graph: report missing\n")
+              raise SystemExit(0)
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          status = report.get("status", "UNKNOWN")
+          counts = report.get("counts", {}) if isinstance(report, dict) else {}
+          msg = (
+              f"Doc graph: status={status} "
+              f"broken_refs={counts.get('broken_refs', 0)} "
+              f"orphan_critical={counts.get('orphan_critical', 0)} "
+              f"ambiguity={counts.get('ambiguity', 0)}\n"
+          )
+          summary.open("a", encoding="utf-8").write(msg)
+          PY
+
+      - name: Repo hygiene summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path(".cache/repo_hygiene/report.json")
+          summary = Path("${GITHUB_STEP_SUMMARY}")
+          if not report_path.exists():
+              summary.open("a", encoding="utf-8").write("Repo hygiene: report missing\n")
+              raise SystemExit(0)
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          status = report.get("status", "UNKNOWN")
+          summary_data = report.get("summary", {}) if isinstance(report, dict) else {}
+          msg = (
+              f"Repo hygiene: status={status} "
+              f"unexpected_dirs={summary_data.get('unexpected_top_level_dirs', 0)} "
+              f"tracked_generated={summary_data.get('tracked_generated_files', 0)} "
+              f"untracked_generated_dirs={summary_data.get('untracked_generated_dirs', 0)}\n"
+          )
+          summary.open("a", encoding="utf-8").write(msg)
+          PY
+
+      - name: Upload repo hygiene report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-hygiene-report
+          path: .cache/repo_hygiene/report.json
+          if-no-files-found: error
+
+      - name: Upload doc graph report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc-graph-report
+          path: .cache/reports/doc_graph_report.v1.json
+          if-no-files-found: error
+
+      - name: Evidence integrity verify (newest run)
+        run: |
+          RUN_DIR=$(python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          evidence = Path("evidence")
+          summaries = list(evidence.rglob("summary.json"))
+          if not summaries:
+              print("No evidence summaries found for integrity verify.")
+              sys.exit(1)
+
+          summaries.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+          print(summaries[0].parent.as_posix())
+          PY
+          )
+          echo "Integrity verify: ${RUN_DIR}"
+          python -m src.evidence.integrity_verify --run "${RUN_DIR}"
+
+      - name: Reaper (dry-run retention report)
+        run: |
+          python -m src.ops.reaper --dry-run true --out reaper_report_ci.json
+
+      - name: Upload reaper report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reaper-report-ci
+          path: reaper_report_ci.json
+
+      - name: Upload policy-check outputs (if present)
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-check-outputs
+          path: .cache/policy_check/
+          if-no-files-found: ignore
+
+      - name: Supply chain secret preflight
+        run: |
+          if [ -z "${SUPPLY_CHAIN_SIGNING_KEY:-}" ]; then
+            echo "Missing SUPPLY_CHAIN_SIGNING_KEY GitHub Actions secret"
+            exit 1
+          fi
+
+      - name: Supply chain (SBOM + sign + verify)
+        run: |
+          python supply_chain/sbom.py
+          python supply_chain/sign.py
+          python supply_chain/verify.py
+          python supply_chain/license_gate.py
+          python supply_chain/cve_gate.py

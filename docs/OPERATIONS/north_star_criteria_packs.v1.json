@@ -1,0 +1,161 @@
+{
+  "id": "NORTH_STAR_CRITERIA_PACKS",
+  "version": "v1",
+  "generated_at": "2026-01-29",
+  "core_8": [
+    "kalite_dogruluk",
+    "deterministiklik_tekrarlanabilirlik",
+    "gozlemlenebilirlik_izleme_olcme",
+    "entegrasyon_birlikte_calisabilirlik",
+    "uygunluk_risk_guvence_kontrol",
+    "sureklilik_dayaniklilik",
+    "olceklenebilirlik",
+    "maliyet_verimlilik_kaynak"
+  ],
+  "axis_registry": [
+    {
+      "axis_id": "ai_otomasyon",
+      "label_tr": "Yapay zekâ ile yapılabilecekler / otomasyon potansiyeli",
+      "label_en": "AI automation potential"
+    },
+    {
+      "axis_id": "baglam_uyum",
+      "label_tr": "Bağlam yönetimi ve uyum",
+      "label_en": "Context management & alignment"
+    },
+    {
+      "axis_id": "deterministiklik_tekrarlanabilirlik",
+      "label_tr": "Deterministiklik ve tekrarlanabilirlik",
+      "label_en": "Determinism & repeatability"
+    },
+    {
+      "axis_id": "entegrasyon_birlikte_calisabilirlik",
+      "label_tr": "Entegrasyon ve birlikte çalışabilirlik",
+      "label_en": "Integration & interoperability"
+    },
+    {
+      "axis_id": "gozlemlenebilirlik_izleme_olcme",
+      "label_tr": "Gözlemlenebilirlik / izleme / ölçme",
+      "label_en": "Observability / monitoring / measurement"
+    },
+    {
+      "axis_id": "kalite_dogruluk",
+      "label_tr": "Kalite / doğruluk",
+      "label_en": "Quality / accuracy"
+    },
+    {
+      "axis_id": "maliyet_verimlilik_kaynak",
+      "label_tr": "Maliyet / verimlilik / kaynak kullanımı",
+      "label_en": "Cost / efficiency / resource use"
+    },
+    {
+      "axis_id": "olceklenebilirlik",
+      "label_tr": "Ölçeklenebilirlik",
+      "label_en": "Scalability"
+    },
+    {
+      "axis_id": "paydas_memnuniyeti_deger",
+      "label_tr": "Paydaş memnuniyeti / değer katkısı",
+      "label_en": "Stakeholder satisfaction / value"
+    },
+    {
+      "axis_id": "surdurulebilirlik_esg_isg_etik",
+      "label_tr": "Sürdürülebilirlik – ESG / İSG / Etik",
+      "label_en": "Sustainability – ESG / HSE / Ethics"
+    },
+    {
+      "axis_id": "surec_etkinligi_olgunluk",
+      "label_tr": "Süreç etkinliği / olgunluk",
+      "label_en": "Process efficiency / maturity"
+    },
+    {
+      "axis_id": "sureklilik_dayaniklilik",
+      "label_tr": "Süreklilik / dayanıklılık",
+      "label_en": "Continuity / resilience"
+    },
+    {
+      "axis_id": "uygunluk_risk_guvence_kontrol",
+      "label_tr": "Uyum / risk / güvence / kontrol",
+      "label_en": "Compliance / risk / assurance / control"
+    },
+    {
+      "axis_id": "zaman_hiz_ceviklik",
+      "label_tr": "Zaman / hız / çeviklik",
+      "label_en": "Time / speed / agility"
+    },
+    {
+      "axis_id": "guvenlik",
+      "label_tr": "Güvenlik",
+      "label_en": "Security"
+    },
+    {
+      "axis_id": "gizlilik",
+      "label_tr": "Gizlilik",
+      "label_en": "Privacy"
+    }
+  ],
+  "perspective_packs": {
+    "BUSINESS_PROCESS": {
+      "label_tr": "İşletim/Süreç",
+      "label_en": "Business Process",
+      "extends_core": true,
+      "criteria": [
+        "ai_otomasyon",
+        "guvenlik",
+        "gizlilik",
+        "surec_etkinligi_olgunluk",
+        "paydas_memnuniyeti_deger",
+        "surdurulebilirlik_esg_isg_etik",
+        "zaman_hiz_ceviklik"
+      ]
+    },
+    "PRODUCT": {
+      "label_tr": "Ürün",
+      "label_en": "Product",
+      "extends_core": true,
+      "criteria": [
+        "ai_otomasyon",
+        "baglam_uyum",
+        "guvenlik",
+        "gizlilik",
+        "paydas_memnuniyeti_deger",
+        "surdurulebilirlik_esg_isg_etik",
+        "zaman_hiz_ceviklik"
+      ]
+    },
+    "ENGINEERING": {
+      "label_tr": "Mühendislik/Yazılım",
+      "label_en": "Engineering",
+      "extends_core": true,
+      "criteria": [
+        "ai_otomasyon",
+        "baglam_uyum",
+        "guvenlik",
+        "gizlilik",
+        "paydas_memnuniyeti_deger",
+        "surec_etkinligi_olgunluk",
+        "zaman_hiz_ceviklik"
+      ]
+    },
+    "GOVERNANCE": {
+      "label_tr": "Yönetişim/Uyum",
+      "label_en": "Governance",
+      "extends_core": true,
+      "criteria": [
+        "ai_otomasyon",
+        "baglam_uyum",
+        "guvenlik",
+        "gizlilik",
+        "paydas_memnuniyeti_deger",
+        "surdurulebilirlik_esg_isg_etik",
+        "surec_etkinligi_olgunluk",
+        "zaman_hiz_ceviklik"
+      ]
+    }
+  },
+  "notes": [
+    "Core-8 tüm perspektiflerde zorunludur; perspective_packs yalnızca ek kriterlerdir.",
+    "Veri/Analitik ayrı bir perspektif değildir; ilgili kriterler pack içinde kullanılır.",
+    "Bu dosya UI etiketleri ve pack kompozisyonu için SSOT kabul edilir."
+  ]
+}

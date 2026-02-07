@@ -1,0 +1,32 @@
+# ENF v2.1 — pre-commit wiring (staged enforcement)
+#
+# Advisory by default (does not block commits):
+#   - runs `enforcement-check` with profile=default
+#   - swallows failures (|| true)
+#
+# Strict opt-in (blocks commit on BLOCKED/FAIL):
+#   ENF_PRECOMMIT_STRICT=1 git commit ...
+#
+# Manual strict (if you prefer not to gate commits):
+#   python3 -m src.ops.manage enforcement-check --profile strict --outdir .cache/ws_customer_default/.cache/reports/enf_precommit
+#
+# Notes:
+# - Vendor-neutral: pre-commit only calls the single source of truth runner:
+#     python3 -m src.ops.manage enforcement-check
+# - The runner is offline-first and emits contract outputs into the workspace outdir.
+repos:
+  - repo: local
+    hooks:
+      - id: enforcement-check
+        name: "ENF v2 advisory (default profile; strict opt-in via ENF_PRECOMMIT_STRICT=1)"
+        entry: >-
+          bash -lc 'if [ "${ENF_PRECOMMIT_STRICT:-0}" = "1" ]; then
+          python3 -m src.ops.manage enforcement-check --profile strict --outdir .cache/ws_customer_default/.cache/reports/enf_precommit;
+          else
+          python3 -m src.ops.manage enforcement-check --profile default --outdir .cache/ws_customer_default/.cache/reports/enf_precommit || true;
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+

@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "enabled": false,
+  "default_workflow": {
+    "statuses": [
+      "OPEN",
+      "IN_PROGRESS",
+      "BLOCKED",
+      "DONE"
+    ]
+  },
+  "default_priority": "P3",
+  "default_severity": "S3",
+  "notes": []
+}

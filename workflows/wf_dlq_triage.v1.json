@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "workflow_id": "WF_DLQ_TRIAGE",
+  "steps": [
+    { "id": "MOD_A", "type": "module", "module_id": "MOD_DLQ_TRIAGE" },
+    { "id": "APPROVAL", "type": "approval", "mode": "dry-run-default" },
+    { "id": "MOD_B", "type": "module", "module_id": "MOD_B" }
+  ]
+}

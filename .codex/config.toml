@@ -1,0 +1,9 @@
+model = "gpt-5.2-codex"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+project_doc_max_bytes = 65536
+project_doc_fallback_filenames = ["AGENTS.md", "AGENT-CODEX.md", "TEAM_GUIDE.md"]
+project_root_markers = [".git", "AGENTS.md"]
+
+[sandbox_workspace_write]
+network_access = false

@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "workflow_id": "WF_CORE",
+  "steps": [
+    { "id": "MOD_A", "type": "module", "module_id": "MOD_A" },
+    { "id": "APPROVAL", "type": "approval", "mode": "dry-run-default" },
+    { "id": "MOD_B", "type": "module", "module_id": "MOD_B" }
+  ]
+}
+

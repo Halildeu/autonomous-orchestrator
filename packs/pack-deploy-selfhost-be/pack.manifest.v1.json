@@ -1,0 +1,27 @@
+{
+  "pack_id": "pack-deploy-selfhost-be",
+  "version": "0.1.0",
+  "lifecycle_state": "experimental",
+  "iso_kernel_refs": {
+    "context_ref": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders_ref": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope_ref": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria_ref": "tenant/TENANT-DEFAULT/criteria.v1.md",
+    "gate_level": "warn"
+  },
+  "provides": {
+    "intents": [
+      "deploy_selfhost_be"
+    ],
+    "workflows": [],
+    "formats": [],
+    "capability_refs": [],
+    "format_refs": []
+  },
+  "namespace_prefix": "DEPLOY_BE",
+  "conflict_policy": {
+    "hard_conflict": "fail",
+    "soft_conflict": "warn",
+    "deterministic_tie_break": "pack_id_lexicographic"
+  }
+}

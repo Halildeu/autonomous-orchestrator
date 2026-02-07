@@ -1,0 +1,6 @@
+{
+  "version": "v1",
+  "evidence_days": 7,
+  "dlq_days": 14,
+  "cache_days": 7
+}

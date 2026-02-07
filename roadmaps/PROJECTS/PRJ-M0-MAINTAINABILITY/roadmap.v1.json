@@ -1,0 +1,65 @@
+{
+  "roadmap_id": "PRJ-M0-MAINTAINABILITY",
+  "version": "v1",
+  "iso_core_required": false,
+  "global_gates": [],
+  "milestones": [
+    {
+      "id": "P0",
+      "title": "Baseline debt snapshot (plan-only)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false",
+        "plan-only"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Collect script-budget offenders and maintainability plan (workspace-only artifacts)."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Script-budget offenders list + baseline metrics captured."
+      ]
+    },
+    {
+      "id": "P1",
+      "title": "Plan-only refactor targets",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=false",
+        "plan-only"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Define split targets, test gates, and risk controls without changing core runtime."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "CHG drafts and plan docs exist under workspace/incubator."
+      ]
+    },
+    {
+      "id": "P2",
+      "title": "Refactor execution (core unlock required)",
+      "notes": [
+        "layer=PROJECT",
+        "core_lock_required=true",
+        "plan-only"
+      ],
+      "steps": [
+        {
+          "type": "note",
+          "text": "Execution requires explicit core unlock and review. Not executed in this project roadmap."
+        }
+      ],
+      "gates": [],
+      "dod": [
+        "Execution deferred; core changes tracked separately."
+      ]
+    }
+  ]
+}

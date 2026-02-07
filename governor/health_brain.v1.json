@@ -1,0 +1,11 @@
+{
+  "version": "v1",
+  "global_mode": "normal",
+  "quarantine": {
+    "intents": [],
+    "workflows": []
+  },
+  "concurrency": {
+    "max_parallel_runs": 1
+  }
+}

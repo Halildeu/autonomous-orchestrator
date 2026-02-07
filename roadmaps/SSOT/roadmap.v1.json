@@ -1,0 +1,1448 @@
+{
+  "global_gates": [
+    {
+      "cmd": "python ci/check_script_budget.py --out .cache/script_budget/report.json",
+      "must_succeed": true,
+      "type": "run_cmd"
+    }
+  ],
+  "iso_core_required": false,
+  "milestones": [
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ],
+        "max_diff_lines": 3000,
+        "max_files_changed": 100
+      },
+      "dod": [
+        "Core vs Workspace boundary dokümante",
+        "Workspace bootstrap/sanitize/scan komutları ve gate hook’ları hazır"
+      ],
+      "gates": [
+        {
+          "cmd": "python ci/check_script_budget.py --out .cache/script_budget/report.json",
+          "must_succeed": true,
+          "type": "run_cmd"
+        }
+      ],
+      "id": "M0",
+      "notes": [
+        "Amaç: core ürün (shippable) ile workspace (tenant/private) ayrımını netleştirmek.",
+        "Deliverables: docs/OPERATIONS/core-vs-workspace.md + templates/workspace_template + promote/sanitize scanner hooks."
+      ],
+      "steps": [
+        {
+          "text": "M0 is a roadmap definition milestone (v0.3): core↔workspace boundary, workspace bootstrap/sanitize conventions, promotion-lane scan gates.",
+          "type": "note"
+        },
+        {
+          "text": "Maintainability guardrail (SSOT): Script Budget (soft=warn, hard=fail) is enforced in CI and Roadmap Runner global gates.",
+          "type": "note"
+        }
+      ],
+      "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold"
+    },
+    {
+      "dod": [
+        "Core lock policy/schema are present.",
+        "Workspace project root created with manifest and README."
+      ],
+      "gates": [],
+      "id": "M0.1",
+      "steps": [
+        {
+          "paths": [
+            "policies/policy_core_immutability.v1.json",
+            "schemas/policy-core-immutability.schema.json"
+          ],
+          "type": "assert_core_paths_exist"
+        },
+        {
+          "path": "project/default",
+          "type": "ensure_dir"
+        },
+        {
+          "json": {
+            "domain_tags": [],
+            "iso_refs": {
+              "context": "tenant/TENANT-DEFAULT/context.v1.md",
+              "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md",
+              "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+              "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md"
+            },
+            "project_id": "default",
+            "purpose": "Customer project workspace root",
+            "selected_pack_ids": [],
+            "target_maturity_level": 0,
+            "version": "v1"
+          },
+          "overwrite": false,
+          "path": "project/default/project.manifest.v1.json",
+          "type": "create_json_from_template"
+        },
+        {
+          "content": "# Project Default\n\nWorkspace project root for customer artifacts and project-level SSOT.\n",
+          "overwrite": false,
+          "path": "project/default/README.md",
+          "type": "create_file"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            "project/default/project.manifest.v1.json",
+            "project/default/README.md"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Core Lock + Project Boundary"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ],
+        "max_diff_lines": 2000,
+        "max_files_changed": 50
+      },
+      "dod": [
+        "ISO core yoksa system conservative mode raporlar",
+        "ISO core varsa üretimde referans olarak kullanılır"
+      ],
+      "gates": [
+        {
+          "paths": [
+            "tenant/TENANT-DEFAULT/context.v1.md",
+            "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+            "tenant/TENANT-DEFAULT/scope.v1.md",
+            "tenant/TENANT-DEFAULT/criteria.v1.md"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "id": "M1",
+      "notes": [
+        "Amaç: İş yapılırken ISO sırasını aktif hale getirmek.",
+        "Deliverables: tenant/<TENANT>/{context,stakeholders,scope,criteria}.v1.md + ci/validate_iso_core_presence.py + policy_report ISO core status.",
+        "DoD: ISO core yoksa conservative mode raporu; varsa referans alınır."
+      ],
+      "steps": [
+        {
+          "path": "tenant/TENANT-DEFAULT",
+          "type": "ensure_dir"
+        },
+        {
+          "content": "# Context (ISO core) — v1\n\nTenant: `TENANT-DEFAULT`\n\nTODO: Describe the operating context, constraints, and assumptions.\n",
+          "overwrite": false,
+          "path": "tenant/TENANT-DEFAULT/context.v1.md",
+          "type": "create_file"
+        },
+        {
+          "content": "# Stakeholders (ISO core) — v1\n\nTenant: `TENANT-DEFAULT`\n\nTODO: List key stakeholders and responsibilities.\n",
+          "overwrite": false,
+          "path": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+          "type": "create_file"
+        },
+        {
+          "content": "# Scope (ISO core) — v1\n\nTenant: `TENANT-DEFAULT`\n\nTODO: Define scope (in/out), boundaries, and success conditions.\n",
+          "overwrite": false,
+          "path": "tenant/TENANT-DEFAULT/scope.v1.md",
+          "type": "create_file"
+        },
+        {
+          "content": "# Criteria (ISO core) — v1\n\nTenant: `TENANT-DEFAULT`\n\nTODO: Define risk appetite, approval thresholds, and quality criteria.\n",
+          "overwrite": false,
+          "path": "tenant/TENANT-DEFAULT/criteria.v1.md",
+          "type": "create_file"
+        }
+      ],
+      "title": "ISO Core SSOT (Context/Stakeholder/Scope/Criteria) + aktif gate"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ],
+        "max_diff_lines": 2500,
+        "max_files_changed": 50
+      },
+      "dod": [
+        "CI tenant consistency FAIL-closed",
+        "policy-check raporunda Tenant Decision Summary görünür"
+      ],
+      "gates": [
+        {
+          "cmd": "python ci/validate_schemas.py",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "cmd": "python -m src.ops.manage smoke --level fast",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "cmd": "python -m src.ops.manage policy-check --source fixtures",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "paths": [
+            "schemas/tenant-decision-bundle.schema.json",
+            "tenant/TENANT-DEFAULT/decision-bundle.v1.json",
+            "ci/validate_tenant_consistency.py"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "id": "M2",
+      "notes": [
+        "Amaç: Kullanıcı kararları çelişmesin; discovery doğru filtrelesin.",
+        "Dosyalar: tenant/<TENANT>/decision-bundle.v1.json + schemas/tenant-decision-bundle.schema.json + ci/validate_tenant_consistency.py",
+        "Consistency Gate (fail-closed): stack/packs/side_effect_policy/tool/network/format uyumu."
+      ],
+      "steps": [
+        {
+          "path": "tenant/TENANT-DEFAULT",
+          "type": "ensure_dir"
+        },
+        {
+          "path": "schemas/tenant-decision-bundle.schema.json",
+          "schema_json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "allowed_tools": {
+                "default": [],
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "enabled_packs": {
+                "default": [],
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "network": {
+                "additionalProperties": false,
+                "properties": {
+                  "access": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "allowlist": {
+                    "default": [],
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "access",
+                  "allowlist"
+                ],
+                "type": "object"
+              },
+              "output_standards": {
+                "default": [],
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "risk_criteria": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_risk_threshold": {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "approval_risk_threshold"
+                ],
+                "type": "object"
+              },
+              "side_effect_policy_limits": {
+                "additionalProperties": false,
+                "properties": {
+                  "blocked_now": {
+                    "default": [
+                      "merge",
+                      "deploy"
+                    ],
+                    "items": {
+                      "enum": [
+                        "merge",
+                        "deploy"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "supported_now": {
+                    "default": [
+                      "none",
+                      "draft"
+                    ],
+                    "items": {
+                      "enum": [
+                        "none",
+                        "draft",
+                        "pr"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "supported_now",
+                  "blocked_now"
+                ],
+                "type": "object"
+              },
+              "tenant_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              }
+            },
+            "required": [
+              "version",
+              "tenant_id",
+              "enabled_packs",
+              "side_effect_policy_limits",
+              "allowed_tools",
+              "network",
+              "output_standards",
+              "risk_criteria"
+            ],
+            "title": "tenant-decision-bundle.schema.json",
+            "type": "object"
+          },
+          "type": "add_schema_file"
+        },
+        {
+          "json": {
+            "allowed_tools": [
+              "fs_read",
+              "fs_write"
+            ],
+            "enabled_packs": [],
+            "network": {
+              "access": false,
+              "allowlist": []
+            },
+            "output_standards": [
+              "format-recommendation.v1"
+            ],
+            "risk_criteria": {
+              "approval_risk_threshold": 0.7
+            },
+            "side_effect_policy_limits": {
+              "blocked_now": [
+                "merge",
+                "deploy"
+              ],
+              "supported_now": [
+                "none",
+                "draft",
+                "pr"
+              ]
+            },
+            "tenant_id": "TENANT-DEFAULT",
+            "version": "v1"
+          },
+          "overwrite": false,
+          "path": "tenant/TENANT-DEFAULT/decision-bundle.v1.json",
+          "type": "create_json_from_template"
+        },
+        {
+          "content": "import json\nfrom pathlib import Path\n\nfrom jsonschema import Draft202012Validator\n\n\ndef load_json(p: Path):\n    return json.loads(p.read_text(encoding=\"utf-8\"))\n\n\ndef main():\n    root = Path(__file__).resolve().parents[1]\n    schema_path = root / \"schemas\" / \"tenant-decision-bundle.schema.json\"\n    if not schema_path.exists():\n        raise SystemExit(\"Missing schemas/tenant-decision-bundle.schema.json\")\n\n    schema = load_json(schema_path)\n    Draft202012Validator.check_schema(schema)\n    v = Draft202012Validator(schema)\n\n    tenant_dir = root / \"tenant\"\n    if not tenant_dir.exists():\n        print(\"OK: tenant/ not present; skipping.\")\n        return\n\n    bundles = sorted(tenant_dir.glob(\"*/decision-bundle.v1.json\"), key=lambda p: p.as_posix())\n    if not bundles:\n        print(\"OK: no decision bundles found; skipping.\")\n        return\n\n    invalid = 0\n    for bp in bundles:\n        obj = load_json(bp)\n        errors = sorted(v.iter_errors(obj), key=lambda e: e.json_path)\n        if errors:\n            invalid += 1\n            print(f\"INVALID_TENANT_BUNDLE: {bp}\")\n            for err in errors[:10]:\n                where = err.json_path or \"$\"\n                print(f\"  - {where}: {err.message}\")\n\n        # Minimal consistency checks (v0.1): merge/deploy must remain blocked.\n        limits = obj.get(\"side_effect_policy_limits\") if isinstance(obj, dict) else None\n        blocked = limits.get(\"blocked_now\") if isinstance(limits, dict) else None\n        if isinstance(blocked, list) and any(x in {\"merge\", \"deploy\"} for x in blocked) is False:\n            invalid += 1\n            print(f\"INVALID_TENANT_BUNDLE: {bp} (blocked_now must include merge/deploy)\")\n\n    if invalid:\n        raise SystemExit(f\"Tenant consistency failed: {invalid}/{len(bundles)} invalid.\")\n\n    print(f\"OK: {len(bundles)} tenant decision bundles validated.\")\n\n\nif __name__ == \"__main__\":\n    main()\n",
+          "overwrite": false,
+          "path": "ci/validate_tenant_consistency.py",
+          "type": "add_ci_gate_script"
+        },
+        {
+          "text": "Core wiring (CI workflow + policy report injection) is intentionally core-only in v0.3; keep workspace-root runs focused on workspace SSOT files.",
+          "type": "note"
+        }
+      ],
+      "title": "Tenant Decision Bundle SSOT v0.1 + Consistency Gate"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Her output zorunlu bölüm setini üretir",
+        "Format drift gate yakalar"
+      ],
+      "gates": [],
+      "id": "M2.5",
+      "notes": [
+        "Amaç: her çıktı format contract’a uysun; chat formatı katalogdan gelsin.",
+        "Deliverables: formats/* + schemas/format-contract.schema.json + ci/validate_format_contracts.py + selection logic.",
+        "v0.1 runnable: workspace-root altında derived formats index üretir: .cache/index/formats.v1.json"
+      ],
+      "steps": [
+        {
+          "path": "formats",
+          "type": "ensure_dir"
+        },
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.tenant.build_formats_index --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/formats.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Format & Conversation Contract SSOT"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "spec-core ve spec-capability şemaları tanımlı ve validate_schemas kapsamına alınmış",
+        "spec-core dokümanı kısa ve örnekli",
+        "ISO refs + evidence/risk blokları meta içinde net"
+      ],
+      "gates": [],
+      "id": "M4.1",
+      "notes": [
+        "Amaç: CAPABILITY/KABİLİYET tanımlarını tek bir spec-core meta sözleşmesiyle standardize etmek (hybrid meta+body).",
+        "Kural: ISO içerikleri kopyalanmaz; iso_refs ile tenant ISO core dosyalarına referans verilir (M1).",
+        "v0.1: runnable (read-only core existence check). Core repo yazımı yapmaz; deliverables ileride promotion lane ile core’a taşınır."
+      ],
+      "steps": [
+        {
+          "paths": [
+            "schemas/spec-core.schema.json",
+            "schemas/spec-capability.schema.json",
+            "docs/OPERATIONS/spec-core.md",
+            "capabilities/CAP-PR-PACKAGER.v1.json"
+          ],
+          "type": "assert_core_paths_exist"
+        }
+      ],
+      "title": "CAPABILITY spec-core meta contract (ISO refs + evidence + risk)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Catalog filtreleme deterministik ve explainable"
+      ],
+      "gates": [],
+      "id": "M3",
+      "notes": [
+        "Amaç: decision bundle + packs + formats birleşimiyle deterministik discovery/selection.",
+        "Deliverables: packs/<pack_id>/manifest.v1.json (+schema) + src/tenant/build_catalog.py + .cache/index/catalog.v1.json (derived)."
+      ],
+      "steps": [
+        {
+          "path": "packs/pack-demo",
+          "type": "ensure_dir"
+        },
+        {
+          "json": {
+            "applies_to": {
+              "artifact_types": [
+                "code",
+                "doc",
+                "report"
+              ],
+              "stack_type": [
+                "software_backend",
+                "frontend",
+                "procedure",
+                "decision_support"
+              ]
+            },
+            "pack_id": "pack-demo",
+            "provides": {
+              "formats": [
+                "FORMAT-AUTOPILOT-CHAT"
+              ],
+              "intents": [],
+              "workflows": []
+            },
+            "version": "v1"
+          },
+          "overwrite": false,
+          "path": "packs/pack-demo/manifest.v1.json",
+          "type": "create_json_from_template"
+        },
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.tenant.build_catalog --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/catalog.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Packs Catalog v0.1 + Composite Catalog Builder"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "TTL bitince SSOT’a dönüş",
+        "Ephemeral kararlar evidence/provenance ile bağlanır"
+      ],
+      "gates": [],
+      "id": "M3.5",
+      "notes": [
+        "Amaç: sohbet içi ephemeral kararları TTL ile yönetmek; provenance’a hash olarak yazmak.",
+        "Deliverables: .cache/sessions/<session_id>/session_context.v1.json + session_context_hash.",
+        "v0.1 runnable: default session init ile workspace-root altında session_context dosyası üretir."
+      ],
+      "steps": [
+        {
+          "path": ".cache/sessions",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage session-init --workspace-root ${WORKSPACE_ROOT} --session-id default --ttl-seconds 86400",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/sessions/default/session_context.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Session RAM (Ephemeral mini-SSOT) v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Üretim sırasında kalite check otomatik devrede"
+      ],
+      "gates": [],
+      "id": "M6",
+      "notes": [
+        "Amaç: lider pratikler doküman değil, üretimde aktif kontrol (quality gate).",
+        "Deliverables: best_practices/ veya packs/bp-* + policies/policy_quality.v1.json + ops best-practice-status."
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.quality.quality_gate --workspace-root ${WORKSPACE_ROOT} --out ${WORKSPACE_ROOT}/.cache/index/quality_gate_report.v1.json",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/quality_gate_report.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Best Practice & Trend Library (aktif gate) v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Sanitize scan fail-closed",
+        "Public candidates yapısı tanımlı"
+      ],
+      "gates": [],
+      "id": "M6.5",
+      "notes": [
+        "Amaç: workspace/tenant ortamında üretilen generic artefact’ları sanitize edip public candidates olarak ayırmak.",
+        "Deliverables: public_candidates.v1.json + sanitize scan (fail-closed)."
+      ],
+      "steps": [
+        {
+          "path": ".cache/learning",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.learning.harvest_public_candidates --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/learning/public_candidates.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Learning Harvest / Public Candidates (sanitized) v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Ops indeksleri bounded tarama ile üretilir"
+      ],
+      "gates": [],
+      "id": "M6.6",
+      "notes": [
+        "Amaç: run_index + dlq_index üretmek (bounded, deterministic).",
+        "Deliverables: .cache/index/run_index.v1.json + dlq_index.v1.json"
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.build_ops_index --workspace-root ${WORKSPACE_ROOT}",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/run_index.v1.json",
+            ".cache/index/dlq_index.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Ops Index Layer v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Harvest cursor üretilir",
+        "Incremental window deterministic"
+      ],
+      "gates": [],
+      "id": "M6.7",
+      "notes": [
+        "Amaç: harvest işlemini incremental yapmak, cursor + window ile O(delta).",
+        "Deliverables: public_candidates + harvest_cursor"
+      ],
+      "steps": [
+        {
+          "path": ".cache/learning",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.learning.harvest_public_candidates --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/learning/public_candidates.v1.json",
+            ".cache/learning/harvest_cursor.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Harvest incremental v0.2 (cursor + window)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Pointer dosyası ve content-addressed blob mevcut"
+      ],
+      "gates": [],
+      "id": "M6.8",
+      "notes": [
+        "Amaç: artifact pointer üretmek (content-addressed, workspace-local).",
+        "Deliverables: .cache/artifacts/public_candidates.pointer.v1.json + <sha>.bin"
+      ],
+      "steps": [
+        {
+          "path": ".cache/artifacts",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage artifact-put --workspace-root ${WORKSPACE_ROOT} --path .cache/learning/public_candidates.v1.json --out .cache/artifacts/public_candidates.pointer.v1.json",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "pointer_path": ".cache/artifacts/public_candidates.pointer.v1.json",
+          "type": "assert_pointer_target_exists"
+        }
+      ],
+      "title": "Artifact Pointer v0.1 (local pointer+hash)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Öneri üretir, karar vermez",
+        "Anomali → governor learning disable/report_only"
+      ],
+      "gates": [],
+      "id": "M7",
+      "notes": [
+        "Amaç: suggest-only learning event log + stats; control plane karar verir.",
+        "Deliverables: learning/events.jsonl + flaky_index/strategy_stats + provenance hash + ops learning-status."
+      ],
+      "steps": [
+        {
+          "path": ".cache/learning",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.learning.advisor_suggest --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/learning/advisor_suggestions.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Learning Plane v0.1 (Offline Advisor / Suggest-only)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "En az 1 gerçek senaryoda loop çalışır",
+        "Runaway yok: cap/budget/quota/governor"
+      ],
+      "gates": [],
+      "id": "M8",
+      "notes": [
+        "Amaç: fail→fix→push→green→merge loop; runaway yok (budget/quota/governor/kill switches).",
+        "Deliverables: PR lifecycle orchestration + ops autopilot-status + metrics."
+      ],
+      "steps": [
+        {
+          "path": ".cache/ops",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.autopilot.readiness_report --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/ops/autopilot_readiness.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Autopilot MVP v0.1 (Insansız PR Loop)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "system_status.v1.json + system_status.v1.md üretilir",
+        "Top actions özetlenir"
+      ],
+      "gates": [],
+      "id": "M8.1",
+      "notes": [
+        "Amaç: workspace sağlık durumu tek raporda (JSON + Markdown).",
+        "Offline, deterministic, no network; yalnızca mevcut artifact özetleri."
+      ],
+      "steps": [
+        {
+          "path": ".cache/reports",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.system_status_report --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/reports/system_status.v1.json",
+            ".cache/reports/system_status.v1.md"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "System Status Report v0.1 (Unified Cockpit)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Promotion bundle zip + report + patch summary üretilir"
+      ],
+      "gates": [],
+      "id": "M8.2",
+      "notes": [
+        "Amaç: incubator çıktılarından deterministik promotion bundle üretmek (zip + diff + md).",
+        "No auto-apply; sadece draft ve evidence."
+      ],
+      "steps": [
+        {
+          "path": ".cache/promotion",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage promotion-bundle --workspace-root ${WORKSPACE_ROOT} --mode customer_clean --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/promotion/promotion_bundle.v1.zip",
+            ".cache/promotion/promotion_report.v1.json",
+            ".cache/promotion/core_patch_summary.v1.md"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Promotion Bundle v0.2 (Incubator → Draft)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Pack manifest raporu üretilir ve hard conflicts fail-closed olur"
+      ],
+      "gates": [],
+      "id": "M9.1",
+      "notes": [
+        "Amaç: pack manifest SSOT + conflict gate (hard fail, soft warn).",
+        "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
+      ],
+      "steps": [
+        {
+          "path": "packs",
+          "type": "ensure_dir"
+        },
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m ci.validate_pack_manifest --workspace-root ${WORKSPACE_ROOT} --out ${WORKSPACE_ROOT}/.cache/index/pack_validation_report.json",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/pack_validation_report.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Pack Manifest SSOT + Validation"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Pack index ve cursor dosyaları üretilir"
+      ],
+      "gates": [],
+      "id": "M9.2",
+      "notes": [
+        "Amaç: pack capability index üretimi + cursor; deterministik ve bounded.",
+        "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.tenant.build_pack_index --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/pack_capability_index.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Pack Index Build (O(delta))"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Selection trace dosyası üretilir ve hard conflict fail-closed olur"
+      ],
+      "gates": [],
+      "id": "M9.3",
+      "notes": [
+        "Amaç: deterministik shortlist + tie-break + selection trace üretimi.",
+        "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
+      ],
+      "steps": [
+        {
+          "apply_only": true,
+          "cmd": "python -m src.tenant.select_packs --workspace-root ${WORKSPACE_ROOT} --intent urn:core:docs:policy_review --artifact-type report --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/pack_selection_trace.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Pack Selection Trace (SSOT)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Pack advisor önerileri workspace altında üretilir"
+      ],
+      "gates": [],
+      "id": "M9.4",
+      "notes": [
+        "Amaç: pack improvement mappings ile öneri zenginleştirme.",
+        "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
+      ],
+      "steps": [
+        {
+          "path": ".cache/learning",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.learning.pack_aware_advice --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/learning/pack_advisor_suggestions.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Pack-aware Advisor (bounded)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "North Star SSOT schema/policy ve standard pack stub dosyalari cekirdekte mevcut"
+      ],
+      "gates": [],
+      "id": "M10.1",
+      "notes": [
+        "Standart paket içerikleri offline pointer; URL zorunlu degil.",
+        "Cekirdek SSOT artefactlari core repo icinde dogrulanir.",
+        "Workspace-run icin assert_core_paths_exist ile fail-closed kontrol edilir."
+      ],
+      "steps": [
+        {
+          "paths": [
+            "schemas/north_star.control.schema.json",
+            "schemas/north_star.metric.schema.json",
+            "schemas/north_star.maturity.schema.json",
+            "schemas/gap.record.schema.json",
+            "schemas/policy-benchmark.schema.json",
+            "policies/policy_benchmark.v1.json",
+            "packs/standards/pack-iso9001-2015/pack.manifest.v1.json",
+            "packs/standards/pack-iso9001-2015/controls.v1.json",
+            "packs/standards/pack-iso9001-2015/metrics.v1.json",
+            "packs/standards/pack-owasp-ai/pack.manifest.v1.json",
+            "packs/standards/pack-owasp-ai/controls.v1.json",
+            "packs/standards/pack-owasp-ai/metrics.v1.json",
+            "packs/standards/pack-nist-ai-rmf/pack.manifest.v1.json",
+            "packs/standards/pack-nist-ai-rmf/controls.v1.json",
+            "packs/standards/pack-nist-ai-rmf/metrics.v1.json",
+            "capabilities/CAP_ISO_CONTROL_BASE.v1.json",
+            "capabilities/CAP_OWASP_AI_BASE.v1.json",
+            "capabilities/CAP_NIST_AI_RMF_BASE.v1.json"
+          ],
+          "type": "assert_core_paths_exist"
+        }
+      ],
+      "title": "North Star SSOT (standards catalog) v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Assessment + scorecard artefactlari workspace altinda uretilir"
+      ],
+      "gates": [],
+      "id": "M10.2",
+      "notes": [
+        "Uretim: north_star catalog + assessment + cursor + scorecard.",
+        "apply_only run_cmd; dry-run readonly guvenli."
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "path": ".cache/reports",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage benchmark-assess --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/north_star_catalog.v1.json",
+            ".cache/index/assessment.v1.json",
+            ".cache/index/assessment_cursor.v1.json",
+            ".cache/reports/benchmark_scorecard.v1.json",
+            ".cache/reports/benchmark_scorecard.v1.md"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Assessment Runner v0.1 (index-first, O(delta))"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Assessment eval ve lens ciktilari workspace altinda uretilir"
+      ],
+      "gates": [],
+      "id": "M10.2B",
+      "notes": [
+        "Eval lens ciktilari assessment_eval icinde kilitlenir.",
+        "apply_only run_cmd; dry-run readonly guvenli."
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "path": ".cache/reports",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage benchmark-assess --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/assessment_eval.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Assessment Eval Lenses v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Gap register ve ozet raporu workspace altinda uretilir"
+      ],
+      "gates": [],
+      "id": "M10.3",
+      "notes": [
+        "Gap register ve ozet raporu assessment runner tarafindan uretilir.",
+        "apply_only run_cmd; dry-run readonly guvenli."
+      ],
+      "steps": [
+        {
+          "path": ".cache/index",
+          "type": "ensure_dir"
+        },
+        {
+          "path": ".cache/reports",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage benchmark-assess --workspace-root ${WORKSPACE_ROOT} --dry-run false",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/index/gap_register.v1.json",
+            ".cache/reports/gap_summary.v1.md"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Gap Register v0.1 + Closure Mapping"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "System status benchmark bolumunu uretir; proje recheck dongusu calisir"
+      ],
+      "gates": [],
+      "id": "M10.4",
+      "notes": [
+        "Benchmark bolumu cockpit raporuna eklenir.",
+        "Recheck loop mevcut debt autopilot yeniden kontrol akisini kullanir."
+      ],
+      "steps": [
+        {
+          "paths": [
+            "schemas/system-status.schema.json",
+            "src/ops/system_status_report.py"
+          ],
+          "type": "assert_core_paths_exist"
+        }
+      ],
+      "title": "Cockpit Integration + Recheck Loop (PDCA/PUKO)"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Project manifests are validated and available for portfolio reporting."
+      ],
+      "gates": [],
+      "id": "M11.1",
+      "notes": [
+        "Project manifest schema is core SSOT.",
+        "Workspace runs only assert core artifacts; no core writes."
+      ],
+      "steps": [
+        {
+          "paths": [
+            "schemas/project-manifest.schema.json",
+            "roadmaps/PROJECTS/README.md",
+            "roadmaps/PROJECTS/PRJ-KERNEL-API/project.manifest.v1.json",
+            "roadmaps/PROJECTS/PRJ-M0-MAINTAINABILITY/project.manifest.v1.json",
+            "roadmaps/PROJECTS/PRJ-PORTFOLIO-TRACKING/project.manifest.v1.json",
+            "roadmaps/PROJECTS/PRJ-PORTFOLIO-TRACKING/roadmap.v1.json"
+          ],
+          "type": "assert_core_paths_exist"
+        }
+      ],
+      "title": "Project manifest SSOT + validation"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Portfolio status report is generated under workspace root."
+      ],
+      "gates": [],
+      "id": "M11.2",
+      "notes": [
+        "Program-led portfolio-status produces deterministic output.",
+        "apply_only run_cmd; dry-run readonly is safe."
+      ],
+      "steps": [
+        {
+          "path": ".cache/reports",
+          "type": "ensure_dir"
+        },
+        {
+          "apply_only": true,
+          "cmd": "python -m src.ops.manage portfolio-status --workspace-root ${WORKSPACE_ROOT} --mode json",
+          "must_succeed": true,
+          "type": "run_cmd"
+        },
+        {
+          "apply_only": true,
+          "paths": [
+            ".cache/reports/portfolio_status.v1.json"
+          ],
+          "type": "assert_paths_exist"
+        }
+      ],
+      "title": "Portfolio status (single gate) v0.1"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "System status reports include projects summary section."
+      ],
+      "gates": [],
+      "id": "M11.3",
+      "notes": [
+        "Projects summary is sourced from portfolio-status when present.",
+        "No core writes during roadmap execution."
+      ],
+      "steps": [
+        {
+          "paths": [
+            "schemas/system-status.schema.json",
+            "src/ops/system_status_report.py"
+          ],
+          "type": "assert_core_paths_exist"
+        }
+      ],
+      "title": "System status projects section"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Router master closeout pack exists and is reviewed.",
+        "Router E2E smoke v3 (pytest-free, post-guardrails) is PASS.",
+        "FIX-PR-ROUTER-01/03/02A commits are recorded in evidence pack.",
+        "LLM router drift gate is OK (no vocab mismatch / unknown provider)."
+      ],
+      "gates": [],
+      "id": "M11.4",
+      "notes": [
+        "CHECKPOINT (COMPLETED): provider router integration + drift gate + workspace_root parameterization.",
+        "Evidence pack: .cache/ws_customer_default/.cache/reports/ROUTER_MASTER_CLOSEOUT_PACK.v1.json",
+        "Smoke PASS: .cache/ws_customer_default/.cache/reports/router_e2e_smoke_result.v3.post_guardrails.json",
+        "Commits (from evidence pack): FIX_PR_ROUTER_01_FINAL=0c419c2500a51633f931538ac1cc577d68d153ae, FIX_PR_ROUTER_03_FINAL=50acdb646c2336d71c8b4cdfb13301521278ad5e, FIX_PR_ROUTER_02A=16c0621175da20aaac55aacc9208d4d4dca0e75f"
+      ],
+      "steps": [
+        {
+          "text": "Checkpoint milestone: no new SSOT work to apply. This milestone records completed Router lane evidence.",
+          "type": "note"
+        }
+      ],
+      "title": "Router core lane completed (checkpoint)"
+    }
+  ],
+  "roadmap_id": "RM-SSOT-001",
+  "version": "v1"
+}

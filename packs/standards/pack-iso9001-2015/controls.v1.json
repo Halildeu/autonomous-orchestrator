@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "controls": [
+    {
+      "id": "ISO9001-2015-4.1",
+      "title": "Context of the organization",
+      "domain": "context",
+      "severity": "medium",
+      "description": "Define and maintain organizational context relevant to the management system."
+    }
+  ]
+}

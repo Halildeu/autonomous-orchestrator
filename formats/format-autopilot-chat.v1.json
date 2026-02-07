@@ -1,0 +1,15 @@
+{
+  "id": "FORMAT-AUTOPILOT-CHAT",
+  "version": "v1",
+  "sections": [
+    { "id": "PREVIEW", "required": true },
+    { "id": "RESULT", "required": true },
+    { "id": "EVIDENCE", "required": true },
+    { "id": "ACTIONS", "required": true },
+    { "id": "NEXT", "required": true }
+  ],
+  "rules": {
+    "no_shell_commands_in_user_text": true,
+    "always_show_evidence_paths": true
+  }
+}

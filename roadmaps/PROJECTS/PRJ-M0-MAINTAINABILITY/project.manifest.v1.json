@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "project_id": "PRJ-M0-MAINTAINABILITY",
+  "title": "Maintainability Sprint (script budget)",
+  "owner": "CORE",
+  "layer_scope": "L0",
+  "purpose": "Reduce script budget warnings with behavior-preserving refactors.",
+  "domain_tags": ["maintainability", "script-budget"],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "selected_pack_ids": [],
+  "target_maturity_level": 1,
+  "target_milestones": ["M0.1"],
+  "success_metrics": ["script_budget_warns_down", "hard_exceeded_zero"],
+  "risk_category": "low",
+  "program_led_entrypoints": ["project-status", "system-status"],
+  "evidence_expectations": [".cache/script_budget/report.json"],
+  "promotion_policy": "core-lock-required"
+}

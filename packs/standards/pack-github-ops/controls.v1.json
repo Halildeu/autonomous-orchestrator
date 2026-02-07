@@ -1,0 +1,33 @@
+{
+  "version": "v1",
+  "controls": [
+    {
+      "id": "GHOPS-NO_WAIT_JOB_PIPELINE",
+      "title": "No-wait job pipeline",
+      "domain": "github_ops",
+      "severity": "high",
+      "description": "PR/CI/Merge/Release operations run as job+poll without blocking ticks."
+    },
+    {
+      "id": "GHOPS-TOKEN_REDACTION",
+      "title": "Token redaction",
+      "domain": "github_ops",
+      "severity": "high",
+      "description": "Auth tokens are never logged; only presence flags are recorded."
+    },
+    {
+      "id": "GHOPS-NETWORK_POLICY_DEFAULT_OFF",
+      "title": "Network policy default OFF",
+      "domain": "github_ops",
+      "severity": "medium",
+      "description": "Network use is gated by policy and disabled by default."
+    },
+    {
+      "id": "GHOPS-MERGE_CRITERIA_EVIDENCED",
+      "title": "Merge criteria evidencing",
+      "domain": "github_ops",
+      "severity": "medium",
+      "description": "Merge actions require deterministic evidence in workspace reports."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "compat": {
+    "core_max": "",
+    "core_min": "0.0.0",
+    "notes": []
+  },
+  "entrypoints": {
+    "cockpit_sections": [],
+    "kernel_api_actions": [],
+    "ops": []
+  },
+  "extension_id": "PRJ-WORK-INTAKE",
+  "layer_contract": {
+    "notes": [],
+    "read_roots_allowlist": [
+      "roadmaps/PROJECTS/PRJ-WORK-INTAKE/"
+    ],
+    "write_roots_allowlist": [
+      ".cache/",
+      "incubator/",
+      "external_allowlist/"
+    ]
+  },
+  "notes": [
+    "ARCHIVE_ONLY"
+  ],
+  "origin": "CORE",
+  "owner": "CORE",
+  "policies": [],
+  "semver": "0.1.0",
+  "ui_surfaces": [],
+  "version": "v1"
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/north_star.maturity.schema.json",
+  "title": "north_star.maturity.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "levels"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "levels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/level" },
+      "default": []
+    }
+  },
+  "$defs": {
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "criteria"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "criteria": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    }
+  }
+}

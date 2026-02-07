@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "id": "CAP_DOC_CONTROLLED_DOC",
+    "version": "v1",
+    "kind": "CAPABILITY",
+    "purpose": "Draft a controlled document skeleton with traceable sections.",
+    "inputs": ["doc_purpose", "scope_summary"],
+    "outputs": ["controlled_doc_markdown"],
+    "guardrails": ["no_unsubstantiated_claims", "must_link_evidence"],
+    "iso_refs": {
+      "context_ref": "tenant/TENANT-DEFAULT/context.v1.md",
+      "stakeholders_ref": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+      "scope_ref": "tenant/TENANT-DEFAULT/scope.v1.md",
+      "criteria_ref": "tenant/TENANT-DEFAULT/criteria.v1.md",
+      "gate_level": "warn"
+    },
+    "evidence": {
+      "expected": ["evidence/controlled_doc.json"],
+      "verify_on_read": true
+    },
+    "risk": {
+      "category": "low",
+      "default_mode": "normal",
+      "triggers": []
+    }
+  },
+  "body": {
+    "type": "capability",
+    "steps": ["Outline mandatory sections", "Fill placeholders", "Attach evidence refs"],
+    "implementation_ref": "${WORKSPACE_ROOT}/modules/controlled_doc_packager.py"
+  }
+}

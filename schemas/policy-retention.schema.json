@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-retention.schema.json",
+  "title": "Policy Retention",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "evidence_days", "dlq_days", "cache_days"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "evidence_days": { "type": "integer", "minimum": 0, "maximum": 36500 },
+    "dlq_days": { "type": "integer", "minimum": 0, "maximum": 36500 },
+    "cache_days": { "type": "integer", "minimum": 0, "maximum": 36500 }
+  }
+}

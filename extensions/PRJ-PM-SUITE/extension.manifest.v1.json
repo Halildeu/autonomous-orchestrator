@@ -1,0 +1,84 @@
+{
+  "ai_context_refs": [
+    "AGENTS.md",
+    "docs/OPERATIONS/EXTENSIONS.md",
+    "docs/OPERATIONS/SSOT-MAP.md",
+    "policies/policy_pm_suite.v1.json",
+    "schemas/pm-board.schema.v1.json",
+    "schemas/pm-project.schema.v1.json",
+    "schemas/pm-work-item.schema.v1.json",
+    "schemas/pm-workflow.schema.v1.json"
+  ],
+  "compat": {
+    "core_max": "",
+    "core_min": "0.0.0",
+    "notes": []
+  },
+  "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-PM-SUITE",
+  "enabled": true,
+  "entrypoints": {
+    "cockpit_sections": [
+      "pm_suite"
+    ],
+    "kernel_api_actions": [],
+    "ops": [],
+    "ops_single_gate": []
+  },
+  "tests_entrypoints": [
+    "extensions/PRJ-PM-SUITE/tests/contract_test.py"
+  ],
+  "tests_policy": {
+    "network_allowed": false,
+    "notes": [
+      "contract_test_only"
+    ]
+  },
+  "extension_id": "PRJ-PM-SUITE",
+  "gates": {
+    "required": [
+      "script_budget",
+      "smoke_fast",
+      "system_status",
+      "validate_schemas"
+    ]
+  },
+  "guardrails": {
+    "network_default": false,
+    "offline": true
+  },
+  "layer_contract": {
+    "notes": [
+      "skeleton_only"
+    ],
+    "read_roots_allowlist": [
+      "extensions/PRJ-PM-SUITE/"
+    ],
+    "write_roots_allowlist": [
+      ".cache/",
+      "incubator/",
+      "external_allowlist/"
+    ]
+  },
+  "notes": [
+    "skeleton_only"
+  ],
+  "origin": "CORE",
+  "outputs": {
+    "workspace_reports": [
+      ".cache/reports/pm_suite_status.v1.json"
+    ]
+  },
+  "owner": "CORE",
+  "policies": [
+    "policies/policy_pm_suite.v1.json"
+  ],
+  "policy_files": [
+    "policies/policy_pm_suite.v1.json"
+  ],
+  "semver": "0.1.0",
+  "ui_surfaces": [
+    "system-status",
+    "portfolio-status"
+  ],
+  "version": "v1"
+}

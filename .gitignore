@@ -1,0 +1,34 @@
+# Runtime outputs
+.cache/**
+evidence/**
+dlq/*.json
+exports/**
+dist/
+openai_ping_last.json
+sim_report*.json
+reaper_report*.json
+
+# Supply-chain generated artifacts (do not commit)
+supply_chain/sbom.v1.json
+supply_chain/signature.v1.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version
+.pytest_cache/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Keep placeholders
+!dlq/.gitkeep

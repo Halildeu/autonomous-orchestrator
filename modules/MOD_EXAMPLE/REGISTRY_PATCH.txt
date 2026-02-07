@@ -1,0 +1,11 @@
+# REGISTRY PATCH SUGGESTION (DO NOT AUTO-APPLY)
+#
+# Add the following JSON object to: registry/registry.v1.json
+# under the top-level "modules" array.
+#
+
+{
+  "id": "MOD_EXAMPLE",
+  "context_strategy": "inherit",
+  "allowed_tools": []
+}

@@ -1,0 +1,3028 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PRJ-UI-COCKPIT-LITE</title>
+    <style>
+      :root {
+        --bg: #0f1515;
+        --bg2: #10191a;
+        --panel: #141d1f;
+        --card: #192425;
+        --card-2: #1d2a2c;
+        --text: #e9f1f2;
+        --muted: #9fb0b5;
+        --accent: #3dd6b0;
+        --accent-2: #e6b857;
+        --danger: #e26b6b;
+        --border: #2a393b;
+        --shadow: rgba(0, 0, 0, 0.35);
+        --shadow-soft: rgba(0, 0, 0, 0.2);
+        --radius: 12px;
+        --sidebar-width: 260px;
+      }
+      [data-theme="light"] {
+        --bg: #f6f8f7;
+        --bg2: #e9efee;
+        --panel: #f1f4f3;
+        --card: #ffffff;
+        --card-2: #f6f9f8;
+        --text: #152021;
+        --muted: #5e6f73;
+        --accent: #1f9f86;
+        --accent-2: #c9922e;
+        --danger: #c45757;
+        --border: #d6e0df;
+        --shadow: rgba(15, 20, 21, 0.12);
+        --shadow-soft: rgba(15, 20, 21, 0.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(900px 600px at 5% 10%, #1e2a2b 0%, transparent 60%),
+          radial-gradient(900px 500px at 95% 0%, #1b2425 0%, transparent 55%),
+          linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      }
+      [data-theme="light"] body {
+        background:
+          radial-gradient(900px 600px at 5% 10%, rgba(160, 210, 200, 0.25) 0%, transparent 60%),
+          radial-gradient(900px 500px at 95% 0%, rgba(160, 190, 210, 0.2) 0%, transparent 55%),
+          linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      }
+      .app {
+        display: grid;
+        grid-template-columns: var(--sidebar-width) 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        background: var(--panel);
+        border-right: 1px solid var(--border);
+        padding: 18px 16px;
+        width: var(--sidebar-width);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      [data-theme="light"] .sidebar {
+        background: #f7faf9;
+        border-right-color: var(--border);
+      }
+      .sidebar-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+      }
+      .brand-short { display: none; }
+      .sidebar-toggle-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        color: var(--muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: 14px;
+        line-height: 1;
+      }
+      [data-theme="light"] .sidebar-toggle-btn {
+        background: #ffffff;
+        color: #5e6f73;
+        border-color: var(--border);
+      }
+      .sidebar-toggle-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .nav button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+        padding: 10px 12px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text);
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      [data-theme="light"] .nav button {
+        color: #203134;
+      }
+      .nav-icon {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        flex: 0 0 auto;
+        user-select: none;
+      }
+      [data-theme="light"] .nav-icon {
+        background: #ffffff;
+        color: #5e6f73;
+        border-color: var(--border);
+      }
+      .nav-label {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .nav button.active {
+        border-color: var(--accent);
+        background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .nav button.active {
+        background: rgba(31, 159, 134, 0.12);
+      }
+      .nav button.active .nav-icon {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .sidebar-footer {
+        margin-top: auto;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      [data-theme="light"] .sidebar-footer {
+        color: #6a7b80;
+      }
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(14, 20, 20, 0.7);
+        backdrop-filter: blur(6px);
+      }
+      [data-theme="light"] .topbar {
+        background: rgba(255, 255, 255, 0.9);
+        border-bottom-color: var(--border);
+      }
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .topbar-title {
+        font-size: 16px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .badge.version {
+        border-color: rgba(47, 219, 170, 0.55);
+        background: rgba(47, 219, 170, 0.12);
+        color: var(--accent);
+        font-weight: 700;
+        text-transform: none;
+        letter-spacing: 0.02em;
+        font-size: 12px;
+        padding: 5px 12px;
+      }
+      [data-theme="light"] .badge {
+        background: #ffffff;
+      }
+      [data-theme="light"] .badge.version {
+        background: #ffffff;
+        border-color: rgba(0, 155, 118, 0.45);
+        color: #009b76;
+      }
+      .badge.ok { border-color: var(--accent); color: var(--accent); }
+      .badge.warn { border-color: var(--accent-2); color: var(--accent-2); }
+      .badge.fail { border-color: var(--danger); color: var(--danger); }
+      .badge.idle { border-color: #8aa6ff; color: #8aa6ff; }
+      .mini-usage-row {
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .mini-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 220px;
+      }
+      .mini-bar {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        font-size: 11px;
+        letter-spacing: 0.02em;
+        overflow: hidden;
+      }
+      .mini-bar::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--w, 0%);
+        background: linear-gradient(90deg, rgba(47, 219, 170, 0.3), rgba(47, 219, 170, 0.08));
+      }
+      .mini-bar .label,
+      .mini-bar .count {
+        position: relative;
+        z-index: 1;
+      }
+      .mini-bar .count {
+        opacity: 0.8;
+        font-variant-numeric: tabular-nums;
+      }
+      .mini-trend {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        height: 44px;
+      }
+      .mini-trend .trend-bar {
+        width: 7px;
+        border-radius: 3px;
+        background: rgba(47, 219, 170, 0.55);
+        transition: height 0.2s ease;
+      }
+      .mini-trend .trend-bar.dim {
+        opacity: 0.2;
+      }
+      [data-theme="light"] .mini-bar,
+      [data-theme="light"] .mini-trend {
+        background: #ffffff;
+      }
+      .usage-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 8px;
+        min-width: 240px;
+        border-radius: 8px;
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .usage-chart.empty {
+        opacity: 0.7;
+      }
+      .usage-chart .chart-title {
+        font-size: 11px;
+        letter-spacing: 0.02em;
+        color: var(--muted);
+      }
+      .usage-chart .chart-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 72px;
+      }
+      .usage-chart .usage-day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 14px;
+        font-size: 9px;
+        color: var(--muted);
+      }
+      .usage-chart .usage-day.dim {
+        opacity: 0.4;
+      }
+      .usage-chart .usage-day .bar {
+        width: 10px;
+        border-radius: 4px;
+        background: linear-gradient(180deg, rgba(47, 219, 170, 0.95), rgba(47, 219, 170, 0.25));
+        box-shadow: inset 0 0 0 1px rgba(47, 219, 170, 0.2);
+      }
+      .usage-chart .usage-day .bar-stack {
+        width: 10px;
+        height: var(--h, 8px);
+        display: flex;
+        flex-direction: column-reverse;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .usage-chart .usage-day .bar-seg {
+        height: var(--seg, 0%);
+        background: var(--c, rgba(47, 219, 170, 0.6));
+      }
+      .usage-chart .usage-day .label {
+        font-variant-numeric: tabular-nums;
+      }
+      .usage-chart .empty-note {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      [data-theme="light"] .usage-chart {
+        background: #ffffff;
+      }
+      .donut-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .donut {
+        position: relative;
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: conic-gradient(var(--donut));
+      }
+      .donut::after {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: 50%;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .donut-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 11px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text);
+      }
+      .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+      }
+      .legend-item .count {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      [data-theme="light"] .donut::after {
+        background: #ffffff;
+        border-color: rgba(0, 0, 0, 0.08);
+      }
+      .meta-id {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .meta-id__value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+      .ai-icon-glyph {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+      }
+      .ai-icon-glyph svg {
+        width: 14px;
+        height: 14px;
+        fill: currentColor;
+      }
+      .content {
+        padding: 20px 24px 40px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .btn {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #152021;
+        color: var(--text);
+        cursor: pointer;
+        transition: transform 0.08s ease, border 0.2s ease;
+      }
+      [data-theme="light"] .btn {
+        background: #ffffff;
+        color: var(--text);
+        border-color: var(--border);
+      }
+      .btn:hover { transform: translateY(-1px); }
+      .sidebar-toggle-btn:focus-visible,
+      .nav button:focus-visible,
+      .btn:focus-visible,
+      .tag-toggle:focus-visible,
+      th button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .btn[disabled] {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn.is-disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn.is-disabled:hover {
+        transform: none;
+      }
+      .btn.accent { border-color: var(--accent); }
+      .btn.warn { border-color: var(--accent-2); }
+      .btn.danger { border-color: var(--danger); }
+      .btn.ghost { background: transparent; }
+      .btn.small {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+      .btn.tiny {
+        padding: 2px 6px;
+        font-size: 10px;
+        line-height: 1;
+      }
+      .transfer-lock-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 10px;
+        height: 10px;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+      .transfer-lock-icon svg {
+        width: 10px;
+        height: 10px;
+        fill: currentColor;
+      }
+      .btn.ai-icon {
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(18, 28, 30, 0.6);
+        transition: transform 0.08s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      [data-theme="light"] .btn.ai-icon {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: #ffffff;
+      }
+      .btn.ai-icon:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(47, 219, 170, 0.3);
+        transform: translateY(-1px);
+      }
+      .btn.ai-icon:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .btn.icon {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn.icon svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        box-shadow: 0 12px 20px var(--shadow);
+        animation: fadeUp 0.4s ease both;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .ext-row {
+        cursor: pointer;
+      }
+      .ext-row:hover {
+        background: rgba(61, 214, 176, 0.06);
+      }
+      [data-theme="light"] .ext-row:hover {
+        background: rgba(31, 159, 134, 0.08);
+      }
+      .ext-detail-row td {
+        padding: 0;
+        border-top: none;
+      }
+      .ext-detail-panel {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        padding: 0 12px;
+        transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.2s ease;
+        background: var(--card-2);
+        border-radius: 10px;
+        margin: 0 8px 8px;
+      }
+      .ext-detail-row.open .ext-detail-panel {
+        max-height: 520px;
+        opacity: 1;
+        padding: 12px;
+      }
+      .ext-detail-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .ext-detail-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .ext-detail-tabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: thin;
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .ext-detail-tab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .ext-detail-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        background: transparent;
+      }
+      [data-theme="light"] .ext-detail-tab.active {
+        background: transparent;
+      }
+      .ext-detail-pane {
+        display: none;
+      }
+      .ext-detail-pane.active {
+        display: block;
+      }
+      .ext-detail-pane pre {
+        margin: 0;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        color: var(--text);
+        font-size: 12px;
+        max-height: 360px;
+        overflow: auto;
+      }
+      .ext-subtabs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 10px;
+        scrollbar-width: thin;
+      }
+      .ext-subtab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .ext-subtab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        background: transparent;
+      }
+      [data-theme="light"] .ext-subtab.active {
+        background: transparent;
+      }
+      .ext-subpane {
+        display: none;
+      }
+      .ext-subpane.active {
+        display: block;
+      }
+      .ext-about {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 8px 0 4px;
+      }
+      .ext-about-summary {
+        font-size: 13px;
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .ext-about-list {
+        display: grid;
+        grid-template-columns: minmax(120px, 180px) 1fr;
+        gap: 6px 14px;
+        align-items: start;
+      }
+      .ext-about-item {
+        display: contents;
+      }
+      .ext-about-label {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ext-about-value {
+        color: var(--text);
+        font-size: 12px;
+      }
+      .card .subtle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(61, 214, 176, 0.12);
+        font-size: 11px;
+      }
+      [data-theme="light"] .pill {
+        background: rgba(31, 159, 134, 0.14);
+      }
+      .empty {
+        padding: 16px;
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .field-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 140px;
+      }
+      .input {
+        background: #0f1415;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 10px;
+        border-radius: 8px;
+      }
+      [data-theme="light"] .input {
+        background: #ffffff;
+        color: var(--text);
+        border-color: var(--border);
+      }
+      .checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .checkbox input {
+        accent-color: var(--accent);
+      }
+      .checkbox .checkbox-icon {
+        width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+      }
+      .checkbox .checkbox-icon svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+      }
+      .checkbox input:checked + .checkbox-icon {
+        color: var(--accent);
+      }
+      .freshness {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .freshness .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent-2);
+        box-shadow: 0 0 0 2px rgba(230, 184, 87, 0.18);
+      }
+      .freshness[data-status="fresh"] .dot {
+        background: var(--accent);
+        box-shadow: 0 0 0 2px rgba(61, 214, 176, 0.18);
+      }
+      .freshness[data-status="stale"] .dot {
+        background: var(--accent-2);
+        box-shadow: 0 0 0 2px rgba(230, 184, 87, 0.18);
+      }
+      .freshness[data-status="missing"] .dot {
+        background: var(--danger);
+        box-shadow: 0 0 0 2px rgba(226, 107, 107, 0.18);
+      }
+      .tag-select {
+        position: relative;
+        min-width: 180px;
+      }
+      .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        align-items: center;
+      }
+      [data-theme="light"] .tag-select-input {
+        background: #ffffff;
+      }
+      .tag-select.open .tag-dropdown {
+        display: block;
+      }
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(61, 214, 176, 0.12);
+        font-size: 11px;
+      }
+      [data-theme="light"] .tag {
+        background: #ffffff;
+        color: var(--text);
+      }
+      .tag button {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 11px;
+        padding: 0;
+      }
+      .tag-input {
+        flex: 1 1 auto;
+        min-width: 80px;
+        border: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 12px;
+        outline: none;
+      }
+      .tag-toggle {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 11px;
+        padding: 2px 4px;
+      }
+      .tag-select.open .tag-toggle {
+        color: var(--accent);
+      }
+      .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        max-height: 200px;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #10181a;
+        box-shadow: 0 12px 20px var(--shadow-soft);
+        display: none;
+        z-index: 20;
+      }
+      [data-theme="light"] .tag-dropdown {
+        background: #ffffff;
+        box-shadow: 0 12px 20px rgba(15, 20, 21, 0.12);
+      }
+      .tag-option {
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .tag-option:hover {
+        background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .tag-option:hover {
+        background: rgba(31, 159, 134, 0.12);
+      }
+      .tag-option.active,
+      .tag-option[aria-selected="true"] {
+        background: rgba(61, 214, 176, 0.12);
+      }
+      [data-theme="light"] .tag-option.active,
+      [data-theme="light"] .tag-option[aria-selected="true"] {
+        background: rgba(31, 159, 134, 0.16);
+      }
+      textarea.input {
+        width: 100%;
+        min-height: 120px;
+        resize: vertical;
+        font-family: inherit;
+      }
+      .table-wrap {
+        overflow: auto;
+        max-height: 68vh;
+        scrollbar-gutter: stable;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #11181a;
+      }
+      [data-theme="light"] .table-wrap {
+        background: #ffffff;
+      }
+      .table-wrap tbody tr.clickable:hover {
+        cursor: pointer;
+        background: rgba(61, 214, 176, 0.08);
+      }
+      .table-wrap tbody tr.selected {
+        outline: 1px solid rgba(61, 214, 176, 0.55);
+        background: rgba(61, 214, 176, 0.04);
+      }
+      .table-wrap tbody tr.blocked {
+        background: rgba(255, 193, 7, 0.05);
+      }
+      .table-wrap tbody tr.expanded-row td {
+        padding: 0;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      [data-theme="light"] .table-wrap tbody tr.expanded-row td {
+        background: rgba(0, 0, 0, 0.02);
+      }
+
+      .intake-inline-detail {
+        padding: 12px 14px;
+      }
+
+      .intake-inline-detail .inline-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .intake-inline-detail .inline-title {
+        font-weight: 600;
+        color: #e6edf3;
+      }
+      [data-theme="light"] .intake-inline-detail .inline-title {
+        color: #203134;
+      }
+      .intake-short-id {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+
+      .intake-inline-detail .inline-tabs {
+        display: flex;
+        gap: 12px;
+        margin: 8px 0 10px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        scrollbar-width: thin;
+      }
+
+      [data-theme="light"] .intake-inline-detail .inline-tabs {
+        border-bottom-color: rgba(0, 0, 0, 0.08);
+      }
+
+      .intake-inline-detail .inline-tabs .intake-inline-tab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .intake-inline-detail .inline-tabs .intake-inline-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .intake-detail-tabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        margin-top: 10px;
+        scrollbar-width: thin;
+      }
+      .intake-detail-tab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .intake-detail-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .intake-detail-pane {
+        display: none;
+        margin-top: 10px;
+      }
+      .intake-detail-pane.active {
+        display: block;
+      }
+      .intake-inline-detail .inline-section {
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 10px;
+      }
+      [data-theme="light"] .intake-inline-detail .inline-section {
+        border-top-color: rgba(0, 0, 0, 0.08);
+      }
+      .intake-inline-body {
+        display: flex;
+        gap: 16px;
+        margin-top: 10px;
+      }
+      .intake-group-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 140px;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-right: 12px;
+      }
+      [data-theme="light"] .intake-group-tabs {
+        border-right-color: rgba(0, 0, 0, 0.08);
+      }
+      .intake-group-tab {
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        padding: 6px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .intake-group-tab.active {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .intake-group-tab.active {
+        background: rgba(31, 159, 134, 0.12);
+      }
+      .intake-inline-content {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .intake-inline-detail .decision-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .intake-inline-detail .decision-option {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.16);
+      }
+      [data-theme="light"] .intake-inline-detail .decision-option {
+        border-color: rgba(0, 0, 0, 0.08);
+        background: #ffffff;
+      }
+
+      .intake-inline-detail .decision-option .opt-title {
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .intake-inline-detail .decision-option .opt-notes {
+        color: #b9c3cf;
+        font-size: 12px;
+      }
+      [data-theme="light"] .intake-inline-detail .decision-option .opt-notes {
+        color: #5e6f73;
+      }
+      .intake-detail-grid {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 8px 12px;
+        margin-top: 12px;
+      }
+      .intake-detail-grid .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .intake-detail-grid .value {
+        font-size: 12px;
+      }
+      .path-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .note-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .note-item {
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--card-2);
+        display: grid;
+        gap: 6px;
+      }
+      [data-theme="light"] .note-item {
+        background: #ffffff;
+      }
+      .note-title {
+        font-weight: 600;
+      }
+      [data-theme="light"] .note-title {
+        color: #203134;
+      }
+      .note-meta {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      [data-theme="light"] .note-meta {
+        color: #5e6f73;
+      }
+      .note-body {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--text);
+        overflow-wrap: anywhere;
+      }
+      .note-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .note-tag {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      [data-theme="light"] .note-tag {
+        background: #ffffff;
+        color: #5e6f73;
+      }
+      .note-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .thread-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(25, 36, 37, 0.8);
+        color: var(--text);
+        cursor: pointer;
+      }
+      [data-theme="light"] .thread-item {
+        background: #ffffff;
+        color: #203134;
+      }
+      .thread-item.active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(61, 214, 176, 0.2);
+      }
+      [data-theme="light"] .thread-item.active {
+        box-shadow: 0 0 0 1px rgba(31, 159, 134, 0.2);
+      }
+      .thread-title {
+        font-weight: 600;
+      }
+      [data-theme="light"] .thread-title {
+        color: #203134;
+      }
+      .chat-shell {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 16px;
+        min-height: 520px;
+      }
+      .chat-sidebar {
+        display: grid;
+        gap: 12px;
+        border-right: 1px solid var(--border);
+        padding-right: 14px;
+      }
+      .chat-main {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 12px;
+      }
+      .chat-composer {
+        display: grid;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+      .chat-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .chat-suggestions .btn {
+        font-size: 11px;
+        padding: 6px 10px;
+      }
+      .chat-panel {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        gap: 12px;
+        min-height: 360px;
+      }
+      .chat-log {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+        background: #11181a;
+        min-height: 360px;
+        max-height: 520px;
+        overflow: auto;
+        display: grid;
+        gap: 8px;
+      }
+      [data-theme="light"] .chat-log {
+        background: #ffffff;
+      }
+      .chat-attachments {
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: rgba(14, 20, 22, 0.35);
+        display: grid;
+        gap: 6px;
+      }
+      [data-theme="light"] .chat-attachments {
+        background: #f8fafb;
+      }
+      .note-links {
+        display: grid;
+        gap: 6px;
+      }
+      .note-link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .chat-message {
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+      }
+      [data-theme="light"] .chat-message {
+        background: #f6f9f8;
+      }
+      .chat-message.assistant { border-color: #3dd6b0; background: #0d1617; margin-right: 18%; }
+      [data-theme="light"] .chat-message.assistant { background: #eef8f5; }
+      .chat-message.user {
+        border-color: #4aa3ff;
+        background: #0e1a22;
+        margin-left: 18%;
+        align-self: end;
+      }
+      [data-theme="light"] .chat-message.user { background: #edf5ff; }
+      .chat-message.user .chat-meta { color: #8fbef5; }
+      [data-theme="light"] .chat-message.user .chat-meta { color: #3f6fa7; }
+      .chat-message.typing { opacity: 0.85; }
+      .chat-message.typing .chat-body { font-style: italic; }
+      .chat-message.note { border-color: #3dd6b0; }
+      .chat-message.op_call { border-color: #8aa6ff; }
+      .chat-message.decision_apply { border-color: #e6b857; }
+      .chat-message.override_set { border-color: #7bc4ff; }
+      .chat-message.help { border-color: #9fb0b5; }
+      .chat-message.result { border-color: #c3d2d4; }
+      .chat-meta {
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      [data-theme="light"] .chat-meta {
+        color: #5e6f73;
+      }
+      .chat-body {
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      .chat-section {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent);
+        margin: 6px 0 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      [data-theme="light"] .chat-section {
+        color: #1f9f86;
+      }
+      .chat-line {
+        line-height: 1.4;
+      }
+      .chat-input {
+        width: 100%;
+        min-height: 100px;
+      }
+      @media (max-width: 980px) {
+        .chat-shell {
+          grid-template-columns: 1fr;
+        }
+        .chat-sidebar {
+          border-right: none;
+          padding-right: 0;
+          border-bottom: 1px solid var(--border);
+          padding-bottom: 12px;
+        }
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: #10181a;
+        color: var(--muted);
+        text-align: left;
+        z-index: 2;
+      }
+      [data-theme="light"] th {
+        background: #eef3f2;
+        color: #506064;
+      }
+      th button {
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: none;
+        color: inherit;
+        padding: 0;
+        font: inherit;
+        cursor: pointer;
+      }
+      pre {
+        margin: 8px 0 0;
+        padding: 10px;
+        background: #0f1415;
+        border-radius: 8px;
+        border: 1px solid #1b2628;
+        overflow: auto;
+        max-height: 260px;
+        font-size: 12px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      [data-theme="light"] pre {
+        background: #f6f9f8;
+        border-color: #d6e0df;
+        color: #203134;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .tab { display: none; }
+      .tab.active { display: block; }
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 10, 12, 0.72);
+        backdrop-filter: blur(6px) saturate(120%);
+        z-index: 1000;
+      }
+      [data-theme="light"] .modal {
+        background: rgba(10, 18, 20, 0.35);
+        backdrop-filter: blur(4px) saturate(110%);
+      }
+      .modal.open { display: flex; }
+      .modal-card {
+        width: min(520px, 92vw);
+        background: linear-gradient(160deg, #0f1718 0%, #0b1112 100%);
+        border: 1px solid rgba(106, 231, 210, 0.12);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      }
+      [data-theme="light"] .modal-card {
+        background: #ffffff;
+        border-color: #d6e0df;
+        box-shadow: 0 20px 40px rgba(15, 20, 21, 0.18);
+      }
+      .modal-card.ai-suggest {
+        position: relative;
+        overflow: hidden;
+      }
+      .modal-card.ai-suggest .modal-history {
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(8, 14, 16, 0.72);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 12px;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history {
+        border-color: #d6e0df;
+        background: #f6f9f8;
+      }
+      .modal-card.ai-suggest .modal-history .msg {
+        display: block;
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        line-height: 1.35;
+        background: rgba(255, 255, 255, 0.04);
+        color: #d7e5e3;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg {
+        background: #ffffff;
+        color: #203134;
+      }
+      .modal-card.ai-suggest .modal-history .msg .meta {
+        display: block;
+        font-size: 12px;
+        opacity: 0.7;
+        margin-bottom: 4px;
+      }
+      .modal-card.ai-suggest .modal-history .msg.user {
+        background: rgba(0, 180, 170, 0.08);
+        border: 1px solid rgba(0, 180, 170, 0.2);
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg.user {
+        background: rgba(0, 140, 130, 0.08);
+        border-color: rgba(0, 140, 130, 0.2);
+      }
+      .modal-card.ai-suggest .modal-history .msg.assistant {
+        background: rgba(97, 191, 255, 0.06);
+        border: 1px solid rgba(97, 191, 255, 0.18);
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg.assistant {
+        background: rgba(76, 149, 208, 0.08);
+        border-color: rgba(76, 149, 208, 0.2);
+      }
+      .modal-card.ai-suggest .modal-history .msg.system {
+        background: rgba(255, 196, 46, 0.06);
+        border: 1px solid rgba(255, 196, 46, 0.16);
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-history .msg.system {
+        background: rgba(205, 152, 46, 0.12);
+        border-color: rgba(205, 152, 46, 0.22);
+      }
+      .modal-card.ai-suggest .modal-thread {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 8px;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-thread {
+        color: #5e6f73;
+      }
+      .modal-card.ai-suggest .modal-status {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 6px;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-status {
+        color: #5e6f73;
+      }
+      .modal-card.ai-suggest .modal-status.warn {
+        color: #ffb37a;
+      }
+      .modal-card.ai-suggest .modal-intent {
+        margin: 8px 0;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(78, 174, 242, 0.25);
+        background: rgba(78, 174, 242, 0.12);
+        font-size: 12px;
+        color: rgba(228, 243, 255, 0.95);
+        letter-spacing: 0.01em;
+      }
+      [data-theme="light"] .modal-card.ai-suggest .modal-intent {
+        color: #13425c;
+        background: rgba(78, 174, 242, 0.18);
+        border-color: rgba(78, 174, 242, 0.35);
+      }
+      .modal-card.ai-suggest .modal-context {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .modal-card.ai-suggest .modal-context strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .modal-card.ai-suggest .modal-context .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 11px;
+      }
+      .modal-card.ai-suggest .modal-context .pill.primary {
+        border-color: rgba(47, 219, 170, 0.5);
+        color: var(--accent);
+      }
+      .modal-card.ai-suggest .modal-context .pill.secondary {
+        border-color: rgba(255, 182, 72, 0.5);
+        color: #ffc66d;
+      }
+      .modal-card.ai-suggest::before {
+        content: "";
+        position: absolute;
+        inset: -120px 30% auto auto;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(106, 231, 210, 0.22), rgba(106, 231, 210, 0));
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      [data-theme="light"] .modal-card.ai-suggest::before {
+        background: radial-gradient(circle, rgba(31, 159, 134, 0.18), rgba(31, 159, 134, 0));
+        opacity: 0.45;
+      }
+      .modal-selects {
+        display: grid;
+        grid-template-columns: minmax(160px, 1.1fr) minmax(110px, 0.8fr) minmax(160px, 1.1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .modal-selects .input {
+        margin-bottom: 0;
+      }
+      .sr-only {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .modal-title-wrap {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .modal-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        color: #000000;
+        font-weight: 700;
+        box-shadow: none;
+      }
+      .modal-icon svg {
+        width: 24px;
+        height: 24px;
+      }
+      .modal-title {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+      }
+      .modal-hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      [data-theme="light"] .modal-hint {
+        color: #5e6f73;
+      }
+      .modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .modal-textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .modal-close {
+        width: 32px;
+        height: 32px;
+      }
+      .toast-container {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 1200;
+      }
+      .toast {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #111a1b;
+        border: 1px solid var(--border);
+        box-shadow: 0 8px 16px var(--shadow-soft);
+        font-size: 12px;
+      }
+      [data-theme="light"] .toast {
+        background: #ffffff;
+      }
+      .toast.ok { border-color: var(--accent); color: var(--accent); }
+      .toast.warn { border-color: var(--accent-2); color: var(--accent-2); }
+      .toast.fail { border-color: var(--danger); color: var(--danger); }
+      .action-log {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+      }
+      .action-log .entry {
+        padding: 6px 8px;
+        border-radius: 8px;
+        background: #0f1516;
+        border: 1px solid var(--border);
+      }
+      [data-theme="light"] .action-log .entry {
+        background: #ffffff;
+      }
+      .timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .timeline-grid .entry {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1516;
+      }
+      [data-theme="light"] .timeline-grid .entry {
+        background: #ffffff;
+      }
+      .timeline-grid .label {
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .timeline-grid .value {
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .timeline-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 320px;
+        overflow: auto;
+      }
+      .timeline-list .entry {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1516;
+      }
+      [data-theme="light"] .timeline-list .entry {
+        background: #ffffff;
+      }
+      .timeline-workbench {
+        display: flex;
+        gap: 16px;
+        margin-top: 10px;
+      }
+      .timeline-group-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 148px;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-right: 12px;
+      }
+      [data-theme="light"] .timeline-group-tabs {
+        border-right-color: rgba(0, 0, 0, 0.08);
+      }
+      .timeline-group-tab {
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        padding: 7px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .timeline-group-tab.active {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: rgba(61, 214, 176, 0.08);
+      }
+      [data-theme="light"] .timeline-group-tab.active {
+        background: rgba(31, 159, 134, 0.12);
+      }
+      .timeline-group-content {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .timeline-group-pane {
+        display: none;
+      }
+      .timeline-group-pane.active {
+        display: block;
+      }
+      .timeline-subtabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: thin;
+      }
+      .timeline-subtab {
+        border: 1px solid transparent;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 6px;
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .timeline-subtab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .timeline-pane {
+        display: none;
+        margin-top: 10px;
+      }
+      .timeline-pane.active {
+        display: block;
+      }
+      .timeline-inline-detail {
+        padding: 10px 12px;
+        border-top: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      [data-theme="light"] .timeline-inline-detail {
+        background: rgba(0, 0, 0, 0.02);
+      }
+      .timeline-inline-grid {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 8px 12px;
+      }
+      .timeline-inline-grid .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .timeline-inline-grid .value {
+        font-size: 12px;
+      }
+      .timeline-trend-chart {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px;
+        background: #0f1516;
+        min-height: 220px;
+      }
+      [data-theme="light"] .timeline-trend-chart {
+        background: #ffffff;
+      }
+      .timeline-trend-legend {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .timeline-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+      }
+      .timeline-dot.p50 {
+        background: #3dd6b0;
+      }
+      .timeline-dot.p95 {
+        background: #ff8c42;
+      }
+      .search-results {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 65vh;
+        overflow: auto;
+        margin-top: 6px;
+      }
+      .search-results .entry {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: #0f1516;
+        border: 1px solid var(--border);
+      }
+      [data-theme="light"] .search-results .entry {
+        background: #ffffff;
+      }
+      .evidence-tree details {
+        margin-bottom: 6px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 8px;
+      }
+      [data-theme="light"] .evidence-tree details {
+        background: #ffffff;
+      }
+      .evidence-tree {
+        max-height: 68vh;
+        overflow: auto;
+        padding-right: 6px;
+        scrollbar-gutter: stable;
+      }
+      .evidence-tree summary {
+        cursor: pointer;
+        color: var(--muted);
+      }
+      [data-theme="light"] .evidence-tree summary {
+        color: #5e6f73;
+      }
+      .evidence-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .evidence-item:last-child { border-bottom: none; }
+      .json-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      #evidence-viewer {
+        max-height: 68vh;
+      }
+      .status-banner {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #141c1d;
+        font-size: 12px;
+      }
+      [data-theme="light"] .status-banner {
+        background: #ffffff;
+      }
+      .status-banner.warn { border-color: var(--accent-2); }
+      .status-banner.ok { border-color: var(--accent); }
+      .status-banner.fail { border-color: var(--danger); }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        font-size: 12px;
+        margin-right: 6px;
+      }
+      [data-theme="light"] .pill {
+        background: #ffffff;
+      }
+      .pill.muted { opacity: 0.85; }
+      .pill.ok { border-color: var(--accent); color: var(--accent); }
+      .pill.warn { border-color: var(--accent-2); color: var(--accent-2); }
+      .pill.block { border-color: var(--danger); color: var(--danger); }
+      .pill.miss { border-color: rgba(0, 0, 0, 0.35); color: var(--text-muted); }
+      .pill.ok::before { content: "✅"; margin-right: 4px; }
+      .pill.warn::before { content: "⚠️"; margin-right: 4px; }
+      .pill.block::before { content: "⛔"; margin-right: 4px; }
+      .pill.miss::before { content: "—"; margin-right: 4px; }
+
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 2px solid rgba(159, 176, 181, 0.35);
+        border-top-color: var(--accent);
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .sidebar-collapsed .app,
+      .app.sidebar-collapsed { --sidebar-width: 72px; }
+      .sidebar-collapsed { --sidebar-width: 72px; }
+      .sidebar-collapsed .sidebar { padding: 16px 10px; }
+      .sidebar-collapsed .nav-label { display: none; }
+      .sidebar-collapsed .nav button { justify-content: center; padding: 10px 8px; }
+      .sidebar-collapsed .sidebar-footer { display: none; }
+      .sidebar-collapsed .sidebar-header {
+        justify-content: center;
+        align-items: center;
+      }
+      .sidebar-collapsed .brand-full { display: none; }
+      .sidebar-collapsed .brand-short {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0f1415;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        user-select: none;
+      }
+      [data-theme="light"] .sidebar-collapsed .brand-short {
+        background: #ffffff;
+        color: #5e6f73;
+        border-color: var(--border);
+      }
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (max-width: 960px) {
+        .app { grid-template-columns: 72px 1fr; }
+        .sidebar {
+          width: 72px;
+          padding: 16px 10px;
+          flex-direction: column;
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+        .nav { flex-direction: column; }
+        .nav-label { display: none; }
+        .nav button { justify-content: center; padding: 10px 8px; }
+        .sidebar-footer { display: none; }
+        .sidebar-header { justify-content: center; align-items: center; }
+        .brand-full { display: none; }
+        .brand-short { display: inline-flex; }
+        .split { grid-template-columns: 1fr; }
+        .table-wrap { max-height: 40vh; }
+        .evidence-tree { max-height: 40vh; }
+        #evidence-viewer { max-height: 40vh; }
+        .timeline-workbench {
+          flex-direction: column;
+        }
+        .timeline-group-tabs {
+          flex-direction: row;
+          border-right: none;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          padding-right: 0;
+          padding-bottom: 10px;
+          min-width: 0;
+          overflow-x: auto;
+        }
+        [data-theme="light"] .timeline-group-tabs {
+          border-bottom-color: rgba(0, 0, 0, 0.08);
+        }
+        .timeline-group-tab {
+          text-align: center;
+          white-space: nowrap;
+        }
+      }
+    </style>
+    <script>
+      (function () {
+        try {
+          const raw = localStorage.getItem("cockpit_lite_sidebar_collapsed_v1");
+          const v = String(raw || "").trim().toLowerCase();
+          const collapsed = v === "1" || v === "true" || v === "yes" || v === "on";
+          if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+        } catch (_) {
+          // ignore
+        }
+      })();
+    </script>
+  </head>
+  <body>
+	    <div class="app" id="app-root">
+			      <aside class="sidebar" id="sidebar">
+			        <div class="sidebar-header">
+			          <button class="sidebar-toggle-btn" id="toggle-sidebar-inline" type="button" data-i18n-aria-label="sidebar.toggle" data-i18n-title="sidebar.toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+			            <span aria-hidden="true">≡</span>
+			          </button>
+			          <div class="brand">
+			            <span class="brand-full">Cockpit Lite</span>
+			            <span class="brand-short" aria-label="Cockpit Lite">CL</span>
+			          </div>
+			        </div>
+			        <nav class="nav" data-i18n-aria-label="nav.primary" aria-label="Primary">
+			          <button class="active" data-tab="overview" type="button" data-i18n-title="nav.overview" data-i18n-aria-label="nav.overview" title="Overview" aria-label="Overview" aria-controls="tab-overview">
+			            <span class="nav-icon" aria-hidden="true">OV</span><span class="nav-label" data-i18n="nav.overview">Overview</span>
+			          </button>
+	          <button data-tab="north-star" type="button" data-i18n-title="nav.north_star" data-i18n-aria-label="nav.north_star" title="North Star" aria-label="North Star" aria-controls="tab-north-star">
+	            <span class="nav-icon" aria-hidden="true">NS</span><span class="nav-label" data-i18n="nav.north_star">North Star</span>
+	          </button>
+	          <button data-tab="timeline" type="button" data-i18n-title="nav.timeline" data-i18n-aria-label="nav.timeline" title="Timeline" aria-label="Timeline" aria-controls="tab-timeline">
+	            <span class="nav-icon" aria-hidden="true">TM</span><span class="nav-label" data-i18n="nav.timeline">Timeline</span>
+	          </button>
+	          <button data-tab="inbox" type="button" data-i18n-title="nav.inbox" data-i18n-aria-label="nav.inbox" title="Inbox" aria-label="Inbox" aria-controls="tab-inbox">
+	            <span class="nav-icon" aria-hidden="true">IB</span><span class="nav-label" data-i18n="nav.inbox">Inbox</span>
+	          </button>
+	          <button data-tab="intake" type="button" data-i18n-title="nav.intake" data-i18n-aria-label="nav.intake" title="Intake" aria-label="Intake" aria-controls="tab-intake">
+	            <span class="nav-icon" aria-hidden="true">IN</span><span class="nav-label" data-i18n="nav.intake">Intake</span>
+	          </button>
+	          <button data-tab="decisions" type="button" data-i18n-title="nav.decisions" data-i18n-aria-label="nav.decisions" title="Decisions" aria-label="Decisions" aria-controls="tab-decisions">
+	            <span class="nav-icon" aria-hidden="true">DC</span><span class="nav-label" data-i18n="nav.decisions">Decisions</span>
+	          </button>
+	          <button data-tab="extensions" type="button" data-i18n-title="nav.extensions" data-i18n-aria-label="nav.extensions" title="Extensions" aria-label="Extensions" aria-controls="tab-extensions">
+	            <span class="nav-icon" aria-hidden="true">EX</span><span class="nav-label" data-i18n="nav.extensions">Extensions</span>
+	          </button>
+	          <button data-tab="overrides" type="button" data-i18n-title="nav.overrides" data-i18n-aria-label="nav.overrides" title="Overrides" aria-label="Overrides" aria-controls="tab-overrides">
+	            <span class="nav-icon" aria-hidden="true">OR</span><span class="nav-label" data-i18n="nav.overrides">Overrides</span>
+	          </button>
+	          <button data-tab="auto-loop" type="button" data-i18n-title="nav.auto_loop" data-i18n-aria-label="nav.auto_loop" title="Auto-loop" aria-label="Auto-loop" aria-controls="tab-auto-loop">
+	            <span class="nav-icon" aria-hidden="true">AL</span><span class="nav-label" data-i18n="nav.auto_loop">Auto-loop</span>
+	          </button>
+	          <button data-tab="jobs" type="button" data-i18n-title="nav.jobs" data-i18n-aria-label="nav.jobs" title="Jobs" aria-label="Jobs" aria-controls="tab-jobs">
+	            <span class="nav-icon" aria-hidden="true">JB</span><span class="nav-label" data-i18n="nav.jobs">Jobs</span>
+	          </button>
+	          <button data-tab="locks" type="button" data-i18n-title="nav.locks" data-i18n-aria-label="nav.locks" title="Locks" aria-label="Locks" aria-controls="tab-locks">
+	            <span class="nav-icon" aria-hidden="true">LK</span><span class="nav-label" data-i18n="nav.locks">Locks</span>
+	          </button>
+	          <button data-tab="run-card" type="button" data-i18n-title="nav.run_card" data-i18n-aria-label="nav.run_card" title="Run-Card" aria-label="Run-Card" aria-controls="tab-run-card">
+	            <span class="nav-icon" aria-hidden="true">RC</span><span class="nav-label" data-i18n="nav.run_card">Run-Card</span>
+	          </button>
+	          <button data-tab="search" type="button" data-i18n-title="nav.search" data-i18n-aria-label="nav.search" title="Search" aria-label="Search" aria-controls="tab-search">
+	            <span class="nav-icon" aria-hidden="true">SR</span><span class="nav-label" data-i18n="nav.search">Search</span>
+	          </button>
+	          <button data-tab="planner-chat" type="button" data-i18n-title="nav.planner_chat" data-i18n-aria-label="nav.planner_chat" title="Planner Chat" aria-label="Planner Chat" aria-controls="tab-planner-chat">
+	            <span class="nav-icon" aria-hidden="true">PC</span><span class="nav-label" data-i18n="nav.planner_chat">Planner Chat</span>
+	          </button>
+	          <button data-tab="command-composer" type="button" data-i18n-title="nav.command_composer" data-i18n-aria-label="nav.command_composer" title="Command Composer" aria-label="Command Composer" aria-controls="tab-command-composer">
+	            <span class="nav-icon" aria-hidden="true">CC</span><span class="nav-label" data-i18n="nav.command_composer">Command Composer</span>
+	          </button>
+	          <button data-tab="evidence" type="button" data-i18n-title="nav.evidence" data-i18n-aria-label="nav.evidence" title="Evidence" aria-label="Evidence" aria-controls="tab-evidence">
+	            <span class="nav-icon" aria-hidden="true">EV</span><span class="nav-label" data-i18n="nav.evidence">Evidence</span>
+	          </button>
+	        </nav>
+	        <div class="sidebar-footer">
+	          <div id="ws-root">workspace: ...</div>
+          <div id="last-change">last change: ...</div>
+        </div>
+      </aside>
+      <div class="main">
+	        <header class="topbar">
+          <div class="topbar-left">
+            <div class="topbar-title" data-i18n="ui.title">Operator Console</div>
+            <span class="badge" id="conn-status">API: ...</span>
+            <span class="badge" id="sse-status">SSE: ...</span>
+            <span class="badge" id="memory-status">MEM: ...</span>
+            <span class="badge idle" id="search-engine-badge" data-i18n="search.engine.badge.none">SRCH: -</span>
+            <span class="badge" id="timeline-alert-badge" data-i18n="timeline.alert.idle">TIME: -</span>
+          </div>
+	          <div class="topbar-right row">
+              <input class="input" id="global-search-query" data-i18n-placeholder="search.placeholder" placeholder="Search (auto)" style="min-width: 220px;" />
+              <button class="btn ghost" id="global-search-run" data-i18n="search.run">Search</button>
+	            <button class="btn accent" id="refresh-all" data-i18n="actions.refresh_all">Refresh All</button>
+              <button class="btn ghost" id="snapshot-page" data-i18n="actions.snapshot_page">Snapshot this page</button>
+              <select class="input" id="theme-select" data-i18n-aria-label="theme.label" data-i18n-title="theme.label">
+                <option value="dark" data-i18n="theme.dark">Dark</option>
+                <option value="light" data-i18n="theme.light">Light</option>
+              </select>
+              <select class="input" id="lang-select" data-i18n-aria-label="lang.label" data-i18n-title="lang.label">
+                <option value="en">EN</option>
+                <option value="tr">TR</option>
+              </select>
+              <button class="btn warn" id="admin-mode-toggle-topbar" type="button" data-i18n-title="admin.title_topbar">Admin mode: off</button>
+	          </div>
+	        </header>
+	        <main class="content">
+          <section id="tab-overview" class="tab active">
+            <div class="toolbar">
+              <button class="btn" data-op="system-status">system-status</button>
+            </div>
+            <div class="status-banner" id="next-banner"></div>
+            <div class="grid">
+              <div class="card">
+                <h3 data-i18n="h.system_status">System Status</h3>
+                <div class="pill" id="status-pill">loading</div>
+                <div class="subtle" id="status-summary">...</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.work_intake">Work Intake</h3>
+                <div id="intake-summary"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.decisions">Decisions</h3>
+                <div id="decision-summary"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.loop_activity">Loop Activity</h3>
+                <div id="loop-summary"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.locks">Locks</h3>
+                <div id="lock-summary"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.script_budget">Script Budget</h3>
+                <pre id="budget-json"></pre>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.next_steps">Next Steps</h3>
+                <div id="next-steps" class="subtle"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.action_log">Action Log</h3>
+                <div id="action-log" class="action-log"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.last_action">Last Action</h3>
+                <div class="subtle" id="action-status">no actions yet</div>
+                <div id="action-meta" class="subtle"></div>
+                <details>
+                  <summary class="subtle">Raw JSON</summary>
+                  <pre id="action-response"></pre>
+                </details>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.system_status_raw">System Status (raw)</h3>
+                <pre id="status-json"></pre>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.ui_snapshot_raw">UI Snapshot (raw)</h3>
+                <pre id="snapshot-json"></pre>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-timeline" class="tab">
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center; gap: 8px;">
+                <h3 data-i18n="h.timeline_dashboard" style="margin: 0;">Codex Time Sink</h3>
+                <button class="btn ghost btn-mini" id="timeline-refresh" type="button" data-i18n="timeline.refresh">Yenile</button>
+              </div>
+              <div class="subtle" id="timeline-meta">-</div>
+              <div class="subtle" id="timeline-error"></div>
+              <div class="timeline-workbench">
+                <div class="timeline-group-tabs">
+                  <button class="timeline-group-tab active" type="button" data-timeline-group-tab="dashboard" data-i18n="timeline.group.dashboard">Dashboard</button>
+                  <button class="timeline-group-tab" type="button" data-timeline-group-tab="trend" data-i18n="timeline.group.trend">Trend</button>
+                </div>
+                <div class="timeline-group-content">
+                  <div class="timeline-group-pane active" data-timeline-group-pane="dashboard">
+                    <div class="timeline-subtabs">
+                      <button class="timeline-subtab active" type="button" data-timeline-sub-tab="summary" data-i18n="timeline.tab.summary">Özet</button>
+                      <button class="timeline-subtab" type="button" data-timeline-sub-tab="processes" data-i18n="timeline.tab.processes">İşlemler</button>
+                      <button class="timeline-subtab" type="button" data-timeline-sub-tab="tools" data-i18n="timeline.tab.tools">Araçlar</button>
+                    </div>
+                    <div class="timeline-pane active" data-timeline-pane="summary">
+                      <div class="timeline-grid">
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.total_tool_time">Toplam Araç Süresi</div>
+                          <div class="value" id="timeline-total-tool">-</div>
+                        </div>
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.process_count">İşlem Sayısı</div>
+                          <div class="value" id="timeline-process-count">-</div>
+                        </div>
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.process_p95">İşlem P95</div>
+                          <div class="value" id="timeline-process-p95">-</div>
+                        </div>
+                        <div class="entry">
+                          <div class="label" data-i18n="timeline.non_tool_ratio">Araç Dışı Oran</div>
+                          <div class="value" id="timeline-non-tool-ratio">-</div>
+                        </div>
+                      </div>
+                      <div class="grid" style="margin-top: 10px;">
+                        <div class="card">
+                          <h3 data-i18n="timeline.slowest_processes">En Yavaş İşlemler</h3>
+                          <div id="timeline-slowest-list" class="timeline-list"></div>
+                        </div>
+                        <div class="card">
+                          <h3 data-i18n="timeline.tool_breakdown">Araç Bazlı Kırılım</h3>
+                          <div id="timeline-tool-list" class="timeline-list"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="timeline-pane" data-timeline-pane="processes">
+                      <div class="subtle" id="timeline-process-meta">-</div>
+                      <div id="timeline-process-table" class="table-wrap" style="margin-top: 8px;"></div>
+                    </div>
+                    <div class="timeline-pane" data-timeline-pane="tools">
+                      <div class="subtle" id="timeline-tools-meta">-</div>
+                      <div id="timeline-tools-table" class="table-wrap" style="margin-top: 8px;"></div>
+                    </div>
+                  </div>
+                  <div class="timeline-group-pane" data-timeline-group-pane="trend">
+                    <div class="timeline-subtabs">
+                      <button class="timeline-subtab active" type="button" data-timeline-sub-tab="trend_pctl" data-i18n="timeline.tab.pctl">P50 / P95</button>
+                      <button class="timeline-subtab" type="button" data-timeline-sub-tab="trend_alert" data-i18n="timeline.tab.alerts">Alarmlar</button>
+                    </div>
+                    <div class="timeline-pane active" data-timeline-pane="trend_pctl">
+                      <div class="subtle" id="timeline-trend-meta">-</div>
+                      <div id="timeline-trend-chart" class="timeline-trend-chart" style="margin-top: 8px;"></div>
+                      <div id="timeline-trend-table" class="table-wrap" style="margin-top: 8px;"></div>
+                    </div>
+                    <div class="timeline-pane" data-timeline-pane="trend_alert">
+                      <div id="timeline-alert-details" class="timeline-list"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-north-star" class="tab">
+            <div class="grid">
+              <div class="card">
+                <div class="row" style="justify-content: space-between; align-items: center;">
+                  <h3 data-i18n="h.north_star" style="margin: 0;">North Star</h3>
+                </div>
+                <div class="badge" id="north-star-status">loading</div>
+	                <div class="subtle" id="north-star-summary"></div>
+	                <div class="row">
+	                  <div class="pill" id="north-star-coverage"></div>
+	                  <div class="pill" id="north-star-maturity"></div>
+	                </div>
+	                <div class="row" id="north-star-runner-badges"></div>
+	              </div>
+	              <div class="card">
+	                <h3 data-i18n="h.lens_summary">Lens Summary</h3>
+	                <div id="north-star-lenses-table" class="table-wrap"></div>
+	              </div>
+              <div class="card">
+                <h3 data-i18n="h.gap_summary">Gap Summary</h3>
+                <div class="subtle" id="north-star-gap-count"></div>
+                <div class="subtle" id="north-star-gap-breakdown"></div>
+              </div>
+            </div>
+	            <div class="card">
+	              <h3 data-i18n="h.top_gaps">Top Gaps</h3>
+	              <div id="north-star-gap-table" class="table-wrap"></div>
+	            </div>
+	            <div class="card">
+	              <h3 data-i18n="h.lens_details">Lens Details</h3>
+	              <div class="subtle" data-i18n="north_star.lens_details_hint">Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.</div>
+	              <div id="north-star-lens-details"></div>
+	            </div>
+	            <div class="card">
+	              <h3 data-i18n="north_star.workflow.title" style="margin: 0;">North Star Workflow v1</h3>
+	              <div class="subtle" style="margin-top: 6px;" data-i18n="north_star.workflow.subtitle">Canonical flow: Reference -> Assessment -> Gap -> PDCA</div>
+	              <ol class="subtle" style="margin: 8px 0 0 18px;">
+                <li data-i18n="north_star.workflow.step1">Reference: Theme/Subtheme + Trend/BP reference set is approved (ACTIVE).</li>
+                <li data-i18n="north_star.workflow.step2">Assessment: Run raw/eval measurement against the approved reference.</li>
+                <li data-i18n="north_star.workflow.step3">Gap: Produce deterministic deviations with impact/risk/effort.</li>
+                <li data-i18n="north_star.workflow.step4">PDCA: Prioritize closure actions, recheck, and track regression.</li>
+	              </ol>
+	              <div class="subtle" style="margin-top: 8px;" data-i18n="north_star.workflow.note">Note: In Lens Findings, Trend/BP/Lens means source type, not workflow stage.</div>
+	            </div>
+	            <div class="card">
+	              <div class="row" style="justify-content: space-between; align-items: center;">
+	                <h3 data-i18n="north_star.flow2.title" style="margin: 0;">Flow 2 Status</h3>
+	                <div class="badge" id="north-star-flow2-status">UNKNOWN</div>
+	              </div>
+	              <div class="subtle" id="north-star-flow2-summary" data-i18n="north_star.flow2.subtitle">Assessment chain health (Assessment + Policy + Status)</div>
+	              <div class="row" id="north-star-flow2-badges" style="margin-top: 8px;"></div>
+	              <div class="subtle" id="north-star-flow2-lines" style="margin-top: 8px;"></div>
+	              <div class="subtle" id="north-star-flow2-invalid-note" style="margin-top: 6px;"></div>
+	            </div>
+	            <div class="card">
+	              <div class="row" style="justify-content: space-between; align-items: center;">
+	                <h3 data-i18n="north_star.catalog_create.title" style="margin: 0;">Yeni Katalog Oluştur</h3>
+	                <div class="badge" id="ns-catalog-status">hazır</div>
+	              </div>
+              <div class="subtle" id="ns-catalog-hint" data-i18n="north_star.catalog_create.hint">Prompt: v0.4.8 (prompt_refine_consolidated)</div>
+              <div class="row" style="gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+                <div class="field-stack" style="min-width: 240px; flex: 1 1 240px;">
+                  <label class="subtle" for="ns-catalog-subject" data-i18n="north_star.catalog_create.subject_label">Konu</label>
+                  <input class="input" id="ns-catalog-subject" placeholder="Örn: İç Denetim" data-i18n-placeholder="north_star.catalog_create.subject_placeholder" />
+                </div>
+                <button class="btn ghost" id="ns-catalog-save" type="button" data-i18n="north_star.catalog_create.save">Kaydet</button>
+                <button class="btn accent" id="ns-catalog-create" type="button" data-i18n="north_star.catalog_create.create">Katalog oluştur</button>
+              </div>
+              <div class="subtle" id="ns-catalog-meta"></div>
+            </div>
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <h3 data-i18n="north_star.mechanisms.title" style="margin: 0;">Tema / Alt Tema Kataloğu</h3>
+                <button class="btn ghost small icon" id="export-mechanisms" type="button" data-i18n-title="north_star.export_mechanisms" data-i18n-aria-label="north_star.export_mechanisms" title="Export theme catalog" aria-label="Export theme catalog">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v12"></path>
+                    <path d="M8 11l4 4 4-4"></path>
+                    <path d="M4 17h16"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="row" style="gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+                <input class="input" id="ns-mechanisms-search" placeholder="Konu/tema/alt tema ara" data-i18n-placeholder="north_star.mechanisms.filter.search.placeholder" aria-label="Mekanizma ara" data-i18n-aria-label="north_star.mechanisms.filter.search_aria" />
+                <div class="tag-select" id="ns-mechanisms-filter-subject">
+                  <div class="tag-select-input">
+                    <div class="tag-list" id="ns-mechanisms-filter-subject-tags"></div>
+                    <input class="tag-input" id="ns-mechanisms-filter-subject-input" placeholder="Konu filtrele" data-i18n-placeholder="north_star.mechanisms.filter.subject.placeholder" aria-label="Filter mechanisms by subject" data-i18n-aria-label="north_star.mechanisms.filter.subject_aria" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-mechanisms-filter-subject-options" />
+                    <button class="tag-toggle" type="button" aria-label="Toggle subject options">v</button>
+                  </div>
+                  <div class="tag-dropdown" id="ns-mechanisms-filter-subject-options" role="listbox" aria-label="Subject options"></div>
+                </div>
+                <div class="tag-select" id="ns-mechanisms-filter-status">
+                  <div class="tag-select-input">
+                    <div class="tag-list" id="ns-mechanisms-filter-status-tags"></div>
+                    <input class="tag-input" id="ns-mechanisms-filter-status-input" placeholder="Durum filtrele" data-i18n-placeholder="north_star.mechanisms.filter.status.placeholder" aria-label="Filter mechanisms by status" data-i18n-aria-label="north_star.mechanisms.filter.status_aria" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-mechanisms-filter-status-options" />
+                    <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
+                  </div>
+                  <div class="tag-dropdown" id="ns-mechanisms-filter-status-options" role="listbox" aria-label="Status options"></div>
+                </div>
+              </div>
+              <div class="subtle" id="north-star-mechanisms-meta"></div>
+              <div id="north-star-mechanisms"></div>
+            </div>
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <h3 data-i18n="north_star.suggestions.title" style="margin: 0;">AI Önerileri</h3>
+                <div class="row" style="gap: 8px;">
+                  <button class="btn ghost small" id="ns-seed-btn" type="button" data-i18n="north_star.suggestions.seed_btn">Seed (GPT-5.2)</button>
+                  <button class="btn ghost small" id="ns-consult-btn" type="button" data-i18n="north_star.suggestions.consult_btn">Consult (LLM)</button>
+                </div>
+              </div>
+              <div class="subtle" id="north-star-suggestions-meta"></div>
+              <div id="north-star-suggestions"></div>
+            </div>
+			            <div class="card">
+				              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
+				              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>
+				              <div class="subtle" data-i18n="north_star.findings.scope_hint">Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu workflow aşamasına göre sınıflar; detayda kaynak tipi (Trend/BP/Lens) gösterilir.</div>
+				              <div class="subtle" id="ns-findings-transfer-scopes">Aktif kapsamlar: -</div>
+				              <div class="row" style="margin-top: 10px;">
+			                <input class="input" id="ns-findings-search" placeholder="Bulgu ara (id/başlık/kriter/etiket/gerekçe)" data-i18n-placeholder="north_star.findings.search_placeholder" aria-label="Bulgu ara" />
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-subject-input" data-i18n="north_star.filter.subject.label">Konu/Subject</label>
+			                  <div class="tag-select" id="ns-findings-filter-subject">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-subject-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-subject-input" placeholder="Konu seç" data-i18n-placeholder="north_star.filter.subject.placeholder" aria-label="Filter by subject" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-subject-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle subject options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-subject-options" role="listbox" aria-label="Subject options"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-perspective-input" data-i18n="north_star.filter.perspective.label">Bakış (Perspective)</label>
+			                  <div class="tag-select" id="ns-findings-filter-perspective">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-perspective-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-perspective-input" placeholder="Bakış seç" data-i18n-placeholder="north_star.filter.perspective.placeholder" aria-label="Filter by perspective" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-perspective-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle perspective options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-perspective-options" role="listbox" aria-label="Bakış seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-theme-input" data-i18n="north_star.filter.theme.label">Tema</label>
+			                  <div class="tag-select" id="ns-findings-filter-theme">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-theme-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-theme-input" placeholder="Tema seç" data-i18n-placeholder="north_star.filter.theme.placeholder" aria-label="Filter by theme" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-theme-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle theme options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-theme-options" role="listbox" aria-label="Tema seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-subtheme-input" data-i18n="north_star.filter.subtheme.label">Alt tema</label>
+			                  <div class="tag-select" id="ns-findings-filter-subtheme">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-subtheme-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-subtheme-input" placeholder="Alt tema seç" data-i18n-placeholder="north_star.filter.subtheme.placeholder" aria-label="Filter by subtheme" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-subtheme-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle subtheme options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-subtheme-options" role="listbox" aria-label="Alt tema seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-topic-input" data-i18n="north_star.filter.topic.label">Kriter/Eksen</label>
+			                  <div class="tag-select" id="ns-findings-filter-topic">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-topic-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-topic-input" placeholder="Kriter seç" data-i18n-placeholder="north_star.filter.topic.placeholder" aria-label="Filter by topic" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-topic-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle topic options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-topic-options" role="listbox" aria-label="Kriter/Eksen seçenekleri"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-catalog-input" data-i18n="north_star.filter.catalog.label">İş Akışı Aşaması (Reference/Assessment/Gap)</label>
+			                  <div class="tag-select" id="ns-findings-filter-catalog">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-catalog-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-catalog-input" placeholder="(opsiyonel)" data-i18n-placeholder="north_star.filter.catalog.placeholder" aria-label="Filter by catalog" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-catalog-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle catalog options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-catalog-options" role="listbox" aria-label="Catalog options"></div>
+			                  </div>
+			                </div>
+			                <div class="field-stack">
+			                  <label class="subtle" for="ns-findings-filter-match-input" data-i18n="north_star.filter.match.label">Match</label>
+			                  <div class="tag-select" id="ns-findings-filter-match">
+			                    <div class="tag-select-input">
+			                      <div class="tag-list" id="ns-findings-filter-match-tags"></div>
+			                      <input class="tag-input" id="ns-findings-filter-match-input" placeholder="Select match status" data-i18n-placeholder="north_star.filter.match.placeholder" aria-label="Filter by match status" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-findings-filter-match-options" />
+			                      <button class="tag-toggle" type="button" aria-label="Toggle match options">v</button>
+			                    </div>
+			                    <div class="tag-dropdown" id="ns-findings-filter-match-options" role="listbox" aria-label="Match options"></div>
+			                  </div>
+			                </div>
+			              <button class="btn small" id="ns-findings-clear" type="button" data-i18n="actions.reset_filters">Reset</button>
+			              </div>
+	              <div class="subtle" id="ns-findings-summary" style="margin-top: 8px;"></div>
+	              <div class="status-banner warn" id="ns-findings-join-banner" style="display:none; margin-top: 8px;"></div>
+	              <div id="ns-findings-table" style="margin-top: 10px;"></div>
+	              <div id="ns-findings-detail" style="margin-top: 10px;"></div>
+	            </div>
+	            <div class="card">
+	              <h3 data-i18n="h.raw_json">Raw JSON</h3>
+	              <details>
+	                <summary class="subtle">assessment_eval</summary>
+	                <pre id="north-star-eval-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">trend_catalog</summary>
+	                <pre id="north-star-trend-catalog-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">bp_catalog</summary>
+	                <pre id="north-star-bp-catalog-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">north_star_catalog</summary>
+	                <pre id="north-star-catalog-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">gap_register</summary>
+	                <pre id="north-star-gap-json"></pre>
+	              </details>
+	              <details>
+	                <summary class="subtle">scorecard</summary>
+	                <pre id="north-star-scorecard-json"></pre>
+	              </details>
+	            </div>
+	          </section>
+
+          <section id="tab-inbox" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.input_inbox">Input Inbox</h3>
+              <div class="row">
+                <input class="input" id="inbox-search" placeholder="Search inbox" />
+                <select class="input" id="inbox-filter-bucket" aria-label="Filter by bucket">
+                  <option value="">Bucket (all)</option>
+                  <option value="TICKET">TICKET</option>
+                  <option value="PROJECT">PROJECT</option>
+                  <option value="ROADMAP">ROADMAP</option>
+                </select>
+                <select class="input" id="inbox-filter-status" aria-label="Filter by intake status">
+                  <option value="">Status (all)</option>
+                  <option value="OPEN">OPEN</option>
+                  <option value="DONE">DONE</option>
+                </select>
+                <select class="input" id="inbox-filter-triage" aria-label="Filter by triage state">
+                  <option value="">Triage (all)</option>
+                  <option value="NEW">NEW</option>
+                  <option value="ROUTE_TO_ROADMAP">ROUTE_TO_ROADMAP</option>
+                  <option value="ROUTE_TO_PROJECT">ROUTE_TO_PROJECT</option>
+                  <option value="CONVERT_TO_PROJECT">CONVERT_TO_PROJECT</option>
+                  <option value="NEEDS_INFO">NEEDS_INFO</option>
+                </select>
+                <button class="btn" id="inbox-refresh" type="button">Refresh</button>
+              </div>
+              <div class="subtle" id="inbox-meta"></div>
+              <div class="subtle" id="inbox-count"></div>
+              <div id="inbox-table" class="table-wrap"></div>
+            </div>
+          </section>
+
+          <section id="tab-intake" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.intake_strict">Intake (strict)</h3>
+              <div class="row" style="margin-bottom:8px;">
+                <button class="btn" data-op="work-intake-check">work-intake-check (strict)</button>
+              </div>
+              <div class="status-banner warn" id="intake-decision-banner" style="display:none; margin-top: 10px;"></div>
+              <div class="status-card" id="intake-compat-summary" style="margin:8px 0; display:none;"></div>
+              <div class="status-banner warn" id="intake-compat-summary-warn" style="margin:8px 0; display:none;"></div>
+              <div class="row">
+                <input class="input" id="intake-search" placeholder="Quick search" />
+		                <div class="field-stack">
+		                  <label class="subtle" for="filter-bucket-input">Bucket</label>
+	                  <div class="tag-select" id="filter-bucket">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-bucket-tags"></div>
+	                      <input class="tag-input" id="filter-bucket-input" placeholder="Select bucket" aria-label="Filter by bucket" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-bucket-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle bucket options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-bucket-options" role="listbox" aria-label="Bucket options"></div>
+	                  </div>
+	                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-status-input">Status</label>
+	                  <div class="tag-select" id="filter-status">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-status-tags"></div>
+	                      <input class="tag-input" id="filter-status-input" placeholder="Select status" aria-label="Filter by status" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-status-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle status options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-status-options" role="listbox" aria-label="Status options"></div>
+	                  </div>
+	                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-source-input">Source</label>
+	                  <div class="tag-select" id="filter-source">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-source-tags"></div>
+	                      <input class="tag-input" id="filter-source-input" placeholder="Select source" aria-label="Filter by source" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-source-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle source options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-source-options" role="listbox" aria-label="Source options"></div>
+	                  </div>
+	                </div>
+	                <div class="field-stack">
+	                  <label class="subtle" for="filter-extension-input">Extension</label>
+	                  <div class="tag-select" id="filter-extension">
+	                    <div class="tag-select-input">
+	                      <div class="tag-list" id="filter-extension-tags"></div>
+	                      <input class="tag-input" id="filter-extension-input" placeholder="Select extension" aria-label="Filter by extension" aria-autocomplete="list" aria-expanded="false" aria-controls="filter-extension-options" />
+	                      <button class="tag-toggle" type="button" aria-label="Toggle extension options">v</button>
+	                    </div>
+	                    <div class="tag-dropdown" id="filter-extension-options" role="listbox" aria-label="Extension options"></div>
+	                  </div>
+	                </div>
+                <label class="checkbox">
+                  <input type="checkbox" id="filter-hide-done" checked />
+                  Hide DONE
+                </label>
+                <button class="btn" id="apply-intake-filter">Apply</button>
+                <button class="btn" id="clear-intake-filter">Clear</button>
+              </div>
+              <div class="subtle" id="intake-count"></div>
+              <div class="row" style="margin-top: 8px;">
+                <button class="btn accent" id="intake-purpose-generate" type="button" data-i18n="intake.purpose.generate">Generate purposes (AI)</button>
+                <div class="subtle" id="intake-purpose-generate-meta" data-i18n="intake.purpose.generate_hint">Missing only · OPEN scope · OpenAI</div>
+              </div>
+              <div class="row" style="margin-top: 6px;">
+                <div class="subtle" id="intake-purpose-report-title" data-i18n="intake.purpose.report.title">Purpose generation report</div>
+                <button class="btn ghost" id="intake-purpose-report-open" type="button" data-i18n="intake.purpose.report.view">View report</button>
+              </div>
+              <div class="subtle" id="intake-purpose-report-meta"></div>
+              <div class="subtle" id="intake-purpose-report-summary"></div>
+              <div id="intake-table" class="table-wrap"></div>
+            </div>
+          </section>
+
+          <section id="tab-decisions" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.decision_inbox">Decision Inbox</h3>
+              <div class="row">
+                <input class="input" id="decision-search" placeholder="Search decisions" />
+                <button class="btn" data-op="decision-inbox-show">Refresh Inbox</button>
+              </div>
+              <div class="subtle" id="decision-meta"></div>
+              <div id="decision-table" class="table-wrap"></div>
+            </div>
+          </section>
+
+          <section id="tab-extensions" class="tab">
+            <div class="grid">
+              <div class="card">
+                <h3 data-i18n="h.extensions">Extensions</h3>
+                <div class="row">
+                  <button class="btn" id="extensions-refresh">Refresh</button>
+                </div>
+                <div id="extensions-list" class="table-wrap"></div>
+              </div>
+            </div>
+            <div class="card" style="margin-top: 16px;">
+              <h3 data-i18n="h.extension_usage">Extension Usage</h3>
+              <div class="row" style="gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="extensions-usage-refresh">Refresh</button>
+                <div id="extensions-usage-pills" class="row" style="gap:6px; flex-wrap:wrap;"></div>
+              </div>
+              <div class="row" style="gap:8px; flex-wrap:wrap; margin-top: 8px;">
+                <input class="input" id="extensions-usage-search" data-i18n-placeholder="extensions.usage.search" placeholder="Search path/kind" />
+                <select id="extensions-usage-extension"></select>
+                <select id="extensions-usage-kind"></select>
+              </div>
+              <div id="extensions-usage-table" class="table-wrap" style="margin-top: 10px;"></div>
+              <details id="extensions-usage-unknown" style="margin-top: 10px;">
+                <summary data-i18n="extensions.usage.unknown_title">Unknown samples</summary>
+                <div id="extensions-usage-unknown-list" class="subtle" style="margin-top: 6px;"></div>
+              </details>
+              <div id="extensions-usage-unused" class="subtle" style="margin-top: 10px;"></div>
+            </div>
+          </section>
+
+          <section id="tab-overrides" class="tab">
+            <div class="grid">
+              <div class="card">
+                <h3 data-i18n="h.safe_overrides">Safe Overrides</h3>
+                <div class="row">
+                  <button class="btn" id="settings-refresh">Refresh</button>
+                </div>
+                <div id="overrides-list" class="table-wrap"></div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.edit_override">Edit Override</h3>
+                <div class="subtle" id="settings-meta"></div>
+                <textarea class="input" id="settings-editor" placeholder="Select an override to edit..."></textarea>
+                <div class="row">
+                  <button class="btn accent" id="settings-save">Save Override</button>
+                  <button class="btn ghost" id="settings-clear">Clear</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-auto-loop" class="tab">
+            <div class="grid">
+              <div class="card">
+                <h3 data-i18n="h.auto_loop">Auto-loop</h3>
+                <div class="row">
+                  <button class="btn warn" data-op="auto-loop">Run auto-loop</button>
+                  <button class="btn" data-op="airrunner-run">Run airrunner (ticks=2)</button>
+                </div>
+                <pre id="auto-loop-json"></pre>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.airunner_jobs">Airrunner Jobs</h3>
+                <div id="airunner-jobs-table" class="table-wrap"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-jobs" class="tab">
+            <div class="grid">
+              <div class="card">
+                <div class="row" style="justify-content: space-between; align-items: center;">
+                  <h3 data-i18n="h.github_ops_jobs" style="margin: 0;">GitHub Ops Jobs</h3>
+                  <span class="freshness" id="github-jobs-freshness" data-status="missing" aria-label="GitHub Ops data status">
+                    <span class="dot" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="subtle">Jobs list is read-only in strict allowlist mode.</div>
+                <div class="subtle" id="smoke-fast-last">last smoke job: -</div>
+                <div id="github-jobs-table" class="table-wrap"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-locks" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.loop_lock">Loop Lock</h3>
+              <div class="row">
+                <button class="btn" id="lock-refresh">Refresh</button>
+              </div>
+              <div class="subtle" id="lock-detail"></div>
+              <div class="subtle" id="lock-leases"></div>
+              <div class="subtle" id="lock-claims"></div>
+              <div class="row" style="margin-top: 10px; align-items: flex-end;">
+                <div class="field-stack" style="min-width: 140px;">
+                  <label class="subtle">Active claims limit</label>
+                  <select class="input" id="lock-claims-limit">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
+                <button class="btn" id="lock-claims-group-owner" type="button">Group by owner: off</button>
+                <button class="btn warn" id="admin-mode-toggle" type="button" data-i18n-title="admin.title_sidebar">Admin mode: off</button>
+              </div>
+              <div class="subtle" id="lock-claims-list-meta" style="margin-top: 6px;"></div>
+              <div id="lock-claims-list" class="table-wrap"></div>
+              <pre id="lock-json"></pre>
+            </div>
+          </section>
+
+          <section id="tab-run-card" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.run_card">Run-Card</h3>
+              <div class="row">
+                <button class="btn" id="run-card-refresh">Refresh</button>
+                <button class="btn warn" id="run-card-save">Save Run-Card</button>
+              </div>
+              <div class="subtle" id="run-card-summary"></div>
+              <textarea class="input" id="run-card-editor" placeholder="Run-Card JSON"></textarea>
+              <pre id="run-card-json"></pre>
+            </div>
+          </section>
+
+          <section id="tab-search" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.search">Search</h3>
+              <div class="row" style="gap: 8px; flex-wrap: wrap;">
+                <input class="input" id="search-query" data-i18n-placeholder="search.placeholder" placeholder="Search (auto)" />
+                <select class="input" id="search-scope" data-i18n-aria-label="search.scope.label">
+                  <option value="ssot" data-i18n="search.scope.ssot">SSOT (fast)</option>
+                  <option value="repo" data-i18n="search.scope.repo">Repo</option>
+                </select>
+                <select class="input" id="search-mode" data-i18n-aria-label="search.mode.label">
+                  <option value="auto" data-i18n="search.mode.auto">Auto</option>
+                  <option value="keyword" data-i18n="search.mode.keyword">Keyword (rg)</option>
+                  <option value="semantic" data-i18n="search.mode.semantic">Semantic (pgvector)</option>
+                </select>
+                <button class="btn" id="search-run" data-i18n="search.run">Search</button>
+                <button class="btn ghost" id="search-rebuild" data-i18n="search.rebuild">Update index</button>
+              </div>
+              <div class="subtle" id="search-status"></div>
+              <div class="subtle" id="search-engine-debug"></div>
+              <div class="row" style="align-items: center; gap: 8px;">
+                <div class="subtle" id="search-index-status" style="flex: 1 1 auto;"></div>
+                <div class="spinner" id="search-index-spinner" style="display: none;" aria-hidden="true"></div>
+              </div>
+              <div class="subtle" id="search-index-eta"></div>
+              <div style="margin-top: 10px;">
+                <h4 data-i18n="search.capabilities.title">Adapter Contract</h4>
+                <div class="row" style="align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <span class="badge idle" id="search-semantic-badge" data-i18n="search.capabilities.semantic.none">SEM: -</span>
+                </div>
+                <div class="subtle" id="search-capabilities-status"></div>
+                <div class="subtle" id="search-capabilities-routing"></div>
+                <div class="subtle" id="search-capabilities-selection"></div>
+                <div class="table-wrap" id="search-capabilities-adapters"></div>
+              </div>
+              <div class="search-results" id="search-results"></div>
+            </div>
+          </section>
+
+          <section id="tab-planner-chat" class="tab">
+            <div class="card chat-shell">
+              <div class="chat-sidebar">
+                <h3 data-i18n="h.planner_threads">Planner Threads</h3>
+                <div class="row">
+                  <input class="input" id="planner-thread" placeholder="Sohbet adı (default)" />
+                  <button class="btn ghost" id="planner-thread-new">Yeni</button>
+                  <button class="btn" id="planner-thread-refresh">Refresh</button>
+                </div>
+                <div id="planner-thread-list" class="note-list"></div>
+              </div>
+              <div class="chat-main">
+                <div class="row">
+                  <div class="subtle" id="notes-count"></div>
+                  <button class="btn ghost" id="notes-refresh">Refresh</button>
+                </div>
+                <div id="chat-log" class="chat-log"></div>
+                <div class="chat-attachments">
+                  <div class="subtle" data-i18n="notes.links.header">Evidence & Attachments</div>
+                  <div id="note-links-list" class="note-links"></div>
+                  <div class="row">
+                    <select class="input" id="note-link-kind">
+                      <option value="">Tür seç</option>
+                      <option value="evidence">evidence</option>
+                      <option value="url">url</option>
+                      <option value="file">file</option>
+                    </select>
+                    <input class="input" id="note-link-id" placeholder="link / path" />
+                    <button class="btn" id="note-link-add">Ekle</button>
+                    <button class="btn ghost" id="note-link-clear">Temizle</button>
+                  </div>
+                </div>
+                <div class="chat-composer">
+                  <div class="row">
+                    <select class="input" id="chat-profile"></select>
+                    <select class="input" id="chat-provider"></select>
+                    <select class="input" id="chat-model"></select>
+                  </div>
+                  <div class="subtle" id="chat-model-verified-hint" aria-live="polite"></div>
+                  <div class="row">
+                    <input class="input" id="note-title" placeholder="Title (optional)" data-i18n-placeholder="notes.title_placeholder" />
+                    <input class="input" id="note-tags" placeholder="Tags (comma separated)" data-i18n-placeholder="notes.tags_placeholder" />
+                  </div>
+                  <textarea class="input chat-input" id="note-body" placeholder="Mesajını yaz..."></textarea>
+                  <div class="subtle" id="planner-chat-suggestions-title" data-i18n="planner_chat.suggestions.title">Önerilen adımlar</div>
+                  <div class="chat-suggestions" id="planner-chat-suggestions"></div>
+                  <div class="row">
+                    <button class="btn accent" id="note-save">Gönder</button>
+                    <button class="btn ghost" id="note-clear">Temizle</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-evidence" class="tab">
+            <div class="card">
+              <h3 data-i18n="h.evidence_browser">Evidence Browser</h3>
+              <div class="row">
+                <input class="input" id="evidence-filter" placeholder="filter path (default closeout)" />
+                <input class="input" id="evidence-search" placeholder="quick search" />
+                <button class="btn" id="evidence-refresh">Refresh</button>
+              </div>
+              <div class="split">
+                <div>
+                  <div class="evidence-tree" id="evidence-tree"></div>
+                </div>
+                <div>
+                  <div class="json-actions">
+                    <button class="btn" id="copy-evidence-path">Copy path</button>
+                    <button class="btn" id="copy-evidence-json">Copy JSON</button>
+                    <button class="btn" id="download-evidence">Download</button>
+                  </div>
+                  <pre id="evidence-viewer"></pre>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-command-composer" class="tab">
+            <div class="grid">
+              <div class="card">
+                <h3 data-i18n="h.command_composer">Command Composer</h3>
+                <div class="row">
+                  <select class="input" id="composer-op">
+                    <option value="system-status">system-status</option>
+                    <option value="ui-snapshot-bundle">ui-snapshot-bundle</option>
+                    <option value="work-intake-check">work-intake-check (strict)</option>
+                    <option value="decision-inbox-show">decision-inbox-show</option>
+                    <option value="extension-registry">extension-registry</option>
+                    <option value="extension-help">extension-help</option>
+                    <option value="doc-nav-check">doc-nav-check (strict)</option>
+                    <option value="smoke-fast-triage">smoke-fast-triage</option>
+                    <option value="smoke-full-triage">smoke-full-triage</option>
+                    <option value="auto-loop">auto-loop (budgeted)</option>
+                    <option value="airrunner-run">airrunner-run (no-wait)</option>
+                  </select>
+                  <button class="btn accent" id="composer-run" data-i18n="composer.run_confirm">Run (confirm)</button>
+                </div>
+                <textarea class="input" id="composer-args" placeholder='{"budget_seconds":"120"}'></textarea>
+                <div class="subtle" data-i18n="composer.allowlist_hint">Allowlist only. Responses are stored as system notes in the current thread.</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.last_response">Last Response</h3>
+                <div class="subtle" id="composer-meta" data-i18n="composer.no_response_yet">no response yet</div>
+                <pre id="composer-response"></pre>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+	    <div class="modal" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+	      <div class="modal-card" role="document">
+	        <h3 id="confirm-title" data-i18n="modal.confirm_title">Confirm action</h3>
+	        <p id="confirm-text" class="subtle"></p>
+	        <div class="row">
+	          <button class="btn danger" id="confirm-yes" type="button" data-i18n="modal.confirm_yes">Confirm</button>
+	          <button class="btn" id="confirm-no" type="button" data-i18n="modal.confirm_no">Cancel</button>
+	        </div>
+	      </div>
+	    </div>
+
+	    <div class="modal" id="ai-suggest-modal" role="dialog" aria-modal="true" aria-labelledby="ai-suggest-title">
+	      <div class="modal-card ai-suggest" role="document">
+	        <div class="modal-header">
+	          <div class="modal-title-wrap">
+	            <div class="modal-icon" aria-hidden="true">
+	              <svg viewBox="6 6 52 52" fill="none">
+	                <path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z" fill="currentColor"/>
+	                <path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z" fill="currentColor"/>
+	                <path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z" fill="currentColor"/>
+	                <text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif" fill="currentColor">AI</text>
+	              </svg>
+	            </div>
+	            <div>
+	              <h3 class="modal-title" id="ai-suggest-title" data-i18n="north_star.suggestions.modal_title">AI note</h3>
+	              <div class="modal-hint" id="ai-suggest-hint" data-i18n="north_star.suggestions.modal_hint">Optional context for AI suggestions.</div>
+	            </div>
+	          </div>
+	          <button class="btn ghost icon modal-close" id="ai-suggest-close" type="button" aria-label="Close">
+	            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	              <path d="M6 6l12 12"></path>
+	              <path d="M18 6l-12 12"></path>
+	            </svg>
+	          </button>
+	        </div>
+	        <div class="modal-body">
+        <div class="modal-thread" id="ai-suggest-thread"></div>
+        <div class="modal-status subtle" id="ai-suggest-status" aria-live="polite"></div>
+        <div class="modal-intent" id="ai-suggest-intent" style="display:none;"></div>
+        <div class="modal-context" id="ai-suggest-context"></div>
+        <div class="modal-thread-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <label class="subtle" for="ai-suggest-thread-select">Thread</label>
+          <select class="input" id="ai-suggest-thread-select" aria-label="AI thread"></select>
+          <button class="btn ghost small" id="ai-suggest-thread-new" type="button">Yeni</button>
+          <button class="btn ghost small" id="ai-suggest-open-chat" type="button" data-i18n="north_star.suggestions.modal_open_chat">Open chat</button>
+        </div>
+        <div class="modal-history" id="ai-suggest-history" aria-live="polite"></div>
+        <textarea class="input modal-textarea" id="ai-suggest-comment" rows="4" placeholder="Optional context" data-i18n-placeholder="north_star.suggestions.modal_placeholder"></textarea>
+	        <div class="modal-selects" id="ai-suggest-selects">
+          <label class="subtle sr-only" for="ai-suggest-profile" data-i18n="north_star.suggestions.modal_profile">Profile</label>
+          <select class="input" id="ai-suggest-profile"></select>
+          <label class="subtle sr-only" for="ai-suggest-provider" data-i18n="north_star.suggestions.modal_provider">Provider</label>
+          <select class="input" id="ai-suggest-provider"></select>
+          <label class="subtle sr-only" for="ai-suggest-model" data-i18n="north_star.suggestions.modal_model">Model</label>
+          <select class="input" id="ai-suggest-model"></select>
+          <div class="subtle" id="ai-suggest-verified-hint" style="grid-column: 1 / -1;" aria-live="polite"></div>
+	        </div>
+	        <div id="ai-suggest-merge-wrap" style="display:none;">
+	          <label class="subtle" for="ai-suggest-merge" data-i18n="north_star.suggestions.modal_merge_label">Merge target theme_id</label>
+	          <input class="input" id="ai-suggest-merge" type="text" placeholder="theme_id" />
+	        </div>
+	        </div>
+	        <div class="modal-footer">
+	          <button class="btn ghost" id="ai-suggest-cancel" type="button" data-i18n="north_star.suggestions.modal_cancel">Cancel</button>
+	          <button class="btn accent" id="ai-suggest-submit" type="button" data-i18n="north_star.suggestions.modal_submit">Submit</button>
+	        </div>
+	      </div>
+	    </div>
+
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

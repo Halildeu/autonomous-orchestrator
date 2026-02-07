@@ -1,0 +1,11 @@
+{
+  "request_id": "REQ-0900",
+  "tenant_id": "TENANT-LOCAL",
+  "intent": "urn:core:docs:policy_review",
+  "risk_score": 0.1,
+  "dry_run": true,
+  "side_effect_policy": "none",
+  "idempotency_key": "TENANT-LOCAL:REQ-0900",
+  "budget": { "max_tokens": 4000, "max_attempts": 2 },
+  "context": { "output_path": "fixtures/policy_review.md" }
+}

@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "metrics": [
+    {
+      "id": "ISO9001-2015-COVERAGE",
+      "title": "Controls coverage",
+      "target": ">=1",
+      "unit": "count",
+      "category": "coverage"
+    }
+  ]
+}

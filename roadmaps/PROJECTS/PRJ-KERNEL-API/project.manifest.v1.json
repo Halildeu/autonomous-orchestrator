@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "project_id": "PRJ-KERNEL-API",
+  "title": "Kernel API (program-led adapter)",
+  "owner": "CORE",
+  "layer_scope": "L2",
+  "purpose": "Provide a program-led API adapter and contract without changing core runtime behavior.",
+  "domain_tags": ["kernel-api", "program-led"],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "selected_pack_ids": [],
+  "target_maturity_level": 2,
+  "target_milestones": ["M10.2", "M10.3", "M10.4"],
+  "success_metrics": ["doc_nav_strict_zero", "adapter_schema_valid"],
+  "risk_category": "medium",
+  "program_led_entrypoints": ["project-status", "system-status", "doc-nav-check"],
+  "evidence_expectations": [
+    ".cache/reports/system_status.v1.json",
+    ".cache/reports/doc_graph_report.v1.json"
+  ],
+  "promotion_policy": "plan-only"
+}
