@@ -393,7 +393,7 @@ const I18N = {
     "north_star.detail.requirements": "Requirements",
     "north_star.detail.subscores": "Subscores",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "Use “Lens Findings” to browse per-item matches; Workflow Stage shows Reference/Assessment/Gap and details keep source type (Trend/BP/Lens).",
+    "north_star.detail.lens_findings_hint": "Use “Lens Findings” to browse per-item matches; Workflow Stage shows Reference/Assessment/Gap.",
     "north_star.detail.evidence_expectations": "Evidence expectations",
     "north_star.detail.remediation_ideas": "Remediation ideas",
     "job.poll_failed": "Job poll failed: {error}",
@@ -573,6 +573,16 @@ const I18N = {
     "north_star.mechanisms.transfer_blocked_detail": "Lens transfer disabled: {reasons}",
     "north_star.mechanisms.transfer_reason_not_active": "Not active",
     "north_star.mechanisms.transfer_reason_not_approved": "Not approved",
+    "north_star.mechanisms.matrix_toggle": "Show matrix",
+    "north_star.mechanisms.matrix_title": "Subtheme Matrix (Reference/Assessment/Gap)",
+    "north_star.mechanisms.matrix_meta": "criteria={count}",
+    "north_star.mechanisms.matrix_empty": "No matrix rows found for this subtheme.",
+    "north_star.mechanisms.matrix_col_criterion": "Criterion/Axis",
+    "north_star.mechanisms.matrix_open_findings": "Open in findings",
+    "north_star.mechanisms.matrix_open_title": "Apply Lens Findings filters for this stage and criterion.",
+    "north_star.mechanisms.matrix_open_disabled": "Lens transfer requires subject to be ACTIVE and approved.",
+    "north_star.mechanisms.matrix_focus_done": "Lens Findings filters updated from matrix.",
+    "north_star.mechanisms.matrix_cell_counts": "items={items} trig={triggered} not={not_triggered} unk={unknown}",
     "north_star.export_mechanisms": "Export theme catalog (Excel)",
     "north_star.suggestions.title": "AI Suggestions",
     "north_star.suggestions.seed_btn": "Seed (GPT-5.2)",
@@ -710,25 +720,24 @@ const I18N = {
     "north_star.table.theme": "Tema (Theme)",
     "north_star.table.subtheme": "Alt Tema (Subtheme)",
     "north_star.table.catalog": "Workflow Stage",
-    "north_star.table.source_type": "Source Type",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Reasons",
     "north_star.table.evidence": "Evidence",
     "north_star.join.banner": "Theme/Subtheme join missing for {miss} findings (title fallback {fallback}){reason}",
-    "north_star.catalog.reference": "Reference - Trend",
-    "north_star.catalog.capability": "Reference - Best Practice",
-    "north_star.catalog.criterion": "Assessment Check (Lens)",
     "north_star.stage.reference": "Reference",
     "north_star.stage.assessment": "Assessment",
     "north_star.stage.gap": "Gap",
-    "north_star.findings.scope_hint": "Reference / Assessment / Gap are workflow stages. The stage filter classifies each finding; details still show source type (Trend/BP/Lens).",
+    "north_star.findings.scope_hint": "Reference / Assessment / Gap are workflow stages. Use the stage filter to classify findings.",
     "north_star.workflow.title": "North Star Workflow v1",
     "north_star.workflow.subtitle": "Canonical flow: Reference -> Assessment -> Gap -> PDCA",
-    "north_star.workflow.step1": "Reference: Theme/Subtheme + Trend/BP reference set is approved (ACTIVE).",
-    "north_star.workflow.step2": "Assessment: Run raw/eval measurement against the approved reference.",
-    "north_star.workflow.step3": "Gap: Produce deterministic deviations with impact/risk/effort.",
-    "north_star.workflow.step4": "PDCA: Prioritize closure actions, recheck, and track regression.",
-    "north_star.workflow.note": "Note: Lens Findings is now filtered by workflow stage. Trend/BP/Lens remains only as source type in details.",
+    "north_star.workflow.step1": "Reference scope: Theme/Subtheme set is approved (ACTIVE).",
+    "north_star.workflow.step2": "Criteria match: bind selected subtheme to default perspective criteria set.",
+    "north_star.workflow.step3": "Reference synthesis: per criterion, collect world trends/best practices and write readable summary.",
+    "north_star.workflow.step4": "Assessment synthesis: per criterion, map current-state evidence for the same subtheme.",
+    "north_star.workflow.step5": "Gap synthesis: derive deterministic differences (reference vs current state) per criterion.",
+    "north_star.workflow.step6": "Reading mode: use Lens Findings filters (stage + subject + theme + subtheme + criterion).",
+    "north_star.workflow.step7": "PDCA: prioritize closure actions, recheck, and track regression.",
+    "north_star.workflow.note": "Note: Workflow Stage is the single primary reading axis in Lens Findings.",
     "north_star.flow2.title": "Flow 2 Status",
     "north_star.flow2.subtitle": "Assessment chain health (Assessment + Policy + Status).",
     "north_star.flow2.assessment": "Assessment",
@@ -1057,7 +1066,7 @@ const I18N = {
     "north_star.detail.requirements": "Gereksinimler",
     "north_star.detail.subscores": "Alt skorlar",
     "north_star.detail.lens_json": "Lens JSON",
-    "north_star.detail.lens_findings_hint": "“Lens Bulguları” ile bulguları incele; İş Akışı Aşaması sütunu Reference/Assessment/Gap gösterir, detayda kaynak tipi (Trend/BP/Lens) korunur.",
+    "north_star.detail.lens_findings_hint": "“Lens Bulguları” ile bulguları incele; İş Akışı Aşaması sütunu Reference/Assessment/Gap gösterir.",
     "north_star.detail.evidence_expectations": "Kanıt beklentileri",
     "north_star.detail.remediation_ideas": "İyileştirme fikirleri",
     "job.poll_failed": "İş takibi başarısız: {error}",
@@ -1234,6 +1243,16 @@ const I18N = {
     "north_star.mechanisms.transfer_blocked_detail": "Lens aktarımı devre dışı: {reasons}",
     "north_star.mechanisms.transfer_reason_not_active": "Aktif değil",
     "north_star.mechanisms.transfer_reason_not_approved": "Onaylı değil",
+    "north_star.mechanisms.matrix_toggle": "Matrisi göster",
+    "north_star.mechanisms.matrix_title": "Alt Tema Matrisi (Reference/Assessment/Gap)",
+    "north_star.mechanisms.matrix_meta": "kriter={count}",
+    "north_star.mechanisms.matrix_empty": "Bu alt tema için matrix satırı bulunamadı.",
+    "north_star.mechanisms.matrix_col_criterion": "Kriter/Eksen",
+    "north_star.mechanisms.matrix_open_findings": "Lens'te aç",
+    "north_star.mechanisms.matrix_open_title": "Bu aşama ve kriter için Lens Bulguları filtrelerini uygula.",
+    "north_star.mechanisms.matrix_open_disabled": "Lens aktarımı için konu ACTIVE ve onaylı olmalı.",
+    "north_star.mechanisms.matrix_focus_done": "Lens Bulguları filtreleri matrixten güncellendi.",
+    "north_star.mechanisms.matrix_cell_counts": "öğe={items} tetiklenen={triggered} tetiklenmeyen={not_triggered} bilinmeyen={unknown}",
     "north_star.export_mechanisms": "Tema kataloğunu dışa aktar (Excel)",
     "north_star.suggestions.title": "AI Önerileri",
     "north_star.suggestions.seed_btn": "Seed (GPT-5.2)",
@@ -1358,25 +1377,24 @@ const I18N = {
     "north_star.table.theme": "Tema (Theme)",
     "north_star.table.subtheme": "Alt Tema (Subtheme)",
     "north_star.table.catalog": "İş Akışı Aşaması",
-    "north_star.table.source_type": "Kaynak Tipi",
     "north_star.table.id": "ID",
     "north_star.table.reasons": "Gerekçeler",
     "north_star.table.evidence": "Kanıt",
     "north_star.join.banner": "Tema/Alt tema eşleşmesi {miss} bulguda yok (başlık eşleşmesi: {fallback}){reason}",
-    "north_star.catalog.reference": "Referans - Trend",
-    "north_star.catalog.capability": "Referans - En İyi Uygulama",
-    "north_star.catalog.criterion": "Assessment Kontrolü (Lens)",
     "north_star.stage.reference": "Reference",
     "north_star.stage.assessment": "Assessment",
     "north_star.stage.gap": "Gap",
-    "north_star.findings.scope_hint": "Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu workflow aşamasına göre sınıflar; detayda kaynak tipi (Trend/BP/Lens) gösterilir.",
+    "north_star.findings.scope_hint": "Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu süreç aşamasına göre sınıflar.",
     "north_star.workflow.title": "North Star Workflow v1",
     "north_star.workflow.subtitle": "Canonical akış: Reference -> Assessment -> Gap -> PDCA",
-    "north_star.workflow.step1": "Reference: Theme/Subtheme + Trend/BP referans setini onayla (ACTIVE).",
-    "north_star.workflow.step2": "Assessment: Onaylı referansa karşı raw/eval ölçümünü çalıştır.",
-    "north_star.workflow.step3": "Gap: Sapmaları deterministik olarak etki/risk/efor ile üret.",
-    "north_star.workflow.step4": "PDCA: Kapatma aksiyonlarını önceliklendir, recheck çalıştır, regresyonu izle.",
-    "north_star.workflow.note": "Not: Lens Bulguları artık süreç aşamasına göre filtrelenir. Trend/BP/Lens yalnızca detaydaki kaynak tipidir.",
+    "north_star.workflow.step1": "Reference kapsamı: Theme/Subtheme setini onayla (ACTIVE).",
+    "north_star.workflow.step2": "Kriter eşleştirme: Seçilen subtheme'i varsayılan bakış kriter setine bağla.",
+    "north_star.workflow.step3": "Reference sentezi: Her kriter için dünyadaki trend/en iyi uygulama referanslarını topla ve okunabilir özet üret.",
+    "north_star.workflow.step4": "Assessment sentezi: Aynı subtheme için her kriterde mevcut durum kanıtını haritala.",
+    "north_star.workflow.step5": "Gap sentezi: Her kriterde referans ve mevcut durum farkını deterministik çıkar.",
+    "north_star.workflow.step6": "Okuma modu: Lens Bulguları filtrelerini kullan (aşama + konu + tema + alt tema + kriter).",
+    "north_star.workflow.step7": "PDCA: Kapatma aksiyonlarını önceliklendir, recheck çalıştır, regresyonu izle.",
+    "north_star.workflow.note": "Not: Lens Bulguları'nda tek ana okuma ekseni İş Akışı Aşaması'dır.",
     "north_star.flow2.title": "2. Akış Durumu",
     "north_star.flow2.subtitle": "Assessment zinciri sağlığı (Assessment + Policy + Status).",
     "north_star.flow2.assessment": "Assessment",
@@ -1560,6 +1578,11 @@ const state = {
   northStarMechanismsSuggestions: null,
   northStarMechanismsHistory: null,
   northStarFlow2Status: null,
+  northStarMatrices: {
+    reference: null,
+    assessment: null,
+    gap: null,
+  },
   catalogDraft: null,
   catalogPromptTemplate: null,
   catalogPromptSource: "",
@@ -5200,7 +5223,27 @@ function renderNorthStarMechanisms() {
                     disabledTitle: transferBtnDisabledTitle,
                   })
                 : "";
-              return `<li>${escapeHtml(subLabel || t("north_star.unknown"))} ${subIdHtml} ${transferSubBtn} <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subtheme" data-ai-id="${escapeHtml(aiId)}" data-ai-label="${escapeHtml(subLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" data-ai-subtheme="${escapeHtml(subLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button></li>`;
+              const matrixPanel = renderNorthStarSubthemeMatrixPanel({
+                subjectId,
+                themeId,
+                themeLabel: themeFilterLabel || themeLabel || "",
+                subthemeId: subId,
+                subthemeLabel: subFilterLabel || subLabel || "",
+                transferEnabled,
+                transferDisabledTitle: transferBtnDisabledTitle,
+              });
+              return `<li>
+                <details>
+                  <summary style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <strong>${escapeHtml(subLabel || t("north_star.unknown"))}</strong>
+                    ${subIdHtml}
+                    ${transferSubBtn}
+                    <button class="btn ghost tiny ai-icon" data-ai-suggest="1" data-ai-subject="${escapeHtml(subjectId)}" data-ai-type="subtheme" data-ai-id="${escapeHtml(aiId)}" data-ai-label="${escapeHtml(subLabel || "")}" data-ai-subject-label="${escapeHtml(subjectLabel || "")}" data-ai-theme="${escapeHtml(themeLabel || "")}" data-ai-subtheme="${escapeHtml(subLabel || "")}" title="AI"><span class="ai-icon-glyph" aria-hidden="true"><svg viewBox="6 6 52 52"><path d="M26 10.2l3.9 10.8L40.7 25l-10.8 3.9L26 39.7l-3.9-10.8L11.3 25l10.8-3.9L26 10.2z"></path><path d="M44.7 33l2.2 6.5 6.8 2.2-6.8 2.2-2.2 6.5-2.2-6.5-6.5-2.2 6.5-2.2 2.2-6.5z"></path><path d="M51.5 10.2l1.6 4.8 4.8 1.6-4.8 1.6-1.6 4.8-1.6-4.8-4.8-1.6 4.8-1.6 1.6-4.8z"></path><text x="8" y="59" font-size="29" font-weight="600" font-family="Arial, sans-serif">AI</text></svg></span></button>
+                    <span class="badge">${escapeHtml(t("north_star.mechanisms.matrix_toggle"))}</span>
+                  </summary>
+                  ${matrixPanel}
+                </details>
+              </li>`;
             })
             .join("");
           const def = localizeTrEnLabel(
@@ -6165,6 +6208,28 @@ function attachNorthStarSuggestionHandlers() {
       showToast(t("north_star.mechanisms.transfer_done", { target: targetLabel || t("north_star.unknown") }), "ok");
     });
   });
+  $$("[data-matrix-focus]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      if (String(btn.dataset.matrixFocusDisabled || "") === "1" || btn.classList.contains("is-disabled")) return;
+      const subjectId = String(btn.dataset.matrixSubjectId || "").trim();
+      const themeLabel = String(btn.dataset.matrixTheme || "").trim();
+      const subthemeLabel = String(btn.dataset.matrixSubtheme || "").trim();
+      const catalog = String(btn.dataset.matrixStage || "").trim();
+      const topic = String(btn.dataset.matrixTopic || "").trim();
+      applyNorthStarMatrixFocusToFindings({
+        subjectId,
+        themeLabel,
+        subthemeLabel,
+        catalog,
+        topic,
+      });
+      showToast(t("north_star.mechanisms.matrix_focus_done"), "ok");
+    });
+  });
   $$("[data-suggest-action]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const suggestionId = btn.dataset.suggestId || "";
@@ -6867,6 +6932,7 @@ function renderNorthStarFindingsBadge(status) {
 const NORTH_STAR_SOURCE_REFERENCE_KEYS = new Set(["REFERENCE", "TREND", "TREND_CATALOG", "TREND_CATALOG_V1"]);
 const NORTH_STAR_SOURCE_BP_KEYS = new Set(["CAPABILITY", "BP", "BEST_PRACTICE", "BP_CATALOG", "BP_CATALOG_V1"]);
 const NORTH_STAR_SOURCE_ASSESSMENT_KEYS = new Set(["CRITERION", "LENS", "LENS_REQUIREMENT"]);
+const NORTH_STAR_MATRIX_STAGES = ["reference", "assessment", "gap"];
 
 function normalizeNorthStarWorkflowStage(value) {
   const norm = normalizeKey(value);
@@ -6899,12 +6965,299 @@ function formatNorthStarWorkflowStageLabel(raw) {
   return String(raw || "");
 }
 
-function formatNorthStarCatalogLabel(raw) {
-  const norm = normalizeKey(raw);
-  if (NORTH_STAR_SOURCE_REFERENCE_KEYS.has(norm)) return t("north_star.catalog.reference");
-  if (NORTH_STAR_SOURCE_BP_KEYS.has(norm)) return t("north_star.catalog.capability");
-  if (NORTH_STAR_SOURCE_ASSESSMENT_KEYS.has(norm)) return t("north_star.catalog.criterion");
-  return String(raw || "");
+function normalizeNorthStarMatrixStage(value) {
+  const stage = normalizeNorthStarWorkflowStage(value);
+  if (NORTH_STAR_MATRIX_STAGES.includes(stage)) return stage;
+  return "";
+}
+
+function getNorthStarMatrixPayload(stage) {
+  const stageKey = normalizeNorthStarMatrixStage(stage);
+  const matrices = state.northStarMatrices && typeof state.northStarMatrices === "object"
+    ? state.northStarMatrices
+    : {};
+  const payload = stageKey ? matrices[stageKey] : null;
+  return payload && typeof payload === "object" ? payload : {};
+}
+
+function getNorthStarMatrixItems(stage) {
+  const payload = getNorthStarMatrixPayload(stage);
+  return Array.isArray(payload.items) ? payload.items : [];
+}
+
+function buildNorthStarKeySet(values) {
+  const set = new Set();
+  (Array.isArray(values) ? values : [values]).forEach((value) => {
+    const key = normalizeKey(value);
+    if (key) set.add(key);
+  });
+  return set;
+}
+
+function keySetIntersects(left, right) {
+  if (!(left instanceof Set) || !(right instanceof Set)) return false;
+  for (const key of left.values()) {
+    if (right.has(key)) return true;
+  }
+  return false;
+}
+
+function northStarMatrixEntryMatchesScope(entry, scope = {}) {
+  if (!entry || typeof entry !== "object") return false;
+  const subjectId = normalizeValue(scope.subjectId || "");
+  if (subjectId && normalizeKey(entry.subject_id) !== normalizeKey(subjectId)) return false;
+
+  const themeNeed = buildNorthStarKeySet([scope.themeId, scope.themeLabel]);
+  if (themeNeed.size) {
+    const themeHave = buildNorthStarKeySet([
+      entry.theme_id,
+      entry.theme_label,
+      entry?.lens_findings_filter?.theme,
+    ]);
+    if (!keySetIntersects(themeNeed, themeHave)) return false;
+  }
+
+  const subthemeNeed = buildNorthStarKeySet([scope.subthemeId, scope.subthemeLabel]);
+  if (subthemeNeed.size) {
+    const subthemeHave = buildNorthStarKeySet([
+      entry.subtheme_id,
+      entry.subtheme_label,
+      entry?.lens_findings_filter?.subtheme,
+    ]);
+    if (!keySetIntersects(subthemeNeed, subthemeHave)) return false;
+  }
+
+  return true;
+}
+
+function toNorthStarCount(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
+function buildNorthStarSubthemeMatrixRows(scope = {}) {
+  const byCriterion = new Map();
+  NORTH_STAR_MATRIX_STAGES.forEach((stage) => {
+    const rows = getNorthStarMatrixItems(stage).filter((entry) => northStarMatrixEntryMatchesScope(entry, scope));
+    rows.forEach((entry) => {
+      const criterionId = String(entry?.criterion_id || "").trim();
+      const criterionLabel = String(entry?.criterion_label || criterionId || "").trim();
+      const criterionKey = normalizeKey(criterionId || criterionLabel || entry?.row_id || "");
+      if (!criterionKey) return;
+      if (!byCriterion.has(criterionKey)) {
+        byCriterion.set(criterionKey, {
+          criterion_id: criterionId,
+          criterion_label: criterionLabel || criterionId || t("north_star.unknown"),
+          stages: {},
+        });
+      }
+      const current = byCriterion.get(criterionKey);
+      if (!current) return;
+      if (!current.criterion_id && criterionId) current.criterion_id = criterionId;
+      if ((!current.criterion_label || current.criterion_label === t("north_star.unknown")) && criterionLabel) {
+        current.criterion_label = criterionLabel;
+      }
+      current.stages[stage] = {
+        item_count: toNorthStarCount(entry?.item_count),
+        triggered_count: toNorthStarCount(entry?.triggered_count),
+        not_triggered_count: toNorthStarCount(entry?.not_triggered_count),
+        unknown_count: toNorthStarCount(entry?.unknown_count),
+        status: String(entry?.status || "").trim().toUpperCase(),
+        summary: String(entry?.summary || "").trim(),
+        lens_filter: entry?.lens_findings_filter && typeof entry.lens_findings_filter === "object"
+          ? entry.lens_findings_filter
+          : {},
+      };
+    });
+  });
+
+  return Array.from(byCriterion.values()).sort((a, b) => {
+    const left = String(a.criterion_label || a.criterion_id || "");
+    const right = String(b.criterion_label || b.criterion_id || "");
+    return left.localeCompare(right);
+  });
+}
+
+function getNorthStarMatrixCellClass(stage, status) {
+  const normalizedStage = normalizeNorthStarMatrixStage(stage);
+  const normalizedStatus = normalizeKey(status);
+  if (normalizedStage === "gap") {
+    if (normalizedStatus === "OPEN") return "warn";
+    if (normalizedStatus === "NO_GAP") return "ok";
+    return "idle";
+  }
+  if (normalizedStatus === "HAS_DATA") return "ok";
+  if (normalizedStatus === "NO_DATA") return "idle";
+  return "warn";
+}
+
+function buildNorthStarMatrixCellFilter({ row = {}, stage = "", scope = {}, cell = {} } = {}) {
+  const lensFilter = cell?.lens_filter && typeof cell.lens_filter === "object" ? cell.lens_filter : {};
+  const catalog = normalizeNorthStarWorkflowStage(lensFilter.catalog || stage) || normalizeNorthStarMatrixStage(stage);
+  return {
+    catalog,
+    subject_id: normalizeValue(lensFilter.subject || scope.subjectId || ""),
+    theme_label: normalizeValue(lensFilter.theme || scope.themeLabel || ""),
+    subtheme_label: normalizeValue(lensFilter.subtheme || scope.subthemeLabel || ""),
+    topic: normalizeNorthStarFindingTopic(lensFilter.topic || row.criterion_id || row.criterion_label || ""),
+  };
+}
+
+function renderNorthStarMatrixCell({
+  row = {},
+  stage = "",
+  scope = {},
+  transferEnabled = false,
+  transferDisabledTitle = "",
+} = {}) {
+  const normalizedStage = normalizeNorthStarMatrixStage(stage);
+  if (!normalizedStage) return `<div class="subtle">${escapeHtml(t("empty.no_items"))}</div>`;
+  const cell = row?.stages?.[normalizedStage] || {};
+  const status = String(cell?.status || (normalizedStage === "gap" ? "NO_GAP" : "NO_DATA")).trim().toUpperCase();
+  const itemCount = toNorthStarCount(cell?.item_count);
+  const triggered = toNorthStarCount(cell?.triggered_count);
+  const notTriggered = toNorthStarCount(cell?.not_triggered_count);
+  const unknown = toNorthStarCount(cell?.unknown_count);
+  const countsText = t("north_star.mechanisms.matrix_cell_counts", {
+    items: String(itemCount),
+    triggered: String(triggered),
+    not_triggered: String(notTriggered),
+    unknown: String(unknown),
+  });
+  const filter = buildNorthStarMatrixCellFilter({ row, stage: normalizedStage, scope, cell });
+  const canFocus = Boolean(transferEnabled);
+  const title = canFocus
+    ? t("north_star.mechanisms.matrix_open_title")
+    : transferDisabledTitle || t("north_star.mechanisms.matrix_open_disabled");
+  const buttonClass = `btn ghost tiny${canFocus ? "" : " is-disabled"}`;
+  const disabledAttrs = canFocus ? "" : ` data-matrix-focus-disabled="1" aria-disabled="true"`;
+  const lockIcon = canFocus
+    ? ""
+    : '<span class="transfer-lock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 8V6a3 3 0 0 1 6 0v3H9zm3 4a2 2 0 0 1 1 3.732V19h-2v-2.268A2 2 0 0 1 12 13z"></path></svg></span>';
+  return `<div style="display:flex;flex-direction:column;gap:6px;">
+    <span class="badge ${getNorthStarMatrixCellClass(normalizedStage, status)}">${escapeHtml(status)}</span>
+    <div class="subtle">${escapeHtml(countsText)}</div>
+    <button class="${buttonClass}" type="button" data-matrix-focus="1" data-matrix-subject-id="${escapeHtml(filter.subject_id)}" data-matrix-theme="${escapeHtml(filter.theme_label)}" data-matrix-subtheme="${escapeHtml(filter.subtheme_label)}" data-matrix-stage="${escapeHtml(filter.catalog)}" data-matrix-topic="${escapeHtml(filter.topic)}" title="${escapeHtml(title)}"${disabledAttrs}>${lockIcon}${escapeHtml(t("north_star.mechanisms.matrix_open_findings"))}</button>
+  </div>`;
+}
+
+function renderNorthStarSubthemeMatrixPanel({
+  subjectId = "",
+  themeId = "",
+  themeLabel = "",
+  subthemeId = "",
+  subthemeLabel = "",
+  transferEnabled = false,
+  transferDisabledTitle = "",
+} = {}) {
+  const scope = {
+    subjectId: normalizeValue(subjectId),
+    themeId: normalizeValue(themeId),
+    themeLabel: normalizeValue(themeLabel),
+    subthemeId: normalizeValue(subthemeId),
+    subthemeLabel: normalizeValue(subthemeLabel),
+  };
+  const rows = buildNorthStarSubthemeMatrixRows(scope);
+  const title = t("north_star.mechanisms.matrix_title");
+  const meta = t("north_star.mechanisms.matrix_meta", { count: String(rows.length) });
+  if (!rows.length) {
+    return `<div class="subtle" style="margin-top:8px;">
+      <div><strong>${escapeHtml(title)}</strong> · ${escapeHtml(meta)}</div>
+      <div class="empty" style="margin-top:8px;">${escapeHtml(t("north_star.mechanisms.matrix_empty"))}</div>
+    </div>`;
+  }
+  const headerCells = [
+    t("north_star.mechanisms.matrix_col_criterion"),
+    formatNorthStarWorkflowStageLabel("reference"),
+    formatNorthStarWorkflowStageLabel("assessment"),
+    formatNorthStarWorkflowStageLabel("gap"),
+  ];
+  const headerHtml = headerCells.map((label) => `<th>${escapeHtml(label)}</th>`).join("");
+  const bodyHtml = rows
+    .map((row) => {
+      const criterionLabel = String(row?.criterion_label || row?.criterion_id || t("north_star.unknown"));
+      const criterionId = String(row?.criterion_id || "");
+      const criterionIdHint = criterionId && criterionId !== criterionLabel
+        ? `<div class="subtle">${escapeHtml(criterionId)}</div>`
+        : "";
+      return `<tr>
+        <td><strong>${escapeHtml(criterionLabel)}</strong>${criterionIdHint}</td>
+        <td>${renderNorthStarMatrixCell({
+          row,
+          stage: "reference",
+          scope,
+          transferEnabled,
+          transferDisabledTitle,
+        })}</td>
+        <td>${renderNorthStarMatrixCell({
+          row,
+          stage: "assessment",
+          scope,
+          transferEnabled,
+          transferDisabledTitle,
+        })}</td>
+        <td>${renderNorthStarMatrixCell({
+          row,
+          stage: "gap",
+          scope,
+          transferEnabled,
+          transferDisabledTitle,
+        })}</td>
+      </tr>`;
+    })
+    .join("");
+  return `<div class="subtle" style="margin-top:8px;">
+    <div><strong>${escapeHtml(title)}</strong> · ${escapeHtml(meta)}</div>
+    <div class="table-wrap" style="margin-top:8px;">
+      <table>
+        <thead><tr>${headerHtml}</tr></thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function applyNorthStarMatrixFocusToFindings({
+  subjectId = "",
+  themeLabel = "",
+  subthemeLabel = "",
+  catalog = "",
+  topic = "",
+} = {}) {
+  const normalizedSubject = normalizeValue(subjectId);
+  const normalizedTheme = normalizeValue(themeLabel);
+  const normalizedSubtheme = normalizeValue(subthemeLabel);
+  const normalizedStage = normalizeNorthStarWorkflowStage(catalog);
+  const normalizedTopic = normalizeNorthStarFindingTopic(topic);
+  applyMechanismTransferToFindings({
+    subjectId: normalizedSubject,
+    themeLabel: normalizedTheme,
+    subthemeLabel: normalizedSubtheme,
+  });
+  state.filters.northStarFindings.search = "";
+  state.filters.northStarFindings.preset = "CUSTOM";
+  state.filters.northStarFindings.perspective = [];
+  state.filters.northStarFindings.topic_locked_by_perspective = false;
+  state.filters.northStarFindings.topic = normalizedTopic ? [normalizedTopic] : [];
+  state.filters.northStarFindings.catalog = normalizedStage ? [normalizedStage] : [];
+  state.filters.northStarFindings.match = [];
+  state.northStarFindingSelected = null;
+  setNorthStarFindingsPresetKey("CUSTOM");
+
+  const searchInput = $("#ns-findings-search");
+  if (searchInput) searchInput.value = "";
+
+  ["perspective", "subject", "topic", "theme", "subtheme", "match", "catalog"].forEach((field) => {
+    const input = $(`#ns-findings-filter-${field}-input`);
+    if (input) input.value = "";
+    renderNorthStarFindingsTagSelect(field);
+  });
+  renderNorthStarFindings();
+  const findingsAnchor = $("#ns-findings-meta") || $("#ns-findings-table");
+  if (findingsAnchor && typeof findingsAnchor.scrollIntoView === "function") {
+    findingsAnchor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function pickCatalogField(item, keys) {
@@ -7388,7 +7741,6 @@ function renderNorthStarFindings() {
     const join = getNorthStarJoinForItem(item);
     const workflowStage = deriveNorthStarWorkflowStage(item);
     const workflowStageLabel = formatNorthStarWorkflowStageLabel(workflowStage);
-    const sourceLabel = formatNorthStarCatalogLabel(item?.catalog);
     return {
       ...item,
       _topic_norm: topicNorm,
@@ -7403,7 +7755,6 @@ function renderNorthStarFindings() {
       _join_fallback: join.fallback,
       _catalog_value: workflowStage,
       _catalog_label: workflowStageLabel,
-      _source_label: sourceLabel,
     };
   });
 
@@ -7438,7 +7789,6 @@ function renderNorthStarFindings() {
         item.catalog,
         item._catalog_label,
         item._catalog_value,
-        item._source_label,
         item.id,
         item.title,
         item._topic_norm,
@@ -7526,7 +7876,6 @@ function renderNorthStarFindings() {
       t("north_star.table.theme"),
       t("north_star.table.subtheme"),
       t("north_star.table.catalog"),
-      t("north_star.table.source_type"),
       t("north_star.table.id"),
       t("north_star.table.reasons"),
       t("north_star.table.evidence"),
@@ -7548,7 +7897,6 @@ function renderNorthStarFindings() {
             <td>${escapeHtml(String(item._theme_label || "—"))}</td>
             <td>${escapeHtml(String(item._subtheme_label || "—"))}</td>
             <td>${escapeHtml(String(item._catalog_label || item.catalog || ""))}</td>
-            <td>${escapeHtml(String(item._source_label || item.catalog || ""))}</td>
             <td>${escapeHtml(String(item.id || ""))}</td>
             <td>${escapeHtml(String(item._reasons_count))}</td>
             <td>${escapeHtml(String(item._evidence_count))}</td>
@@ -7608,7 +7956,6 @@ function renderNorthStarFindingsDetail() {
   const themeLabel = String(item._theme_label || "");
   const subthemeLabel = String(item._subtheme_label || "");
   const stageLabel = String(item._catalog_label || formatNorthStarWorkflowStageLabel(item._catalog_value || deriveNorthStarWorkflowStage(item)) || "");
-  const sourceLabel = String(item._source_label || formatNorthStarCatalogLabel(item.catalog || "") || "");
   const subjectLabel = String(item._subject_label || item._subject_norm || "");
 
   const evidenceButtons = evidence.length
@@ -7626,7 +7973,7 @@ function renderNorthStarFindingsDetail() {
   detailEl.innerHTML = `
     <div class="note-item">
       <div class="note-title">${escapeHtml(String(item.title || ""))}</div>
-      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | subject=${escapeHtml(subjectLabel || "—")} | topic=${escapeHtml(topic)} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | stage=${escapeHtml(stageLabel)} | source=${escapeHtml(sourceLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
+      <div class="note-meta">${renderNorthStarFindingsBadge(item.match_status)}${item.lens ? ` | lens=${escapeHtml(String(item.lens || ""))}` : ""} | subject=${escapeHtml(subjectLabel || "—")} | topic=${escapeHtml(topic)} | theme=${escapeHtml(themeLabel || "—")} | subtheme=${escapeHtml(subthemeLabel || "—")} | stage=${escapeHtml(stageLabel)} | id=${escapeHtml(String(item.id || ""))}</div>
       <div class="note-tags">${tags.slice(0, 18).map((t) => `<span class="note-tag">${escapeHtml(t)}</span>`).join("")}</div>
       ${
         summary
@@ -8977,6 +9324,11 @@ function renderNorthStar() {
   const evalData = unwrap(payload.assessment_eval || {});
 
   state.northStarCatalogIndex = buildNorthStarCatalogIndex(payload);
+  state.northStarMatrices = {
+    reference: unwrap(payload.reference_matrix || {}) || {},
+    assessment: unwrap(payload.assessment_matrix || {}) || {},
+    gap: unwrap(payload.gap_matrix || {}) || {},
+  };
   state.northStarFindingsJoinStats = null;
 
   setBadge($("#north-star-status"), status);
@@ -9078,12 +9430,6 @@ function renderNorthStar() {
   const findingsByLens = buildNorthStarFindingsByLensFromSource();
   mountNorthStarFindingsByLens(findingsByLens);
 
-  renderJson($("#north-star-eval-json"), payload.assessment_eval || {});
-  renderJson($("#north-star-trend-catalog-json"), payload.trend_catalog || {});
-  renderJson($("#north-star-bp-catalog-json"), payload.bp_catalog || {});
-  renderJson($("#north-star-catalog-json"), payload.north_star_catalog || {});
-  renderJson($("#north-star-gap-json"), payload.gap_register || {});
-  renderJson($("#north-star-scorecard-json"), payload.scorecard || {});
 }
 
 function normalizeTagList(value) {

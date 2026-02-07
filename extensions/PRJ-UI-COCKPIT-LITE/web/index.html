@@ -2358,12 +2358,15 @@
 	              <h3 data-i18n="north_star.workflow.title" style="margin: 0;">North Star Workflow v1</h3>
 	              <div class="subtle" style="margin-top: 6px;" data-i18n="north_star.workflow.subtitle">Canonical flow: Reference -> Assessment -> Gap -> PDCA</div>
 	              <ol class="subtle" style="margin: 8px 0 0 18px;">
-                <li data-i18n="north_star.workflow.step1">Reference: Theme/Subtheme + Trend/BP reference set is approved (ACTIVE).</li>
-                <li data-i18n="north_star.workflow.step2">Assessment: Run raw/eval measurement against the approved reference.</li>
-                <li data-i18n="north_star.workflow.step3">Gap: Produce deterministic deviations with impact/risk/effort.</li>
-                <li data-i18n="north_star.workflow.step4">PDCA: Prioritize closure actions, recheck, and track regression.</li>
+                <li data-i18n="north_star.workflow.step1">Reference scope: Theme/Subtheme set is approved (ACTIVE).</li>
+                <li data-i18n="north_star.workflow.step2">Criteria match: bind selected subtheme to default perspective criteria set.</li>
+                <li data-i18n="north_star.workflow.step3">Reference synthesis: per criterion, collect world trends/best practices and write readable summary.</li>
+                <li data-i18n="north_star.workflow.step4">Assessment synthesis: per criterion, map current-state evidence for the same subtheme.</li>
+                <li data-i18n="north_star.workflow.step5">Gap synthesis: derive deterministic differences (reference vs current state) per criterion.</li>
+                <li data-i18n="north_star.workflow.step6">Reading mode: use Lens Findings filters (stage + subject + theme + subtheme + criterion).</li>
+                <li data-i18n="north_star.workflow.step7">PDCA: prioritize closure actions, recheck, and track regression.</li>
 	              </ol>
-	              <div class="subtle" style="margin-top: 8px;" data-i18n="north_star.workflow.note">Note: In Lens Findings, Trend/BP/Lens means source type, not workflow stage.</div>
+	              <div class="subtle" style="margin-top: 8px;" data-i18n="north_star.workflow.note">Note: Workflow Stage is the single primary reading axis in Lens Findings.</div>
 	            </div>
 	            <div class="card">
 	              <div class="row" style="justify-content: space-between; align-items: center;">
@@ -2438,7 +2441,7 @@
 			            <div class="card">
 				              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
 				              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>
-				              <div class="subtle" data-i18n="north_star.findings.scope_hint">Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu workflow aşamasına göre sınıflar; detayda kaynak tipi (Trend/BP/Lens) gösterilir.</div>
+				              <div class="subtle" data-i18n="north_star.findings.scope_hint">Referans / Assessment / Gap süreç aşamalarıdır. Aşağıdaki aşama filtresi bulguyu süreç aşamasına göre sınıflar.</div>
 				              <div class="subtle" id="ns-findings-transfer-scopes">Aktif kapsamlar: -</div>
 				              <div class="row" style="margin-top: 10px;">
 			                <input class="input" id="ns-findings-search" placeholder="Bulgu ara (id/başlık/kriter/etiket/gerekçe)" data-i18n-placeholder="north_star.findings.search_placeholder" aria-label="Bulgu ara" />
@@ -2525,33 +2528,6 @@
 	              <div class="status-banner warn" id="ns-findings-join-banner" style="display:none; margin-top: 8px;"></div>
 	              <div id="ns-findings-table" style="margin-top: 10px;"></div>
 	              <div id="ns-findings-detail" style="margin-top: 10px;"></div>
-	            </div>
-	            <div class="card">
-	              <h3 data-i18n="h.raw_json">Raw JSON</h3>
-	              <details>
-	                <summary class="subtle">assessment_eval</summary>
-	                <pre id="north-star-eval-json"></pre>
-	              </details>
-	              <details>
-	                <summary class="subtle">trend_catalog</summary>
-	                <pre id="north-star-trend-catalog-json"></pre>
-	              </details>
-	              <details>
-	                <summary class="subtle">bp_catalog</summary>
-	                <pre id="north-star-bp-catalog-json"></pre>
-	              </details>
-	              <details>
-	                <summary class="subtle">north_star_catalog</summary>
-	                <pre id="north-star-catalog-json"></pre>
-	              </details>
-	              <details>
-	                <summary class="subtle">gap_register</summary>
-	                <pre id="north-star-gap-json"></pre>
-	              </details>
-	              <details>
-	                <summary class="subtle">scorecard</summary>
-	                <pre id="north-star-scorecard-json"></pre>
-	              </details>
 	            </div>
 	          </section>
 

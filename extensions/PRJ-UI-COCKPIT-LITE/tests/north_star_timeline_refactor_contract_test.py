@@ -66,6 +66,12 @@ def main() -> None:
             _must(tl_code == 200, "timeline endpoint must return 200")
             _must(isinstance(ns_payload.get("summary"), dict), "north_star summary missing")
             _must(isinstance(ns_payload.get("runner_meta"), dict), "north_star runner_meta missing")
+            for matrix_key in ("reference_matrix", "assessment_matrix", "gap_matrix"):
+                matrix_payload = ns_payload.get(matrix_key)
+                _must(isinstance(matrix_payload, dict), f"{matrix_key} payload missing")
+                _must("exists" in matrix_payload, f"{matrix_key}.exists missing")
+                _must("json_valid" in matrix_payload, f"{matrix_key}.json_valid missing")
+                _must("data" in matrix_payload, f"{matrix_key}.data missing")
             _must(str(tl_payload.get("status") or "") == "OK", "timeline status must be OK")
             _must(isinstance(tl_payload.get("dashboard"), dict), "timeline dashboard missing")
         finally:

@@ -519,7 +519,7 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
                         coverage_val = lens.get("coverage")
                         if isinstance(coverage_val, (int, float)):
                             lens_coverages[lens_id] = float(coverage_val)
-            else:
+            elif not (isinstance(eval_obj, dict) and isinstance(eval_obj.get("assessment"), dict)):
                 notes.append("missing_eval_lenses")
     if not integrity_path.exists():
         status = "WARN" if status != "FAIL" else status

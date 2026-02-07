@@ -25,6 +25,7 @@ from src.benchmark.docs_drift_utils import (
 from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import build_gap_register, build_gap_summary_md
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
+from src.benchmark.north_star_matrix_builder import build_north_star_stage_matrices
 from src.benchmark.assessment_runner_runtime import (
     _draft_gap_chgs,
     _pick_first_existing,
@@ -537,6 +538,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         out_bp_catalog = _resolve_output_path(workspace_root, ".cache/index/bp_catalog.v1.json")
         out_trend_catalog = _resolve_output_path(workspace_root, ".cache/index/trend_catalog.v1.json")
         out_assessment_eval = _resolve_output_path(workspace_root, ".cache/index/assessment_eval.v1.json")
+        out_reference_matrix = _resolve_output_path(workspace_root, ".cache/index/reference_matrix.v1.json")
+        out_assessment_matrix = _resolve_output_path(workspace_root, ".cache/index/assessment_matrix.v1.json")
+        out_gap_matrix = _resolve_output_path(workspace_root, ".cache/index/gap_matrix.v1.json")
         out_integrity_json = _resolve_output_path(workspace_root, ".cache/reports/integrity_verify.v1.json")
         out_integrity_md = _resolve_output_path(workspace_root, ".cache/reports/integrity_verify.v1.md")
     except Exception as e:
@@ -635,6 +639,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             and out_gap_register.exists()
             and out_assessment_raw.exists()
             and out_assessment_eval.exists()
+            and out_reference_matrix.exists()
+            and out_assessment_matrix.exists()
+            and out_gap_matrix.exists()
             and out_integrity_json.exists()
         ):
             raw_status = _load_assessment_raw_integrity_status(out_assessment_raw)
@@ -796,6 +803,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 str(out_assessment_raw),
                 str(out_cursor),
                 str(out_assessment_eval),
+                str(out_reference_matrix),
+                str(out_assessment_matrix),
+                str(out_gap_matrix),
                 str(out_bp_catalog),
                 str(out_trend_catalog),
                 str(out_integrity_json),
@@ -817,6 +827,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         out_gap_md,
         out_assessment_raw,
         out_assessment_eval,
+        out_reference_matrix,
+        out_assessment_matrix,
+        out_gap_matrix,
         out_bp_catalog,
         out_trend_catalog,
         out_integrity_json,
@@ -855,35 +868,6 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         evidence_pointers.append(str(Path(".cache") / "index" / "assessment_eval.v1.json"))
     evidence_pointers = sorted(set(evidence_pointers))
 
-    lens_signals: list[dict[str, Any]] = []
-    if out_assessment_eval.exists():
-        try:
-            eval_obj = _load_json(out_assessment_eval)
-        except Exception:
-            eval_obj = {}
-        lenses = eval_obj.get("lenses") if isinstance(eval_obj, dict) else None
-        if isinstance(lenses, dict):
-            for lens_id, lens in lenses.items():
-                if not isinstance(lens_id, str) or not lens_id:
-                    continue
-                if not isinstance(lens, dict):
-                    continue
-                status = lens.get("status")
-                if isinstance(status, str) and status:
-                    reasons = lens.get("reasons") if isinstance(lens, dict) else None
-                    reasons_list = (
-                        [str(r) for r in reasons if isinstance(r, str) and r.strip()] if isinstance(reasons, list) else []
-                    )
-                    lens_signals.append(
-                        {
-                            "lens_id": lens_id,
-                            "status": status,
-                            "score": lens.get("score"),
-                            "reasons": reasons_list,
-                        }
-                    )
-            lens_signals.sort(key=lambda item: str(item.get("lens_id") or ""))
-
     report_only = eval_report_only or integrity_result == "FAIL"
     previous_gap_register = None
     previous_gap_path = workspace_root / ".cache" / "index" / "gap_register.v1.json"
@@ -895,7 +879,6 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     gap_register = build_gap_register(
         controls=controls_for_gaps,
         metrics=metrics,
-        lens_signals=lens_signals,
         integrity_snapshot_ref=integrity_ref,
         source_eval_hash=source_eval_hash,
         source_raw_hash=source_raw_hash,
@@ -916,6 +899,24 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
 
     out_gap_register.write_text(json.dumps(gap_register, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     out_gap_md.write_text(gap_summary_md, encoding="utf-8")
+
+    stage_matrices = build_north_star_stage_matrices(workspace_root=workspace_root, core_root=core_root)
+    reference_matrix = stage_matrices.get("reference") if isinstance(stage_matrices, dict) else {}
+    assessment_matrix = stage_matrices.get("assessment") if isinstance(stage_matrices, dict) else {}
+    gap_matrix = stage_matrices.get("gap") if isinstance(stage_matrices, dict) else {}
+
+    out_reference_matrix.write_text(
+        json.dumps(reference_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    out_assessment_matrix.write_text(
+        json.dumps(assessment_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    out_gap_matrix.write_text(
+        json.dumps(gap_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     outputs_sha = _hash_bytes(json.dumps(assessment, sort_keys=True).encode("utf-8"))
     cursor = {

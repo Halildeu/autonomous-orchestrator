@@ -1,66 +1,14 @@
 {
   "version": "v1",
-  "eval_lenses_enabled": [
-    "trend",
-    "integrity_compat",
-    "integration_coherence",
-    "ai_ops_fit",
-    "github_ops_release",
-    "operability"
+  "mode": "lensless",
+  "workflow_axes": [
+    "reference",
+    "assessment",
+    "gap"
   ],
-  "trend_best_practice": {
-    "min_coverage_ok": 0.5,
-    "min_coverage_warn": 0.2
-  },
-  "integrity_compat": {
-    "min_score_ok": 1.0,
-    "min_score_warn": 0.5
-  },
-  "integration_coherence": {
-    "weight": 0.2,
-    "required_signals": [
-      "layer_boundary_report",
-      "pack_validation_report",
-      "core_unlock_compliance",
-      "schema_validation_summary"
-    ]
-  },
-  "ai_ops_fit": {
-    "required_fields": [
-      "context_pack_present",
-      "provider_policy_pinned",
-      "secrets_redacted"
-    ],
-    "min_score_ok": 1.0,
-    "min_score_warn": 0.5
-  },
-  "github_ops_release": {
-    "required_fields": [
-      "github_ops_policy_present",
-      "github_ops_network_default_off",
-      "release_policy_present",
-      "github_jobs_index_present",
-      "release_manifest_present"
-    ],
-    "min_score_ok": 1.0,
-    "min_score_warn": 0.5
-  },
-  "operability": {
-    "required_fields": [
-      "script_budget_present",
-      "doc_nav_present",
-      "airunner_jobs_present",
-      "pdca_cursor_present",
-      "heartbeat_present",
-      "work_intake_present",
-      "integrity_present"
-    ],
-    "min_score_ok": 1.0,
-    "min_score_warn": 0.5,
-    "weights": {
-      "simplicity": 0.34,
-      "sustainability": 0.33,
-      "continuity": 0.33
-    }
-  }
+  "notes": [
+    "North Star eval lens mekanizmasi devre disi.",
+    "Assessment ciktisi lens alanı uretmez.",
+    "Gap uretimi lens kaynakli id uretmez."
+  ]
 }

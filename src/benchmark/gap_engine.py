@@ -169,22 +169,6 @@ def build_gap_register(
         if report_only:
             gap["report_only"] = True
         gaps.append(gap)
-    if lens_signals:
-        for lens in sorted(
-            [l for l in lens_signals if isinstance(l, dict)],
-            key=lambda l: str(l.get("lens_id") or l.get("id") or ""),
-        ):
-            reasons = lens.get("reasons") if isinstance(lens.get("reasons"), list) else []
-            reason_list = [str(r) for r in reasons if isinstance(r, str) and r.strip()]
-            if reason_list:
-                for reason in sorted(set(reason_list)):
-                    gap = _lens_gap(lens, reason=reason)
-                    if gap is not None:
-                        gaps.append(gap)
-                continue
-            gap = _lens_gap(lens)
-            if gap is not None:
-                gaps.append(gap)
     return {
         "version": "v1",
         "generated_at": _now_iso(),

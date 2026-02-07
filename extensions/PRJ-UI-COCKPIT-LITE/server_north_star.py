@@ -18,6 +18,9 @@ def build_north_star_payload(
     trend_catalog_path = ws_root / ".cache" / "index" / "trend_catalog.v1.json"
     bp_catalog_path = ws_root / ".cache" / "index" / "bp_catalog.v1.json"
     north_star_catalog_path = ws_root / ".cache" / "index" / "north_star_catalog.v1.json"
+    reference_matrix_path = ws_root / ".cache" / "index" / "reference_matrix.v1.json"
+    assessment_matrix_path = ws_root / ".cache" / "index" / "assessment_matrix.v1.json"
+    gap_matrix_path = ws_root / ".cache" / "index" / "gap_matrix.v1.json"
     scorecard_path = ws_root / ".cache" / "reports" / "benchmark_scorecard.v1.json"
     eval_payload = wrap_file(eval_path)
     raw_payload = wrap_file(raw_path)
@@ -25,6 +28,9 @@ def build_north_star_payload(
     trend_catalog_payload = wrap_file(trend_catalog_path)
     bp_catalog_payload = wrap_file(bp_catalog_path)
     north_star_catalog_payload = wrap_file(north_star_catalog_path)
+    reference_matrix_payload = wrap_file(reference_matrix_path)
+    assessment_matrix_payload = wrap_file(assessment_matrix_path)
+    gap_matrix_payload = wrap_file(gap_matrix_path)
     scorecard_payload = wrap_file(scorecard_path)
 
     eval_data = eval_payload.get("data") if isinstance(eval_payload, dict) else {}
@@ -210,6 +216,9 @@ def build_north_star_payload(
         "trend_catalog": trend_catalog_payload,
         "bp_catalog": bp_catalog_payload,
         "north_star_catalog": north_star_catalog_payload,
+        "reference_matrix": reference_matrix_payload,
+        "assessment_matrix": assessment_matrix_payload,
+        "gap_matrix": gap_matrix_payload,
         "gap_register": {
             "path": gap_payload.get("path"),
             "exists": gap_payload.get("exists"),

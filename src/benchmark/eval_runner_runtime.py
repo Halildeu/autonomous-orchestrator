@@ -25,57 +25,8 @@ from src.benchmark.eval_runner import (
 def _load_policy_north_star_eval_lenses(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
     defaults = {
         "version": "v1",
-        "eval_lenses_enabled": [
-            "trend",
-            "integrity_compat",
-            "integration_coherence",
-            "ai_ops_fit",
-            "github_ops_release",
-            "operability",
-        ],
-        "trend_best_practice": {"min_coverage_ok": 0.5, "min_coverage_warn": 0.2},
-        "integrity_compat": {"min_score_ok": 1.0, "min_score_warn": 0.5},
-        "integration_coherence": {
-            "weight": 0.2,
-            "required_signals": [
-                "layer_boundary_report",
-                "pack_validation_report",
-                "core_unlock_compliance",
-                "schema_validation_summary",
-            ],
-        },
-        "ai_ops_fit": {
-            "required_fields": ["context_pack_present", "provider_policy_pinned", "secrets_redacted"],
-            "min_score_ok": 1.0,
-            "min_score_warn": 0.5,
-        },
-        "github_ops_release": {
-            "required_fields": [
-                "github_ops_policy_present",
-                "github_ops_network_default_off",
-                "release_policy_present",
-                "github_jobs_index_present",
-                "release_manifest_present",
-            ],
-            "min_score_ok": 1.0,
-            "min_score_warn": 0.5,
-        },
-        "operability": {
-            "required_fields": [
-                "script_budget_present",
-                "doc_nav_present",
-                "docs_hygiene_present",
-                "docs_drift_present",
-                "airunner_jobs_present",
-                "pdca_cursor_present",
-                "heartbeat_present",
-                "work_intake_present",
-                "integrity_present",
-            ],
-            "min_score_ok": 1.0,
-            "min_score_warn": 0.5,
-            "weights": {"simplicity": 0.34, "sustainability": 0.33, "continuity": 0.33},
-        },
+        "mode": "lensless",
+        "workflow_axes": ["reference", "assessment", "gap"],
     }
     ws_policy = workspace_root / "policies" / "policy_north_star_eval_lenses.v1.json"
     core_policy = core_root / "policies" / "policy_north_star_eval_lenses.v1.json"
@@ -317,6 +268,63 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     coverage = 0.0 if total <= 0 else min(1.0, float(bp_items + trend_items) / float(total))
 
     lenses_policy = _load_policy_north_star_eval_lenses(core_root=core_root, workspace_root=workspace_root)
+    eval_mode = str(lenses_policy.get("mode") or "").strip().lower()
+    if eval_mode == "lensless":
+        workflow_axes_raw = (
+            lenses_policy.get("workflow_axes") if isinstance(lenses_policy.get("workflow_axes"), list) else []
+        )
+        workflow_axes = [str(x).strip().lower() for x in workflow_axes_raw if isinstance(x, str) and str(x).strip()]
+        if not workflow_axes:
+            workflow_axes = ["reference", "assessment", "gap"]
+
+        integrity_state = str(integrity_status or "UNKNOWN").strip().upper()
+        if integrity_state not in {"PASS", "WARN", "FAIL"}:
+            integrity_state = "UNKNOWN"
+
+        assessment_payload = {
+            "workflow_axes": workflow_axes,
+            "integrity_status": integrity_state,
+            "raw_present": bool(raw_path.exists()),
+            "reference_catalog_items": int(bp_items + trend_items),
+            "notes": sorted(set(notes)),
+        }
+
+        payload = {
+            "version": "v1",
+            "generated_at": _now_iso(),
+            "workspace_root": str(workspace_root),
+            "status": status,
+            "report_only": bool(report_only),
+            "integrity_snapshot_ref": str(integrity_snapshot_ref),
+            "raw_ref": str(raw_ref),
+            "bp_catalog_ref": str(Path(".cache") / "index" / "bp_catalog.v1.json"),
+            "trend_catalog_ref": str(Path(".cache") / "index" / "trend_catalog.v1.json"),
+            "scores": {"maturity_avg": round(maturity_avg, 4), "coverage": round(coverage, 4)},
+            "inputs": {"controls": controls, "metrics": metrics, "bp_items": bp_items, "trend_items": trend_items},
+            "assessment": assessment_payload,
+            "notes": sorted(set(notes)),
+        }
+
+        schema_path = core_root / "schemas" / "assessment-eval.schema.v1.json"
+        if schema_path.exists():
+            schema = _load_json(schema_path)
+            Draft202012Validator(schema).validate(payload)
+
+        if dry_run:
+            return {
+                "status": "WOULD_WRITE",
+                "out": str(eval_path),
+                "report_only": report_only,
+            }
+
+        eval_path.parent.mkdir(parents=True, exist_ok=True)
+        eval_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        return {
+            "status": "OK",
+            "out": str(eval_path),
+            "report_only": report_only,
+        }
+
     trend_policy = lenses_policy.get("trend_best_practice") if isinstance(lenses_policy.get("trend_best_practice"), dict) else {}
     integrity_policy = lenses_policy.get("integrity_compat") if isinstance(lenses_policy.get("integrity_compat"), dict) else {}
     ai_ops_policy = lenses_policy.get("ai_ops_fit") if isinstance(lenses_policy.get("ai_ops_fit"), dict) else {}

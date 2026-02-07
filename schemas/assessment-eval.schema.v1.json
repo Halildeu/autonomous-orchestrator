@@ -1,62 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/assessment-eval.schema.v1.json",
-  "title": "Assessment Eval",
+  "title": "Assessment Eval (Lensless)",
   "type": "object",
-  "$defs": {
-    "findings": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["version", "summary", "items"],
-      "properties": {
-        "version": { "type": "string", "enum": ["v1"] },
-        "summary": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["total", "triggered", "not_triggered", "unknown"],
-          "properties": {
-            "total": { "type": "integer", "minimum": 0 },
-            "triggered": { "type": "integer", "minimum": 0 },
-            "not_triggered": { "type": "integer", "minimum": 0 },
-            "unknown": { "type": "integer", "minimum": 0 }
-          }
-        },
-        "items": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/findings_item" }
-        }
-      }
-    },
-    "findings_item": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "catalog",
-        "id",
-        "title",
-        "tags",
-        "domains",
-        "topic",
-        "match_status",
-        "reasons",
-        "evidence_pointers"
-      ],
-      "properties": {
-        "catalog": { "type": "string", "enum": ["trend", "bp", "lens"] },
-        "id": { "type": "string", "minLength": 1 },
-        "title": { "type": "string", "minLength": 1 },
-        "summary": { "type": "string" },
-        "evidence_expectations": { "type": "array", "items": { "type": "string" } },
-        "remediation": { "type": "array", "items": { "type": "string" } },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "domains": { "type": "array", "items": { "type": "string" } },
-        "topic": { "type": "string" },
-        "match_status": { "type": "string", "enum": ["TRIGGERED", "NOT_TRIGGERED", "UNKNOWN"] },
-        "reasons": { "type": "array", "items": { "type": "string" } },
-        "evidence_pointers": { "type": "array", "items": { "type": "string" } }
-      }
-    }
-  },
   "additionalProperties": false,
   "required": [
     "version",
@@ -70,163 +16,149 @@
     "trend_catalog_ref",
     "scores",
     "inputs",
+    "assessment",
     "notes"
   ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "generated_at": { "type": "string", "format": "date-time" },
-    "workspace_root": { "type": "string", "minLength": 1 },
-    "status": { "type": "string", "enum": ["OK", "WARN", "SKIPPED"] },
-    "report_only": { "type": "boolean" },
-    "integrity_snapshot_ref": { "type": "string", "minLength": 1 },
-    "raw_ref": { "type": "string", "minLength": 1 },
-    "bp_catalog_ref": { "type": "string" },
-    "trend_catalog_ref": { "type": "string" },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspace_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "WARN",
+        "SKIPPED"
+      ]
+    },
+    "report_only": {
+      "type": "boolean"
+    },
+    "integrity_snapshot_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "raw_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bp_catalog_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trend_catalog_ref": {
+      "type": "string",
+      "minLength": 1
+    },
     "scores": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["maturity_avg", "coverage"],
+      "required": [
+        "maturity_avg",
+        "coverage"
+      ],
       "properties": {
-        "maturity_avg": { "type": "number", "minimum": 0, "maximum": 1 },
-        "coverage": { "type": "number", "minimum": 0, "maximum": 1 }
+        "maturity_avg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
     "inputs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["controls", "metrics", "bp_items", "trend_items"],
+      "required": [
+        "controls",
+        "metrics",
+        "bp_items",
+        "trend_items"
+      ],
       "properties": {
-        "controls": { "type": "integer", "minimum": 0 },
-        "metrics": { "type": "integer", "minimum": 0 },
-        "bp_items": { "type": "integer", "minimum": 0 },
-        "trend_items": { "type": "integer", "minimum": 0 }
+        "controls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "metrics": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bp_items": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trend_items": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
-    "lenses": {
+    "assessment": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "trend_best_practice",
-        "integrity_compat",
-        "integration_coherence",
-        "ai_ops_fit",
-        "github_ops_release",
-        "operability"
+        "workflow_axes",
+        "integrity_status",
+        "raw_present",
+        "reference_catalog_items"
       ],
       "properties": {
-        "trend_best_practice": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status", "score", "coverage", "notes"],
-          "properties": {
-            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "score": { "type": "number", "minimum": 0, "maximum": 1 },
-            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "notes": { "type": "array", "items": { "type": "string" } },
-            "findings": { "$ref": "#/$defs/findings" }
+        "workflow_axes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "reference",
+              "assessment",
+              "gap"
+            ]
           }
         },
-        "integrity_compat": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status", "score", "integrity_status", "notes"],
-          "properties": {
-            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "score": { "type": "number", "minimum": 0, "maximum": 1 },
-            "integrity_status": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
-            "notes": { "type": "array", "items": { "type": "string" } }
-          }
+        "integrity_status": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "WARN",
+            "FAIL",
+            "UNKNOWN"
+          ]
         },
-        "integration_coherence": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status", "score", "classification", "reasons"],
-          "properties": {
-            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "score": { "type": "number", "minimum": 0, "maximum": 1 },
-            "classification": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "subscores": { "type": "object" },
-            "reasons": { "type": "array", "items": { "type": "string" } },
-            "findings": { "$ref": "#/$defs/findings" }
-          }
+        "raw_present": {
+          "type": "boolean"
         },
-        "ai_ops_fit": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status", "score", "requirements", "notes"],
-          "properties": {
-            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "score": { "type": "number", "minimum": 0, "maximum": 1 },
-            "requirements": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["context_pack_present", "provider_policy_pinned", "secrets_redacted"],
-              "properties": {
-                "context_pack_present": { "type": "boolean" },
-                "provider_policy_pinned": { "type": "boolean" },
-                "secrets_redacted": { "type": "boolean" }
-              }
-            },
-            "notes": { "type": "array", "items": { "type": "string" } },
-            "findings": { "$ref": "#/$defs/findings" }
-          }
+        "reference_catalog_items": {
+          "type": "integer",
+          "minimum": 0
         },
-        "github_ops_release": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status", "score", "coverage", "requirements", "notes"],
-          "properties": {
-            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "score": { "type": "number", "minimum": 0, "maximum": 1 },
-            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "requirements": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "github_ops_policy_present",
-                "github_ops_network_default_off",
-                "release_policy_present",
-                "github_jobs_index_present",
-                "release_manifest_present"
-              ],
-              "properties": {
-                "github_ops_policy_present": { "type": "boolean" },
-                "github_ops_network_default_off": { "type": "boolean" },
-                "release_policy_present": { "type": "boolean" },
-                "github_jobs_index_present": { "type": "boolean" },
-                "release_manifest_present": { "type": "boolean" }
-              }
-            },
-            "notes": { "type": "array", "items": { "type": "string" } },
-            "findings": { "$ref": "#/$defs/findings" }
-          }
-        },
-        "operability": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status", "score", "classification", "coverage", "subscores", "reasons"],
-          "properties": {
-            "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "score": { "type": "number", "minimum": 0, "maximum": 1 },
-            "classification": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "subscores": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["simplicity", "sustainability", "continuity"],
-              "properties": {
-                "simplicity": { "type": "number", "minimum": 0, "maximum": 1 },
-                "sustainability": { "type": "number", "minimum": 0, "maximum": 1 },
-                "continuity": { "type": "number", "minimum": 0, "maximum": 1 }
-              }
-            },
-            "reasons": { "type": "array", "items": { "type": "string" } },
-            "findings": { "$ref": "#/$defs/findings" }
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }
     },
-    "notes": { "type": "array", "items": { "type": "string" } }
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   }
 }

@@ -570,63 +570,23 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
         notes.append("gap_register_empty")
         return []
     sources: list[dict[str, Any]] = []
-    core_root = _find_repo_root(Path(__file__).resolve())
-    integration_policy = _load_integration_coherence_policy(core_root=core_root, workspace_root=workspace_root)
-    integration_gap_rules = (
-        integration_policy.get("gap_rules") if isinstance(integration_policy.get("gap_rules"), dict) else {}
-    )
     for gap in sorted([g for g in gaps if isinstance(g, dict)], key=lambda g: str(g.get("id") or "")):
         gap_id = gap.get("id") if isinstance(gap.get("id"), str) else ""
         if not gap_id:
             continue
         control_id = gap.get("control_id") if isinstance(gap.get("control_id"), str) else ""
         metric_id = gap.get("metric_id") if isinstance(gap.get("metric_id"), str) else ""
-        lens_id = ""
-        lens_reason = ""
-        if metric_id.startswith("eval_lens:"):
-            parts = metric_id.split(":", 2)
-            if len(parts) >= 2:
-                lens_id = parts[1]
-            if len(parts) == 3:
-                lens_reason = parts[2]
-        elif gap_id.startswith("GAP-EVAL-LENS-"):
-            suffix = gap_id.replace("GAP-EVAL-LENS-", "", 1)
-            if "-" in suffix:
-                lens_id, lens_reason = suffix.split("-", 1)
-                lens_id = lens_id.lower()
-                lens_reason = lens_reason.lower()
-            else:
-                lens_id = suffix.lower()
         effort = gap.get("effort") if isinstance(gap.get("effort"), str) else "medium"
         risk = gap.get("risk_class") if isinstance(gap.get("risk_class"), str) else "medium"
         severity_band = gap.get("severity") if isinstance(gap.get("severity"), str) else "medium"
         severity_level = _severity_level_from_band(severity_band)
         override_bucket = ""
         override_tags: list[str] = []
-        if lens_id == "operability":
-            if lens_reason in {"operability_docs_ops_md_count_gt", "operability_docs_ops_md_bytes_gt"}:
-                override_bucket = "TICKET"
-            elif lens_reason == "operability_repo_md_total_count_gt":
-                override_bucket = "PROJECT"
-            elif lens_reason == "operability_docs_unmapped_md_gt":
-                override_bucket = "PROJECT" if severity_band == "high" else "TICKET"
-        if lens_id == "integration_coherence":
-            rule = integration_gap_rules.get(lens_reason) if isinstance(lens_reason, str) else ""
-            bucket, tags = _parse_gap_rule(rule)
-            if bucket:
-                override_bucket = bucket
-                override_tags = tags
-            elif severity_band == "high":
-                override_bucket = "INCIDENT"
-            else:
-                override_bucket = "PROJECT" if lens_reason == "pack_conflicts_warn" else "TICKET"
         title = f"Gap: {gap_id}"
         if control_id:
             title = f"Control gap: {control_id}"
         elif metric_id:
             title = f"Metric gap: {metric_id}"
-        if lens_id:
-            title = f"Lens gap: {lens_id}"
         evidence = [str(Path(".cache") / "index" / "gap_register.v1.json")]
         extra = gap.get("evidence_pointers") if isinstance(gap.get("evidence_pointers"), list) else []
         for p in extra:
@@ -634,14 +594,12 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
                 evidence.append(p)
         sources.append(
             {
-                "source_type": "LENS_GAP" if lens_id else "GAP",
+                "source_type": "GAP",
                 "source_ref": gap_id,
                 "title": title,
                 "effort": effort,
                 "risk": risk,
                 "severity_level": severity_level,
-                "lens_id": lens_id,
-                "lens_reason": lens_reason,
                 "override_bucket": override_bucket,
                 "override_tags": override_tags,
                 "evidence_paths": evidence,
