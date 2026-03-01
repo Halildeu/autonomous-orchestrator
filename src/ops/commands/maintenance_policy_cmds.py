@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from contextlib import redirect_stderr, redirect_stdout
@@ -11,10 +12,72 @@ from pathlib import Path
 from src.ops.commands.common import repo_root, run_step, warn
 from src.ops.reaper import (
     compute_reaper_report,
+    list_critical_cache_files,
     parse_bool as parse_reaper_bool,
     parse_iso8601 as parse_reaper_iso,
     write_report as write_reaper_report,
 )
+
+
+def _rel_path(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except Exception:
+        return path.as_posix()
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _snapshot_critical_files(*, root: Path, files: list[Path]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for fp in sorted(files, key=lambda p: _rel_path(root, p)):
+        rel = _rel_path(root, fp)
+        row: dict[str, object] = {"path": rel, "exists": bool(fp.exists())}
+        if fp.exists():
+            row["bytes"] = int(fp.stat().st_size)
+            row["sha256"] = _sha256_file(fp)
+        rows.append(row)
+    return rows
+
+
+def _validate_critical_snapshot(*, root: Path, pre_rows: list[dict[str, object]]) -> dict[str, object]:
+    missing_paths: list[str] = []
+    changed_paths: list[str] = []
+    checked = 0
+    for row in pre_rows:
+        if not isinstance(row, dict):
+            continue
+        rel = str(row.get("path") or "").strip()
+        if not rel:
+            continue
+        if row.get("exists") is not True:
+            continue
+        checked += 1
+        current = (root / rel).resolve()
+        if not current.exists():
+            missing_paths.append(rel)
+            continue
+        before_sha = str(row.get("sha256") or "").strip()
+        if before_sha:
+            after_sha = _sha256_file(current)
+            if after_sha != before_sha:
+                changed_paths.append(rel)
+    return {
+        "status": "PASS" if not missing_paths else "FAIL",
+        "checked": checked,
+        "missing_count": len(missing_paths),
+        "changed_count": len(changed_paths),
+        "missing_paths": missing_paths,
+        "changed_paths": changed_paths,
+    }
 
 
 def cmd_reaper(args: argparse.Namespace) -> int:
@@ -34,7 +97,63 @@ def cmd_reaper(args: argparse.Namespace) -> int:
     else:
         now = datetime.now(timezone.utc)
 
+    guard_pre_path = root / ".cache" / "reports" / "reaper_cleanup_pre_snapshot.v1.json"
+    guard_post_path = root / ".cache" / "reports" / "reaper_cleanup_post_validate.v1.json"
+    pre_rows: list[dict[str, object]] = []
+    if not dry_run:
+        critical_files = list_critical_cache_files(root=root)
+        pre_rows = _snapshot_critical_files(root=root, files=critical_files)
+        guard_pre_payload = {
+            "version": "v1",
+            "generated_at": now.isoformat(),
+            "status": "OK",
+            "critical_files_count": len(pre_rows),
+            "critical_files": pre_rows,
+            "notes": [
+                "CLEANUP_GUARD=true",
+                "PHASE=PRE_SNAPSHOT",
+                "NO_NETWORK=true",
+            ],
+        }
+        write_reaper_report(guard_pre_path, guard_pre_payload)
+
     report = compute_reaper_report(root=root, dry_run=dry_run, now=now)
+
+    guard_status = "SKIPPED"
+    if not dry_run:
+        post_result = _validate_critical_snapshot(root=root, pre_rows=pre_rows)
+        guard_status = str(post_result.get("status") or "FAIL")
+        guard_post_payload = {
+            "version": "v1",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "status": guard_status,
+            "pre_snapshot_path": _rel_path(root, guard_pre_path),
+            "post_validate": post_result,
+            "notes": [
+                "CLEANUP_GUARD=true",
+                "PHASE=POST_VALIDATE",
+                "NO_NETWORK=true",
+            ],
+        }
+        write_reaper_report(guard_post_path, guard_post_payload)
+        report["guard"] = {
+            "status": guard_status,
+            "pre_snapshot_path": _rel_path(root, guard_pre_path),
+            "post_validate_path": _rel_path(root, guard_post_path),
+            "critical_files_count": len(pre_rows),
+            "missing_count": int(post_result.get("missing_count") or 0),
+            "changed_count": int(post_result.get("changed_count") or 0),
+        }
+    else:
+        report["guard"] = {
+            "status": "DRY_RUN",
+            "pre_snapshot_path": "",
+            "post_validate_path": "",
+            "critical_files_count": 0,
+            "missing_count": 0,
+            "changed_count": 0,
+        }
+
     if args.out:
         out_path = Path(str(args.out))
         out_path = (root / out_path).resolve() if not out_path.is_absolute() else out_path.resolve()
@@ -43,6 +162,7 @@ def cmd_reaper(args: argparse.Namespace) -> int:
     evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
     dlq = report.get("dlq") if isinstance(report.get("dlq"), dict) else {}
     cache = report.get("cache") if isinstance(report.get("cache"), dict) else {}
+    guard = report.get("guard") if isinstance(report.get("guard"), dict) else {}
 
     print(
         "reaper "
@@ -50,8 +170,12 @@ def cmd_reaper(args: argparse.Namespace) -> int:
         + f"evidence_candidates={int(evidence.get('candidates', 0))} "
         + f"dlq_candidates={int(dlq.get('candidates', 0))} "
         + f"cache_candidates={int(cache.get('candidates', 0))} "
-        + f"deleted_total={int(evidence.get('deleted', 0)) + int(dlq.get('deleted', 0)) + int(cache.get('deleted', 0))}"
+        + f"deleted_total={int(evidence.get('deleted', 0)) + int(dlq.get('deleted', 0)) + int(cache.get('deleted', 0))} "
+        + f"guard_status={str(guard.get('status') or 'UNKNOWN')}"
     )
+    if not dry_run and str(guard.get("status") or "FAIL") != "PASS":
+        warn("FAIL error=REAPER_GUARD_POST_VALIDATE")
+        return 2
     return 0
 
 

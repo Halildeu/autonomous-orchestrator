@@ -9,6 +9,20 @@
     "version": { "type": "string", "enum": ["v1"] },
     "evidence_days": { "type": "integer", "minimum": 0, "maximum": 36500 },
     "dlq_days": { "type": "integer", "minimum": 0, "maximum": 36500 },
-    "cache_days": { "type": "integer", "minimum": 0, "maximum": 36500 }
+    "cache_days": { "type": "integer", "minimum": 0, "maximum": 36500 },
+    "allow_critical_cache_delete": {
+      "type": "boolean",
+      "default": false
+    },
+    "cache_exclude_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "cache_exclude_globs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    }
   }
 }
