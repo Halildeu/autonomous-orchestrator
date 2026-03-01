@@ -43,6 +43,42 @@ def _parse_iso8601(ts: str) -> datetime | None:
         return None
 
 
+def _remaining_session_ttl_seconds(context: dict[str, Any], now_dt: datetime) -> int:
+    exp = _parse_iso8601(str(context.get("expires_at") or ""))
+    if exp is None:
+        return 604800
+    seconds = int((exp - now_dt).total_seconds())
+    return max(0, seconds)
+
+
+def _clamp_ttl(value: int) -> int:
+    return max(60, min(604800, int(value)))
+
+
+def _decision_ttl_seconds(
+    *,
+    context: dict[str, Any],
+    now_dt: datetime,
+    requested_ttl_seconds: int | None,
+) -> int:
+    raw_default = context.get("decision_ttl_seconds_default", 3600)
+    try:
+        default_ttl = _clamp_ttl(int(raw_default))
+    except Exception:
+        default_ttl = 3600
+    ttl = default_ttl
+    if requested_ttl_seconds is not None:
+        try:
+            ttl = _clamp_ttl(int(requested_ttl_seconds))
+        except Exception as e:
+            raise SessionContextError("INVALID_ARGS", "decision_ttl_seconds must be int in [60, 604800]") from e
+
+    remaining = _remaining_session_ttl_seconds(context, now_dt)
+    if remaining > 0:
+        ttl = min(ttl, max(60, remaining))
+    return ttl
+
+
 def _canonical_json_bytes(obj: Any) -> bytes:
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
@@ -143,6 +179,7 @@ def new_context(session_id: str, workspace_root: str, ttl_seconds: int) -> dict[
         "created_at": created_at,
         "updated_at": created_at,
         "ttl_seconds": int(ttl_seconds),
+        "decision_ttl_seconds_default": min(3600, int(ttl_seconds)),
         "expires_at": expires_at,
         "paused": False,
         "ephemeral_decisions": [],
@@ -152,7 +189,14 @@ def new_context(session_id: str, workspace_root: str, ttl_seconds: int) -> dict[
     return ctx
 
 
-def upsert_decision(context: dict[str, Any], key: str, value: Any, source: str) -> dict[str, Any]:
+def upsert_decision(
+    context: dict[str, Any],
+    key: str,
+    value: Any,
+    source: str,
+    *,
+    decision_ttl_seconds: int | None = None,
+) -> dict[str, Any]:
     if not isinstance(context, dict):
         raise SessionContextError("SCHEMA_INVALID", "context must be a dict")
     if not isinstance(key, str) or not key:
@@ -164,6 +208,9 @@ def upsert_decision(context: dict[str, Any], key: str, value: Any, source: str) 
         raise SessionContextError("INVALID_ARGS", "value_json must be string|number|boolean|object")
 
     now = _now_iso8601()
+    now_dt = _parse_iso8601(now)
+    if now_dt is None:
+        raise SessionContextError("INVALID_TIME", "failed to resolve current time")
 
     decisions = context.get("ephemeral_decisions")
     if not isinstance(decisions, list):
@@ -174,12 +221,43 @@ def upsert_decision(context: dict[str, Any], key: str, value: Any, source: str) 
         if not isinstance(d, dict):
             continue
         if d.get("key") == key:
-            out.append({"key": key, "value": value, "source": source, "created_at": now})
+            existing_ttl = d.get("ttl_seconds") if isinstance(d.get("ttl_seconds"), int) else None
+            ttl = _decision_ttl_seconds(
+                context=context,
+                now_dt=now_dt,
+                requested_ttl_seconds=decision_ttl_seconds if decision_ttl_seconds is not None else existing_ttl,
+            )
+            exp = (now_dt + timedelta(seconds=ttl)).isoformat().replace("+00:00", "Z")
+            out.append(
+                {
+                    "key": key,
+                    "value": value,
+                    "source": source,
+                    "created_at": now,
+                    "ttl_seconds": int(ttl),
+                    "expires_at": exp,
+                }
+            )
             replaced = True
         else:
             out.append(d)
     if not replaced:
-        out.append({"key": key, "value": value, "source": source, "created_at": now})
+        ttl = _decision_ttl_seconds(
+            context=context,
+            now_dt=now_dt,
+            requested_ttl_seconds=decision_ttl_seconds,
+        )
+        exp = (now_dt + timedelta(seconds=ttl)).isoformat().replace("+00:00", "Z")
+        out.append(
+            {
+                "key": key,
+                "value": value,
+                "source": source,
+                "created_at": now,
+                "ttl_seconds": int(ttl),
+                "expires_at": exp,
+            }
+        )
 
     out.sort(key=lambda x: str(x.get("key") or ""))
     context["ephemeral_decisions"] = out
@@ -201,8 +279,33 @@ def is_expired(context: dict[str, Any], now_iso: str) -> bool:
 
 
 def prune_expired_decisions(context: dict[str, Any], now_iso: str) -> dict[str, Any]:
-    # v0.1: decisions don't have per-item TTL; keep API for future extension.
-    _ = now_iso
+    if not isinstance(context, dict):
+        return context
+    now_dt = _parse_iso8601(str(now_iso) or "")
+    if now_dt is None:
+        return context
+    decisions = context.get("ephemeral_decisions")
+    if not isinstance(decisions, list):
+        return context
+
+    out: list[dict[str, Any]] = []
+    changed = False
+    for decision in decisions:
+        if not isinstance(decision, dict):
+            changed = True
+            continue
+        exp = decision.get("expires_at")
+        if isinstance(exp, str) and exp:
+            exp_dt = _parse_iso8601(exp)
+            if exp_dt is not None and now_dt >= exp_dt:
+                changed = True
+                continue
+        out.append(decision)
+
+    if changed:
+        out.sort(key=lambda x: str(x.get("key") or ""))
+        context["ephemeral_decisions"] = out
+        context["updated_at"] = now_iso
     return context
 
 
@@ -214,4 +317,3 @@ class SessionPaths:
     @property
     def context_path(self) -> Path:
         return (self.workspace_root / ".cache" / "sessions" / self.session_id / "session_context.v1.json").resolve()
-
