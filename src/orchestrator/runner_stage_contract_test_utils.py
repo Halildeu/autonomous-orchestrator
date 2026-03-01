@@ -35,31 +35,29 @@ _RESULT_KEYS = (
     "stdout_status",
 )
 
-STAGE_SCENARIO_IDS: dict[str, tuple[str, ...]] = {
-    "validate": ("schema_missing_intent", "budget_schema_invalid"),
-    "governor": ("governor_quarantined_intent", "governor_concurrency_lock"),
-    "routing_workflow": ("unknown_intent_blocked", "strategy_invalid_routes_type", "workflow_invalid_structure"),
-    "idempotency": ("idempotent_hit_second_run",),
-    "quota_autonomy": ("quota_runs_exceeded",),
-    "execute_finalize": ("completed_low_risk", "suspended_high_risk", "budget_tokens_exceeded"),
+_STAGE_SNAPSHOT_FILES: dict[str, str] = {
+    "validate": "runner_stage_validate.snapshots.v1.json",
+    "governor": "runner_stage_governor.snapshots.v1.json",
+    "routing_workflow": "runner_stage_routing_workflow.snapshots.v1.json",
+    "idempotency": "runner_stage_idempotency.snapshots.v1.json",
+    "quota_autonomy": "runner_stage_quota_autonomy.snapshots.v1.json",
+    "execute_finalize": "runner_stage_execute_finalize.snapshots.v1.json",
 }
 
 
-def all_scenario_ids() -> tuple[str, ...]:
-    ordered: list[str] = []
-    for ids in STAGE_SCENARIO_IDS.values():
-        for scenario_id in ids:
-            if scenario_id not in ordered:
-                ordered.append(scenario_id)
-    return tuple(ordered)
+def stage_names() -> tuple[str, ...]:
+    return tuple(_STAGE_SNAPSHOT_FILES.keys())
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _snapshot_path() -> Path:
-    return Path(__file__).with_name("runner_execute_behavior_freeze_snapshots.v1.json")
+def _stage_snapshot_path(stage_name: str) -> Path:
+    file_name = _STAGE_SNAPSHOT_FILES.get(stage_name)
+    if not isinstance(file_name, str) or not file_name:
+        raise SystemExit(f"runner_stage_contract_test_utils failed: unknown_stage={stage_name}")
+    return Path(__file__).with_name(file_name)
 
 
 def _latest_json(paths: list[Path]) -> dict[str, Any] | None:
@@ -208,28 +206,78 @@ def _run_scenario(*, root: Path, scenario: dict[str, Any]) -> dict[str, Any]:
         }
 
 
-def _load_snapshot_scenarios() -> list[dict[str, Any]]:
-    snapshot = json.loads(_snapshot_path().read_text(encoding="utf-8"))
-    scenarios = snapshot.get("scenarios") if isinstance(snapshot.get("scenarios"), list) else []
+def _load_stage_scenarios(stage_name: str) -> list[dict[str, Any]]:
+    path = _stage_snapshot_path(stage_name)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    declared_stage = payload.get("stage")
+    if isinstance(declared_stage, str) and declared_stage and declared_stage != stage_name:
+        raise SystemExit(
+            "runner_stage_contract_test_utils failed: "
+            + f"stage_mismatch expected={stage_name} declared={declared_stage} file={path.name}"
+        )
+    scenarios = payload.get("scenarios") if isinstance(payload.get("scenarios"), list) else []
     if not scenarios:
-        raise SystemExit("runner_stage_contract_test_utils failed: snapshot scenarios missing")
+        raise SystemExit(f"runner_stage_contract_test_utils failed: scenarios missing in {path.name}")
     typed: list[dict[str, Any]] = []
     for item in scenarios:
         if isinstance(item, dict):
             typed.append(item)
+    if not typed:
+        raise SystemExit(f"runner_stage_contract_test_utils failed: scenarios invalid in {path.name}")
     return typed
 
 
-def run_contract_test(*, test_name: str, scenario_ids: tuple[str, ...]) -> None:
+def _load_all_stage_scenarios() -> dict[str, list[dict[str, Any]]]:
+    all_map: dict[str, list[dict[str, Any]]] = {}
+    seen_ids: set[str] = set()
+    for stage_name in stage_names():
+        scenarios = _load_stage_scenarios(stage_name)
+        for sc in scenarios:
+            scenario_id = str(sc.get("id", "")).strip()
+            if not scenario_id:
+                raise SystemExit(
+                    "runner_stage_contract_test_utils failed: "
+                    + f"empty_scenario_id stage={stage_name} file={_stage_snapshot_path(stage_name).name}"
+                )
+            if scenario_id in seen_ids:
+                raise SystemExit(
+                    "runner_stage_contract_test_utils failed: "
+                    + f"duplicate_scenario_id={scenario_id}"
+                )
+            seen_ids.add(scenario_id)
+        all_map[stage_name] = scenarios
+    return all_map
+
+
+def all_scenario_ids() -> tuple[str, ...]:
+    all_map = _load_all_stage_scenarios()
+    ordered: list[str] = []
+    for stage_name in stage_names():
+        for sc in all_map.get(stage_name, []):
+            scenario_id = str(sc.get("id", "")).strip()
+            if scenario_id:
+                ordered.append(scenario_id)
+    return tuple(ordered)
+
+
+def _build_stage_scenario_ids() -> dict[str, tuple[str, ...]]:
+    all_map = _load_all_stage_scenarios()
+    result: dict[str, tuple[str, ...]] = {}
+    for stage_name in stage_names():
+        scenario_ids: list[str] = []
+        for sc in all_map.get(stage_name, []):
+            scenario_id = str(sc.get("id", "")).strip()
+            if scenario_id:
+                scenario_ids.append(scenario_id)
+        result[stage_name] = tuple(scenario_ids)
+    return result
+
+
+STAGE_SCENARIO_IDS: dict[str, tuple[str, ...]] = _build_stage_scenario_ids()
+
+
+def _run_selected_contract(*, test_name: str, selected: list[dict[str, Any]]) -> None:
     root = _repo_root()
-    scenarios = _load_snapshot_scenarios()
-    wanted = set(scenario_ids)
-    selected = [sc for sc in scenarios if str(sc.get("id", "")) in wanted]
-
-    missing = sorted(wanted.difference({str(sc.get("id", "")) for sc in selected}))
-    if missing:
-        raise SystemExit(f"{test_name} failed: missing_scenarios={json.dumps(missing, ensure_ascii=True)}")
-
     failures: list[dict[str, Any]] = []
     for sc in selected:
         expected = sc.get("expected") if isinstance(sc.get("expected"), dict) else {}
@@ -246,3 +294,29 @@ def run_contract_test(*, test_name: str, scenario_ids: tuple[str, ...]) -> None:
 
     print(f"{test_name} ok=true scenarios={len(selected)}")
 
+
+def run_stage_contract_test(*, test_name: str, stage_name: str) -> None:
+    scenarios = _load_stage_scenarios(stage_name)
+    _run_selected_contract(test_name=test_name, selected=scenarios)
+
+
+def run_all_contract_test(*, test_name: str) -> None:
+    all_map = _load_all_stage_scenarios()
+    selected: list[dict[str, Any]] = []
+    for stage_name in stage_names():
+        selected.extend(all_map.get(stage_name, []))
+    _run_selected_contract(test_name=test_name, selected=selected)
+
+
+def run_contract_test(*, test_name: str, scenario_ids: tuple[str, ...]) -> None:
+    all_map = _load_all_stage_scenarios()
+    all_scenarios: list[dict[str, Any]] = []
+    for stage_name in stage_names():
+        all_scenarios.extend(all_map.get(stage_name, []))
+
+    wanted = set(scenario_ids)
+    selected = [sc for sc in all_scenarios if str(sc.get("id", "")) in wanted]
+    missing = sorted(wanted.difference({str(sc.get("id", "")) for sc in selected}))
+    if missing:
+        raise SystemExit(f"{test_name} failed: missing_scenarios={json.dumps(missing, ensure_ascii=True)}")
+    _run_selected_contract(test_name=test_name, selected=selected)
