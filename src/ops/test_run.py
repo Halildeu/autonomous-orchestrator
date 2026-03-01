@@ -223,7 +223,20 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
             rel = str(state_out)
         evidence_paths.append(rel)
 
-    # 6) runner_execute behavior freeze contract (RB-001 baseline lock).
+    # 6) session decision -> cross-session -> context-pack mandatory E2E contract.
+    session_context_pack_cmd = [sys.executable, "-m", "src.ops.session_context_pack_e2e_contract_test"]
+    session_context_pack_proc = subprocess.run(session_context_pack_cmd, cwd=repo_root(), text=True, capture_output=True)
+    session_context_pack_ok = session_context_pack_proc.returncode == 0
+    session_context_pack_detail = (
+        _tail_line(session_context_pack_proc.stdout)
+        or _tail_line(session_context_pack_proc.stderr)
+        or f"rc={session_context_pack_proc.returncode}"
+    )
+    tests.append(_format_test_result("session_context_pack_e2e_contract", session_context_pack_ok, session_context_pack_detail))
+    if not session_context_pack_ok:
+        failures.append("session_context_pack_e2e_contract")
+
+    # 7) runner_execute behavior freeze contract (RB-001 baseline lock).
     contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_execute_behavior_freeze_contract_test"]
     contract_proc = subprocess.run(contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     contract_ok = contract_proc.returncode == 0
@@ -232,7 +245,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not contract_ok:
         failures.append("runner_execute_behavior_freeze_contract")
 
-    # 7) stage-level runner contracts (modular freeze lock, per-stage visibility).
+    # 8) stage-level runner contracts (modular freeze lock, per-stage visibility).
     stage_modules: list[tuple[str, str]] = [
         ("validate", "src.orchestrator.runner_stage_validate_contract_test"),
         ("governor", "src.orchestrator.runner_stage_governor_contract_test"),
@@ -254,7 +267,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         if not stage_ok:
             failures.append(test_name)
 
-    # 8) stage-level runner contract suite aggregate.
+    # 9) stage-level runner contract suite aggregate.
     stage_contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_stage_contract_suite_test"]
     stage_contract_proc = subprocess.run(stage_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     stage_contract_ok = stage_contract_proc.returncode == 0
@@ -265,7 +278,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not stage_contract_ok:
         failures.append("runner_stage_contract_suite")
 
-    # 9) reaper critical-pin contract (ws_customer_default critical cache paths survive unless explicit override).
+    # 10) reaper critical-pin contract (ws_customer_default critical cache paths survive unless explicit override).
     reaper_contract_cmd = [sys.executable, "-m", "src.ops.reaper_critical_pin_contract_test"]
     reaper_contract_proc = subprocess.run(reaper_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     reaper_contract_ok = reaper_contract_proc.returncode == 0
@@ -278,7 +291,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not reaper_contract_ok:
         failures.append("reaper_critical_pin_contract")
 
-    # 10) reaper cleanup guard contract (pre-snapshot + post-validate mandatory gate on delete mode).
+    # 11) reaper cleanup guard contract (pre-snapshot + post-validate mandatory gate on delete mode).
     reaper_guard_cmd = [sys.executable, "-m", "src.ops.reaper_cleanup_guard_contract_test"]
     reaper_guard_proc = subprocess.run(reaper_guard_cmd, cwd=repo_root(), text=True, capture_output=True)
     reaper_guard_ok = reaper_guard_proc.returncode == 0
