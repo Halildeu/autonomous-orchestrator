@@ -1,0 +1,25 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "stage": "idempotency",
+  "scenarios": [
+    {
+      "id": "idempotent_hit_second_run",
+      "fixture": "0001.json",
+      "mutations": [],
+      "repeat_runs": 2,
+      "expected": {
+        "exit_code": 0,
+        "summary_status": "COMPLETED",
+        "summary_result_state": "COMPLETED",
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": null,
+        "dlq_error_code": null,
+        "stdout_status": "IDEMPOTENT_HIT"
+      }
+    }
+  ]
+}
