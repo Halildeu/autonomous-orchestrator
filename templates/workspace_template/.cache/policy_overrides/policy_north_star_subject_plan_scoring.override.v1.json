@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "quality_gate": {
+    "scoring_weights": {
+      "pair_weight": 0.55,
+      "theme_weight": 0.35,
+      "completeness_weight": 0.1
+    }
+  }
+}

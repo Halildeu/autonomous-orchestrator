@@ -93,6 +93,44 @@ def collect_policy_deprecation_warnings(root: Path) -> list[dict[str, Any]]:
     return [warning_obj]
 
 
+def collect_north_star_subject_plan_contract_status(root: Path) -> dict[str, Any]:
+    schema_rel = Path("schemas") / "north-star-subject-plan.schema.v1.json"
+    schema_path = root / schema_rel
+    payload: dict[str, Any] = {
+        "schema_path": schema_rel.as_posix(),
+        "schema_exists": bool(schema_path.exists()),
+        "schema_valid": False,
+        "schema_id": "",
+    }
+    if not schema_path.exists():
+        payload["schema_error"] = "missing"
+        return payload
+
+    schema_obj = _load_json(schema_path)
+    if not isinstance(schema_obj, dict):
+        payload["schema_error"] = "invalid_json"
+        return payload
+
+    schema_id = schema_obj.get("$id")
+    if isinstance(schema_id, str):
+        payload["schema_id"] = schema_id
+
+    try:
+        from jsonschema import Draft202012Validator
+    except Exception:
+        payload["schema_error"] = "jsonschema_unavailable"
+        return payload
+
+    try:
+        Draft202012Validator.check_schema(schema_obj)
+    except Exception:
+        payload["schema_error"] = "invalid_schema_definition"
+        return payload
+
+    payload["schema_valid"] = True
+    return payload
+
+
 def _format_deprecation_warning_lines(warnings: list[dict[str, Any]]) -> list[str]:
     lines: list[str] = []
     for warn_obj in warnings:
@@ -164,7 +202,12 @@ def _fmt_example(ex: dict[str, Any]) -> str:
     return "- " + " ".join(parts)
 
 
-def generate_policy_report_markdown(*, in_dir: Path, root: Path) -> str:
+def generate_policy_report_markdown(
+    *,
+    in_dir: Path,
+    root: Path,
+    north_star_subject_plan_contract: dict[str, Any] | None = None,
+) -> str:
     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
     sim_path = in_dir / "sim_report.json"
@@ -191,6 +234,26 @@ def generate_policy_report_markdown(*, in_dir: Path, root: Path) -> str:
     lines.append(f"- generated_at: `{now}`")
     lines.append(f"- source: `{source}`")
     lines.append(f"- input_dir: `{_rel_path(root, in_dir)}`")
+    lines.append("")
+
+    lines.append("## North Star subject plan contract")
+    contract_obj = (
+        north_star_subject_plan_contract
+        if isinstance(north_star_subject_plan_contract, dict)
+        else collect_north_star_subject_plan_contract_status(root)
+    )
+    schema_ref = str(contract_obj.get("schema_path") or "schemas/north-star-subject-plan.schema.v1.json")
+    schema_exists = bool(contract_obj.get("schema_exists", False))
+    schema_valid = bool(contract_obj.get("schema_valid", False))
+    schema_id = str(contract_obj.get("schema_id") or "").strip()
+    schema_error = str(contract_obj.get("schema_error") or "").strip()
+    lines.append(f"- schema: `{schema_ref}`")
+    lines.append(f"- schema_exists: `{schema_exists}`")
+    lines.append(f"- schema_valid: `{schema_valid}`")
+    if schema_id:
+        lines.append(f"- schema_id: `{schema_id}`")
+    if schema_error:
+        lines.append(f"- schema_error: `{schema_error}`")
     lines.append("")
 
     lines.append("## Deprecation warnings")

@@ -107,7 +107,8 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Purpose: plan-first selection + CHG drafts (no direct apply).
 - Single gate: planner-show-plan.
 - Outputs: .cache/index/plans/PLN-*.v1.json, .cache/reports/planner_plan_summary.v1.md, .cache/index/work_intake_selection.v1.json
-- Policies: policies/policy_planner.v1.json
+- Policies: policies/policy_planner.v1.json, policies/policy_north_star_subject_plan.v1.json
+- Workspace tuning: `.cache/policy_overrides/policy_north_star_subject_plan.override.v1.json` (full), `.cache/policy_overrides/policy_north_star_subject_plan_scoring.override.v1.json` (light scoring only).
 
 <a id="ext-PRJ-EXECUTORPORT"></a>
 ### PRJ-EXECUTORPORT

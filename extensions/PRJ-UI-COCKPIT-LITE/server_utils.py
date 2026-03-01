@@ -57,6 +57,8 @@ SAFE_OVERRIDE_FILES = {
     "policy_auto_loop.override.v1.json",
     "policy_doc_graph.override.v1.json",
     "policy_autopilot_apply.override.v1.json",
+    "policy_north_star_subject_plan.override.v1.json",
+    "policy_north_star_subject_plan_scoring.override.v1.json",
     COCKPIT_LITE_OVERRIDE_NAME,
 }
 

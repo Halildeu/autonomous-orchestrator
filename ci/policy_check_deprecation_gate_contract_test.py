@@ -23,6 +23,25 @@ def _summary_from_stdout(stdout: str) -> dict[str, object]:
     raise SystemExit("policy_check_deprecation_gate_contract_test failed: summary JSON not found in stdout")
 
 
+def _assert_north_star_contract_surface(summary: dict[str, object], *, mode: str) -> None:
+    schema_ref = str(summary.get("north_star_subject_plan_contract_schema") or "")
+    if schema_ref != "schemas/north-star-subject-plan.schema.v1.json":
+        raise SystemExit(
+            "policy_check_deprecation_gate_contract_test failed: "
+            + f"{mode} summary missing contract schema path"
+        )
+    if not bool(summary.get("north_star_subject_plan_contract_schema_exists", False)):
+        raise SystemExit(
+            "policy_check_deprecation_gate_contract_test failed: "
+            + f"{mode} summary contract schema must exist"
+        )
+    if not bool(summary.get("north_star_subject_plan_contract_schema_valid", False)):
+        raise SystemExit(
+            "policy_check_deprecation_gate_contract_test failed: "
+            + f"{mode} summary contract schema must be valid"
+        )
+
+
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
 
@@ -52,6 +71,7 @@ def main() -> None:
         raise SystemExit("policy_check_deprecation_gate_contract_test failed: expected <=1 warning in pass mode")
     if bool(pass_summary.get("deprecation_gate_exceeded", False)):
         raise SystemExit("policy_check_deprecation_gate_contract_test failed: gate_exceeded should be false in pass mode")
+    _assert_north_star_contract_surface(pass_summary, mode="pass")
 
     fail_cmd = [
         sys.executable,
@@ -76,6 +96,7 @@ def main() -> None:
         raise SystemExit("policy_check_deprecation_gate_contract_test failed: error_code mismatch")
     if not bool(fail_summary.get("deprecation_gate_exceeded", False)):
         raise SystemExit("policy_check_deprecation_gate_contract_test failed: gate_exceeded should be true in fail mode")
+    _assert_north_star_contract_surface(fail_summary, mode="fail")
 
     print(json.dumps({"status": "OK"}, ensure_ascii=False, sort_keys=True))
 

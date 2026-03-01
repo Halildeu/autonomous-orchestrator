@@ -235,12 +235,21 @@ def cmd_evidence_export(args: argparse.Namespace) -> int:
     return 0 if int(code) == 0 else 2
 
 
-def _policy_check_generate_report(*, root: Path, outdir: Path) -> Path:
+def _policy_check_generate_report(
+    *,
+    root: Path,
+    outdir: Path,
+    north_star_subject_plan_contract: dict[str, object],
+) -> Path:
     report_path = outdir / "POLICY_REPORT.md"
     try:
         from src.ops.policy_report import generate_policy_report_markdown
 
-        md = generate_policy_report_markdown(in_dir=outdir, root=root)
+        md = generate_policy_report_markdown(
+            in_dir=outdir,
+            root=root,
+            north_star_subject_plan_contract=north_star_subject_plan_contract,
+        )
         report_path.write_text(md, encoding="utf-8")
     except Exception:
         report_path.write_text("# Policy Check Report\n\n(Report generation failed.)\n", encoding="utf-8")
@@ -259,6 +268,38 @@ def _policy_check_collect_deprecation_warnings(root: Path) -> list[dict[str, obj
     if not isinstance(items, list):
         return []
     return [x for x in items if isinstance(x, dict)]
+
+
+def _policy_check_collect_north_star_subject_plan_contract(root: Path) -> dict[str, object]:
+    try:
+        from src.ops.policy_report import collect_north_star_subject_plan_contract_status
+    except Exception:
+        return {
+            "schema_path": "schemas/north-star-subject-plan.schema.v1.json",
+            "schema_exists": False,
+            "schema_valid": False,
+            "schema_id": "",
+            "schema_error": "import_failed",
+        }
+    try:
+        payload = collect_north_star_subject_plan_contract_status(root)
+    except Exception:
+        return {
+            "schema_path": "schemas/north-star-subject-plan.schema.v1.json",
+            "schema_exists": False,
+            "schema_valid": False,
+            "schema_id": "",
+            "schema_error": "collect_failed",
+        }
+    if not isinstance(payload, dict):
+        return {
+            "schema_path": "schemas/north-star-subject-plan.schema.v1.json",
+            "schema_exists": False,
+            "schema_valid": False,
+            "schema_id": "",
+            "schema_error": "invalid_payload",
+        }
+    return payload
 
 
 def _policy_check_read_sim_counts(sim_out: Path) -> tuple[int, int, int, int]:
@@ -365,7 +406,13 @@ def cmd_policy_check(args: argparse.Namespace) -> int:
     if rc != 0:
         return 2
 
-    report_path = _policy_check_generate_report(root=root, outdir=outdir)
+    north_star_contract = _policy_check_collect_north_star_subject_plan_contract(root)
+
+    report_path = _policy_check_generate_report(
+        root=root,
+        outdir=outdir,
+        north_star_subject_plan_contract=north_star_contract,
+    )
     report_rel = report_path.resolve().relative_to(root.resolve()).as_posix()
     sim_rel = sim_out.resolve().relative_to(root.resolve()).as_posix()
     diff_rel = diff_out.resolve().relative_to(root.resolve()).as_posix()
@@ -403,6 +450,13 @@ def cmd_policy_check(args: argparse.Namespace) -> int:
         "max_deprecation_warnings": max_deprecation_warnings,
         "deprecation_gate_enabled": gate_enabled,
         "deprecation_gate_exceeded": gate_exceeded,
+        "north_star_subject_plan_contract_schema": str(
+            north_star_contract.get("schema_path") or "schemas/north-star-subject-plan.schema.v1.json"
+        ),
+        "north_star_subject_plan_contract_schema_exists": bool(north_star_contract.get("schema_exists", False)),
+        "north_star_subject_plan_contract_schema_valid": bool(north_star_contract.get("schema_valid", False)),
+        "north_star_subject_plan_contract_schema_id": str(north_star_contract.get("schema_id") or ""),
+        "north_star_subject_plan_contract_schema_error": str(north_star_contract.get("schema_error") or ""),
         "sim_report": sim_rel,
         "policy_diff": diff_rel,
         "report": report_rel,

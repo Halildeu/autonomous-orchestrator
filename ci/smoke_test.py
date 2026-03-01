@@ -3087,6 +3087,10 @@ def main() -> None:
         raise SystemExit("Smoke test failed: invalid deprecation_warning_count in policy-check summary.")
     if dep_count_pc > 1:
         raise SystemExit("Smoke test failed: deprecation_warning_count exceeds threshold (1).")
+    if not bool(policy_check_summary.get("north_star_subject_plan_contract_schema_exists", False)):
+        raise SystemExit("Smoke test failed: policy-check summary missing north_star_subject_plan contract schema.")
+    if not bool(policy_check_summary.get("north_star_subject_plan_contract_schema_valid", False)):
+        raise SystemExit("Smoke test failed: policy-check summary invalid north_star_subject_plan contract schema.")
 
     sim_report_pc = policy_check_dir / "sim_report.json"
     diff_report_pc = policy_check_dir / "policy_diff_report.json"
@@ -3133,7 +3137,14 @@ def main() -> None:
     print(f"CRITICAL_POLICY_CHECK_DEPRECATION warnings={dep_count_pc} max=1")
 
     md_text = report_md_pc.read_text(encoding="utf-8")
-    for heading in ("Deprecation warnings", "Dry-run summary", "Diff summary", "Side-effects status", "Supply chain summary"):
+    for heading in (
+        "North Star subject plan contract",
+        "Deprecation warnings",
+        "Dry-run summary",
+        "Diff summary",
+        "Side-effects status",
+        "Supply chain summary",
+    ):
         if heading not in md_text:
             raise SystemExit("Smoke test failed: POLICY_REPORT.md missing heading: " + heading)
     print("CRITICAL_POLICY_REPORT: generated=true")

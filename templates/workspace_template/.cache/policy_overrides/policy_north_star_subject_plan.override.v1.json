@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "quality_gate": {
+    "enforce": true,
+    "max_module_count": 8,
+    "min_coverage_quality": 0.9,
+    "require_full_coverage": true,
+    "scoring_weights": {
+      "pair_weight": 0.55,
+      "theme_weight": 0.35,
+      "completeness_weight": 0.1
+    }
+  },
+  "limits": {
+    "max_steps": 16,
+    "max_plan_bytes": 131072,
+    "plan_bytes_over_limit_action": "warn"
+  }
+}
