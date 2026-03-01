@@ -51,6 +51,49 @@ def _sha8(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:8]
 
 
+def _workspace_repo_fallback_id(workspace_root: Path) -> str:
+    digest = hashlib.sha1(str(workspace_root.resolve()).encode("utf-8")).hexdigest()[:8]
+    return f"WS-{digest}"
+
+
+def _normalize_repo_root(raw: str) -> str:
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    try:
+        return str(Path(text).expanduser().resolve())
+    except Exception:
+        return text
+
+
+def _load_workspace_repo_binding(workspace_root: Path) -> dict[str, str]:
+    fallback = {
+        "repo_id": _workspace_repo_fallback_id(workspace_root),
+        "repo_root": "",
+    }
+    path = workspace_root / ".cache" / "index" / "workspace_repo_binding.v1.json"
+    if not path.exists():
+        return fallback
+    try:
+        obj = _load_json(path)
+    except Exception:
+        return fallback
+    if not isinstance(obj, dict):
+        return fallback
+
+    workspace_raw = str(obj.get("workspace_root") or "").strip()
+    if workspace_raw:
+        try:
+            if Path(workspace_raw).expanduser().resolve() != workspace_root.resolve():
+                return fallback
+        except Exception:
+            return fallback
+
+    repo_id = str(obj.get("repo_id") or "").strip() or fallback["repo_id"]
+    repo_root = _normalize_repo_root(str(obj.get("repo_root") or ""))
+    return {"repo_id": repo_id, "repo_root": repo_root}
+
+
 def _policy_hash(policy: dict[str, Any]) -> str:
     payload = json.dumps(policy, ensure_ascii=True, sort_keys=True, indent=None, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -480,6 +523,9 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
     except Exception:
         return {"status": "WARN", "error_code": "WORK_INTAKE_INVALID"}
     items = work_intake.get("items") if isinstance(work_intake.get("items"), list) else []
+    workspace_binding = _load_workspace_repo_binding(workspace_root)
+    workspace_repo_id = str(workspace_binding.get("repo_id") or "")
+    workspace_repo_root = _normalize_repo_root(str(workspace_binding.get("repo_root") or ""))
 
     ticket_items = [
         item
@@ -527,6 +573,8 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             "version": "v1",
             "generated_at": generated_at,
             "workspace_root": str(workspace_root),
+            "workspace_repo_id": workspace_repo_id,
+            "workspace_repo_root": workspace_repo_root,
             "status": "IDLE",
             "error_code": "NO_SELECTED_AUTOPILOT_ITEMS",
             "selection_rule": "bucket=TICKET selected_only sort by priority,severity,intake_id",
@@ -670,7 +718,11 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         if source_type == "GAP" and not plan_only:
             allowed_gap_types = policy.get("safe_only_apply_gap_types")
             allowed_gap_types = allowed_gap_types if isinstance(allowed_gap_types, list) else []
-            if gap_type and gap_type in [str(x) for x in allowed_gap_types if isinstance(x, str)]:
+            # Explicit AUTO_APPLY_ALLOW decision should unlock safe-only GAP note apply.
+            if decision_override:
+                action_kind = "WRITE_DOC_NOTE"
+                plan_only = False
+            elif gap_type and gap_type in [str(x) for x in allowed_gap_types if isinstance(x, str)]:
                 action_kind = "WRITE_DOC_NOTE"
                 plan_only = False
             else:
@@ -747,6 +799,26 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
             _attach_trace_meta(entry, intake_id)
             entries.append(entry)
             continue
+
+        item_repo_id = str(item.get("repo_id") or "")
+        item_repo_root = _normalize_repo_root(str(item.get("source_repo_root") or ""))
+        repo_id_mismatch = bool(workspace_repo_id and item_repo_id and item_repo_id != workspace_repo_id)
+        repo_root_mismatch = bool(workspace_repo_root and item_repo_root and item_repo_root != workspace_repo_root)
+        if repo_id_mismatch or repo_root_mismatch:
+            entry["status"] = "SKIPPED"
+            entry["skip_reason"] = "TARGET_REPO_MISMATCH"
+            entry["expected_repo_id"] = workspace_repo_id
+            entry["expected_repo_root"] = workspace_repo_root
+            if item_repo_id:
+                entry["item_repo_id"] = item_repo_id
+            if item_repo_root:
+                entry["item_repo_root"] = item_repo_root
+            skipped += 1
+            skipped_by_reason["TARGET_REPO_MISMATCH"] = skipped_by_reason.get("TARGET_REPO_MISMATCH", 0) + 1
+            _attach_trace_meta(entry, intake_id)
+            entries.append(entry)
+            continue
+
         if apply_slots == 0:
             entry["status"] = "SKIPPED"
             entry["skip_reason"] = "LIMIT_REACHED"
@@ -1037,6 +1109,8 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         "version": "v1",
         "generated_at": generated_at,
         "workspace_root": str(workspace_root),
+        "workspace_repo_id": workspace_repo_id,
+        "workspace_repo_root": workspace_repo_root,
         "selection_rule": "bucket=TICKET selected_only sort by priority,severity,intake_id",
         "policy_source": policy_source,
         "policy_hash": policy_hash,

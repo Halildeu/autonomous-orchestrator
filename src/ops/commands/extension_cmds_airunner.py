@@ -12,6 +12,7 @@ from src.ops.commands.extension_cmds_helpers_v2 import (
     _dump_json,
     _emit_airunner_chat,
     _emit_airunner_proof_bundle_chat,
+    _emit_planner_show_plan_chat,
     _load_json,
     _now_compact,
     _resolve_workspace_root,
