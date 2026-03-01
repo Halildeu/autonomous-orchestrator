@@ -1,0 +1,22 @@
+{
+  "change_id": "CHG-20260301-003",
+  "type": "modify",
+  "version": "v1",
+  "risk_level": "medium",
+  "rationale": "Cockpit kalici verilerinin temizlikte kaybolmasini engellemek icin retention policy pin seti genisletildi, reaper icin ikinci kademe critical lock eklendi ve non-dry-run temizleme akisina pre-snapshot + post-validate zorunlu gate baglandi.",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "gates": [
+    "python3 ci/validate_schemas.py",
+    "python3 -m src.ops.manage reaper --dry-run true --out .cache/reports/reaper_guard_dryrun_cockpit_persistent.v1.json",
+    "python3 -m src.ops.manage test-run --workspace-root .cache/ws_customer_default"
+  ],
+  "patches": [
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M0",
+      "note": "CHG-20260301-003: retention critical pin seti + reaper second-stage lock + cleanup pre-snapshot/post-validate zorunlu gate. Hedef: ws_customer_default cockpit kalici verilerinde temizleme kaynakli kaybi fail-closed engellemek."
+    }
+  ]
+}

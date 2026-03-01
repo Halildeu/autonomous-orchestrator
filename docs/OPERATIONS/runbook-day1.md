@@ -160,13 +160,13 @@ Retention policy dosyası:
 Dry-run (silmez, sadece rapor üretir):
 
 ```bash
-python -m src.ops.reaper --dry-run true --out reaper_report.json
+python -m src.ops.manage reaper --dry-run true --out reaper_report.json
 ```
 
-Delete (siler, rapor üretir):
+Delete (siler, rapor üretir, cleanup guard zorunlu):
 
 ```bash
-python -m src.ops.reaper --dry-run false --out reaper_report_delete.json
+python -m src.ops.manage reaper --dry-run false --out reaper_report_delete.json
 ```
 
 Ops shortcut (özet satırı):
@@ -174,6 +174,11 @@ Ops shortcut (özet satırı):
 ```bash
 python -m src.ops.manage reaper --dry-run true
 ```
+
+Guard artifact'lari (non-dry-run):
+- `.cache/reports/reaper_cleanup_pre_snapshot.v1.json`
+- `.cache/reports/reaper_cleanup_post_validate.v1.json`
+- Post-validate `FAIL` ise komut fail olur (kritik dosya kaybi varsa fail-closed).
 
 Reaper kapsamı (bugünkü sistem):
 - Evidence: `evidence/**/summary.json` olan run klasörleri (finished_at → started_at).

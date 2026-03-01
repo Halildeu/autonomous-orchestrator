@@ -265,6 +265,32 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not stage_contract_ok:
         failures.append("runner_stage_contract_suite")
 
+    # 9) reaper critical-pin contract (ws_customer_default critical cache paths survive unless explicit override).
+    reaper_contract_cmd = [sys.executable, "-m", "src.ops.reaper_critical_pin_contract_test"]
+    reaper_contract_proc = subprocess.run(reaper_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    reaper_contract_ok = reaper_contract_proc.returncode == 0
+    reaper_contract_detail = (
+        _tail_line(reaper_contract_proc.stdout)
+        or _tail_line(reaper_contract_proc.stderr)
+        or f"rc={reaper_contract_proc.returncode}"
+    )
+    tests.append(_format_test_result("reaper_critical_pin_contract", reaper_contract_ok, reaper_contract_detail))
+    if not reaper_contract_ok:
+        failures.append("reaper_critical_pin_contract")
+
+    # 10) reaper cleanup guard contract (pre-snapshot + post-validate mandatory gate on delete mode).
+    reaper_guard_cmd = [sys.executable, "-m", "src.ops.reaper_cleanup_guard_contract_test"]
+    reaper_guard_proc = subprocess.run(reaper_guard_cmd, cwd=repo_root(), text=True, capture_output=True)
+    reaper_guard_ok = reaper_guard_proc.returncode == 0
+    reaper_guard_detail = (
+        _tail_line(reaper_guard_proc.stdout)
+        or _tail_line(reaper_guard_proc.stderr)
+        or f"rc={reaper_guard_proc.returncode}"
+    )
+    tests.append(_format_test_result("reaper_cleanup_guard_contract", reaper_guard_ok, reaper_guard_detail))
+    if not reaper_guard_ok:
+        failures.append("reaper_cleanup_guard_contract")
+
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"
 

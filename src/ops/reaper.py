@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 import shutil
@@ -16,6 +17,57 @@ class RetentionPolicy:
     evidence_days: int = 7
     dlq_days: int = 14
     cache_days: int = 7
+    cache_exclude_paths: tuple[str, ...] = ()
+    cache_exclude_globs: tuple[str, ...] = ()
+    allow_critical_cache_delete: bool = False
+    policy_override_path: str = ""
+
+
+_CRITICAL_WS_CUSTOMER_CACHE_GLOBS: tuple[str, ...] = (
+    ".cache/ws_customer_default*/.cache/index/assessment.v1.json",
+    ".cache/ws_customer_default*/.cache/index/assessment_eval.v1.json",
+    ".cache/ws_customer_default*/.cache/index/assessment_matrix.v1.json",
+    ".cache/ws_customer_default*/.cache/index/assessment_raw.v1.json",
+    ".cache/ws_customer_default*/.cache/index/bp_catalog.v1.json",
+    ".cache/ws_customer_default*/.cache/index/cockpit_decision_overlay*.json",
+    ".cache/ws_customer_default*/.cache/index/cockpit_decision_user_marks.v1.json",
+    ".cache/ws_customer_default*/.cache/index/cockpit_decisions_index.v1.json",
+    ".cache/ws_customer_default*/.cache/index/gap_matrix.v1.json",
+    ".cache/ws_customer_default*/.cache/index/gap_register.v1.json",
+    ".cache/ws_customer_default*/.cache/index/llm_*.v1.json",
+    ".cache/ws_customer_default*/.cache/index/mechanisms.registry.v1.json",
+    ".cache/ws_customer_default*/.cache/index/mechanisms.registry.history.v1.json",
+    ".cache/ws_customer_default*/.cache/index/mechanisms.suggestions.v1.json",
+    ".cache/ws_customer_default*/.cache/index/north_star_catalog.v1.json",
+    ".cache/ws_customer_default*/.cache/index/reference_matrix.v1.json",
+    ".cache/ws_customer_default*/.cache/index/trend_catalog.v1.json",
+    ".cache/ws_customer_default*/.cache/index/work_intake_purpose.v1.json",
+    ".cache/ws_customer_default*/.cache/ops/codex_dashboard_build.v1.py",
+    ".cache/ws_customer_default*/.cache/ops/codex_timeline_watchdog.v1.py",
+    ".cache/ws_customer_default*/.cache/ops/latency_watchdog.v1.py",
+    ".cache/ws_customer_default*/.cache/providers/provider_policy.v1.json",
+    ".cache/ws_customer_default*/.cache/providers/providers.v1.json",
+    ".cache/ws_customer_default*/.cache/reports/all_open_compat_reproof.v1.json",
+    ".cache/ws_customer_default*/.cache/reports/benchmark_scorecard.v1.json",
+    ".cache/ws_customer_default*/.cache/reports/cockpit_decision_queue.v1.json",
+    ".cache/ws_customer_default*/.cache/reports/codex_timeline_summary.v1.json",
+    ".cache/ws_customer_default*/.cache/reports/project_status.v1.txt",
+    ".cache/ws_customer_default*/.cache/reports/prompt_refine_consolidated.v0.4.8.draft.md",
+    ".cache/ws_customer_default*/.cache/reports/system_status.v1.json",
+    ".cache/ws_customer_default*/.cache/reports/work_intake_purpose_generate.v0.1.*",
+    ".cache/ws_customer_default*/.cache/state/llm_probe_state.v1.json",
+    ".cache/ws_customer_default*/policies/policy_llm_providers_guardrails.v1.json",
+)
+
+_RETENTION_OVERRIDE_REL_PATHS: tuple[str, ...] = (
+    ".cache/ws_customer_default/.cache/policy_overrides/policy_retention.override.v1.json",
+    ".cache/policy_overrides/policy_retention.override.v1.json",
+)
+
+_REAPER_INTERNAL_EXCLUDE_GLOBS: tuple[str, ...] = (
+    ".cache/reports/reaper_cleanup_pre_snapshot.v1.json",
+    ".cache/reports/reaper_cleanup_post_validate.v1.json",
+)
 
 
 def repo_root() -> Path:
@@ -52,6 +104,55 @@ def _safe_int(value: Any, *, default: int) -> int:
     return n
 
 
+def _safe_str_list(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    out: list[str] = []
+    for item in value:
+        text = str(item).strip()
+        if text:
+            out.append(text)
+    return tuple(out)
+
+
+def _safe_bool(value: Any, *, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"1", "true", "t", "yes", "y", "on"}:
+            return True
+        if text in {"0", "false", "f", "no", "n", "off"}:
+            return False
+    return bool(default)
+
+
+def _normalize_rel(rel: str) -> str:
+    text = str(rel).strip().replace("\\", "/")
+    while text.startswith("./"):
+        text = text[2:]
+    return text.lstrip("/")
+
+
+def _load_retention_override(root: Path) -> tuple[dict[str, Any], str]:
+    for rel in _RETENTION_OVERRIDE_REL_PATHS:
+        candidate = root / rel
+        if not candidate.exists() or not candidate.is_file():
+            continue
+        try:
+            obj = json.loads(candidate.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        try:
+            rel_path = candidate.resolve().relative_to(root.resolve()).as_posix()
+        except Exception:
+            rel_path = candidate.as_posix()
+        return obj, rel_path
+    return {}, ""
+
+
 def load_retention_policy(root: Path) -> RetentionPolicy:
     policy_path = root / "policies" / "policy_retention.v1.json"
     if not policy_path.exists():
@@ -59,13 +160,24 @@ def load_retention_policy(root: Path) -> RetentionPolicy:
     try:
         obj = json.loads(policy_path.read_text(encoding="utf-8"))
     except Exception:
-        return RetentionPolicy()
+        obj = {}
     if not isinstance(obj, dict):
-        return RetentionPolicy()
+        obj = {}
+    override_obj, override_path = _load_retention_override(root)
+    allow_critical_cache_delete = _safe_bool(obj.get("allow_critical_cache_delete"), default=False)
+    if isinstance(override_obj, dict):
+        allow_critical_cache_delete = _safe_bool(
+            override_obj.get("allow_critical_cache_delete"),
+            default=allow_critical_cache_delete,
+        )
     return RetentionPolicy(
         evidence_days=_safe_int(obj.get("evidence_days"), default=RetentionPolicy.evidence_days),
         dlq_days=_safe_int(obj.get("dlq_days"), default=RetentionPolicy.dlq_days),
         cache_days=_safe_int(obj.get("cache_days"), default=RetentionPolicy.cache_days),
+        cache_exclude_paths=_safe_str_list(obj.get("cache_exclude_paths")),
+        cache_exclude_globs=_safe_str_list(obj.get("cache_exclude_globs")),
+        allow_critical_cache_delete=allow_critical_cache_delete,
+        policy_override_path=override_path,
     )
 
 
@@ -113,6 +225,53 @@ def _rel_path(root: Path, path: Path) -> str:
         return path.as_posix()
 
 
+def _is_cache_excluded(*, root: Path, path: Path, policy: RetentionPolicy) -> bool:
+    rel = _normalize_rel(_rel_path(root, path))
+    for raw in _REAPER_INTERNAL_EXCLUDE_GLOBS:
+        rule = _normalize_rel(raw)
+        if not rule:
+            continue
+        if fnmatch.fnmatch(rel, rule):
+            return True
+    for raw in policy.cache_exclude_paths:
+        rule = _normalize_rel(raw)
+        if not rule:
+            continue
+        if rel == rule or rel.startswith(rule.rstrip("/") + "/"):
+            return True
+    for raw in policy.cache_exclude_globs:
+        rule = _normalize_rel(raw)
+        if not rule:
+            continue
+        if fnmatch.fnmatch(rel, rule):
+            return True
+    return False
+
+
+def _is_critical_cache_path(*, root: Path, path: Path) -> bool:
+    rel = _normalize_rel(_rel_path(root, path))
+    for raw in _CRITICAL_WS_CUSTOMER_CACHE_GLOBS:
+        rule = _normalize_rel(raw)
+        if not rule:
+            continue
+        if fnmatch.fnmatch(rel, rule):
+            return True
+    return False
+
+
+def list_critical_cache_files(*, root: Path) -> list[Path]:
+    cache_dir = root / ".cache"
+    if not cache_dir.exists():
+        return []
+    out: list[Path] = []
+    for path in sorted(cache_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        if _is_critical_cache_path(root=root, path=path):
+            out.append(path.resolve())
+    return sorted({p for p in out}, key=lambda p: _rel_path(root, p))
+
+
 def compute_reaper_report(*, root: Path, dry_run: bool, now: datetime) -> dict[str, Any]:
     policy = load_retention_policy(root)
 
@@ -123,6 +282,8 @@ def compute_reaper_report(*, root: Path, dry_run: bool, now: datetime) -> dict[s
     evidence_candidates: list[Path] = []
     dlq_candidates: list[Path] = []
     cache_candidates: list[Path] = []
+    cache_excluded: list[Path] = []
+    cache_critical_locked: list[Path] = []
 
     evidence_dir = root / "evidence"
     if evidence_dir.exists():
@@ -147,6 +308,13 @@ def compute_reaper_report(*, root: Path, dry_run: bool, now: datetime) -> dict[s
     if cache_dir.exists():
         for p in sorted(cache_dir.rglob("*")):
             if not p.is_file():
+                continue
+            if _is_cache_excluded(root=root, path=p, policy=policy):
+                cache_excluded.append(p)
+                continue
+            if _is_critical_cache_path(root=root, path=p) and not policy.allow_critical_cache_delete:
+                cache_excluded.append(p)
+                cache_critical_locked.append(p)
                 continue
             ts = _dt_from_file_mtime(p)
             if ts < cutoff_cache:
@@ -202,6 +370,17 @@ def compute_reaper_report(*, root: Path, dry_run: bool, now: datetime) -> dict[s
             "candidates": len(cache_candidates),
             "deleted": cache_deleted,
             "paths": [_rel_path(root, p) for p in sorted(cache_candidates, key=lambda p: _rel_path(root, p))],
+            "excluded": len(cache_excluded),
+            "excluded_paths": [_rel_path(root, p) for p in sorted(cache_excluded, key=lambda p: _rel_path(root, p))],
+            "critical_lock_enabled": not policy.allow_critical_cache_delete,
+            "critical_locked": len(cache_critical_locked),
+            "critical_locked_paths": [
+                _rel_path(root, p) for p in sorted(cache_critical_locked, key=lambda p: _rel_path(root, p))
+            ],
+        },
+        "policy": {
+            "allow_critical_cache_delete": bool(policy.allow_critical_cache_delete),
+            "policy_override_path": str(policy.policy_override_path or ""),
         },
     }
     return report
