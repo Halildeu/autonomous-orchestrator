@@ -2187,6 +2187,11 @@
           <section id="tab-overview" class="tab active">
             <div class="toolbar">
               <button class="btn" data-op="system-status">system-status</button>
+              <button class="btn" id="multi-repo-refresh" type="button" data-i18n="actions.multi_repo_refresh">Yönetilen repo durumu</button>
+              <label class="checkbox">
+                <input type="checkbox" id="multi-repo-critical-only" />
+                <span data-i18n="overview.multi_repo.critical_only">Sadece kritik</span>
+              </label>
             </div>
             <div class="status-banner" id="next-banner"></div>
             <div class="grid">
@@ -2194,6 +2199,13 @@
                 <h3 data-i18n="h.system_status">System Status</h3>
                 <div class="pill" id="status-pill">loading</div>
                 <div class="subtle" id="status-summary">...</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="h.multi_repo_status">Managed Repos</h3>
+                <div class="subtle" id="managed-repos-summary">...</div>
+                <div class="subtle" id="managed-repos-risk-line"></div>
+                <div class="subtle" id="managed-repos-error"></div>
+                <div id="managed-repos-list"></div>
               </div>
               <div class="card">
                 <h3 data-i18n="h.work_intake">Work Intake</h3>

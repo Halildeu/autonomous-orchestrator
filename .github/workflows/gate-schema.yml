@@ -26,6 +26,10 @@ jobs:
         run: |
           python ci/validate_schemas.py
 
+      - name: Validate smoke root cause taxonomy contract
+        run: |
+          python src/ops/smoke_root_cause_contract_test.py
+
       - name: Validate pack manifests (warn-only for soft conflicts)
         run: |
           python ci/validate_pack_manifest.py --out .cache/pack_validation/report.json
@@ -46,11 +50,62 @@ jobs:
         env:
           SMOKE_FULL_INCLUDE_CI: "0"
         run: |
-          python smoke_test.py
+          python -m src.ops.manage smoke --level full
+
+      - name: Smoke root cause summary (taxonomy)
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+
+          schema_path = Path("schemas/smoke-root-cause-report.schema.v1.json")
+          report_path = Path(".cache/reports/smoke_root_cause_report.v1.json")
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          if not schema_path.exists():
+            summary_path.open("a", encoding="utf-8").write("Smoke root cause: schema missing\n")
+            raise SystemExit(1)
+          if not report_path.exists():
+            summary_path.open("a", encoding="utf-8").write("Smoke root cause: report missing\n")
+            raise SystemExit(1)
+
+          schema = json.loads(schema_path.read_text(encoding="utf-8"))
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          validator = Draft202012Validator(schema)
+          errors = sorted(validator.iter_errors(report), key=lambda e: e.json_path)
+          if errors:
+            first = errors[0]
+            where = first.json_path or "$"
+            summary_path.open("a", encoding="utf-8").write(
+              f"Smoke root cause: schema invalid at {where}: {first.message}\n"
+            )
+            raise SystemExit(1)
+
+          msg = (
+            f"Smoke root cause: status={report.get('status')} "
+            f"code={report.get('root_error_code')} "
+            f"severity={report.get('root_error_severity')} "
+            f"category={report.get('root_error_category')} "
+            f"source={report.get('classification_source')} "
+            f"path={report_path.as_posix()}\n"
+          )
+          summary_path.open("a", encoding="utf-8").write(msg)
+          print(msg.strip())
+          PY
 
       - name: Script budget guardrails (soft=warn, hard=fail)
         run: |
           python ci/check_script_budget.py --out .cache/script_budget/report.json
+
+      - name: Upload smoke root cause report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-root-cause-report
+          path: .cache/reports/smoke_root_cause_report.v1.json
+          if-no-files-found: error
 
       - name: Upload script budget report artifact
         if: always()

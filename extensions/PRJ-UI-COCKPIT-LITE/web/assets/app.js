@@ -140,6 +140,7 @@ const I18N = {
     "theme.dark": "Dark",
     "theme.light": "Light",
     "actions.refresh_all": "Refresh All",
+    "actions.multi_repo_refresh": "Managed repos status",
     "actions.snapshot_page": "Snapshot this page",
     "sidebar.toggle": "Toggle sidebar",
     "nav.primary": "Primary",
@@ -160,6 +161,7 @@ const I18N = {
     "nav.command_composer": "Command Composer",
     "nav.evidence": "Evidence",
     "h.system_status": "System Status",
+    "h.multi_repo_status": "Managed Repositories",
     "h.work_intake": "Work Intake",
     "h.decisions": "Decisions",
     "h.loop_activity": "Loop Activity",
@@ -546,6 +548,13 @@ const I18N = {
     "overview.banner.no_intake": "No actionable intake. You may add a request.",
     "overview.banner.ready": "Ready. Use safe defaults or run a bounded loop.",
     "overview.banner.decisions_pending": "Decisions pending ({count}). Open Decisions.",
+    "overview.multi_repo.summary": "Managed repos: {selected}/{total}, critical={critical}",
+    "overview.multi_repo.critical_only": "Only critical",
+    "overview.multi_repo.risk_line": "Risk: {value}",
+    "overview.multi_repo.none": "No managed repositories configured.",
+    "overview.multi_repo.error": "Managed repo status unavailable: {error}",
+    "overview.multi_repo.refreshing": "Refreshing managed repository status…",
+    "overview.multi_repo.status": "Repo status: {status}",
     "overview.next.decision_pending": "Decision pending: open Decisions tab.",
     "overview.next.no_intake": "No intake items. Check sources.",
     "overview.next.no_blockers": "No immediate blockers. Consider auto-loop or new intake.",
@@ -799,6 +808,7 @@ const I18N = {
     "theme.dark": "Koyu",
     "theme.light": "Açık",
     "actions.refresh_all": "Tümünü Yenile",
+    "actions.multi_repo_refresh": "Yönetilen repo durumu",
     "actions.snapshot_page": "Bu sayfayı snapshot al",
     "sidebar.toggle": "Sidebar’ı aç/kapat",
     "nav.primary": "Ana gezinme",
@@ -819,6 +829,7 @@ const I18N = {
     "nav.command_composer": "Komut Oluşturucu",
     "nav.evidence": "Kanıt",
     "h.system_status": "Sistem Durumu",
+    "h.multi_repo_status": "Yönetilen Reposu",
     "h.work_intake": "İş Alımı",
     "h.decisions": "Kararlar",
     "h.loop_activity": "Döngü Aktivitesi",
@@ -1216,6 +1227,13 @@ const I18N = {
     "overview.banner.no_intake": "Aksiyonlanabilir intake yok. Yeni bir istek ekleyebilirsiniz.",
     "overview.banner.ready": "Hazır. Safe defaults kullanın veya sınırlı bir döngü çalıştırın.",
     "overview.banner.decisions_pending": "Bekleyen kararlar var ({count}). Kararlar sekmesini açın.",
+    "overview.multi_repo.summary": "Yönetilen repo: {selected}/{total}, kritik={critical}",
+    "overview.multi_repo.critical_only": "Sadece kritik",
+    "overview.multi_repo.risk_line": "Risk: {value}",
+    "overview.multi_repo.none": "Yönetilen repo tanımlı değil.",
+    "overview.multi_repo.error": "Yönetilen repo durumu alınamadı: {error}",
+    "overview.multi_repo.refreshing": "Yönetilen repo durumu yenileniyor…",
+    "overview.multi_repo.status": "Repo durumu: {status}",
     "overview.next.decision_pending": "Bekleyen karar: Kararlar sekmesini açın.",
     "overview.next.no_intake": "İş alımı öğesi yok. Kaynakları kontrol edin.",
     "overview.next.no_blockers": "Acil engel yok. Oto döngü veya yeni intake düşünebilirsiniz.",
@@ -1499,6 +1517,7 @@ const endpoints = {
   northStar: "/api/north_star",
   status: "/api/status",
   snapshot: "/api/ui_snapshot",
+  multiRepoStatus: "/api/multi-repo-status",
   inbox: "/api/inbox",
   intake: "/api/intake",
   decisions: "/api/decisions",
@@ -1589,6 +1608,10 @@ const state = {
   northStarFindingsJoinStats: null,
   status: null,
   snapshot: null,
+  multiRepoStatus: null,
+  multiRepoStatusError: "",
+  multiRepoCriticalOnly: false,
+  multiRepoStatusPending: false,
   inbox: null,
   intake: null,
   intakeSelectedId: null,
@@ -8567,6 +8590,94 @@ function renderTimelineDashboard() {
   }
 }
 
+function managedRepoRiskBadgeClass(level) {
+  const norm = String(level || "LOW").trim().toUpperCase();
+  if (norm === "CRITICAL") return "fail";
+  if (norm === "HIGH" || norm === "MEDIUM") return "warn";
+  return "ok";
+}
+
+function renderManagedReposPanel() {
+  const multiRepoData = state.multiRepoStatus || {};
+  const summary = multiRepoData.summary || {};
+  const entries = Array.isArray(multiRepoData.entries) ? multiRepoData.entries : [];
+  const summaryEl = $("#managed-repos-summary");
+  const riskLineEl = $("#managed-repos-risk-line");
+  const listEl = $("#managed-repos-list");
+  const errorEl = $("#managed-repos-error");
+
+  const totalRepos = Number(summary.all_entries_count || 0);
+  const selectedRepos = Number(summary.selected_entries_count || entries.length);
+  const criticalRepos = Number(summary.selected_critical_count || 0);
+
+  if (summaryEl) {
+    const totalText = totalRepos || selectedRepos;
+    summaryEl.textContent = t("overview.multi_repo.summary", {
+      selected: selectedRepos,
+      total: totalText,
+      critical: criticalRepos,
+    });
+  }
+
+  if (riskLineEl) {
+    const riskLine = String(summary.risk_line || "").trim();
+    riskLineEl.textContent = riskLine ? t("overview.multi_repo.risk_line", { value: riskLine }) : "";
+  }
+
+  if (errorEl) {
+    errorEl.textContent = state.multiRepoStatusError ? t("overview.multi_repo.error", { error: state.multiRepoStatusError }) : "";
+    errorEl.style.color = state.multiRepoStatusError ? "var(--danger)" : "var(--muted)";
+  }
+
+  if (state.multiRepoStatusPending) {
+    if (listEl) listEl.innerHTML = `<div class="subtle">${escapeHtml(t("overview.multi_repo.refreshing"))}</div>`;
+    return;
+  }
+
+  if (!entries.length) {
+    if (listEl) listEl.innerHTML = `<div class="entry subtle">${escapeHtml(t("overview.multi_repo.none"))}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = entries
+    .map((entry) => {
+      const slug = escapeHtml(String(entry?.repo_slug || entry?.repo_id || entry?.repo_root || "-"));
+      const ws = escapeHtml(String(entry?.workspace_root || "-"));
+      const root = escapeHtml(String(entry?.repo_root || "-"));
+      const riskLevel = String(entry?.risk_level || "LOW");
+      const riskScore = String(entry?.risk_score ?? 0);
+      const statusText = [
+        `overall=${escapeHtml(String(entry?.overall_status || "MISSING"))}`,
+        `ext_single=${escapeHtml(String(entry?.extensions_single_gate_status || "MISSING"))}`,
+        `ext_registry=${escapeHtml(String(entry?.extensions_registry_status || "MISSING"))}`,
+        `ext_isolation=${escapeHtml(String(entry?.extensions_isolation_status || "MISSING"))}`,
+        `quality=${escapeHtml(String(entry?.quality_gate_status || "MISSING"))}`,
+        `readiness=${escapeHtml(String(entry?.readiness_status || "MISSING"))}`,
+      ].join(" • ");
+      const statusPath = escapeHtml(String(entry?.status_path || ""));
+      const evidenceCount = Number(Array.isArray(entry?.evidence) ? entry.evidence.length : 0);
+      const notes = Array.isArray(entry?.notes) ? entry.notes.slice(0, 2) : [];
+      const notesText = notes.map((note) => String(note || "")).filter(Boolean).join(" • ");
+      const badgeClass = managedRepoRiskBadgeClass(riskLevel);
+
+      return `
+        <div class="entry">
+          <div class="row" style="justify-content: space-between; align-items: center; gap: 8px;">
+            <strong>${slug}</strong>
+            <span class="badge ${badgeClass}">${escapeHtml(riskLevel)} / ${escapeHtml(riskScore)}</span>
+          </div>
+          <div class="subtle">id=${escapeHtml(String(entry?.repo_id || "-"))} · ws=${ws}</div>
+          <div class="subtle">root=${root}</div>
+          <div class="subtle">${statusText}</div>
+          <div class="subtle">path=${statusPath}</div>
+          <div class="subtle">evidence=${evidenceCount}</div>
+          ${notesText ? `<div class="subtle">${escapeHtml(`notes=${notesText}`)}</div>` : ""}
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function renderOverview() {
   const overview = state.overview || {};
   const summary = overview.summary || {};
@@ -8619,6 +8730,7 @@ function renderOverview() {
   renderJson($("#snapshot-json"), snapshotData || {});
   renderJson($("#budget-json"), unwrap(state.budget || {}));
 
+  renderManagedReposPanel();
   renderActionResponse();
   renderActionLog();
   renderSearchPanel();
@@ -12681,8 +12793,39 @@ async function refreshTimeline({ run = false } = {}) {
   }
 }
 
+function multiRepoStatusUrl() {
+  const qs = new URLSearchParams();
+  if (state.multiRepoCriticalOnly) qs.set("critical_only", "true");
+  const query = qs.toString();
+  return query ? `${endpoints.multiRepoStatus}?${query}` : endpoints.multiRepoStatus;
+}
+
+async function refreshMultiRepoStatus({ silent = false } = {}) {
+  const url = multiRepoStatusUrl();
+  state.multiRepoStatusPending = true;
+  state.multiRepoStatusError = "";
+  if (!silent) renderOverview();
+  try {
+    state.multiRepoStatus = await fetchJson(url);
+    state.multiRepoStatusError = "";
+  } catch (err) {
+    state.multiRepoStatusError = formatError(err);
+    if (!silent) {
+      showToast(t("overview.multi_repo.error", { error: state.multiRepoStatusError }), "warn");
+    }
+    throw err;
+  } finally {
+    state.multiRepoStatusPending = false;
+    if (!silent) renderOverview();
+  }
+}
+
 async function refreshOverview() {
-  const [overviewRes, timelineRes] = await Promise.allSettled([fetchJson(endpoints.overview), fetchJson(endpoints.timeline)]);
+  const [overviewRes, timelineRes, multiRepoRes] = await Promise.allSettled([
+    fetchJson(endpoints.overview),
+    fetchJson(endpoints.timeline),
+    refreshMultiRepoStatus({ silent: true }),
+  ]);
   if (overviewRes.status === "rejected") throw overviewRes.reason;
   state.overview = overviewRes.value;
   if (timelineRes.status === "fulfilled") {
@@ -12690,6 +12833,11 @@ async function refreshOverview() {
     state.timelineError = "";
   } else {
     state.timelineError = formatError(timelineRes.reason);
+  }
+  if (multiRepoRes.status === "fulfilled") {
+    state.multiRepoStatusError = "";
+  } else {
+    state.multiRepoStatusError = formatError(multiRepoRes.reason);
   }
   renderOverview();
 }
@@ -13097,6 +13245,7 @@ function setActionDisabled(disabled) {
     "settings-clear",
     "run-card-save",
     "run-card-refresh",
+    "multi-repo-refresh",
     "notes-refresh",
     "note-save",
     "note-clear",
@@ -13110,6 +13259,8 @@ function setActionDisabled(disabled) {
     const el = $("#" + id);
     if (el) el.disabled = disabled;
   });
+  const multiRepoCriticalOnly = $("#multi-repo-critical-only");
+  if (multiRepoCriticalOnly) multiRepoCriticalOnly.disabled = disabled;
   applyAdminModeToWriteControls();
 }
 
@@ -13578,6 +13729,18 @@ function setupOps() {
     refreshAll();
     refreshEvidence();
   });
+  const multiRepoRefresh = $("#multi-repo-refresh");
+  if (multiRepoRefresh) {
+    multiRepoRefresh.addEventListener("click", () => refreshMultiRepoStatus());
+  }
+  const multiRepoCriticalOnly = $("#multi-repo-critical-only");
+  if (multiRepoCriticalOnly) {
+    multiRepoCriticalOnly.checked = Boolean(state.multiRepoCriticalOnly);
+    multiRepoCriticalOnly.addEventListener("change", (event) => {
+      state.multiRepoCriticalOnly = Boolean(event.target && event.target.checked);
+      refreshMultiRepoStatus();
+    });
+  }
   const timelineRefresh = $("#timeline-refresh");
   if (timelineRefresh) {
     timelineRefresh.addEventListener("click", () => refreshTimeline({ run: true }));

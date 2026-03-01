@@ -464,6 +464,40 @@ def validate_repo_layout(repo_root: Path) -> tuple[int, int]:
     return (1, 0)
 
 
+def validate_smoke_root_cause_reports(repo_root: Path) -> tuple[int, int]:
+    schema_path = repo_root / "schemas" / "smoke-root-cause-report.schema.v1.json"
+    if not schema_path.exists():
+        print("WARN: schemas/smoke-root-cause-report.schema.v1.json not found; skipping smoke root cause report validation.")
+        return (0, 0)
+
+    fixtures_dir = repo_root / "fixtures" / "reports"
+    if not fixtures_dir.exists():
+        print("WARN: fixtures/reports not found; skipping smoke root cause report validation.")
+        return (0, 0)
+
+    report_paths = iter_sorted([p for p in fixtures_dir.glob("smoke_root_cause_report*.json") if p.is_file()])
+    if not report_paths:
+        print("WARN: No smoke root cause report fixtures found in fixtures/reports; skipping.")
+        return (0, 0)
+
+    schema = load_json(schema_path)
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+
+    invalid = 0
+    for rp in report_paths:
+        instance = load_json(rp)
+        errors = sorted(validator.iter_errors(instance), key=lambda e: e.json_path)
+        if errors:
+            invalid += 1
+            print(f"INVALID_SMOKE_ROOT_CAUSE_REPORT: {rp} (schema={schema_path.name})")
+            for err in errors[:10]:
+                where = err.json_path or "$"
+                print(f"  - {where}: {err.message}")
+
+    return (len(report_paths), invalid)
+
+
 def main():
     repo_root = Path(__file__).resolve().parents[1]
 
@@ -481,6 +515,7 @@ def main():
     total_project_manifests, invalid_project_manifests = validate_project_manifests(repo_root)
     total_capabilities, invalid_capabilities = validate_capabilities(repo_root)
     total_repo_layout, invalid_repo_layout = validate_repo_layout(repo_root)
+    total_smoke_root_cause_reports, invalid_smoke_root_cause_reports = validate_smoke_root_cause_reports(repo_root)
 
     if invalid_fixtures:
         raise SystemExit(f"Schema validation failed: {invalid_fixtures}/{total_fixtures} invalid fixtures.")
@@ -510,6 +545,11 @@ def main():
         raise SystemExit(f"Schema validation failed: {invalid_capabilities}/{total_capabilities} invalid capabilities.")
     if invalid_repo_layout:
         raise SystemExit(f"Schema validation failed: {invalid_repo_layout}/{total_repo_layout} invalid repo layout files.")
+    if invalid_smoke_root_cause_reports:
+        raise SystemExit(
+            "Schema validation failed: "
+            + f"{invalid_smoke_root_cause_reports}/{total_smoke_root_cause_reports} invalid smoke root cause reports."
+        )
 
     print(f"OK: {len(schema_paths)} schema files validated.")
     if total_fixtures:
@@ -532,6 +572,11 @@ def main():
         print(f"OK: {total_capabilities} capabilities validated against spec-capability schema.")
     if total_repo_layout:
         print(f"OK: {total_repo_layout} repo layout files validated against repo-layout schema.")
+    if total_smoke_root_cause_reports:
+        print(
+            "OK: "
+            + f"{total_smoke_root_cause_reports} smoke root cause report fixtures validated against smoke root cause schema."
+        )
 
 
 if __name__ == "__main__":

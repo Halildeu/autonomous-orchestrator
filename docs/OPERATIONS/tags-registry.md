@@ -36,3 +36,20 @@ Not: Bu liste tam kapsam garantisi vermez; mevcut sistemin ürettiği ana değer
 - `READONLY_MODE_VIOLATION`: readonly dry-run’da repo/workspace “kirlenmesi”.
 - `CONTENT_MISMATCH`: overwrite=false iken mevcut dosya farklı içerikte (idempotency fail-closed).
 - `SANITIZE_VIOLATION`: promotion/sanitize taramasında yasak token bulundu.
+
+## SMOKE_ROOT_CAUSE taxonomy (v1)
+CI ve `ops.manage smoke` için standart kök neden kodları:
+
+- `NONE`: smoke başarılı, kök neden yok.
+- `SCRIPT_BUDGET`: Script Budget gate ihlali.
+- `READONLY_CMD_NOT_ALLOWED`: readonly modunda allowlist dışı komut.
+- `READONLY_MODE_VIOLATION`: readonly modunda yan etki tespiti.
+- `CORE_IMMUTABLE_WRITE_BLOCKED`: core lock nedeniyle yazma engellendi.
+- `WORKSPACE_ROOT_VIOLATION`: workspace boundary ihlali.
+- `SANITIZE_VIOLATION`: sanitize/pattern ihlali.
+- `CONTENT_MISMATCH`: idempotency içerik uyuşmazlığı.
+- `CMD_FAILED`: roadmap gate komutu non-zero döndü.
+- `SMOKE_ASSERTION_FAILED`: smoke assertion fail (açık root cause satırı yok).
+- `UNKNOWN`: sınıflandırılamayan/haritalanmamış hata.
+
+Makine-okunur standart rapor: `.cache/reports/smoke_root_cause_report.v1.json`

@@ -37,6 +37,10 @@ jobs:
           cp policy_diff_report.json .cache/policy_check/policy_diff_report.json
           python -m src.ops.policy_report --in .cache/policy_check --out .cache/policy_check/POLICY_REPORT.md
 
+      - name: Enforce deprecation warning gate
+        run: |
+          python -m src.ops.manage policy-check --source both --outdir .cache/policy_check --max-deprecation-warnings 1
+
       - name: Upload report artifact
         uses: actions/upload-artifact@v4
         with:

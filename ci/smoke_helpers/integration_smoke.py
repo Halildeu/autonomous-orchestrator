@@ -6,7 +6,7 @@ import os
 import shutil
 import sys
 import time
-from typing import Callable
+from typing import Any, Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,7 +40,88 @@ from ci.smoke_helpers.roadmap_smoke import (
     _smoke_artifact_completeness,
     _smoke_roadmap_drift,
 )
+from src.ops.smoke_root_cause import classify_smoke_root_cause, taxonomy_entry_for_code
 from src.roadmap.step_templates import RoadmapStepError, VirtualFS, step_create_file, step_create_json_from_template
+
+
+def _extract_json_objects(text: str) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for raw_line in (text or "").splitlines():
+        line = raw_line.strip()
+        if not (line.startswith("{") and line.endswith("}")):
+            continue
+        try:
+            obj = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            out.append(obj)
+    return out
+
+
+def _diagnose_roadmap_apply_failure(*, repo_root: Path, cmd_output: str) -> dict[str, str]:
+    evidence_path = ""
+    for obj in reversed(_extract_json_objects(cmd_output)):
+        raw_path = obj.get("evidence_path")
+        if isinstance(raw_path, str) and raw_path.strip():
+            evidence_path = raw_path.strip()
+            break
+    if not evidence_path:
+        return {}
+
+    run_dir = (repo_root / evidence_path).resolve()
+    summary_path = run_dir / "summary.json"
+    dlq_path = run_dir / "dlq.json"
+
+    summary_obj: dict[str, Any] = {}
+    if summary_path.exists():
+        try:
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+        except Exception:
+            loaded = {}
+        if isinstance(loaded, dict):
+            summary_obj = loaded
+
+    failed_error_code = summary_obj.get("failed_error_code")
+    if not isinstance(failed_error_code, str) or not failed_error_code.strip():
+        if dlq_path.exists():
+            try:
+                dlq_obj = json.loads(dlq_path.read_text(encoding="utf-8"))
+            except Exception:
+                dlq_obj = {}
+            if isinstance(dlq_obj, dict) and isinstance(dlq_obj.get("error_code"), str):
+                failed_error_code = dlq_obj.get("error_code")
+    failed_error_code = str(failed_error_code).strip() if isinstance(failed_error_code, str) else ""
+
+    failed_step_id = summary_obj.get("failed_step_id")
+    failed_step_id = str(failed_step_id).strip() if isinstance(failed_step_id, str) else ""
+
+    failed_cmd = summary_obj.get("failed_cmd")
+    failed_cmd = str(failed_cmd).strip() if isinstance(failed_cmd, str) else ""
+
+    failed_stderr_preview = summary_obj.get("failed_stderr_preview")
+    failed_stderr_preview = str(failed_stderr_preview).strip() if isinstance(failed_stderr_preview, str) else ""
+
+    root_error_code, root_source = classify_smoke_root_cause(
+        reported_root_error_code=failed_error_code,
+        failed_error_code=failed_error_code,
+        failed_cmd=failed_cmd,
+        text_blob=failed_stderr_preview,
+    )
+    taxonomy = taxonomy_entry_for_code(root_error_code)
+
+    return {
+        "evidence_path": evidence_path,
+        "failed_error_code": failed_error_code,
+        "failed_step_id": failed_step_id,
+        "failed_cmd": failed_cmd,
+        "failed_stderr_preview": failed_stderr_preview,
+        "root_error_code": taxonomy.get("code"),
+        "root_error_category": taxonomy.get("category"),
+        "root_error_severity": taxonomy.get("severity"),
+        "root_error_summary": taxonomy.get("summary"),
+        "root_error_source": root_source,
+    }
 
 
 def run_smoke_sequence(
@@ -119,27 +200,59 @@ def run_smoke_sequence(
     env["SMOKE_LEVEL"] = "fast"
     dry_run_milestones = "M2.5,M3,M3.5,M6,M6.5,M6.6,M6.7,M6.8,M7,M8,M8.1,M8.2,M9.1,M9.2,M9.3,M9.4"
     t_dry = time.monotonic()
-    run_cmd(
-        repo_root=repo_root,
-        argv=[
-            sys.executable,
-            "-m",
-            "src.ops.manage",
-            "roadmap-apply",
-            "--roadmap",
-            "roadmaps/SSOT/roadmap.v1.json",
-            "--milestones",
-            dry_run_milestones,
-            "--workspace-root",
-            str(ws_dry_run.relative_to(repo_root)),
-            "--dry-run",
-            "true",
-            "--dry-run-mode",
-            "readonly",
-        ],
-        env=env,
-        fail_msg=f"Smoke test failed: roadmap dry-run readonly failed ({dry_run_milestones}).",
-    )
+    try:
+        proc_ro = run_cmd(
+            repo_root=repo_root,
+            argv=[
+                sys.executable,
+                "-m",
+                "src.ops.manage",
+                "roadmap-apply",
+                "--roadmap",
+                "roadmaps/SSOT/roadmap.v1.json",
+                "--milestones",
+                dry_run_milestones,
+                "--workspace-root",
+                str(ws_dry_run.relative_to(repo_root)),
+                "--dry-run",
+                "true",
+                "--dry-run-mode",
+                "readonly",
+            ],
+            env=env,
+            fail_msg=f"Smoke test failed: roadmap dry-run readonly failed ({dry_run_milestones}).",
+            capture=True,
+        )
+    except SystemExit as e:
+        details = _diagnose_roadmap_apply_failure(repo_root=repo_root, cmd_output=str(e))
+        if details:
+            root_error_code = details.get("root_error_code") or "UNKNOWN"
+            failed_step = details.get("failed_step_id") or "unknown"
+            failed_cmd = details.get("failed_cmd") or "unknown"
+            failed_stderr = details.get("failed_stderr_preview") or ""
+            print(
+                "SMOKE_ROOT_CAUSE "
+                + f"root_error_code={root_error_code} "
+                + f"failed_step_id={failed_step} "
+                + f"failed_cmd={failed_cmd}"
+            )
+            print(
+                "SMOKE_ROOT_CAUSE_META "
+                + f"category={details.get('root_error_category') or 'UNKNOWN'} "
+                + f"severity={details.get('root_error_severity') or 'UNKNOWN'} "
+                + f"source={details.get('root_error_source') or 'unknown'}"
+            )
+            if failed_stderr:
+                print(f"SMOKE_ROOT_STDERR {failed_stderr}")
+            raise SystemExit(
+                f"Smoke test failed: roadmap dry-run readonly failed ({dry_run_milestones}). "
+                f"root_error_code={root_error_code} failed_step_id={failed_step}."
+            ) from None
+        raise
+    if proc_ro.stdout:
+        print(proc_ro.stdout.rstrip())
+    if proc_ro.stderr:
+        print(proc_ro.stderr.rstrip())
     print_timer("dry_run_readonly", t_dry)
 
     t_checks = time.monotonic()

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -36,6 +35,12 @@ from src.ops.commands.maintenance_cmds_runtime import (
 from src.ops.commands.maintenance_cmds_planner import register_planner_and_intake_subcommands
 from src.ops.commands.intake_link_report_cmds import cmd_intake_link_report
 from src.ops.commands.maintenance_policy_cmds import cmd_evidence_export, cmd_policy_check, cmd_reaper
+from src.ops.smoke_root_cause import (
+    DEFAULT_SMOKE_ROOT_CAUSE_REPORT,
+    build_smoke_root_cause_report,
+    parse_smoke_root_cause_from_output,
+    write_smoke_root_cause_report,
+)
 from src.ops.commands.work_intake_claim_cmds import cmd_work_intake_claim
 from src.ops.commands.work_intake_close_cmds import cmd_work_intake_close
 from src.ops.commands.work_intake_purpose_cmds import cmd_work_intake_purpose_generate
@@ -129,6 +134,7 @@ def cmd_smoke(args: argparse.Namespace) -> int:
     if level not in {"fast", "full"}:
         warn("FAIL error=INVALID_LEVEL")
         return 2
+    out_arg = str(getattr(args, "root_cause_out", "") or "").strip() or DEFAULT_SMOKE_ROOT_CAUSE_REPORT
 
     env = os.environ.copy()
     env["SMOKE_LEVEL"] = level
@@ -139,31 +145,41 @@ def cmd_smoke(args: argparse.Namespace) -> int:
         print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n", file=sys.stderr)
 
     status = "OK" if proc.returncode == 0 else "FAIL"
-    payload: dict[str, Any] = {"status": status, "level": level}
-    if status != "OK":
-        combined = (proc.stdout or "") + ("\n" if proc.stdout and proc.stderr else "") + (proc.stderr or "")
-        root_error_code = ""
-        failed_step_id = ""
-        failed_cmd = ""
-        m = re.search(
-            r"SMOKE_ROOT_CAUSE\s+root_error_code=(\S+)\s+failed_step_id=(\S+)\s+failed_cmd=(.+)",
-            combined,
-        )
-        if m:
-            root_error_code = str(m.group(1) or "").strip()
-            failed_step_id = str(m.group(2) or "").strip()
-            failed_cmd = str(m.group(3) or "").strip()
-        if not root_error_code:
-            if "check_script_budget.py" in combined or "PY_FILE_NO_GROWTH" in combined:
-                root_error_code = "SCRIPT_BUDGET"
-            elif "READONLY_CMD_NOT_ALLOWED" in combined:
-                root_error_code = "READONLY_CMD_NOT_ALLOWED"
-        if root_error_code:
-            payload["root_error_code"] = root_error_code
-        if failed_step_id:
-            payload["failed_step_id"] = failed_step_id
-        if failed_cmd:
-            payload["failed_cmd"] = failed_cmd
+    combined = (proc.stdout or "") + ("\n" if proc.stdout and proc.stderr else "") + (proc.stderr or "")
+    parsed = parse_smoke_root_cause_from_output(combined)
+    report = build_smoke_root_cause_report(
+        status=status,
+        level=level,
+        reported_root_error_code=str(parsed.get("root_error_code") or ""),
+        failed_error_code=str(parsed.get("failed_error_code") or ""),
+        failed_step_id=str(parsed.get("failed_step_id") or ""),
+        failed_cmd=str(parsed.get("failed_cmd") or ""),
+        failed_stderr_preview=str(parsed.get("failed_stderr_preview") or ""),
+        combined_output=combined,
+    )
+    report_path = write_smoke_root_cause_report(repo_root=root, report=report, out_path=out_arg)
+    payload: dict[str, Any] = {
+        "status": status,
+        "level": level,
+        "root_cause_report": report_path,
+        "root_error_code": report.get("root_error_code"),
+        "root_error_category": report.get("root_error_category"),
+        "root_error_severity": report.get("root_error_severity"),
+        "classification_source": report.get("classification_source"),
+    }
+    failed_step_id = str(report.get("failed_step_id") or "").strip()
+    failed_cmd = str(report.get("failed_cmd") or "").strip()
+    if failed_step_id:
+        payload["failed_step_id"] = failed_step_id
+    if failed_cmd:
+        payload["failed_cmd"] = failed_cmd
+    print(
+        "SMOKE_ROOT_CAUSE_REPORT "
+        + f"status={status} "
+        + f"code={report.get('root_error_code')} "
+        + f"severity={report.get('root_error_severity')} "
+        + f"path={report_path}"
+    )
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status == "OK" else 2
 def cmd_system_status(args: argparse.Namespace) -> int:
@@ -647,6 +663,11 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_ts.set_defaults(func=cmd_airunner_time_sinks_prune)
     ap_smoke = parent.add_parser("smoke", help="Run smoke_test.py with SMOKE_LEVEL (fast|full).")
     ap_smoke.add_argument("--level", default="fast", help="fast|full (default: fast).")
+    ap_smoke.add_argument(
+        "--root-cause-out",
+        default=DEFAULT_SMOKE_ROOT_CAUSE_REPORT,
+        help=f"Smoke root cause report JSON path (default: {DEFAULT_SMOKE_ROOT_CAUSE_REPORT}).",
+    )
     ap_smoke.set_defaults(func=cmd_smoke)
     ap_sys = parent.add_parser("system-status", help="Generate unified system status report (JSON + MD).")
     ap_sys.add_argument("--workspace-root", required=True, help="Workspace root path.")

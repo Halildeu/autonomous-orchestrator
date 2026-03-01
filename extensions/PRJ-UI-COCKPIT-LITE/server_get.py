@@ -21,6 +21,222 @@ def _short_str(value: Any, limit: int = 300) -> str:
     return f"{text[: max(0, limit - 3)]}..."
 
 
+def _multi_repo_status_value(raw: Any, *, missing_to: str = "MISSING") -> str:
+    raw_text = str(raw or "").strip().upper()
+    if raw_text:
+        return raw_text
+    return missing_to
+
+
+def _multi_repo_is_critical(raw: Any) -> bool:
+    status = _multi_repo_status_value(raw)
+    return status in {"FAIL", "BLOCKED", "NOT_READY", "WARN", "MISSING", "ERROR", "INVALID"}
+
+
+def _multi_repo_status_weight(raw: Any) -> int:
+    status = _multi_repo_status_value(raw)
+    if status in {"FAIL", "BLOCKED", "NOT_READY", "MISSING", "ERROR", "INVALID"}:
+        return 3
+    if status in {"WARN", "IDLE", "UNKNOWN", "SKIPPED"}:
+        return 1
+    return 0
+
+
+def _multi_repo_risk_level(score: int) -> str:
+    if score >= 10:
+        return "CRITICAL"
+    if score >= 6:
+        return "HIGH"
+    if score >= 2:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _build_multi_repo_status_entry(raw_entry: dict[str, Any]) -> dict[str, Any]:
+    workspace_root = str(raw_entry.get("workspace_root") or "").strip()
+    workspace_path = Path(workspace_root).resolve() if workspace_root else None
+    repo_root = str(raw_entry.get("repo_root") or "").strip()
+    repo_id = str(raw_entry.get("repo_id") or "").strip() or (str(workspace_path.name) if workspace_path else "")
+    repo_slug = str(raw_entry.get("repo_slug") or "").strip() or repo_id
+
+    if workspace_path is None:
+        return {
+            "repo_id": repo_id,
+            "repo_slug": repo_slug,
+            "repo_root": repo_root,
+            "workspace_root": workspace_root,
+            "status_path": "",
+            "status_exists": False,
+            "status_json_valid": False,
+            "overall_status": "MISSING",
+            "extensions_single_gate_status": "MISSING",
+            "extensions_registry_status": "MISSING",
+            "extensions_isolation_status": "MISSING",
+            "quality_gate_status": "MISSING",
+            "readiness_status": "MISSING",
+            "critical": True,
+            "risk_score": 3,
+            "risk_level": "MEDIUM",
+            "gates": {
+                "overall": "MISSING",
+                "extensions": {
+                    "single_gate_status": "MISSING",
+                    "registry_status": "MISSING",
+                    "isolation_status": "MISSING",
+                },
+                "quality_gate": "MISSING",
+                "readiness": "MISSING",
+            },
+            "notes": ["workspace_root_missing"],
+            "evidence": [],
+        }
+
+    status_path = workspace_path / ".cache" / "reports" / "system_status.v1.json"
+    status_data, status_exists, status_json_valid = _read_json_file(status_path)
+    status_data = status_data if isinstance(status_data, dict) else {}
+    if not isinstance(status_data, dict):
+        status_data = {}
+    sections = status_data.get("sections") if isinstance(status_data, dict) else {}
+    if not isinstance(sections, dict):
+        sections = {}
+
+    extensions = sections.get("extensions") if isinstance(sections, dict) else {}
+    if not isinstance(extensions, dict):
+        extensions = {}
+
+    quality_gate = sections.get("quality_gate") if isinstance(sections, dict) else {}
+    if not isinstance(quality_gate, dict):
+        quality_gate = {}
+
+    readiness = sections.get("readiness") if isinstance(sections, dict) else {}
+    if not isinstance(readiness, dict):
+        readiness = {}
+
+    isolation = extensions.get("isolation_summary") if isinstance(extensions, dict) else {}
+    if not isinstance(isolation, dict):
+        isolation = {}
+
+    overall_status = _multi_repo_status_value(status_data.get("overall_status") if status_exists else "MISSING")
+    extensions_single_gate_status = _multi_repo_status_value(extensions.get("single_gate_status"))
+    extensions_registry_status = _multi_repo_status_value(extensions.get("registry_status"))
+    extensions_isolation_status = _multi_repo_status_value(isolation.get("status"))
+    quality_gate_status = _multi_repo_status_value(quality_gate.get("status"))
+    readiness_status = _multi_repo_status_value(readiness.get("status"))
+
+    gate_scores = [
+        overall_status,
+        extensions_single_gate_status,
+        extensions_registry_status,
+        extensions_isolation_status,
+        quality_gate_status,
+        readiness_status,
+    ]
+    risk_score = sum(_multi_repo_status_weight(status) for status in gate_scores)
+    notes = status_data.get("notes") if isinstance(status_data.get("notes"), list) else []
+    if not status_exists:
+        notes = ["system_status_missing", *[str(note) for note in notes]]
+        if not notes:
+            notes = ["system_status_missing"]
+        risk_score += 3
+
+    critical = any(_multi_repo_is_critical(value) for value in gate_scores)
+    return {
+        "repo_id": repo_id,
+        "repo_slug": repo_slug,
+        "repo_root": repo_root,
+        "workspace_root": str(workspace_path),
+        "status_path": str(status_path),
+        "status_exists": bool(status_exists),
+        "status_json_valid": bool(status_json_valid),
+        "overall_status": overall_status,
+        "extensions_single_gate_status": extensions_single_gate_status,
+        "extensions_registry_status": extensions_registry_status,
+        "extensions_isolation_status": extensions_isolation_status,
+        "quality_gate_status": quality_gate_status,
+        "readiness_status": readiness_status,
+        "critical": bool(critical),
+        "risk_score": int(risk_score),
+        "risk_level": _multi_repo_risk_level(risk_score),
+        "gates": {
+            "overall": overall_status,
+            "extensions": {
+                "single_gate_status": extensions_single_gate_status,
+                "registry_status": extensions_registry_status,
+                "isolation_status": extensions_isolation_status,
+            },
+            "quality_gate": quality_gate_status,
+            "readiness": readiness_status,
+        },
+        "notes": [str(note) for note in notes],
+        "evidence": [str(status_path)],
+    }
+
+
+def _build_multi_repo_summary(entries: list[dict[str, Any]], *, critical_only: bool) -> dict[str, Any]:
+    selected = [entry for entry in entries if not critical_only or bool(entry.get("critical"))]
+    all_count = len(entries)
+    selected_count = len(selected)
+
+    def _norm_risk(value: Any) -> str:
+        return str(value or "LOW").strip().upper()
+
+    def _risk_bucket(level: str) -> str:
+        n = _norm_risk(level)
+        if n in {"CRITICAL", "HIGH", "MEDIUM", "LOW"}:
+            return n
+        return "LOW"
+
+    all_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    selected_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    all_risk_score = 0
+    selected_risk_score = 0
+    all_critical_count = 0
+    selected_critical_count = 0
+
+    for entry in entries:
+        if bool(entry.get("critical")):
+            all_critical_count += 1
+        risk_level = _risk_bucket(entry.get("risk_level"))
+        all_counts[risk_level] += 1
+        try:
+            all_risk_score += int(entry.get("risk_score") or 0)
+        except Exception:
+            all_risk_score += 0
+
+    for entry in selected:
+        if bool(entry.get("critical")):
+            selected_critical_count += 1
+        risk_level = _risk_bucket(entry.get("risk_level"))
+        selected_counts[risk_level] += 1
+        try:
+            selected_risk_score += int(entry.get("risk_score") or 0)
+        except Exception:
+            selected_risk_score += 0
+
+    selected_avg = round(selected_risk_score / selected_count, 2) if selected_count else 0.0
+
+    return {
+        "all_entries_count": all_count,
+        "selected_entries_count": selected_count,
+        "critical_only": bool(critical_only),
+        "all_critical_count": all_critical_count,
+        "selected_critical_count": selected_critical_count,
+        "all_risk_score": all_risk_score,
+        "selected_risk_score": selected_risk_score,
+        "selected_risk_score_avg": selected_avg,
+        "all_risk_level_counts": all_counts,
+        "selected_risk_level_counts": selected_counts,
+        "risk_line": (
+            f"all={all_count} selected={selected_count} "
+            f"critical={selected_critical_count}/{all_critical_count} "
+            f"risk_score={selected_risk_score} risk_avg={selected_avg:.2f} "
+            f"levels(Critical/High/Medium/Low)="
+            f"{selected_counts['CRITICAL']}/{selected_counts['HIGH']}/"
+            f"{selected_counts['MEDIUM']}/{selected_counts['LOW']}"
+        ),
+    }
+
+
 def handle_do_get(self, *, repo_root: Path, ws_root: Path, allow_roots: list[Path], parsed) -> None:
     if parsed.path == "/":
         index_path = self.server.web_root / "index.html"
@@ -240,7 +456,53 @@ def handle_do_get(self, *, repo_root: Path, ws_root: Path, allow_roots: list[Pat
         }
         self._send_json(200, payload)
         return
-    
+
+    if parsed.path == "/api/multi-repo-status":
+        qs = parse_qs(parsed.query)
+        critical_only = _parse_bool_arg(qs.get("critical_only", ["false"])[0])
+        print_evidence_map = _parse_bool_arg(qs.get("print_evidence_map", ["true"])[0])
+
+        manifest = _read_managed_repos_manifest(ws_root)
+        managed_entries = _collect_managed_repo_entries(ws_root)
+        manifest_entries = [entry for entry in managed_entries if isinstance(entry, dict)]
+        ws_root_key = str(ws_root.resolve())
+        has_self = any(str(item.get("workspace_root") or "") == ws_root_key for item in manifest_entries)
+        if not has_self:
+            manifest_entries.append(
+                {
+                    "workspace_root": ws_root_key,
+                    "repo_root": str(repo_root),
+                    "repo_slug": "orchestrator-current",
+                    "repo_id": "orchestrator-current",
+                    "source": "self",
+                }
+            )
+
+        raw_entries = [_build_multi_repo_status_entry(raw_entry) for raw_entry in manifest_entries]
+        summary = _build_multi_repo_summary(raw_entries, critical_only=critical_only)
+        entries = [
+            entry
+            for entry in raw_entries
+            if (not summary["critical_only"] or bool(entry.get("critical")))
+        ]
+        if not print_evidence_map:
+            for entry in entries:
+                entry["evidence"] = []
+
+        payload = {
+            "status": "OK",
+            "critical_only": bool(critical_only),
+            "print_evidence_map": bool(print_evidence_map),
+            "manifest_path": str(manifest.get("path", "")),
+            "manifest_exists": bool(manifest.get("exists")),
+            "manifest_json_valid": bool(manifest.get("json_valid")),
+            "managed_workspace_root": ws_root_key,
+            "summary": summary,
+            "entries": entries,
+        }
+        self._send_json(200, payload)
+        return
+
     if parsed.path == "/api/timeline":
         qs = parse_qs(parsed.query)
         run = _parse_bool_arg(qs.get("run", ["false"])[0])

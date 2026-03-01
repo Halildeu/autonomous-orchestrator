@@ -78,6 +78,7 @@ SEARCH_DEFAULT_MAX_FILES = 600
 SEARCH_DEFAULT_MAX_BYTES = 6_000_000
 SEARCH_DEFAULT_CHUNK = 1200
 RG_MAX_FILESIZE = "5M"
+MANAGED_REPOS_MANIFEST_REL = Path(".cache") / "managed_repos.v1.json"
 PLANNER_ASSISTANT_SYSTEM_FALLBACK = (
     "Sen Cockpit Planner asistanısın. "
     "Yanıtları Türkçe, kısa, net ve uygulanabilir üret. "
@@ -348,6 +349,187 @@ def _parse_links_value(raw: Any) -> list[dict[str, Any]]:
     except Exception:
         return []
     return [item for item in parsed if isinstance(item, dict)] if isinstance(parsed, list) else []
+
+
+def _manifest_base_candidates(ws_root: Path) -> list[Path]:
+    candidates: list[Path] = []
+    candidates.append(ws_root)
+    if ws_root.parent != ws_root:
+        candidates.append(ws_root.parent)
+    return candidates
+
+
+def _managed_repos_manifest_candidates(ws_root: Path) -> list[Path]:
+    out: list[Path] = []
+    seen: set[str] = set()
+    for base in _manifest_base_candidates(ws_root):
+        path = (base / MANAGED_REPOS_MANIFEST_REL).resolve()
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return out
+
+
+def _read_managed_repos_manifest(ws_root: Path) -> dict[str, Any]:
+    for path in _managed_repos_manifest_candidates(ws_root):
+        if path.exists():
+            data, exists, json_valid = _read_json_file(path)
+            return {
+                "path": str(path),
+                "exists": bool(exists),
+                "json_valid": bool(json_valid),
+                "data": data if isinstance(data, dict) else {},
+                "source": "file",
+            }
+    return {
+        "path": str(_managed_repos_manifest_candidates(ws_root)[0]),
+        "exists": False,
+        "json_valid": False,
+        "data": {},
+        "source": "fallback",
+    }
+
+
+def _as_sorted_unique_paths(paths: list[Path]) -> list[Path]:
+    seen: set[str] = set()
+    out: list[Path] = []
+    for path in paths:
+        if not path:
+            continue
+        try:
+            norm = str(path.resolve())
+        except Exception:
+            norm = str(path)
+        if norm in seen:
+            continue
+        seen.add(norm)
+        out.append(path)
+    out.sort(key=lambda p: str(p))
+    return out
+
+
+def _collect_managed_repo_entries(ws_root: Path) -> list[dict[str, Any]]:
+    manifest = _read_managed_repos_manifest(ws_root)
+    raw = manifest.get("data", {}) if isinstance(manifest.get("data"), dict) else {}
+    repo_rows = raw.get("repos")
+    if not isinstance(repo_rows, list):
+        repo_rows = raw.get("managed_repos")
+    if not isinstance(repo_rows, list):
+        repo_rows = raw.get("entries")
+    if not isinstance(repo_rows, list):
+        repo_rows = []
+
+    items: list[dict[str, Any]] = []
+    manifest_base = Path(manifest.get("path", "")).resolve().parent if manifest.get("path") else ws_root
+
+    def add_entry(raw_entry: Any) -> None:
+        if isinstance(raw_entry, str):
+            entry = {"repo_root": raw_entry.strip()}
+        elif isinstance(raw_entry, dict):
+            entry = raw_entry
+        else:
+            return
+
+        repo_root_raw = str(entry.get("repo_root") or entry.get("repo") or "").strip()
+        ws_root_raw = str(entry.get("workspace_root") or entry.get("workspace") or entry.get("ws_root") or "").strip()
+
+        repo_root_path = Path(repo_root_raw).expanduser().resolve() if repo_root_raw else None
+        if ws_root_raw:
+            if Path(ws_root_raw).is_absolute():
+                workspace_root_path = Path(ws_root_raw).expanduser().resolve()
+            else:
+                workspace_root_path = (manifest_base / ws_root_raw).resolve()
+        else:
+            workspace_root_path = None
+
+        if not workspace_root_path and entry.get("workspace_id"):
+            workspace_id = str(entry.get("workspace_id") or "").strip()
+            candidates = [p for p in _manifest_base_candidates(ws_root) if p.exists()]
+            for parent in candidates:
+                candidate = parent / workspace_id
+                if candidate.exists():
+                    workspace_root_path = candidate
+                    break
+
+        if not workspace_root_path:
+            return
+
+        repo_slug = str(
+            entry.get("repo_slug")
+            or entry.get("slug")
+            or (repo_root_path.name if repo_root_path else workspace_root_path.name)
+        ).strip()
+        repo_id = str(entry.get("repo_id") or entry.get("id") or workspace_root_path.name).strip()
+
+        items.append(
+            {
+                "workspace_root": str(workspace_root_path),
+                "workspace_root_path": workspace_root_path,
+                "repo_root": str(repo_root_path) if repo_root_path else "",
+                "repo_slug": repo_slug,
+                "repo_id": repo_id,
+                "source": "manifest",
+            }
+        )
+
+    for raw_entry in repo_rows:
+        add_entry(raw_entry)
+
+    if not items:
+        fallback_roots = _as_sorted_unique_paths(list({d for d in {ws_root.parent, ws_root} if d is not None and d.exists()}))
+        workspace_roots: list[Path] = []
+        for root in fallback_roots:
+            workspace_roots.extend(
+                [child for child in root.iterdir() if child.is_dir() and child.name.startswith("repo-")],
+            )
+            if root.name.startswith("repo-"):
+                workspace_roots.append(root)
+        workspace_roots = _as_sorted_unique_paths(workspace_roots)
+        for workspace_root_path in workspace_roots:
+            if not workspace_root_path.exists():
+                continue
+            items.append(
+                {
+                    "workspace_root": str(workspace_root_path),
+                    "workspace_root_path": workspace_root_path,
+                    "repo_root": "",
+                    "repo_slug": workspace_root_path.name,
+                    "repo_id": workspace_root_path.name,
+                    "source": "fallback",
+                }
+            )
+
+    deduped: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        workspace_root = str(item.get("workspace_root") or "").strip()
+        if not workspace_root:
+            continue
+        existing = deduped.get(workspace_root)
+        if existing is None:
+            deduped[workspace_root] = item
+            continue
+        if (existing.get("source") == "fallback") and (item.get("source") == "manifest"):
+            deduped[workspace_root] = item
+
+    return sorted(deduped.values(), key=lambda item: str(item.get("repo_id") or item.get("workspace_root")))
+
+
+def _managed_repo_path_map(ws_root: Path) -> dict[str, Path]:
+    entries = _collect_managed_repo_entries(ws_root)
+    out: dict[str, Path] = {}
+    for item in entries:
+        ws_entry = str(item.get("workspace_root") or "").strip()
+        if not ws_entry:
+            continue
+        try:
+            out[ws_entry] = Path(ws_entry).resolve()
+        except Exception:
+            continue
+    return out
 
 
 def _chat_store_path(ws_root: Path) -> Path:
@@ -782,6 +964,24 @@ def _read_json_file(path: Path) -> tuple[dict[str, Any], bool, bool]:
 
 
 def _watch_paths(repo_root: Path, ws_root: Path) -> list[Path]:
+    managed_workspace_map = _managed_repo_path_map(ws_root)
+    managed_roots = list(managed_workspace_map.values())
+    managed_roots = _as_sorted_unique_paths(managed_roots)
+    manifest = _read_managed_repos_manifest(ws_root)
+
+    managed_status_paths = []
+    for managed_root in managed_roots:
+        managed_status_paths.extend(
+            [
+                managed_root / ".cache" / "reports" / "system_status.v1.json",
+                managed_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json",
+                managed_root / ".cache" / "reports" / "codex_timeline_summary.v1.json",
+                managed_root / ".cache" / "reports" / "codex_timeline_summary.v1.v1.md",
+                managed_root / ".cache" / "index" / "work_intake.v1.json",
+                managed_root / ".cache" / "index" / "decision_inbox.v1.json",
+            ]
+        )
+
     return [
         ws_root / ".cache" / "reports" / "system_status.v1.json",
         ws_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json",
@@ -801,6 +1001,8 @@ def _watch_paths(repo_root: Path, ws_root: Path) -> list[Path]:
         repo_root / ".cache" / "script_budget" / "report.json",
         ws_root / ".cache" / "reports",
         ws_root / ".cache" / "index",
+        *managed_status_paths,
+        Path(manifest.get("path", "")) if manifest.get("path") else ws_root / MANAGED_REPOS_MANIFEST_REL,
     ]
 
 
@@ -1058,6 +1260,11 @@ __all__ = [
     "_summarize_intake",
     "_summarize_decisions",
     "_summarize_jobs",
+    "_manifest_base_candidates",
+    "_managed_repos_manifest_candidates",
+    "_read_managed_repos_manifest",
+    "_collect_managed_repo_entries",
+    "_managed_repo_path_map",
     "_parse_iso",
     "_run_op",
     "_search_router",
