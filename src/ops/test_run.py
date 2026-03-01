@@ -232,7 +232,29 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not contract_ok:
         failures.append("runner_execute_behavior_freeze_contract")
 
-    # 7) stage-level runner contract suite (modular freeze lock).
+    # 7) stage-level runner contracts (modular freeze lock, per-stage visibility).
+    stage_modules: list[tuple[str, str]] = [
+        ("validate", "src.orchestrator.runner_stage_validate_contract_test"),
+        ("governor", "src.orchestrator.runner_stage_governor_contract_test"),
+        ("routing_workflow", "src.orchestrator.runner_stage_routing_workflow_contract_test"),
+        ("idempotency", "src.orchestrator.runner_stage_idempotency_contract_test"),
+        ("quota_autonomy", "src.orchestrator.runner_stage_quota_autonomy_contract_test"),
+        ("execute_finalize", "src.orchestrator.runner_stage_execute_finalize_contract_test"),
+    ]
+    stage_contracts: dict[str, str] = {}
+    stage_contract_details: dict[str, str] = {}
+    for stage_name, stage_module in stage_modules:
+        stage_proc = subprocess.run([sys.executable, "-m", stage_module], cwd=repo_root(), text=True, capture_output=True)
+        stage_ok = stage_proc.returncode == 0
+        stage_detail = _tail_line(stage_proc.stdout) or _tail_line(stage_proc.stderr) or f"rc={stage_proc.returncode}"
+        stage_contracts[stage_name] = "PASS" if stage_ok else "FAIL"
+        stage_contract_details[stage_name] = stage_detail
+        test_name = f"runner_stage_contract_{stage_name}"
+        tests.append(_format_test_result(test_name, stage_ok, stage_detail))
+        if not stage_ok:
+            failures.append(test_name)
+
+    # 8) stage-level runner contract suite aggregate.
     stage_contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_stage_contract_suite_test"]
     stage_contract_proc = subprocess.run(stage_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     stage_contract_ok = stage_contract_proc.returncode == 0
@@ -258,6 +280,8 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         "workspace_root": str(workspace_root),
         "status": status,
         "failures": failures,
+        "stage_contracts": stage_contracts,
+        "stage_contract_details": stage_contract_details,
         "tests": tests,
         "evidence_paths": evidence_paths,
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "TRAVERSAL_BLOCKED=true"],
@@ -280,7 +304,13 @@ def cmd_test_run(args: argparse.Namespace) -> int:
     if status == "FAIL":
         warn("FAIL error=TEST_RUN_FAILED")
         return 2
-    print(json.dumps({k: result.get(k) for k in ("status", "failures", "evidence_paths")}, ensure_ascii=False, sort_keys=True))
+    print(
+        json.dumps(
+            {k: result.get(k) for k in ("status", "failures", "stage_contracts", "evidence_paths")},
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
