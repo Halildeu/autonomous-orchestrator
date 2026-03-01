@@ -7,6 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import copytree, rmtree
 import tomllib
+from ci.smoke_helpers.smoke_cli_checks import run_cli_contract_checks
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -81,117 +82,7 @@ def main() -> None:
         if quota_store_path.exists():
             quota_store_path.unlink()
 
-    proc_cli_import = subprocess.run(
-        [sys.executable, "-c", "from src.cli import main; print('CLI_OK')"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-    )
-    if proc_cli_import.returncode != 0 or "CLI_OK" not in (proc_cli_import.stdout or ""):
-        raise SystemExit(
-            "Smoke test failed: CLI module import check failed.\n"
-            + (proc_cli_import.stderr or proc_cli_import.stdout or "")
-        )
-
-    proc_examples_import = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "import examples.sdk_run_demo; import examples.policy_check_demo; print('EXAMPLES_IMPORT_OK')",
-        ],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-    )
-    if proc_examples_import.returncode != 0 or "EXAMPLES_IMPORT_OK" not in (proc_examples_import.stdout or ""):
-        raise SystemExit(
-            "Smoke test failed: examples import check failed.\n"
-            + (proc_examples_import.stderr or proc_examples_import.stdout or "")
-        )
-
-    # CLI help/usage must be stable and informative.
-    proc_cli_help = subprocess.run(
-        [sys.executable, "-m", "src.cli", "--help"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-    )
-    if proc_cli_help.returncode != 0:
-        raise SystemExit(
-            "Smoke test failed: src.cli --help must exit 0.\n"
-            + (proc_cli_help.stderr or proc_cli_help.stdout or "")
-        )
-    cli_help_text = (proc_cli_help.stdout or "") + (proc_cli_help.stderr or "")
-    required_help_terms = [
-        "run",
-        "ops",
-        "sdk-demo",
-        "urn:core:docs:policy_review",
-        "urn:core:ops:dlq_triage",
-    ]
-    missing_help_terms = [t for t in required_help_terms if t not in cli_help_text]
-    if missing_help_terms:
-        raise SystemExit(
-            "Smoke test failed: src.cli --help missing terms: "
-            + ", ".join(missing_help_terms)
-        )
-
-    proc_cli_run_help = subprocess.run(
-        [sys.executable, "-m", "src.cli", "run", "--help"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-    )
-    if proc_cli_run_help.returncode != 0:
-        raise SystemExit(
-            "Smoke test failed: src.cli run --help must exit 0.\n"
-            + (proc_cli_run_help.stderr or proc_cli_run_help.stdout or "")
-        )
-    cli_run_help_text = (proc_cli_run_help.stdout or "") + (proc_cli_run_help.stderr or "")
-    required_run_help_terms = [
-        "--side-effect-policy",
-        "merge/deploy",
-        "blocked",
-    ]
-    missing_run_terms = [t for t in required_run_help_terms if t not in cli_run_help_text]
-    if missing_run_terms:
-        raise SystemExit(
-            "Smoke test failed: src.cli run --help missing terms: "
-            + ", ".join(missing_run_terms)
-        )
-
-    pyproject_path_cli = repo_root / "pyproject.toml"
-    if not pyproject_path_cli.exists():
-        raise SystemExit("Smoke test failed: missing pyproject.toml for CLI version check.")
-    with pyproject_path_cli.open("rb") as f:
-        py_obj_cli = tomllib.load(f)
-    project_cli = py_obj_cli.get("project") if isinstance(py_obj_cli, dict) else None
-    if not isinstance(project_cli, dict) or not isinstance(project_cli.get("version"), str):
-        raise SystemExit("Smoke test failed: pyproject.toml missing [project].version for CLI version check.")
-    expected_cli_version = project_cli["version"].strip()
-
-    proc_cli_version = subprocess.run(
-        [sys.executable, "-m", "src.cli", "--version"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-    )
-    if proc_cli_version.returncode != 0:
-        raise SystemExit(
-            "Smoke test failed: src.cli --version must exit 0.\n"
-            + (proc_cli_version.stderr or proc_cli_version.stdout or "")
-        )
-    cli_version = (proc_cli_version.stdout or "").strip()
-    if cli_version != expected_cli_version:
-        raise SystemExit(
-            "Smoke test failed: src.cli --version mismatch; expected "
-            + expected_cli_version
-            + " got "
-            + cli_version
-        )
-
-    print("CRITICAL_CLI_HELP: ok=true")
-    print(f"CRITICAL_CLI_VERSION: version={cli_version}")
+    run_cli_contract_checks(repo_root)
 
     # Repo hygiene guard: ensure critical JSON config files are NOT ignored.
     # (In CI, checkout is a git work tree; locally we skip if not in git.)
@@ -3154,7 +3045,16 @@ def main() -> None:
         rmtree(policy_check_dir)
 
     proc_policy_check = subprocess.run(
-        [sys.executable, "-m", "src.ops.manage", "policy-check", "--source", "fixtures"],
+        [
+            sys.executable,
+            "-m",
+            "src.ops.manage",
+            "policy-check",
+            "--source",
+            "fixtures",
+            "--max-deprecation-warnings",
+            "1",
+        ],
         cwd=repo_root,
         text=True,
         capture_output=True,
@@ -3165,6 +3065,28 @@ def main() -> None:
             "Smoke test failed: ops manage policy-check failed:\n"
             + (proc_policy_check.stderr or proc_policy_check.stdout or "")
         )
+
+    policy_check_summary_line = ""
+    for line in reversed((proc_policy_check.stdout or "").splitlines()):
+        stripped = line.strip()
+        if stripped.startswith("{") and stripped.endswith("}"):
+            policy_check_summary_line = stripped
+            break
+    if not policy_check_summary_line:
+        raise SystemExit("Smoke test failed: policy-check must print JSON summary line.")
+    try:
+        policy_check_summary = json.loads(policy_check_summary_line)
+    except Exception as e:
+        raise SystemExit("Smoke test failed: policy-check summary line is not valid JSON.") from e
+    if not isinstance(policy_check_summary, dict):
+        raise SystemExit("Smoke test failed: policy-check summary must be a JSON object.")
+    if "deprecation_warning_count" not in policy_check_summary:
+        raise SystemExit("Smoke test failed: policy-check summary missing deprecation_warning_count.")
+    dep_count_pc = int(policy_check_summary.get("deprecation_warning_count", -1))
+    if dep_count_pc < 0:
+        raise SystemExit("Smoke test failed: invalid deprecation_warning_count in policy-check summary.")
+    if dep_count_pc > 1:
+        raise SystemExit("Smoke test failed: deprecation_warning_count exceeds threshold (1).")
 
     sim_report_pc = policy_check_dir / "sim_report.json"
     diff_report_pc = policy_check_dir / "policy_diff_report.json"
@@ -3208,9 +3130,10 @@ def main() -> None:
         + f"invalid={invalid_pc}"
     )
     print(f"CRITICAL_POLICY_CHECK_DIFF nonzero={diff_nonzero_pc} status={diff_status_pc}")
+    print(f"CRITICAL_POLICY_CHECK_DEPRECATION warnings={dep_count_pc} max=1")
 
     md_text = report_md_pc.read_text(encoding="utf-8")
-    for heading in ("Dry-run summary", "Diff summary", "Side-effects status", "Supply chain summary"):
+    for heading in ("Deprecation warnings", "Dry-run summary", "Diff summary", "Side-effects status", "Supply chain summary"):
         if heading not in md_text:
             raise SystemExit("Smoke test failed: POLICY_REPORT.md missing heading: " + heading)
     print("CRITICAL_POLICY_REPORT: generated=true")

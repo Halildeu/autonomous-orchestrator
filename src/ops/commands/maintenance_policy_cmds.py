@@ -123,6 +123,20 @@ def _policy_check_generate_report(*, root: Path, outdir: Path) -> Path:
     return report_path
 
 
+def _policy_check_collect_deprecation_warnings(root: Path) -> list[dict[str, object]]:
+    try:
+        from src.ops.policy_report import collect_policy_deprecation_warnings
+    except Exception:
+        return []
+    try:
+        items = collect_policy_deprecation_warnings(root)
+    except Exception:
+        return []
+    if not isinstance(items, list):
+        return []
+    return [x for x in items if isinstance(x, dict)]
+
+
 def _policy_check_read_sim_counts(sim_out: Path) -> tuple[int, int, int, int]:
     try:
         sim = json.loads(sim_out.read_text(encoding="utf-8"))
@@ -163,6 +177,14 @@ def cmd_policy_check(args: argparse.Namespace) -> int:
     fixtures = str(args.fixtures)
     evidence = str(args.evidence)
     baseline = str(args.baseline)
+    try:
+        max_deprecation_warnings = int(str(args.max_deprecation_warnings))
+    except Exception:
+        warn("FAIL error=INVALID_MAX_DEPRECATION_WARNINGS")
+        return 2
+    if max_deprecation_warnings < -1:
+        warn("FAIL error=INVALID_MAX_DEPRECATION_WARNINGS")
+        return 2
 
     outdir = Path(str(args.outdir))
     outdir = (root / outdir).resolve() if not outdir.is_absolute() else outdir.resolve()
@@ -226,22 +248,47 @@ def cmd_policy_check(args: argparse.Namespace) -> int:
 
     allow, suspend, block, invalid = _policy_check_read_sim_counts(sim_out)
     diff_nonzero = _policy_check_read_diff_nonzero(diff_out)
+    deprecation_warnings = _policy_check_collect_deprecation_warnings(root)
+    deprecation_warning_count = len(deprecation_warnings)
+    deprecation_warning_codes = sorted(
+        {
+            str(item.get("code"))
+            for item in deprecation_warnings
+            if isinstance(item.get("code"), str) and str(item.get("code")).strip()
+        }
+    )
+    gate_enabled = max_deprecation_warnings >= 0
+    gate_exceeded = gate_enabled and deprecation_warning_count > max_deprecation_warnings
+
+    if gate_exceeded:
+        status = "FAIL"
+    elif diff_nonzero == 0 and block == 0 and invalid == 0:
+        status = "OK"
+    else:
+        status = "WARN"
 
     summary = {
-        "status": "OK" if diff_nonzero == 0 and block == 0 and invalid == 0 else "WARN",
+        "status": status,
         "allow": allow,
         "suspend": suspend,
         "block_unknown_intent": block,
         "invalid_envelope": invalid,
         "diff_nonzero": diff_nonzero,
+        "deprecation_warning_count": deprecation_warning_count,
+        "deprecation_warning_codes": deprecation_warning_codes,
+        "max_deprecation_warnings": max_deprecation_warnings,
+        "deprecation_gate_enabled": gate_enabled,
+        "deprecation_gate_exceeded": gate_exceeded,
         "sim_report": sim_rel,
         "policy_diff": diff_rel,
         "report": report_rel,
     }
+    if gate_exceeded:
+        summary["error_code"] = "DEPRECATION_WARNING_THRESHOLD_EXCEEDED"
 
     out_buf = StringIO()
     with redirect_stdout(out_buf), redirect_stderr(out_buf):
         print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
 
     print(out_buf.getvalue().strip())
-    return 0
+    return 2 if gate_exceeded else 0

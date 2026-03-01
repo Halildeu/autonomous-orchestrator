@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -131,9 +132,39 @@ def cmd_smoke(args: argparse.Namespace) -> int:
 
     env = os.environ.copy()
     env["SMOKE_LEVEL"] = level
-    proc = subprocess.run([sys.executable, "smoke_test.py"], cwd=root, text=True, env=env)
+    proc = subprocess.run([sys.executable, "smoke_test.py"], cwd=root, text=True, env=env, capture_output=True)
+    if proc.stdout:
+        print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n")
+    if proc.stderr:
+        print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n", file=sys.stderr)
+
     status = "OK" if proc.returncode == 0 else "FAIL"
-    print(json.dumps({"status": status, "level": level}, ensure_ascii=False, sort_keys=True))
+    payload: dict[str, Any] = {"status": status, "level": level}
+    if status != "OK":
+        combined = (proc.stdout or "") + ("\n" if proc.stdout and proc.stderr else "") + (proc.stderr or "")
+        root_error_code = ""
+        failed_step_id = ""
+        failed_cmd = ""
+        m = re.search(
+            r"SMOKE_ROOT_CAUSE\s+root_error_code=(\S+)\s+failed_step_id=(\S+)\s+failed_cmd=(.+)",
+            combined,
+        )
+        if m:
+            root_error_code = str(m.group(1) or "").strip()
+            failed_step_id = str(m.group(2) or "").strip()
+            failed_cmd = str(m.group(3) or "").strip()
+        if not root_error_code:
+            if "check_script_budget.py" in combined or "PY_FILE_NO_GROWTH" in combined:
+                root_error_code = "SCRIPT_BUDGET"
+            elif "READONLY_CMD_NOT_ALLOWED" in combined:
+                root_error_code = "READONLY_CMD_NOT_ALLOWED"
+        if root_error_code:
+            payload["root_error_code"] = root_error_code
+        if failed_step_id:
+            payload["failed_step_id"] = failed_step_id
+        if failed_cmd:
+            payload["failed_cmd"] = failed_cmd
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status == "OK" else 2
 def cmd_system_status(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -597,6 +628,11 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_pc.add_argument("--fixtures", default="fixtures/envelopes")
     ap_pc.add_argument("--evidence", default="evidence")
     ap_pc.add_argument("--outdir", default=".cache/policy_check")
+    ap_pc.add_argument(
+        "--max-deprecation-warnings",
+        default="-1",
+        help="Max allowed deprecation warnings for gate (-1 disables gate, default: -1).",
+    )
     ap_pc.set_defaults(func=cmd_policy_check)
     ap_sb = parent.add_parser("script-budget", help="Run Script Budget guardrails (soft=warn, hard=fail).")
     ap_sb.add_argument("--out", default=".cache/script_budget/report.json", help="Report JSON output path.")

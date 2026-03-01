@@ -40,6 +40,88 @@ def _rel_path(base: Path, path: Path) -> str:
         return path.as_posix()
 
 
+def collect_policy_deprecation_warnings(root: Path) -> list[dict[str, Any]]:
+    policy_path = root / "policies" / "policy_context_pack_router.v1.json"
+    obj = _load_json(policy_path)
+    if not isinstance(obj, dict):
+        return []
+    routing = obj.get("routing")
+    if not isinstance(routing, dict):
+        return []
+    engine = routing.get("rule_engine")
+    if not isinstance(engine, dict):
+        return []
+
+    dep = engine.get("legacy_compat_deprecation")
+    if not isinstance(dep, dict) or not bool(dep.get("enabled", False)):
+        return []
+
+    legacy_compat = bool(engine.get("legacy_compat", False))
+    phase = str(dep.get("current_phase") or "none").strip().lower()
+    timeline_raw = dep.get("timeline")
+    timeline = [x for x in timeline_raw if isinstance(x, dict)] if isinstance(timeline_raw, list) else []
+    default_message = str(dep.get("default_message") or "").strip()
+
+    warn_release = ""
+    remove_release = ""
+    for item in timeline:
+        action = str(item.get("action") or "").strip().lower()
+        release = str(item.get("release") or "").strip()
+        if action == "warn" and release and not warn_release:
+            warn_release = release
+        if action == "remove" and release and not remove_release:
+            remove_release = release
+
+    if not legacy_compat:
+        return []
+
+    details: dict[str, Any] = {
+        "rule_engine_legacy_compat": True,
+        "phase": phase or "unknown",
+        "policy": _rel_path(root, policy_path),
+    }
+    if warn_release:
+        details["warn_release"] = warn_release
+    if remove_release:
+        details["remove_release"] = remove_release
+
+    warning_obj: dict[str, Any] = {
+        "code": "CTX_ROUTER_LEGACY_COMPAT_DEPRECATED",
+        "message": default_message or "legacy_compat fallback deprecation path active.",
+        "details": details,
+    }
+    return [warning_obj]
+
+
+def _format_deprecation_warning_lines(warnings: list[dict[str, Any]]) -> list[str]:
+    lines: list[str] = []
+    for warn_obj in warnings:
+        if not isinstance(warn_obj, dict):
+            continue
+        details = warn_obj.get("details") if isinstance(warn_obj.get("details"), dict) else {}
+        tokens = []
+        if details.get("rule_engine_legacy_compat") is True:
+            tokens.append("rule_engine.legacy_compat=true")
+        phase = str(details.get("phase") or "").strip()
+        if phase:
+            tokens.append(f"phase={phase}")
+        warn_release = str(details.get("warn_release") or "").strip()
+        if warn_release:
+            tokens.append(f"warn_release={warn_release}")
+        remove_release = str(details.get("remove_release") or "").strip()
+        if remove_release:
+            tokens.append(f"remove_release={remove_release}")
+        policy_ref = str(details.get("policy") or "").strip()
+        if policy_ref:
+            tokens.append(f"policy={policy_ref}")
+        if tokens:
+            lines.append(" ".join(tokens))
+        msg = str(warn_obj.get("message") or "").strip()
+        if msg:
+            lines.append(msg)
+    return lines
+
+
 def _sorted_example_list(items: Any) -> list[dict[str, Any]]:
     if not isinstance(items, list):
         return []
@@ -109,6 +191,16 @@ def generate_policy_report_markdown(*, in_dir: Path, root: Path) -> str:
     lines.append(f"- generated_at: `{now}`")
     lines.append(f"- source: `{source}`")
     lines.append(f"- input_dir: `{_rel_path(root, in_dir)}`")
+    lines.append("")
+
+    lines.append("## Deprecation warnings")
+    dep_warning_objs = collect_policy_deprecation_warnings(root)
+    dep_warning_lines = _format_deprecation_warning_lines(dep_warning_objs)
+    if not dep_warning_lines:
+        lines.append("- (none)")
+    else:
+        for warn_line in dep_warning_lines:
+            lines.append(f"- WARN: {warn_line}")
     lines.append("")
 
     lines.append("## Dry-run summary")
