@@ -7,6 +7,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - roadmaps/SSOT/roadmap.v1.json (RM-SSOT-001) — CANONICAL
 - docs/ROADMAP.md — MIRROR (derived/human summary)
 - roadmaps/SSOT/changes/.gitkeep
+- roadmaps/SSOT/changes/CHG-20260217-001.json
+- roadmaps/SSOT/changes/CHG-20260301-002.json
 - roadmaps/SSOT/changes/debt/README.md
 - roadmaps/PROJECTS/README.md
 - roadmaps/PROJECTS/project-roadmap.template.v1.json
@@ -161,9 +163,11 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/roadmap.schema.json
 - schemas/script-budget.schema.json
 - schemas/session-context.schema.json
+- schemas/smoke-root-cause-report.schema.v1.json
 - schemas/spec-capability.schema.json
 - schemas/spec-core.schema.json
 - schemas/system-status.schema.json
+- schemas/tenant-context.schema.v1.json
 - schemas/ui-snapshot-bundle.schema.v1.json
 - schemas/work-intake.schema.v1.json
 - schemas/work-intake-action.schema.v1.json
