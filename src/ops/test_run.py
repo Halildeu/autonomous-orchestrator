@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -66,6 +68,11 @@ def _format_test_result(name: str, passed: bool, details: str | None = None) -> 
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _tail_line(text: str) -> str:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
 
 
 def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any]:
@@ -215,6 +222,26 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         except Exception:
             rel = str(state_out)
         evidence_paths.append(rel)
+
+    # 6) runner_execute behavior freeze contract (RB-001 baseline lock).
+    contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_execute_behavior_freeze_contract_test"]
+    contract_proc = subprocess.run(contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    contract_ok = contract_proc.returncode == 0
+    contract_detail = _tail_line(contract_proc.stdout) or _tail_line(contract_proc.stderr) or f"rc={contract_proc.returncode}"
+    tests.append(_format_test_result("runner_execute_behavior_freeze_contract", contract_ok, contract_detail))
+    if not contract_ok:
+        failures.append("runner_execute_behavior_freeze_contract")
+
+    # 7) stage-level runner contract suite (modular freeze lock).
+    stage_contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_stage_contract_suite_test"]
+    stage_contract_proc = subprocess.run(stage_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    stage_contract_ok = stage_contract_proc.returncode == 0
+    stage_contract_detail = (
+        _tail_line(stage_contract_proc.stdout) or _tail_line(stage_contract_proc.stderr) or f"rc={stage_contract_proc.returncode}"
+    )
+    tests.append(_format_test_result("runner_stage_contract_suite", stage_contract_ok, stage_contract_detail))
+    if not stage_contract_ok:
+        failures.append("runner_stage_contract_suite")
 
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"

@@ -295,7 +295,24 @@ def step_run_cmd(
     logs = stdout + ("\n" if stdout and stderr else "") + stderr
 
     if must_succeed and proc.returncode != 0:
-        raise RoadmapStepError("CMD_FAILED", f"run_cmd failed rc={proc.returncode}")
+        def _tail(text: str, max_lines: int = 8) -> str:
+            lines = [ln for ln in (text or "").splitlines() if ln.strip()]
+            if not lines:
+                return ""
+            return "\n".join(lines[-max_lines:])
+
+        raise RoadmapStepError(
+            "CMD_FAILED",
+            f"run_cmd failed rc={proc.returncode}",
+            details={
+                "cmd": cmd,
+                "argv": [str(x) for x in argv],
+                "cwd": str(workspace),
+                "return_code": int(proc.returncode),
+                "stdout_tail": _tail(stdout),
+                "stderr_tail": _tail(stderr),
+            },
+        )
 
     return (
         {

@@ -114,6 +114,12 @@ def _build_summary(
         "duration_ms": None,
         "failed_step_id": None,
         "failed_milestone_id": None,
+        "failed_error_code": None,
+        "failed_message": None,
+        "failed_cmd": None,
+        "failed_return_code": None,
+        "failed_stderr_preview": None,
+        "failed_stdout_preview": None,
         "gate_results": [],
     }
 
@@ -214,6 +220,14 @@ def _build_apply_result(
         "dry_run": bool(dry_run),
         "dry_run_mode": str(dry_run_mode),
         "milestones_executed": summary.get("milestones_executed"),
+        "failed_step_id": summary.get("failed_step_id"),
+        "failed_milestone_id": summary.get("failed_milestone_id"),
+        "failed_error_code": summary.get("failed_error_code"),
+        "failed_message": summary.get("failed_message"),
+        "failed_cmd": summary.get("failed_cmd"),
+        "failed_return_code": summary.get("failed_return_code"),
+        "failed_stderr_preview": summary.get("failed_stderr_preview"),
+        "failed_stdout_preview": summary.get("failed_stdout_preview"),
     }
 
 
