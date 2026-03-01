@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -66,6 +68,15 @@ def _format_test_result(name: str, passed: bool, details: str | None = None) -> 
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _tail_line(text: str | None) -> str | None:
+    if not text:
+        return None
+    parts = [line.strip() for line in text.splitlines() if line.strip()]
+    if not parts:
+        return None
+    return parts[-1]
 
 
 def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any]:
