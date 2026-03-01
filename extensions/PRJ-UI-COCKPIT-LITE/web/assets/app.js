@@ -571,8 +571,12 @@ const I18N = {
     "north_star.mechanisms.filter.search.placeholder": "Search subject/theme/subtheme",
     "north_star.mechanisms.filter.search_aria": "Search mechanisms",
     "north_star.mechanisms.filter.version_aria": "Select version",
+    "north_star.mechanisms.subject.revisions": "{count} revisions",
     "north_star.mechanisms.version.active": "Active (latest)",
+    "north_star.mechanisms.version_history": "Version history",
+    "north_star.mechanisms.version_current": "Current",
     "north_star.mechanisms.status.active": "Active",
+    "north_star.mechanisms.status.archived": "Archived",
     "north_star.mechanisms.status.deprecated": "Deprecated",
     "north_star.mechanisms.status.hidden": "Hidden",
     "north_star.mechanisms.transfer_btn": "Send to findings",
@@ -1250,8 +1254,12 @@ const I18N = {
     "north_star.mechanisms.filter.search.placeholder": "Konu/tema/alt tema ara",
     "north_star.mechanisms.filter.search_aria": "Mekanizma ara",
     "north_star.mechanisms.filter.version_aria": "Sürüm seç",
+    "north_star.mechanisms.subject.revisions": "{count} revizyon",
     "north_star.mechanisms.version.active": "Aktif (en güncel)",
+    "north_star.mechanisms.version_history": "Sürüm geçmişi",
+    "north_star.mechanisms.version_current": "Güncel",
     "north_star.mechanisms.status.active": "Aktif",
+    "north_star.mechanisms.status.archived": "Arşiv",
     "north_star.mechanisms.status.deprecated": "Arşiv (Deprecated)",
     "north_star.mechanisms.status.hidden": "Gizli",
     "north_star.mechanisms.transfer_btn": "Lens'e aktar",
@@ -1578,6 +1586,7 @@ const opsLogIndexPointerPath = ".cache/reports/ops_log_index_canonical_pointer.v
 const promptRegistryPath = "registry/prompt_registry.v1.json";
 const northStarPromptReportPath = ".cache/ws_customer_default/.cache/reports/prompt_refine_consolidated.v0.4.8.draft.md";
 const CATALOG_DRAFT_STORAGE_KEY = "cockpit_north_star_catalog_draft.v1";
+const NORTH_STAR_MECHANISMS_FILTERS_STORAGE_KEY = "cockpit_north_star_mechanisms_filters.v1";
 
 const state = {
   lang: "tr",
@@ -1782,7 +1791,7 @@ const state = {
     northStarMechanisms: {
       search: "",
       subject: [],
-      status: [],
+      status: ["ACTIVE"],
     },
   },
   filterOptions: {
@@ -1803,7 +1812,7 @@ const state = {
     },
     northStarMechanisms: {
       subject: [],
-      status: ["ACTIVE", "DEPRECATED", "HIDDEN"],
+      status: ["ACTIVE", "ARCHIVED", "DEPRECATED", "HIDDEN"],
     },
   },
 };
@@ -2642,6 +2651,52 @@ function writeCatalogDraftToStorage(draft) {
     localStorage.setItem(CATALOG_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     return true;
   } catch (err) {
+    return false;
+  }
+}
+
+function _normalizeMechanismsFilterArray(values) {
+  const out = [];
+  const seen = new Set();
+  const list = Array.isArray(values) ? values : [];
+  for (const raw of list) {
+    const value = String(raw || "").trim();
+    if (!value) continue;
+    const key = normalizeKey(value);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}
+
+function readNorthStarMechanismsFiltersFromStorage() {
+  try {
+    const raw = localStorage.getItem(NORTH_STAR_MECHANISMS_FILTERS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const search = String(parsed.search || "").trim().slice(0, 160);
+    const subject = _normalizeMechanismsFilterArray(parsed.subject);
+    const statusRaw = _normalizeMechanismsFilterArray(parsed.status).map((item) => String(item || "").toUpperCase());
+    const status = statusRaw.length ? statusRaw : ["ACTIVE"];
+    return { search, subject, status };
+  } catch (_) {
+    return null;
+  }
+}
+
+function persistNorthStarMechanismsFilters() {
+  try {
+    const filters = state.filters?.northStarMechanisms || {};
+    const payload = {
+      search: String(filters.search || "").trim().slice(0, 160),
+      subject: _normalizeMechanismsFilterArray(filters.subject),
+      status: _normalizeMechanismsFilterArray(filters.status).map((item) => String(item || "").toUpperCase()),
+    };
+    localStorage.setItem(NORTH_STAR_MECHANISMS_FILTERS_STORAGE_KEY, JSON.stringify(payload));
+    return true;
+  } catch (_) {
     return false;
   }
 }
@@ -4787,8 +4842,7 @@ function getMechanismsSubjectLabel(subjectId) {
   const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
   const target = subjects.find((entry) => String(entry?.subject_id || "").trim() === String(subjectId || "").trim());
   if (!target) return "";
-  if (String(subjectId) === "ethics_program") return "Etik Programı (ethics_program)";
-  return formatTrEnLabel(target?.subject_title_tr, target?.subject_title_en, subjectId);
+  return getMechanismsSubjectLabelLocalized(target);
 }
 
 function getMechanismsHistorySubject(historyPayload, subjectId) {
@@ -4831,10 +4885,138 @@ function getLatestMechanismsVersionLabel(historySubject) {
   return pick.label || pick.created_at || pick.version_id || "";
 }
 
+function getMechanismsRegistryVersions(subject) {
+  const versions = Array.isArray(subject?.versions) ? subject.versions : [];
+  return versions
+    .map((version) => ({
+      version_id: String(version?.version_id || "").trim(),
+      label: String(version?.label || version?.version_title || "").trim(),
+      created_at: String(version?.created_at || version?.generated_at || "").trim(),
+      status: String(version?.status || "").trim(),
+      themes: Array.isArray(version?.themes) ? version.themes : [],
+    }))
+    .filter((version) => version.version_id);
+}
+
+function collectMechanismsSubjectVersions(subject, historySubject) {
+  const map = new Map();
+  const absorb = (version) => {
+    if (!version || typeof version !== "object") return;
+    const versionId = String(version.version_id || "").trim();
+    if (!versionId) return;
+    const themes = Array.isArray(version.themes) ? version.themes.filter((item) => item && typeof item === "object") : [];
+    const subthemeCount = themes.reduce((acc, theme) => {
+      const subthemes = Array.isArray(theme?.subthemes) ? theme.subthemes : [];
+      return acc + subthemes.length;
+    }, 0);
+    const next = {
+      version_id: versionId,
+      label: String(version.label || "").trim(),
+      created_at: String(version.created_at || "").trim(),
+      status: String(version.status || "").trim(),
+      theme_count: themes.length,
+      subtheme_count: subthemeCount,
+    };
+    const prev = map.get(versionId);
+    if (!prev) {
+      map.set(versionId, next);
+      return;
+    }
+    const merged = {
+      ...prev,
+      label: prev.label || next.label,
+      created_at: prev.created_at || next.created_at,
+      status: prev.status || next.status,
+      theme_count: Math.max(Number(prev.theme_count || 0), Number(next.theme_count || 0)),
+      subtheme_count: Math.max(Number(prev.subtheme_count || 0), Number(next.subtheme_count || 0)),
+    };
+    map.set(versionId, merged);
+  };
+  getMechanismsHistoryVersions(historySubject).forEach(absorb);
+  getMechanismsRegistryVersions(subject).forEach(absorb);
+  const out = Array.from(map.values());
+  out.sort((a, b) => {
+    const ats = Date.parse(String(a.created_at || "")) || 0;
+    const bts = Date.parse(String(b.created_at || "")) || 0;
+    if (bts !== ats) return bts - ats;
+    return String(b.version_id || "").localeCompare(String(a.version_id || ""));
+  });
+  return out;
+}
+
+function _mechanismsVersionBadgeClass(status) {
+  const norm = String(status || "").toUpperCase();
+  if (norm === "ACTIVE") return "ok";
+  if (norm === "ARCHIVED" || norm === "DEPRECATED" || norm === "HIDDEN") return "idle";
+  return "warn";
+}
+
+function renderMechanismsVersionHistory(subject, historySubject) {
+  const versions = collectMechanismsSubjectVersions(subject, historySubject);
+  if (!versions.length) return "";
+  const activeVersionId = String(subject?.active_version_id || "").trim();
+  const rows = versions
+    .slice(0, 20)
+    .map((version) => {
+      const versionId = String(version.version_id || "");
+      const status = String(version.status || "").toUpperCase() || "UNKNOWN";
+      const statusLabel = getMechanismsStatusLabel(status);
+      const label = formatVersionLabel(version.label || versionId) || versionId;
+      const createdRaw = String(version.created_at || "").trim();
+      const createdLabel = formatTimestamp(createdRaw) || createdRaw || "-";
+      const themeCount = Number(version.theme_count || 0);
+      const subthemeCount = Number(version.subtheme_count || 0);
+      const isCurrent = Boolean(activeVersionId) && normalizeKey(activeVersionId) === normalizeKey(versionId);
+      const currentBadge = isCurrent ? `<span class="badge ok">${escapeHtml(t("north_star.mechanisms.version_current"))}</span>` : "";
+      return `<li style="margin:6px 0;">
+        <span class="badge ${_mechanismsVersionBadgeClass(status)}">${escapeHtml(statusLabel)}</span>
+        <strong>${escapeHtml(label)}</strong>
+        ${currentBadge}
+        <span class="subtle">id=${escapeHtml(versionId)} | created_at=${escapeHtml(createdLabel)} | themes=${escapeHtml(String(themeCount))} | subthemes=${escapeHtml(String(subthemeCount))}</span>
+      </li>`;
+    })
+    .join("");
+  const moreCount = versions.length - Math.min(versions.length, 20);
+  const moreLine = moreCount > 0 ? `<div class="subtle">+${escapeHtml(String(moreCount))} more versions</div>` : "";
+  return `<details style="margin-top:8px;"><summary class="subtle">${escapeHtml(t("north_star.mechanisms.version_history"))} (${escapeHtml(
+    String(versions.length)
+  )})</summary><ul class="subtle" style="margin-top:6px;">${rows}</ul>${moreLine}</details>`;
+}
+
 function getPrimaryMechanismsSubjectFilter() {
   const selected = state.filters?.northStarMechanisms?.subject || [];
   if (Array.isArray(selected)) return String(selected[0] || "");
   return String(selected || "");
+}
+
+function getMechanismsSubjectCanonicalKey(subjectId) {
+  const raw = String(subjectId || "").trim();
+  if (!raw) return "";
+  const archiveIdx = raw.indexOf("__archive__");
+  const base = archiveIdx > 0 ? raw.slice(0, archiveIdx) : raw;
+  if (base === "ethics_case_management") return "ethics_program";
+  return base;
+}
+
+function getMechanismsSubjectBaseId(subjectId) {
+  const raw = String(subjectId || "").trim();
+  if (!raw) return "";
+  const archiveIdx = raw.indexOf("__archive__");
+  return archiveIdx > 0 ? raw.slice(0, archiveIdx) : raw;
+}
+
+function getMechanismsSubjectPreferenceScore(subject) {
+  const subjectId = String(subject?.subject_id || "").trim();
+  const status = String(subject?.status || "").toUpperCase();
+  let score = 0;
+  if (status === "ACTIVE") score += 100;
+  else if (status === "UNKNOWN") score += 70;
+  else if (status === "ARCHIVED") score += 40;
+  else if (status === "DEPRECATED") score += 20;
+  else if (status === "HIDDEN") score += 10;
+  if (!subjectId.includes("__archive__")) score += 15;
+  if (subjectId === "ethics_program") score += 5;
+  return score;
 }
 
 function getVisibleMechanismsSubjects(registryPayload) {
@@ -4850,24 +5032,62 @@ function getFilteredMechanismsSubjects(registryPayload) {
   const selectedStatuses = state.filters?.northStarMechanisms?.status || [];
   const search = String(state.filters?.northStarMechanisms?.search || "").trim().toLowerCase();
 
-  const subjectKeys = new Set((Array.isArray(selectedSubjects) ? selectedSubjects : []).map((val) => normalizeKey(val)));
+  const selectedCanonicalIds = (Array.isArray(selectedSubjects) ? selectedSubjects : [])
+    .map((val) => String(getMechanismsSubjectCanonicalKey(val) || "").trim())
+    .filter((val) => val);
+  const subjectKeys = new Set(selectedCanonicalIds.map((val) => normalizeKey(val)).filter((val) => val));
   const statusKeys = new Set((Array.isArray(selectedStatuses) ? selectedStatuses : []).map((val) => normalizeKey(val)));
-  const effectiveStatuses = statusKeys.size ? statusKeys : null;
+  const explicitStatusFilter = statusKeys.size > 0;
+  const hasSubjectFilter = subjectKeys.size > 0;
+  const hasSearchFilter = Boolean(search);
 
-  return subjects.filter((subject) => {
-    const subjectId = String(subject?.subject_id || "").trim();
-    const subjectStatus = String(subject?.status || "").toUpperCase() || "UNKNOWN";
-    if (effectiveStatuses && !effectiveStatuses.has(normalizeKey(subjectStatus))) return false;
-    if (subjectKeys.size && !subjectKeys.has(normalizeKey(subjectId))) return false;
-    if (!search) return true;
-    return mechanismSubjectMatchesSearch(subject, search);
-  });
+  if (!hasSubjectFilter && !explicitStatusFilter && !hasSearchFilter) {
+    // Standard behavior: when no filters are selected, show full dataset.
+    return subjects.filter((subject) => String(subject?.subject_id || "").trim());
+  }
+
+  if (hasSubjectFilter) {
+    return subjects
+      .filter((subject) => {
+        const subjectId = String(subject?.subject_id || "").trim();
+        if (!subjectId) return false;
+        const subjectStatus = String(subject?.status || "").toUpperCase() || "UNKNOWN";
+        if (explicitStatusFilter && !statusKeys.has(normalizeKey(subjectStatus))) return false;
+        const canonical = getMechanismsSubjectCanonicalKey(subjectId);
+        if (!subjectKeys.has(normalizeKey(canonical))) return false;
+        // When a subject is selected, show revision family cards (active + archive)
+        // but avoid unrelated legacy aliases collapsed into the same canonical key.
+        const baseId = getMechanismsSubjectBaseId(subjectId);
+        if (baseId !== canonical) return false;
+        if (!search) return true;
+        return mechanismSubjectMatchesSearch(subject, search);
+      })
+      .sort((a, b) => {
+        const sa = getMechanismsSubjectPreferenceScore(a);
+        const sb = getMechanismsSubjectPreferenceScore(b);
+        if (sb !== sa) return sb - sa;
+        return String(b?.subject_id || "").localeCompare(String(a?.subject_id || ""));
+      });
+  }
+
+  return subjects
+    .filter((subject) => {
+      const subjectId = String(subject?.subject_id || "").trim();
+      if (!subjectId) return false;
+      const subjectStatus = String(subject?.status || "").toUpperCase() || "UNKNOWN";
+      if (explicitStatusFilter && !statusKeys.has(normalizeKey(subjectStatus))) return false;
+      if (!search) return true;
+      return mechanismSubjectMatchesSearch(subject, search);
+    });
 }
 
 function getMechanismsSubjectLabelLocalized(subject) {
   const subjectId = String(subject?.subject_id || "").trim();
-  if (subjectId === "ethics_case_management") return "Etik Programı";
-  if (subjectId === "ethics_program") return "Etik Programı";
+  if (subjectId === "ethics_case_management") return state.lang === "en" ? "Ethics Program (legacy)" : "Etik Programı (eski)";
+  if (subjectId.startsWith("ethics_program__archive__")) {
+    return state.lang === "en" ? "Ethics Program (archived)" : "Etik Programı (arşiv)";
+  }
+  if (subjectId === "ethics_program") return state.lang === "en" ? "Ethics Program" : "Etik Programı";
   return localizeTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId);
 }
 
@@ -4884,17 +5104,68 @@ function updateNorthStarMechanismsFilterOptions(registryPayload, historyPayload)
   const registry = unwrap(registryPayload || {}) || {};
   const history = unwrap(historyPayload || {}) || {};
   const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
-  const subjectOptions = subjects
-    .map((subject) => {
-      const subjectId = String(subject?.subject_id || "").trim();
-      const historySubject = getMechanismsHistorySubject(history, subjectId);
-      const latestVersionLabel = formatVersionLabel(getLatestMechanismsVersionLabel(historySubject));
-      const labelTitle = getMechanismsSubjectLabelLocalized(subject) || subjectId;
-      const labelBase = `${labelTitle} · ID: ${subjectId}`;
-      const label = latestVersionLabel ? `${labelBase} · Güncel ${latestVersionLabel}` : labelBase;
-      return { id: subjectId, label };
+  if (!subjects.length) {
+    if (!Array.isArray(state.filterOptions.northStarMechanisms.subject)) {
+      state.filterOptions.northStarMechanisms.subject = [];
+    }
+    if (!Array.isArray(state.filterOptions.northStarMechanisms.status) || !state.filterOptions.northStarMechanisms.status.length) {
+      state.filterOptions.northStarMechanisms.status = ["ACTIVE", "ARCHIVED", "DEPRECATED", "HIDDEN"];
+    }
+    return;
+  }
+  const subjectByCanonical = new Map();
+  const canonicalVersionKeys = new Map();
+  const ensureVersionSet = (canonicalKey) => {
+    if (!canonicalVersionKeys.has(canonicalKey)) canonicalVersionKeys.set(canonicalKey, new Set());
+    return canonicalVersionKeys.get(canonicalKey);
+  };
+  const absorbVersions = (canonicalKey, versions) => {
+    const set = ensureVersionSet(canonicalKey);
+    (Array.isArray(versions) ? versions : []).forEach((version) => {
+      const token = normalizeKey(
+        String(version?.version_id || "").trim() || String(version?.label || "").trim() || String(version?.created_at || "").trim()
+      );
+      if (token) set.add(token);
+    });
+  };
+  subjects.forEach((subject) => {
+    const subjectId = String(subject?.subject_id || "").trim();
+    if (!subjectId) return;
+    const canonicalId = getMechanismsSubjectCanonicalKey(subjectId) || subjectId;
+    const canonicalKey = normalizeKey(canonicalId);
+    if (!canonicalKey) return;
+    absorbVersions(canonicalKey, getMechanismsRegistryVersions(subject));
+    const historySubject = getMechanismsHistorySubject(history, subjectId);
+    absorbVersions(canonicalKey, getMechanismsHistoryVersions(historySubject));
+    const labelTitle = getMechanismsSubjectLabelLocalized(subject) || canonicalId;
+    const candidate = {
+      id: subjectId,
+      canonical_id: canonicalId,
+      label: labelTitle,
+      score: getMechanismsSubjectPreferenceScore(subject),
+    };
+    const prev = subjectByCanonical.get(canonicalKey);
+    if (!prev || candidate.score > prev.score) subjectByCanonical.set(canonicalKey, candidate);
+  });
+  const subjectCandidates = Array.from(subjectByCanonical.values())
+    .map((entry) => ({ id: entry.id, canonical_id: entry.canonical_id, label: entry.label }))
+    .filter((opt) => opt.id);
+  const labelCounts = new Map();
+  subjectCandidates.forEach((opt) => {
+    const key = normalizeKey(opt.label);
+    labelCounts.set(key, Number(labelCounts.get(key) || 0) + 1);
+  });
+  const subjectOptions = subjectCandidates
+    .map((opt) => {
+      const key = normalizeKey(opt.label);
+      const hasCollision = Number(labelCounts.get(key) || 0) > 1;
+      const baseLabel = hasCollision ? `${opt.label} (${opt.canonical_id})` : opt.label;
+      const revisionCount = Number((canonicalVersionKeys.get(normalizeKey(opt.canonical_id)) || new Set()).size || 0);
+      const revisionSuffix =
+        revisionCount > 1 ? ` · ${t("north_star.mechanisms.subject.revisions", { count: String(revisionCount) })}` : "";
+      const label = `${baseLabel}${revisionSuffix}`;
+      return { id: opt.id, label };
     })
-    .filter((opt) => opt.id)
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const statusValues = new Set(state.filterOptions?.northStarMechanisms?.status || []);
@@ -4911,15 +5182,28 @@ function updateNorthStarMechanismsFilterOptions(registryPayload, historyPayload)
   state.filterOptions.northStarMechanisms.status = statusOptions;
 
   const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
-  const subjectKeys = new Set(subjectOptions.map((opt) => normalizeKey(opt.id)));
-  state.filters.northStarMechanisms.subject = (Array.isArray(selectedSubjects) ? selectedSubjects : []).filter((opt) =>
-    subjectKeys.has(normalizeKey(opt))
+  const canonicalToSubject = new Map(
+    subjectOptions.map((opt) => [normalizeKey(getMechanismsSubjectCanonicalKey(opt.id)), String(opt.id || "").trim()])
   );
+  const mappedSubjects = [];
+  const mappedKeys = new Set();
+  (Array.isArray(selectedSubjects) ? selectedSubjects : []).forEach((value) => {
+    const canonical = normalizeKey(getMechanismsSubjectCanonicalKey(value));
+    if (!canonical) return;
+    const mapped = canonicalToSubject.get(canonical);
+    if (!mapped) return;
+    const mappedKey = normalizeKey(mapped);
+    if (!mappedKey || mappedKeys.has(mappedKey)) return;
+    mappedKeys.add(mappedKey);
+    mappedSubjects.push(mapped);
+  });
+  state.filters.northStarMechanisms.subject = mappedSubjects;
 
   const selectedStatuses = state.filters?.northStarMechanisms?.status || [];
   const statusKeys = new Set(statusOptions.map((opt) => normalizeKey(opt)));
   const prunedStatuses = (Array.isArray(selectedStatuses) ? selectedStatuses : []).filter((opt) => statusKeys.has(normalizeKey(opt)));
   state.filters.northStarMechanisms.status = prunedStatuses;
+  persistNorthStarMechanismsFilters();
 }
 
 function renderNorthStarMechanismsTagSelect(field) {
@@ -5004,6 +5288,7 @@ function addNorthStarMechanismsTag(field, value) {
   list.push(normalizeValue(value));
   list.sort((a, b) => a.localeCompare(b));
   state.filters.northStarMechanisms[field] = list;
+  persistNorthStarMechanismsFilters();
   renderNorthStarMechanismsTagSelect(field);
 }
 
@@ -5011,6 +5296,7 @@ function removeNorthStarMechanismsTag(field, value) {
   const list = state.filters.northStarMechanisms[field] || [];
   const key = normalizeKey(value);
   state.filters.northStarMechanisms[field] = list.filter((item) => normalizeKey(item) !== key);
+  persistNorthStarMechanismsFilters();
   renderNorthStarMechanismsTagSelect(field);
 }
 
@@ -5146,6 +5432,7 @@ function setupNorthStarMechanismsControls() {
   if (searchInput) {
     searchInput.addEventListener("input", () => {
       state.filters.northStarMechanisms.search = searchInput.value.trim();
+      persistNorthStarMechanismsFilters();
       renderNorthStarMechanisms();
     });
   }
@@ -5188,6 +5475,7 @@ function renderNorthStarMechanisms() {
         ? `<span class="badge version" title="${escapeHtml(selectedVersionLabel)}">Güncel ${escapeHtml(latestLabel)}</span>`
         : "";
       const themes = Array.isArray(subject?.themes) ? subject.themes : [];
+      const versionHistory = renderMechanismsVersionHistory(subject, historySubject);
       const transferState = getMechanismsSubjectTransferState(subject);
       const transferEnabled = transferState.enabled;
       const transferBtnLabel = t("north_star.mechanisms.transfer_btn");
@@ -5299,6 +5587,7 @@ function renderNorthStarMechanisms() {
           <div><strong>${escapeHtml(subjectLabel)}</strong> ${subjectIdHtml} ${transferSubjectBtn} ${aiSubjectBadge}</div>
           <div class="row" style="gap:6px;align-items:center;">${versionBadge}<div class="badge">${escapeHtml(statusLabel)}</div></div>
         </div>
+        ${versionHistory}
         ${themeBlocks || `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}
       </div>`;
     })
@@ -7357,6 +7646,7 @@ function getMechanismsStatusLabel(status) {
   if (norm === "DEPRECATED") return t("north_star.mechanisms.status.deprecated");
   if (norm === "HIDDEN") return t("north_star.mechanisms.status.hidden");
   if (norm === "ACTIVE") return t("north_star.mechanisms.status.active");
+  if (norm === "ARCHIVED") return t("north_star.mechanisms.status.archived");
   return norm || t("north_star.unknown");
 }
 
@@ -7434,15 +7724,26 @@ function mechanismSubjectMatchesSearch(subject, query) {
 function extractMechanismsRegistryOptions(registryPayload) {
   const registry = unwrap(registryPayload || {}) || {};
   const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
-  const subjectOptions = [];
+  const subjectByCanonical = new Map();
   const themeOptions = [];
   const subthemeOptions = [];
 
   subjects.forEach((subject) => {
     const subjectId = String(subject?.subject_id || "").trim();
-    let subjectLabel = formatTrEnLabel(subject?.subject_title_tr, subject?.subject_title_en, subjectId);
-    if (subjectId === "ethics_case_management") subjectLabel = "Etik Programı (ethics_case_management)";
-    if (subjectId) subjectOptions.push({ id: subjectId, label: subjectLabel || subjectId });
+    const canonicalId = getMechanismsSubjectCanonicalKey(subjectId) || subjectId;
+    const subjectLabel = getMechanismsSubjectLabelLocalized(subject) || canonicalId;
+    if (subjectId) {
+      const key = normalizeKey(canonicalId);
+      const candidate = {
+        id: subjectId,
+        label: subjectLabel || canonicalId,
+        score: getMechanismsSubjectPreferenceScore(subject),
+      };
+      const prev = subjectByCanonical.get(key);
+      if (!prev || candidate.score > prev.score) {
+        subjectByCanonical.set(key, candidate);
+      }
+    }
     const themes = Array.isArray(subject?.themes) ? subject.themes : [];
     themes.forEach((theme) => {
       const themeLabel = formatTrEnLabel(
@@ -7462,7 +7763,9 @@ function extractMechanismsRegistryOptions(registryPayload) {
   });
 
   return {
-    subjects: subjectOptions,
+    subjects: Array.from(subjectByCanonical.values())
+      .map((entry) => ({ id: entry.id, label: entry.label }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
     themes: dedupeList(themeOptions),
     subthemes: dedupeList(subthemeOptions),
   };
@@ -13093,6 +13396,9 @@ async function refreshActiveTab() {
 async function refreshAll() {
   await refreshWsMeta();
 
+  // Keep initial load responsive: search index/capability probes can block on
+  // environments where search backend is unavailable. Search tab still refreshes
+  // via refreshActiveTab() when opened.
   const tasks = [
     ["overview", refreshOverview],
     ["timeline", refreshTimeline],
@@ -13108,8 +13414,6 @@ async function refreshAll() {
     ["notes", refreshNotes],
     ["budget", refreshBudget],
     ["auto_loop", refreshAutoLoop],
-    ["search_index", refreshSearchIndexStatus],
-    ["search_capabilities", refreshSearchCapabilities],
   ];
 
   const results = await Promise.allSettled(tasks.map(([, fn]) => fn()));
@@ -14367,6 +14671,13 @@ state.adminModeEnabled = readBoolFromStorage("cockpit_admin_mode.v1", false);
 state.lockClaimsLimit = readIntFromStorage("cockpit_lock_claims_limit.v1", 20, [10, 20, 50]);
 state.lockClaimsGroupByOwner = readBoolFromStorage("cockpit_lock_claims_group_owner.v1", false);
 state.catalogDraft = readCatalogDraftFromStorage();
+const nsMechanismsFilters = readNorthStarMechanismsFiltersFromStorage();
+if (nsMechanismsFilters && typeof nsMechanismsFilters === "object") {
+  state.filters.northStarMechanisms = {
+    ...state.filters.northStarMechanisms,
+    ...nsMechanismsFilters,
+  };
+}
 setupLanguageSelector();
 setupThemeSelector();
 applyTheme(state.theme);
