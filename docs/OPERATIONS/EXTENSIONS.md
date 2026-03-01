@@ -95,6 +95,13 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Outputs: .cache/reports/pm_suite_status.v1.json
 - Policies: policies/policy_pm_suite.v1.json
 
+<a id="ext-PRJ-CONTEXT-ORCHESTRATION"></a>
+### PRJ-CONTEXT-ORCHESTRATION
+- Purpose: AI ile yazılım geliştirirken bağlam yönetimi (session + context-pack + memory + plan/apply izlenebilirliği).
+- Single gate: context-router-check.
+- Outputs: .cache/reports/context_orchestration_status.v1.json, .cache/reports/request_intake_to_exec_trace.v1.json
+- Policies: policies/policy_context_orchestration.v1.json
+
 <a id="ext-PRJ-PLANNER"></a>
 ### PRJ-PLANNER
 - Purpose: plan-first selection + CHG drafts (no direct apply).

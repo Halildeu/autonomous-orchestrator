@@ -4,6 +4,7 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from typing import Callable
 
 
 def find_repo_root(start: Path) -> Path:
@@ -23,7 +24,9 @@ def run_dispatch_case(
     test_name: str,
     extension_id: str,
     expected_gate: str,
+    mode: str = "report",
     required_output_keys: list[str] | None = None,
+    precondition_seed: Callable[[Path], None] | None = None,
 ) -> dict:
     repo_root = find_repo_root(Path(__file__).resolve())
     if str(repo_root) not in sys.path:
@@ -34,15 +37,18 @@ def run_dispatch_case(
     if ws.exists():
         shutil.rmtree(ws)
     ws.mkdir(parents=True, exist_ok=True)
+    if callable(precondition_seed):
+        precondition_seed(ws)
 
     payload = run_extension_run(
         workspace_root=ws,
         extension_id=extension_id,
-        mode="report",
+        mode=str(mode),
         chat=False,
     )
 
     must(isinstance(payload, dict), f"payload must be dict for {extension_id}")
+    must(str(payload.get("mode") or "") == str(mode), f"mode mismatch for {extension_id}")
     must(
         str(payload.get("selected_single_gate") or "") == expected_gate,
         f"selected gate mismatch for {extension_id}",
@@ -58,6 +64,7 @@ def run_dispatch_case(
     report_path = ws / ".cache" / "reports" / f"extension_run.{extension_id}.v1.json"
     must(report_path.exists(), f"extension_run report missing for {extension_id}")
     report_obj = json.loads(report_path.read_text(encoding="utf-8"))
+    must(str(report_obj.get("mode") or "") == str(mode), f"report mode mismatch for {extension_id}")
     must(report_obj.get("selected_single_gate") == expected_gate, f"report gate mismatch for {extension_id}")
     must(
         report_obj.get("single_gate_dispatched") is True,
