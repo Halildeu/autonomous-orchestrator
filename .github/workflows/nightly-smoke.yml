@@ -26,6 +26,9 @@ jobs:
         run: |
           python ci/validate_schemas.py
 
+      - name: Validate phase-all blocker aggregation contract
+        run: |
+          python src/ops/phase_all_blocking_reasons_contract_test.py
       - name: Run CI smoke suite
         run: |
           python ci/smoke_test.py
