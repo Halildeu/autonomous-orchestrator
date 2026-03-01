@@ -30,6 +30,10 @@ jobs:
         run: |
           python src/ops/smoke_root_cause_contract_test.py
 
+      - name: Validate phase-all blocker aggregation contract
+        run: |
+          python src/ops/phase_all_blocking_reasons_contract_test.py
+
       - name: Validate pack manifests (warn-only for soft conflicts)
         run: |
           python ci/validate_pack_manifest.py --out .cache/pack_validation/report.json
