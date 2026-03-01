@@ -563,7 +563,8 @@
       "notes": [
         "Amaç: sohbet içi ephemeral kararları TTL ile yönetmek; provenance’a hash olarak yazmak.",
         "Deliverables: .cache/sessions/<session_id>/session_context.v1.json + session_context_hash.",
-        "v0.1 runnable: default session init ile workspace-root altında session_context dosyası üretir."
+        "v0.1 runnable: default session init ile workspace-root altında session_context dosyası üretir.",
+        "CHG-20260301-004: Context hardening package for Session RAM lane. Scope: fail-closed handling for roadmap/project bootstrap state mismatch, formalized session decision write/read E2E proof (session-set -> cross_session_context -> shared_decisions), schema/validation coverage for session_cross_context.v1.json artifact, and helper dedup for repeated _parse_iso8601 utilities."
       ],
       "steps": [
         {
