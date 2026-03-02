@@ -81,6 +81,22 @@ def _write_json_text(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def _write_workspace_repo_binding(ctx: RepoContext) -> Path:
+    binding_path = (ctx.workspace_root / ".cache" / "index" / "workspace_repo_binding.v1.json").resolve()
+    payload = {
+        "version": "v1",
+        "kind": "workspace-repo-binding",
+        "generated_at": now_iso(),
+        "workspace_root": str(ctx.workspace_root.resolve()),
+        "repo_root": str(ctx.repo_root.resolve()),
+        "repo_slug": str(ctx.repo_slug or ""),
+        "repo_id": str(ctx.repo_id or ""),
+        "source": "run_project_management_3phases.py",
+    }
+    _write_json_text(binding_path, payload)
+    return binding_path
+
+
 def _extract_json_payload(text: str) -> Any:
     if not text:
         return None
@@ -884,6 +900,11 @@ def _run_repo_pipeline(
                 "evidence_paths": [],
                 "notes": ["workspace_root_missing"],
             }
+
+    try:
+        _write_workspace_repo_binding(ctx)
+    except Exception:
+        ctx.notes.append("workspace_repo_binding_write_failed")
 
     steps = _normalize_steps_for_workspace(
         _build_steps(phase),

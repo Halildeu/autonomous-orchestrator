@@ -241,6 +241,33 @@ with open(path, "w", encoding="utf-8") as f:
     f.write("\n")
 PY
 
+  python3 - "$WORKSPACE_ROOT" "$REPO_ABS" "$REPO_SLUG" "$REPO_HASH" <<'PY'
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+import sys
+
+workspace_root = Path(sys.argv[1]).resolve()
+repo_root = Path(sys.argv[2]).resolve()
+repo_slug = str(sys.argv[3]).strip()
+repo_id = str(sys.argv[4]).strip()
+binding_path = workspace_root / ".cache" / "index" / "workspace_repo_binding.v1.json"
+
+payload = {
+    "version": "v1",
+    "kind": "workspace-repo-binding",
+    "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "workspace_root": str(workspace_root),
+    "repo_root": str(repo_root),
+    "repo_slug": repo_slug,
+    "repo_id": repo_id,
+    "source": "onboard_managed_repos.sh",
+}
+
+binding_path.parent.mkdir(parents=True, exist_ok=True)
+binding_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
   python3 - "$REPO_ABS" "$WORKSPACE_ROOT" "$REPO_SLUG" "$REPO_HASH" "$MANAGED_REPO_CRITICAL" >> "$RECORD_FILE" <<'PY'
 import json
 import sys

@@ -49,7 +49,7 @@ if [ -d "$WORKSPACE_ROOT_PREFIX" ]; then
     -delete
 fi
 
-python3 "${ORCHESTRATOR_ROOT}/scripts/run_project_management_3phases.py" \
+python3 -m scripts.run_project_management_3phases \
   "$@" \
   --phase all \
   --critical-only true \
