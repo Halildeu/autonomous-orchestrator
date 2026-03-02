@@ -1,0 +1,16 @@
+rules:
+  - id: enf.v1.ep001.boundary_breach
+    languages: [python]
+    message: "EP-001 Boundary Breach: prj_github_ops must not import prj_kernel_api (use adapter/port boundary)."
+    severity: WARNING
+    paths:
+      include:
+        - src/prj_github_ops/**/*.py
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
+    pattern-regex: "from\\s+src\\.prj_kernel_api\\.|import\\s+src\\.prj_kernel_api"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-001"
+      stage: "v1_real"
+      rationale: "Deterministic minimal boundary breach demo: prj_github_ops -> prj_kernel_api import."

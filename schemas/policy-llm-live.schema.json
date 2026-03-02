@@ -23,6 +23,24 @@
       "minItems": 1,
       "uniqueItems": true
     },
+    "enabled_probe_families": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "chat",
+          "embeddings",
+          "moderation",
+          "vision",
+          "audio",
+          "image_gen",
+          "realtime",
+          "video_gen"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
     "max_calls_per_run": {"type": "integer", "minimum": 0, "maximum": 100},
     "timeout_ms": {"type": "integer", "minimum": 100, "maximum": 60000},
     "max_output_chars": {"type": "integer", "minimum": 0, "maximum": 100000}

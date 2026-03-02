@@ -1,0 +1,56 @@
+{
+  "version": "v1",
+  "generated_at": "2026-01-24T17:22:47Z",
+  "window": {
+    "start_at": "2026-01-17T00:00:00Z",
+    "end_at": "2026-01-24T00:00:00Z"
+  },
+  "source_report": ".cache/reports/enforcement_check.20260124T172247Z.v1.json",
+  "totals": {
+    "findings_count": 13,
+    "sampled_count": 6,
+    "false_positive_count": 1,
+    "false_positive_ratio": 0.1667
+  },
+  "by_rule": [
+    {
+      "rule_id": "EP-001",
+      "findings_count": 3,
+      "sampled_count": 2,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-002",
+      "findings_count": 2,
+      "sampled_count": 1,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-003",
+      "findings_count": 4,
+      "sampled_count": 1,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-004",
+      "findings_count": 2,
+      "sampled_count": 1,
+      "false_positive_count": 1,
+      "false_positive_ratio": 1
+    },
+    {
+      "rule_id": "EP-005",
+      "findings_count": 2,
+      "sampled_count": 1,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    }
+  ],
+  "notes": [
+    "This baseline is a contract template for sampled false-positive tracking.",
+    "Operational reports should overwrite this path with fresh weekly snapshots."
+  ]
+}

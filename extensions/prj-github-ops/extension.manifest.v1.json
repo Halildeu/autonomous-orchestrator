@@ -4,8 +4,8 @@
     "docs/OPERATIONS/EXTENSIONS.md",
     "docs/OPERATIONS/SSOT-MAP.md",
     "docs/LAYER-MODEL-LOCK.v1.md",
-    "extensions/prj-github-ops/EXTENSION.md",
-    "extensions/prj-github-ops/extension.manifest.v1.json",
+    "extensions/PRJ-GITHUB-OPS/EXTENSION.md",
+    "extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json",
     "policies/policy_github_ops.v1.json",
     "schemas/github-ops-job.schema.v1.json",
     "schemas/github-ops-jobs-index.schema.v1.json",
@@ -20,7 +20,7 @@
     "notes": []
   },
   "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-GITHUB-OPS",
-  "enabled": false,
+  "enabled": true,
   "entrypoints": {
     "cockpit_sections": [],
     "kernel_api_actions": [
@@ -38,7 +38,7 @@
     ]
   },
   "tests_entrypoints": [
-    "extensions/prj-github-ops/tests/contract_test.py"
+    "extensions/PRJ-GITHUB-OPS/tests/contract_test.py"
   ],
   "tests_policy": {
     "network_allowed": false,
@@ -64,7 +64,7 @@
       "skeleton_only"
     ],
     "read_roots_allowlist": [
-      "extensions/prj-github-ops/"
+      "extensions/PRJ-GITHUB-OPS/"
     ],
     "write_roots_allowlist": [
       ".cache/",

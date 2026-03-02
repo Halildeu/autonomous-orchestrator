@@ -74,9 +74,33 @@ def main() -> None:
     if not isinstance(lenses, dict):
         raise SystemExit("benchmark_eval_lenses_contract_test failed: lenses missing")
 
-    trend = lenses.get("trend_best_practice")
-    if not isinstance(trend, dict) or trend.get("status") not in {"WARN", "FAIL", "OK"}:
-        raise SystemExit("benchmark_eval_lenses_contract_test failed: trend lens invalid")
+    required_lenses = {
+        "trend_best_practice": "A",
+        "integrity_compat": "B",
+        "ai_ops_fit": "C",
+        "github_ops_release": "D",
+        "operability": "E",
+        "integration_coherence": "F",
+    }
+    for lens_id, expected_dimension in required_lenses.items():
+        lens_obj = lenses.get(lens_id)
+        if not isinstance(lens_obj, dict):
+            raise SystemExit(f"benchmark_eval_lenses_contract_test failed: missing lens {lens_id}")
+        if lens_obj.get("status") not in {"WARN", "FAIL", "OK"}:
+            raise SystemExit(f"benchmark_eval_lenses_contract_test failed: invalid status for {lens_id}")
+        if lens_obj.get("dimension") != expected_dimension:
+            raise SystemExit(
+                f"benchmark_eval_lenses_contract_test failed: {lens_id} dimension must be {expected_dimension}"
+            )
+
+    maturity_doc = eval_obj.get("maturity_tracking")
+    if not isinstance(maturity_doc, dict):
+        raise SystemExit("benchmark_eval_lenses_contract_test failed: maturity_tracking missing")
+    tracking = maturity_doc.get("tracking")
+    if not isinstance(tracking, dict):
+        raise SystemExit("benchmark_eval_lenses_contract_test failed: maturity tracking payload missing")
+    if not isinstance(tracking.get("score"), (int, float)):
+        raise SystemExit("benchmark_eval_lenses_contract_test failed: maturity score missing")
 
     schema_path = repo_root / "schemas" / "assessment-eval.schema.v1.json"
     Draft202012Validator(_load_json(schema_path)).validate(eval_obj)

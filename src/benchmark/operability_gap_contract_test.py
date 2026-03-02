@@ -1,11 +1,24 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 
-from src.benchmark.gap_engine import build_gap_register
+
+def _find_repo_root(start: Path) -> Path:
+    for p in [start] + list(start.parents):
+        if (p / "pyproject.toml").exists():
+            return p
+    return Path.cwd()
 
 
 def main() -> None:
+    repo_root = _find_repo_root(Path(__file__).resolve())
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from src.benchmark.gap_engine import build_gap_register
+
     lens_signals = [
         {
             "lens_id": "operability",

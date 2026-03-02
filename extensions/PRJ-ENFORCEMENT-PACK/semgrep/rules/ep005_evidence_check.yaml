@@ -1,0 +1,14 @@
+rules:
+  - id: enf.v1.ep005.evidence_check
+    languages: [generic]
+    message: "EP-005 Evidence Check (skeleton): replace placeholder regex with real rule(s)."
+    severity: WARNING
+    paths:
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
+    pattern-regex: "ENF_V1_TODO_EP005_EVIDENCE_CHECK"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-005"
+      stage: skeleton
+      rationale: "Ensure required evidence artefacts exist for closeout (usually better enforced via ops/policy, semgrep placeholder here)."

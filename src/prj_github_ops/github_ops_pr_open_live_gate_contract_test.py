@@ -29,6 +29,8 @@ def main() -> None:
     if ws.exists():
         shutil.rmtree(ws)
     ws.mkdir(parents=True, exist_ok=True)
+    test_env_flag = "GITHUB_OPS_TEST_LIVE_FLAG"
+    test_env_key = "GITHUB_OPS_TEST_LIVE_TOKEN"
 
     override = {
         "version": "v1",
@@ -36,23 +38,39 @@ def main() -> None:
         "live_gate": {
             "enabled": True,
             "require_env_key_present": True,
-            "env_flag": "KERNEL_API_GITHUB_LIVE",
-            "env_key": "GITHUB_TOKEN",
+            "env_flag": test_env_flag,
+            "env_key": test_env_key,
+        },
+        "auth": {
+            "mode": "bearer",
+            "token_env": test_env_key,
         },
         "notes": ["contract_test_override=true"],
     }
     _write_json(ws / ".cache" / "policy_overrides" / "policy_github_ops.override.v1.json", override)
 
-    os.environ["KERNEL_API_GITHUB_LIVE"] = "1"
-    os.environ.pop("GITHUB_TOKEN", None)
+    old_flag = os.environ.get(test_env_flag)
+    old_key = os.environ.get(test_env_key)
+    os.environ[test_env_flag] = "1"
+    os.environ.pop(test_env_key, None)
 
-    res = start_github_ops_job(workspace_root=ws, kind="PR_OPEN", dry_run=False)
-    if res.get("status") not in {"IDLE", "SKIP", "WARN"}:
-        raise SystemExit("github_ops_pr_open_live_gate_contract_test failed: status must be non-fatal")
-    if res.get("error_code") not in {"AUTH_MISSING", "NETWORK_DISABLED", "LIVE_GATE_DISABLED"}:
-        raise SystemExit("github_ops_pr_open_live_gate_contract_test failed: error_code must be gate-related")
-    if not res.get("decision_needed", False):
-        raise SystemExit("github_ops_pr_open_live_gate_contract_test failed: decision_needed expected")
+    try:
+        res = start_github_ops_job(workspace_root=ws, kind="PR_OPEN", dry_run=False)
+        if res.get("status") not in {"IDLE", "SKIP", "WARN"}:
+            raise SystemExit("github_ops_pr_open_live_gate_contract_test failed: status must be non-fatal")
+        if res.get("error_code") not in {"AUTH_MISSING", "NETWORK_DISABLED", "LIVE_GATE_DISABLED"}:
+            raise SystemExit("github_ops_pr_open_live_gate_contract_test failed: error_code must be gate-related")
+        if not res.get("decision_needed", False):
+            raise SystemExit("github_ops_pr_open_live_gate_contract_test failed: decision_needed expected")
+    finally:
+        if old_flag is None:
+            os.environ.pop(test_env_flag, None)
+        else:
+            os.environ[test_env_flag] = old_flag
+        if old_key is None:
+            os.environ.pop(test_env_key, None)
+        else:
+            os.environ[test_env_key] = old_key
 
     print(json.dumps({"status": "OK"}, ensure_ascii=False, sort_keys=True))
 

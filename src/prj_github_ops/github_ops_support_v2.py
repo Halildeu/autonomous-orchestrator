@@ -147,6 +147,57 @@ def _env_truthy(value: str | None) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _parse_dotenv_file(path: Path) -> dict[str, str]:
+    data: dict[str, str] = {}
+    if not path.exists():
+        return data
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return data
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export "):
+            stripped = stripped[len("export ") :].lstrip()
+        if "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if value.startswith(("\"", "'")) and value.endswith(("\"", "'")) and len(value) >= 2:
+            value = value[1:-1]
+        data[key] = value
+    return data
+
+
+def _load_dotenv_sources(workspace_root: Path) -> tuple[dict[str, str], dict[str, str]]:
+    ws_data = _parse_dotenv_file(workspace_root / ".env")
+    repo_data = _parse_dotenv_file(_repo_root() / ".env")
+    return ws_data, repo_data
+
+
+def _resolve_env_presence_from_dotenv(key_name: str, *, workspace_root: Path) -> tuple[bool, str]:
+    ws_data, repo_data = _load_dotenv_sources(workspace_root)
+    if ws_data.get(key_name):
+        return True, "workspace_env"
+    if repo_data.get(key_name):
+        return True, "repo_env"
+    return False, "none"
+
+
+def _resolve_env_value_from_dotenv(key_name: str, *, workspace_root: Path) -> tuple[bool, str | None]:
+    ws_data, repo_data = _load_dotenv_sources(workspace_root)
+    if ws_data.get(key_name):
+        return True, ws_data.get(key_name)
+    if repo_data.get(key_name):
+        return True, repo_data.get(key_name)
+    return False, None
+
+
 def _allowed_actions(policy: dict[str, Any]) -> list[str]:
     actions = policy.get("allowed_actions") if isinstance(policy.get("allowed_actions"), list) else []
     actions = [str(x) for x in actions if isinstance(x, str) and x.strip()]

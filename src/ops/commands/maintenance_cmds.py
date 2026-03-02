@@ -5,8 +5,6 @@ import json
 import os
 import subprocess
 import sys
-from contextlib import redirect_stderr, redirect_stdout
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -25,11 +23,27 @@ from src.ops.commands.maintenance_lease_cmds import (
     cmd_work_item_lease_seed,
 )
 from src.ops.commands.maintenance_cmds_doer import cmd_doer_actionability, cmd_work_intake_autoselect
+from src.ops.commands.maintenance_cmds_runtime import (
+    cmd_auto_loop as _cmd_auto_loop_runtime,
+    cmd_decision_apply as _cmd_decision_apply_runtime,
+    cmd_decision_inbox_build as _cmd_decision_inbox_build_runtime,
+    cmd_decision_inbox_show as _cmd_decision_inbox_show_runtime,
+    cmd_decision_seed as _cmd_decision_seed_runtime,
+    cmd_work_intake_check as _cmd_work_intake_check_runtime,
+    cmd_work_intake_exec_ticket as _cmd_work_intake_exec_ticket_runtime,
+)
 from src.ops.commands.maintenance_cmds_planner import register_planner_and_intake_subcommands
 from src.ops.commands.intake_link_report_cmds import cmd_intake_link_report
 from src.ops.commands.maintenance_policy_cmds import cmd_evidence_export, cmd_policy_check, cmd_reaper
+from src.ops.smoke_root_cause import (
+    DEFAULT_SMOKE_ROOT_CAUSE_REPORT,
+    build_smoke_root_cause_report,
+    parse_smoke_root_cause_from_output,
+    write_smoke_root_cause_report,
+)
 from src.ops.commands.work_intake_claim_cmds import cmd_work_intake_claim
 from src.ops.commands.work_intake_close_cmds import cmd_work_intake_close
+from src.ops.commands.work_intake_purpose_cmds import cmd_work_intake_purpose_generate
 from src.ops.commands.work_intake_select_cmds import cmd_work_intake_select
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
@@ -120,12 +134,53 @@ def cmd_smoke(args: argparse.Namespace) -> int:
     if level not in {"fast", "full"}:
         warn("FAIL error=INVALID_LEVEL")
         return 2
+    out_arg = str(getattr(args, "root_cause_out", "") or "").strip() or DEFAULT_SMOKE_ROOT_CAUSE_REPORT
 
     env = os.environ.copy()
     env["SMOKE_LEVEL"] = level
-    proc = subprocess.run([sys.executable, "smoke_test.py"], cwd=root, text=True, env=env)
+    proc = subprocess.run([sys.executable, "smoke_test.py"], cwd=root, text=True, env=env, capture_output=True)
+    if proc.stdout:
+        print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n")
+    if proc.stderr:
+        print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n", file=sys.stderr)
+
     status = "OK" if proc.returncode == 0 else "FAIL"
-    print(json.dumps({"status": status, "level": level}, ensure_ascii=False, sort_keys=True))
+    combined = (proc.stdout or "") + ("\n" if proc.stdout and proc.stderr else "") + (proc.stderr or "")
+    parsed = parse_smoke_root_cause_from_output(combined)
+    report = build_smoke_root_cause_report(
+        status=status,
+        level=level,
+        reported_root_error_code=str(parsed.get("root_error_code") or ""),
+        failed_error_code=str(parsed.get("failed_error_code") or ""),
+        failed_step_id=str(parsed.get("failed_step_id") or ""),
+        failed_cmd=str(parsed.get("failed_cmd") or ""),
+        failed_stderr_preview=str(parsed.get("failed_stderr_preview") or ""),
+        combined_output=combined,
+    )
+    report_path = write_smoke_root_cause_report(repo_root=root, report=report, out_path=out_arg)
+    payload: dict[str, Any] = {
+        "status": status,
+        "level": level,
+        "root_cause_report": report_path,
+        "root_error_code": report.get("root_error_code"),
+        "root_error_category": report.get("root_error_category"),
+        "root_error_severity": report.get("root_error_severity"),
+        "classification_source": report.get("classification_source"),
+    }
+    failed_step_id = str(report.get("failed_step_id") or "").strip()
+    failed_cmd = str(report.get("failed_cmd") or "").strip()
+    if failed_step_id:
+        payload["failed_step_id"] = failed_step_id
+    if failed_cmd:
+        payload["failed_cmd"] = failed_cmd
+    print(
+        "SMOKE_ROOT_CAUSE_REPORT "
+        + f"status={status} "
+        + f"code={report.get('root_error_code')} "
+        + f"severity={report.get('root_error_severity')} "
+        + f"path={report_path}"
+    )
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status == "OK" else 2
 def cmd_system_status(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -221,6 +276,46 @@ def cmd_cockpit_healthcheck(args: argparse.Namespace) -> int:
     res = run_cockpit_healthcheck(workspace_root=ws, port=port)
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WARN"} else 2
+
+
+def cmd_memory_healthcheck(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    from src.ops.memory_health import run_memory_healthcheck
+
+    res = run_memory_healthcheck(workspace_root=ws)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN", "SKIP"} else 2
+
+
+def cmd_memory_smoke(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    from src.ops.memory_health import run_memory_smoke
+
+    res = run_memory_smoke(workspace_root=ws)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    return 0 if res.get("status") in {"OK", "WARN", "SKIP"} else 2
 
 
 def cmd_planner_notes_create(args: argparse.Namespace) -> int:
@@ -349,459 +444,22 @@ def cmd_work_intake_build(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 def cmd_work_intake_check(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    mode = str(args.mode).strip().lower() if args.mode else "report"
-    if mode not in {"report", "strict"}:
-        warn("FAIL error=INVALID_MODE")
-        return 2
-
-    chat = parse_reaper_bool(str(args.chat))
-    detail = parse_reaper_bool(str(args.detail))
-
-    from src.ops.work_intake_from_sources import run_work_intake_build
-    from src.ops.system_status_report import run_system_status
-    from src.ops.roadmap_cli import cmd_portfolio_status
-
-    build_res = run_work_intake_build(workspace_root=ws)
-    work_intake_path = build_res.get("work_intake_path") if isinstance(build_res, dict) else None
-
-    intake_obj: dict[str, Any] = {}
-    if isinstance(work_intake_path, str) and work_intake_path:
-        intake_path_abs = (ws / work_intake_path).resolve()
-        try:
-            intake_obj = json.loads(intake_path_abs.read_text(encoding="utf-8"))
-        except Exception:
-            intake_obj = {}
-
-    plan_policy = intake_obj.get("plan_policy") if isinstance(intake_obj.get("plan_policy"), str) else "optional"
-    items = intake_obj.get("items") if isinstance(intake_obj.get("items"), list) else []
-    summary = intake_obj.get("summary") if isinstance(intake_obj.get("summary"), dict) else {}
-    counts_by_bucket = summary.get("counts_by_bucket") if isinstance(summary.get("counts_by_bucket"), dict) else {}
-    top_next_actions = summary.get("top_next_actions") if isinstance(summary.get("top_next_actions"), list) else []
-    next_intake_focus = summary.get("next_intake_focus") if isinstance(summary.get("next_intake_focus"), str) else "NONE"
-
-    sys_result = run_system_status(workspace_root=ws, core_root=root, dry_run=False)
-    sys_out = sys_result.get("out_json") if isinstance(sys_result, dict) else None
-    sys_rel = None
-    if isinstance(sys_out, str):
-        sys_rel = Path(sys_out).resolve()
-        try:
-            sys_rel = sys_rel.relative_to(ws)
-        except Exception:
-            sys_rel = None
-
-    portfolio_buf = StringIO()
-    with redirect_stdout(portfolio_buf), redirect_stderr(portfolio_buf):
-        cmd_portfolio_status(argparse.Namespace(workspace_root=str(ws), mode="json"))
-    portfolio_report = ws / ".cache" / "reports" / "portfolio_status.v1.json"
-    portfolio_rel = ".cache/reports/portfolio_status.v1.json" if portfolio_report.exists() else ""
-
-    status = build_res.get("status") if isinstance(build_res, dict) else "WARN"
-    error_code = None
-    plan_dir = ws / ".cache" / "reports" / "chg"
-    plan_missing = False
-    if plan_policy == "required" and items:
-        if not plan_dir.exists():
-            plan_missing = True
-        else:
-            plans = list(plan_dir.glob("CHG-INTAKE-*.plan.json"))
-            plan_missing = not bool(plans)
-        if plan_missing:
-            status = "IDLE"
-            error_code = "NO_PLAN_FOUND"
-
-    payload = {
-        "status": status,
-        "error_code": error_code,
-        "workspace_root": str(ws),
-        "work_intake_path": work_intake_path,
-        "items_count": len(items),
-        "counts_by_bucket": counts_by_bucket,
-        "top_next_actions": top_next_actions if detail else top_next_actions[:5],
-        "next_intake_focus": next_intake_focus,
-        "system_status_path": str(sys_rel) if isinstance(sys_rel, Path) else None,
-        "portfolio_status_path": portfolio_rel,
-        "notes": [f"mode={mode}", "PROGRAM_LED=true"],
-    }
-
-    if chat:
-        print("PREVIEW:")
-        print("PROGRAM-LED: work-intake-build + system-status + portfolio-status; user_command=false")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(f"status={status} items={len(items)} next_intake_focus={next_intake_focus}")
-        if error_code:
-            print(f"error_code={error_code}")
-        print("EVIDENCE:")
-        for p in [work_intake_path, payload.get("system_status_path"), portfolio_rel]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        if plan_missing:
-            print("auto-plan_uret")
-            print("yeni_plan_ekle")
-            print("durumu_goster")
-        else:
-            if top_next_actions:
-                for item in top_next_actions[:5]:
-                    if not isinstance(item, dict):
-                        continue
-                    print(
-                        f"{item.get('intake_id')} bucket={item.get('bucket')} "
-                        f"priority={item.get('priority')}"
-                    )
-            else:
-                print("no_actions")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_work_intake_check_runtime(args))
 
 def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    try:
-        limit = max(0, int(args.limit))
-    except Exception:
-        warn("FAIL error=INVALID_LIMIT")
-        return 2
-    chat = parse_reaper_bool(str(args.chat))
-
-    from src.ops.work_intake_exec_ticket import run_work_intake_exec_ticket
-
-    res = run_work_intake_exec_ticket(workspace_root=ws, limit=limit)
-    status = res.get("status") if isinstance(res, dict) else "WARN"
-    report_rel = res.get("work_intake_exec_path") if isinstance(res, dict) else None
-    report_path = (ws / report_rel).resolve() if isinstance(report_rel, str) else None
-    entries = []
-    if report_path and report_path.exists():
-        try:
-            report_obj = json.loads(report_path.read_text(encoding="utf-8"))
-            entries = report_obj.get("entries") if isinstance(report_obj.get("entries"), list) else []
-        except Exception:
-            entries = []
-
-    payload = {
-        "status": status,
-        "error_code": res.get("error_code") if isinstance(res, dict) else None,
-        "workspace_root": str(ws),
-        "work_intake_exec_path": report_rel,
-        "work_intake_exec_md_path": res.get("work_intake_exec_md_path") if isinstance(res, dict) else None,
-        "selected_count": res.get("selected_count") if isinstance(res, dict) else 0,
-        "applied_count": res.get("applied_count") if isinstance(res, dict) else 0,
-        "planned_count": res.get("planned_count") if isinstance(res, dict) else 0,
-        "idle_count": res.get("idle_count") if isinstance(res, dict) else 0,
-        "ignored_count": res.get("ignored_count") if isinstance(res, dict) else 0,
-        "skipped_count": res.get("skipped_count") if isinstance(res, dict) else 0,
-        "decision_needed_count": res.get("decision_needed_count") if isinstance(res, dict) else 0,
-        "entries_count": res.get("entries_count") if isinstance(res, dict) else 0,
-    }
-    skipped_by_reason = res.get("skipped_by_reason") if isinstance(res, dict) else None
-    if isinstance(skipped_by_reason, dict):
-        payload["skipped_by_reason"] = {str(k): int(v) for k, v in skipped_by_reason.items() if isinstance(v, int)}
-
-    if chat:
-        print("PREVIEW:")
-        print("PROGRAM-LED: work-intake-exec-ticket (safe-only, workspace-only)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(
-            f"status={payload.get('status')} applied={payload.get('applied_count')} "
-            f"planned={payload.get('planned_count')} idle={payload.get('idle_count')}"
-        )
-        if payload.get("error_code"):
-            print(f"error_code={payload.get('error_code')}")
-        print("EVIDENCE:")
-        for p in [payload.get("work_intake_exec_path"), payload.get("work_intake_exec_md_path")]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        if entries:
-            for item in entries[:5]:
-                if not isinstance(item, dict):
-                    continue
-                print(f"{item.get('intake_id')} status={item.get('status')} action={item.get('action_kind')}")
-        else:
-            print("no_actions")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_work_intake_exec_ticket_runtime(args))
 
 def cmd_auto_loop(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    budget_raw = str(args.budget_seconds).strip() if getattr(args, "budget_seconds", None) is not None else ""
-    if not budget_raw:
-        warn("FAIL error=BUDGET_SECONDS_REQUIRED")
-        return 2
-    try:
-        budget_seconds = int(budget_raw)
-    except Exception:
-        warn("FAIL error=INVALID_BUDGET_SECONDS")
-        return 2
-    if budget_seconds <= 0:
-        warn("FAIL error=INVALID_BUDGET_SECONDS")
-        return 2
-
-    chat = parse_reaper_bool(str(args.chat))
-    from src.ops.auto_loop import run_auto_loop
-
-    payload = run_auto_loop(workspace_root=ws, budget_seconds=budget_seconds, chat=chat)
-    status = payload.get("status") if isinstance(payload, dict) else "WARN"
-
-    if chat and isinstance(payload, dict):
-        counts = payload.get("counts") if isinstance(payload.get("counts"), dict) else {}
-        doer_counts = counts.get("doer_counts") if isinstance(counts.get("doer_counts"), dict) else {}
-        print("PREVIEW:")
-        print("PROGRAM-LED: auto-loop (decision -> apply -> doer)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(
-            "status={status} decisions_before={before} decisions_after={after}".format(
-                status=payload.get("status"),
-                before=counts.get("decision_pending_before", 0),
-                after=counts.get("decision_pending_after", 0),
-            )
-        )
-        print(
-            "bulk_applied={bulk} selected={selected} doer_applied={applied}".format(
-                bulk=counts.get("bulk_applied_count", 0),
-                selected=counts.get("selected_count", 0),
-                applied=doer_counts.get("applied", 0),
-            )
-        )
-        if payload.get("error_code"):
-            print(f"error_code={payload.get('error_code')}")
-        if isinstance(payload.get("self_heal"), dict) and payload.get("self_heal"):
-            print("self_heal=ready")
-        print("EVIDENCE:")
-        for p in [
-            payload.get("report_path"),
-            payload.get("report_md_path"),
-            payload.get("decision_inbox_path"),
-            payload.get("bulk_apply_report_path"),
-            payload.get("airunner_run_path"),
-            payload.get("system_status_path"),
-            payload.get("ui_snapshot_path"),
-        ]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        print("decision-inbox-show")
-        print("system-status")
-        print("ui-snapshot-bundle")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_auto_loop_runtime(args))
 
 def cmd_decision_inbox_build(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    chat = parse_reaper_bool(str(args.chat))
-    from src.ops.decision_inbox import run_decision_inbox_build
-
-    res = run_decision_inbox_build(workspace_root=ws)
-    status = res.get("status") if isinstance(res, dict) else "WARN"
-    payload = {
-        "status": status,
-        "error_code": res.get("error_code") if isinstance(res, dict) else None,
-        "workspace_root": str(ws),
-        "decision_inbox_path": res.get("decision_inbox_path") if isinstance(res, dict) else None,
-        "decision_inbox_md_path": res.get("decision_inbox_md_path") if isinstance(res, dict) else None,
-        "decisions_count": res.get("decisions_count") if isinstance(res, dict) else 0,
-    }
-
-    if chat:
-        print("PREVIEW:")
-        print("PROGRAM-LED: decision-inbox-build (read-only)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(f"status={payload.get('status')} decisions={payload.get('decisions_count')}")
-        if payload.get("error_code"):
-            print(f"error_code={payload.get('error_code')}")
-        print("EVIDENCE:")
-        for p in [payload.get("decision_inbox_path"), payload.get("decision_inbox_md_path")]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        if payload.get("decisions_count", 0) > 0:
-            print("decision_apply")
-            print("durumu_goster")
-        else:
-            print("no_decisions")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_decision_inbox_build_runtime(args))
 
 def cmd_decision_inbox_show(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    chat = parse_reaper_bool(str(args.chat))
-    from src.ops.decision_inbox import run_decision_inbox_show
-
-    payload = run_decision_inbox_show(workspace_root=ws)
-    status = payload.get("status") if isinstance(payload, dict) else "WARN"
-
-    if chat and isinstance(payload, dict):
-        print("PREVIEW:")
-        print("PROGRAM-LED: decision-inbox-show (build+read)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(f"status={payload.get('status')} decisions={payload.get('decisions_count', 0)}")
-        if payload.get("error_code"):
-            print(f"error_code={payload.get('error_code')}")
-        decisions = payload.get("decisions") if isinstance(payload.get("decisions"), list) else []
-        if decisions:
-            print("decisions:")
-            for item in decisions:
-                if not isinstance(item, dict):
-                    continue
-                print(
-                    f"- {item.get('decision_id')} intake={item.get('source_intake_id')} kind={item.get('decision_kind')} default={item.get('default_option_id')}"
-                )
-        md_rel = payload.get("decision_inbox_md_path")
-        if isinstance(md_rel, str) and md_rel:
-            md_path = ws / md_rel
-            if md_path.exists():
-                try:
-                    md_lines = md_path.read_text(encoding="utf-8").splitlines()
-                except Exception:
-                    md_lines = []
-                if md_lines:
-                    print("decision_inbox_md:")
-                    for line in md_lines[:60]:
-                        print(line)
-        print("EVIDENCE:")
-        for p in [payload.get("decision_inbox_path"), payload.get("decision_inbox_md_path")]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        print("decision-apply-bulk")
-        print("decision-apply")
-        print("work-intake-check")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_decision_inbox_show_runtime(args))
 
 def cmd_decision_apply(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    decision_id = str(args.decision_id).strip()
-    option_id = str(args.option_id).strip()
-    if not decision_id:
-        warn("FAIL error=DECISION_ID_REQUIRED")
-        return 2
-    if not option_id:
-        warn("FAIL error=OPTION_ID_REQUIRED")
-        return 2
-
-    chat = parse_reaper_bool(str(args.chat))
-    from src.ops.decision_inbox import run_decision_apply
-
-    res = run_decision_apply(workspace_root=ws, decision_id=decision_id, option_id=option_id)
-    status = res.get("status") if isinstance(res, dict) else "WARN"
-    payload = {
-        "status": status,
-        "error_code": res.get("error_code") if isinstance(res, dict) else None,
-        "workspace_root": str(ws),
-        "decision_id": res.get("decision_id") if isinstance(res, dict) else decision_id,
-        "decision_kind": res.get("decision_kind") if isinstance(res, dict) else "",
-        "option_id": res.get("option_id") if isinstance(res, dict) else option_id,
-        "decisions_applied_path": res.get("decisions_applied_path") if isinstance(res, dict) else None,
-        "selection_path": res.get("selection_path") if isinstance(res, dict) else None,
-        "policy_override_path": res.get("policy_override_path") if isinstance(res, dict) else None,
-    }
-
-    if chat:
-        print("PREVIEW:")
-        print("PROGRAM-LED: decision-apply (workspace-only)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(f"status={payload.get('status')} decision={payload.get('decision_id')}")
-        if payload.get("error_code"):
-            print(f"error_code={payload.get('error_code')}")
-        print("EVIDENCE:")
-        for p in [payload.get("decisions_applied_path"), payload.get("selection_path"), payload.get("policy_override_path")]:
-            if p:
-                print(str(p))
-        print("ACTIONS:")
-        print("work-intake-check")
-        print("airrunner-run")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_decision_apply_runtime(args))
 
 def cmd_decision_apply_bulk(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -830,57 +488,7 @@ def cmd_decision_apply_bulk(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 def cmd_decision_seed(args: argparse.Namespace) -> int:
-    root = repo_root()
-    workspace_arg = str(args.workspace_root).strip()
-    if not workspace_arg:
-        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
-        return 2
-
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
-        warn("FAIL error=WORKSPACE_ROOT_INVALID")
-        return 2
-
-    decision_kind = str(args.kind).strip()
-    target = str(args.target).strip()
-    if not decision_kind:
-        warn("FAIL error=DECISION_KIND_REQUIRED")
-        return 2
-    if not target:
-        warn("FAIL error=DECISION_TARGET_REQUIRED")
-        return 2
-
-    chat = parse_reaper_bool(str(args.chat))
-    from src.ops.decision_inbox import run_decision_seed
-
-    res = run_decision_seed(workspace_root=ws, decision_kind=decision_kind, target=target)
-    status = res.get("status") if isinstance(res, dict) else "WARN"
-    payload = {
-        "status": status,
-        "workspace_root": str(ws),
-        "decision_kind": res.get("decision_kind") if isinstance(res, dict) else decision_kind,
-        "target": res.get("target") if isinstance(res, dict) else target,
-        "seed_id": res.get("seed_id") if isinstance(res, dict) else "",
-        "seed_path": res.get("seed_path") if isinstance(res, dict) else None,
-    }
-
-    if chat:
-        print("PREVIEW:")
-        print("PROGRAM-LED: decision-seed (workspace-only)")
-        print(f"workspace_root={payload.get('workspace_root')}")
-        print("RESULT:")
-        print(f"status={payload.get('status')} seed_id={payload.get('seed_id')}")
-        print("EVIDENCE:")
-        if payload.get("seed_path"):
-            print(str(payload.get("seed_path")))
-        print("ACTIONS:")
-        print("decision-inbox-build")
-        print("NEXT:")
-        print("Devam et / Durumu göster / Duraklat")
-
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+    return int(_cmd_decision_seed_runtime(args))
 
 def cmd_layer_boundary_check(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -1036,6 +644,11 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_pc.add_argument("--fixtures", default="fixtures/envelopes")
     ap_pc.add_argument("--evidence", default="evidence")
     ap_pc.add_argument("--outdir", default=".cache/policy_check")
+    ap_pc.add_argument(
+        "--max-deprecation-warnings",
+        default="-1",
+        help="Max allowed deprecation warnings for gate (-1 disables gate, default: -1).",
+    )
     ap_pc.set_defaults(func=cmd_policy_check)
     ap_sb = parent.add_parser("script-budget", help="Run Script Budget guardrails (soft=warn, hard=fail).")
     ap_sb.add_argument("--out", default=".cache/script_budget/report.json", help="Report JSON output path.")
@@ -1050,6 +663,11 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_ts.set_defaults(func=cmd_airunner_time_sinks_prune)
     ap_smoke = parent.add_parser("smoke", help="Run smoke_test.py with SMOKE_LEVEL (fast|full).")
     ap_smoke.add_argument("--level", default="fast", help="fast|full (default: fast).")
+    ap_smoke.add_argument(
+        "--root-cause-out",
+        default=DEFAULT_SMOKE_ROOT_CAUSE_REPORT,
+        help=f"Smoke root cause report JSON path (default: {DEFAULT_SMOKE_ROOT_CAUSE_REPORT}).",
+    )
     ap_smoke.set_defaults(func=cmd_smoke)
     ap_sys = parent.add_parser("system-status", help="Generate unified system status report (JSON + MD).")
     ap_sys.add_argument("--workspace-root", required=True, help="Workspace root path.")
@@ -1075,6 +693,14 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_cockpit_hc.add_argument("--port", default="8787", help="Port (default: 8787).")
     ap_cockpit_hc.set_defaults(func=cmd_cockpit_healthcheck)
 
+    ap_mem_hc = parent.add_parser("memory-healthcheck", help="Run memory adapter healthcheck (workspace-only).")
+    ap_mem_hc.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_mem_hc.set_defaults(func=cmd_memory_healthcheck)
+
+    ap_mem_smoke = parent.add_parser("memory-smoke", help="Run memory adapter smoke test (workspace-only).")
+    ap_mem_smoke.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_mem_smoke.set_defaults(func=cmd_memory_smoke)
+
     register_planner_and_intake_subcommands(
         parent,
         cmd_planner_notes_create=cmd_planner_notes_create,
@@ -1087,6 +713,7 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
         cmd_work_intake_select=cmd_work_intake_select,
         cmd_work_intake_claim=cmd_work_intake_claim,
         cmd_work_intake_close=cmd_work_intake_close,
+        cmd_work_intake_purpose_generate=cmd_work_intake_purpose_generate,
         cmd_work_intake_autoselect=cmd_work_intake_autoselect,
         cmd_doer_actionability=cmd_doer_actionability,
     )

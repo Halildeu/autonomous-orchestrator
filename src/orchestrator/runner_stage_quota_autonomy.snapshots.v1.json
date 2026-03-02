@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "stage": "quota_autonomy",
+  "scenarios": [
+    {
+      "id": "quota_runs_exceeded",
+      "fixture": "0001.json",
+      "mutations": [
+        "quota:runs_exceeded"
+      ],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": "FAILED",
+        "summary_result_state": "FAILED",
+        "summary_reason": null,
+        "summary_policy_violation_code": "QUOTA_RUNS_EXCEEDED",
+        "summary_budget_hit": null,
+        "summary_quota_hit": "RUNS",
+        "dlq_stage": "QUOTA",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    }
+  ]
+}

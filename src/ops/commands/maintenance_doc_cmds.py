@@ -222,6 +222,21 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
             doc_report = fallback_report
     else:
         doc_report = _load_json_if_exists(doc_out)
+        if doc_report is not None:
+            strict_path = ws_path / ".cache" / "reports" / "doc_graph_report.strict.v1.json"
+            strict_report = _load_json_if_exists(strict_path)
+            if strict_report is not None:
+                existing_status = str(doc_report.get("status", "")).upper()
+                existing_notes = doc_report.get("notes") if isinstance(doc_report.get("notes"), list) else []
+                existing_note_set = {str(x) for x in existing_notes}
+                strict_status = str(strict_report.get("status", "")).upper()
+                if existing_status == "WARN" and strict_status == "OK" and "summary_timeout_fallback_to_strict=true" in existing_note_set:
+                    notes = strict_report.get("notes") if isinstance(strict_report.get("notes"), list) else []
+                    if "summary_timeout_fallback_to_strict=true" not in notes:
+                        notes = [*notes, "summary_timeout_fallback_to_strict=true"]
+                    strict_report["notes"] = notes
+                    doc_report = strict_report
+                    _write_doc_graph_report(report=doc_report, out_json=doc_out)
         if doc_report is None:
             strict_path = ws_path / ".cache" / "reports" / "doc_graph_report.strict.v1.json"
             strict_report = _load_json_if_exists(strict_path)
@@ -308,7 +323,9 @@ def cmd_doc_nav_check(args: argparse.Namespace) -> int:
     status = "OK"
     if doc_status == "FAIL" or critical_nav_gaps > 0:
         status = "FAIL"
-    elif doc_status == "WARN" or str(sys_obj.get("overall_status", "")) in {"WARN", "NOT_READY"}:
+    elif doc_status == "WARN":
+        status = "WARN"
+    elif strict and str(sys_obj.get("overall_status", "")) in {"WARN", "NOT_READY"}:
         status = "WARN"
     if summary_timeout_fallback or strict_timeout_fallback:
         if doc_status == "FAIL":

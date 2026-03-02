@@ -1,18 +1,10 @@
 {
   "version": "v1",
   "python_file_limits": { "soft_lines": 1200, "hard_lines": 2000 },
-  "grandfathered_files": [
-    {
-      "path": "ci/smoke_test.py",
-      "mode": "no_growth_only",
-      "current_lines": 4425,
-      "max_allowed_lines": 4425,
-      "expires_on": null,
-      "target_soft": 1200,
-      "target_hard": 2000
-    }
-  ],
+  "grandfathered_files": [],
   "file_line_limits": [
+    { "path": "extensions/PRJ-UI-COCKPIT-LITE/server_utils.py", "soft": 1400, "hard": 1600 },
+    { "path": "extensions/PRJ-UI-COCKPIT-LITE/server_get.py", "soft": 1300, "hard": 1500 },
     { "path": "src/ops/manage.py", "soft": 1200, "hard": 1800 },
     { "path": "smoke_test.py", "soft": 1000, "hard": 1500 },
     { "path": "src/roadmap/executor.py", "soft": 900, "hard": 1300 },

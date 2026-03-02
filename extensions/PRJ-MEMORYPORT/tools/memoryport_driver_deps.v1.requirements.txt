@@ -1,0 +1,5 @@
+qdrant-client==1.16.2
+psycopg==3.3.2
+psycopg-binary==3.3.2
+pgvector==0.4.2
+

@@ -22,7 +22,7 @@
     "notes": []
   },
   "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-AIRUNNER",
-  "enabled": false,
+  "enabled": true,
   "entrypoints": {
     "cockpit_sections": [],
     "kernel_api_actions": [],

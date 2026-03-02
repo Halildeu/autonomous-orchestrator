@@ -95,12 +95,41 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Outputs: .cache/reports/pm_suite_status.v1.json
 - Policies: policies/policy_pm_suite.v1.json
 
+<a id="ext-PRJ-CONTEXT-ORCHESTRATION"></a>
+### PRJ-CONTEXT-ORCHESTRATION
+- Purpose: AI ile yazılım geliştirirken bağlam yönetimi (session + context-pack + memory + plan/apply izlenebilirliği).
+- Single gate: context-router-check.
+- Outputs: .cache/reports/context_orchestration_status.v1.json, .cache/reports/request_intake_to_exec_trace.v1.json
+- Policies: policies/policy_context_orchestration.v1.json
+
 <a id="ext-PRJ-PLANNER"></a>
 ### PRJ-PLANNER
 - Purpose: plan-first selection + CHG drafts (no direct apply).
 - Single gate: planner-show-plan.
 - Outputs: .cache/index/plans/PLN-*.v1.json, .cache/reports/planner_plan_summary.v1.md, .cache/index/work_intake_selection.v1.json
-- Policies: policies/policy_planner.v1.json
+- Policies: policies/policy_planner.v1.json, policies/policy_north_star_subject_plan.v1.json
+- Workspace tuning: `.cache/policy_overrides/policy_north_star_subject_plan.override.v1.json` (full), `.cache/policy_overrides/policy_north_star_subject_plan_scoring.override.v1.json` (light scoring only).
+
+<a id="ext-PRJ-EXECUTORPORT"></a>
+### PRJ-EXECUTORPORT
+- Purpose: vendor-neutral executor port baseline (offline-first; local/manual default, Codex optional adapter).
+- Single gate: none (contract-first in v0.1).
+- Outputs: .cache/reports/executorport_contract_test.v1.txt
+- Policies: none (v0.1).
+
+<a id="ext-PRJ-OBSERVABILITY-OTEL"></a>
+### PRJ-OBSERVABILITY-OTEL
+- Purpose: observability pack for trace_meta/run correlation (OTel optional, offline-first).
+- Single gate: none (contract-first in v0.1).
+- Outputs: .cache/reports/otel_pack.contract_test.v1.txt
+- Policies: none (v0.1).
+
+<a id="ext-PRJ-MEMORYPORT"></a>
+### PRJ-MEMORYPORT
+- Purpose: vendor-neutral, local-first memory port baseline (offline-first; optional Qdrant/pgvector adapters are skeleton-only).
+- Single gate: none (contract-first in v0.1).
+- Outputs: .cache/reports/memoryport.contract_test.v1.txt
+- Policies: none (v0.1).
 
 <a id="ext-PRJ-AIRUNNER"></a>
 ### PRJ-AIRUNNER
@@ -116,3 +145,17 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Single gate: cockpit-serve.
 - Outputs: .cache/reports/ui_cockpit_lite_status.v1.json
 - Policies: none (read-only).
+
+<a id="ext-PRJ-SEARCH"></a>
+### PRJ-SEARCH
+- Purpose: controlled search adapter migration (phase-1 contract + phase-2 backend move with shim compatibility).
+- Single gate: search-check.
+- Outputs: .cache/ws_customer_default/.cache/reports/search_adapter_contract.v1.json
+- Policies: none (phase-1).
+
+<a id="ext-PRJ-ENFORCEMENT-PACK"></a>
+### PRJ-ENFORCEMENT-PACK
+- Purpose: Enforcement Pack v1 (vendor-neutral; Semgrep OSS adapter skeleton + canonical JSON contract).
+- Single gate: enforcement-check.
+- Outputs: .cache/reports/enforcement_check/* (contract JSON/MD + semgrep raw output pointers).
+- Policies: none (V1).

@@ -1,0 +1,20 @@
+{
+  "change_id": "CHG-20260217-001",
+  "gates": [
+    "python ci/validate_schemas.py"
+  ],
+  "patches": [
+    {
+      "milestone_id": "M0",
+      "note": "Repo hygiene: move root report files into .cache/reports and keep them ignored.\n- move sim_report.json -> .cache/reports/sim_report.json\n- move sim_report_both.json -> .cache/reports/sim_report_both.json\n- move sim_report_evidence.json -> .cache/reports/sim_report_evidence.json",
+      "op": "append_milestone_note"
+    }
+  ],
+  "rationale": "Repo hygiene suggests moving generated root reports into .cache/ to reduce clutter.",
+  "risk_level": "low",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "type": "modify",
+  "version": "v1"
+}

@@ -4,12 +4,32 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+_HERE = Path(__file__).resolve()
+_REPO_ROOT = _HERE.parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from src.prj_kernel_api.adapter import handle_request as kernel_handle_request
+from src.prj_kernel_api.dotenv_loader import resolve_env_value
+try:
+    from src.prj_kernel_api.prompt_registry import load_prompt_registry, resolve_prompt_entry
+except Exception:
+    def load_prompt_registry(*, workspace_root: Path | None = None, repo_root: Path | None = None) -> dict[str, Any]:
+        return {}
+
+    def resolve_prompt_entry(registry: dict[str, Any], key: str) -> dict[str, Any]:
+        _ = (registry, key)
+        return {}
+from src.orchestrator.memory.adapters import resolve_memory_port
+from src.orchestrator.memory.memory_port import MemoryAdapterUnavailable, deterministic_record_id
 
 SECRET_KEY_HINTS = (
     "secret",
@@ -21,7 +41,7 @@ SECRET_KEY_HINTS = (
     "credential",
 )
 
-ALLOWED_EXTS = {".json", ".jsonl", ".md"}
+ALLOWED_EXTS = {".json", ".jsonl", ".md", ".py", ".txt", ".toml", ".yaml", ".yml"}
 NOTE_ID_RE = re.compile(r"^NOTE-[0-9a-f]{64}$")
 THREAD_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 CHAT_TYPES = {"NOTE", "OP_CALL", "DECISION_APPLY", "OVERRIDE_SET", "HELP", "RESULT"}
@@ -37,8 +57,55 @@ SAFE_OVERRIDE_FILES = {
     "policy_auto_loop.override.v1.json",
     "policy_doc_graph.override.v1.json",
     "policy_autopilot_apply.override.v1.json",
+    "policy_north_star_subject_plan.override.v1.json",
+    "policy_north_star_subject_plan_scoring.override.v1.json",
     COCKPIT_LITE_OVERRIDE_NAME,
 }
+
+SEARCH_NAMESPACE_BASE = "codex_repo_search"
+SEARCH_INDEX_DIR_REL = ".cache/search"
+SEARCH_ALLOWED_EXTS = {".md", ".txt", ".py", ".json", ".toml", ".yaml", ".yml"}
+SEARCH_SKIP_DIRS = {
+    ".git",
+    ".cache",
+    ".venv",
+    "__pycache__",
+    "dist",
+    "vendor_packs",
+    "evidence",
+    "node_modules",
+}
+
+SEARCH_DEFAULT_MAX_FILES = 600
+SEARCH_DEFAULT_MAX_BYTES = 6_000_000
+SEARCH_DEFAULT_CHUNK = 1200
+RG_MAX_FILESIZE = "5M"
+MANAGED_REPOS_MANIFEST_REL = Path(".cache") / "managed_repos.v1.json"
+PLANNER_ASSISTANT_SYSTEM_FALLBACK = (
+    "Sen Cockpit Planner asistanısın. "
+    "Yanıtları Türkçe, kısa, net ve uygulanabilir üret. "
+    "Gereksiz tekrar yapma; belirsizlik varsa açıkça belirt."
+)
+TERMINAL_RESULT_STATUSES = {"OK", "FAIL", "CANCELLED", "TIMEOUT"}
+
+SSOT_SEARCH_ROOTS = (
+    "AGENTS.md",
+    "docs/OPERATIONS",
+    "docs/LAYER-MODEL-LOCK.v1.md",
+    "docs/ROADMAP.md",
+    "policies",
+    "schemas",
+    "registry",
+    "roadmaps",
+    "extensions",
+    "src/ops",
+)
+
+WS_SEARCH_ROOTS_REL = (
+    ".cache/reports",
+    ".cache/index",
+    ".cache/state",
+)
 
 OP_DEFAULTS = {
     "system-status": {"dry_run": "false"},
@@ -49,6 +116,50 @@ OP_DEFAULTS = {
     "work-intake-check": {"mode": "strict", "chat": "false", "detail": "false"},
     "work-intake-claim": {"mode": "claim", "ttl_seconds": "3600", "owner_tag": "", "force": "false"},
     "work-intake-close": {"mode": "close", "reason": "", "owner_tag": "", "force": "false"},
+    "work-intake-purpose-generate": {
+        "intake_id": "",
+        "mode": "missing_only",
+        "status": "OPEN",
+        "provider_id": "openai",
+        "model": "",
+        "limit": "50",
+        "dry_run": "false",
+    },
+    "north-star-theme-seed": {
+        "subject_id": "",
+        "provider_id": "openai",
+        "model": "gpt-5.2",
+        "max_tokens": "5000",
+    },
+    "north-star-theme-consult": {
+        "subject_id": "",
+        "providers": "",
+        "focus_type": "",
+        "focus_id": "",
+        "comment": "",
+        "max_tokens": "2500",
+    },
+    "north-star-theme-suggestion-apply": {
+        "suggestion_id": "",
+        "action": "",
+        "comment": "",
+        "merge_target": "",
+    },
+    "north-star-subject-plan-profile-run": {
+        "subject_id": "",
+        "profile": "C",
+        "run_set": "abc",
+        "mode": "plan_first",
+        "out": "latest",
+        "persist_profile": "true",
+    },
+    "north-star-profile-order-compare": {
+        "subject_id": "",
+        "orders": "BCA;ACB;CAB",
+        "mode": "plan_first",
+        "out": "latest",
+        "report_path": ".cache/reports/north_star_profile_order_ab_compare.v1.json",
+    },
     "doc-nav-check": {"strict": "true", "detail": "false", "chat": "false"},
     "smoke-full-triage": {"detail": "false", "chat": "false"},
     "smoke-fast-triage": {"detail": "false", "chat": "false"},
@@ -56,6 +167,15 @@ OP_DEFAULTS = {
     "airrunner-run": {"ticks": "2", "mode": "no_wait", "budget_seconds": "0", "chat": "false"},
     "planner-notes-create": {"title": "", "body": "", "tags": "", "links_json": "[]"},
     "planner-chat-send": {"thread": "default", "title": "", "body": "", "tags": "", "links_json": "[]"},
+    "planner-chat-send-llm": {
+        "thread": "default",
+        "title": "",
+        "body": "",
+        "tags": "",
+        "provider_id": "",
+        "model": "",
+        "profile": "",
+    },
     "overrides-write": {"name": "", "json": ""},
 }
 
@@ -80,6 +200,50 @@ OP_ARG_MAP = {
         "owner_tag": "--owner-tag",
         "force": "--force",
     },
+    "work-intake-purpose-generate": {
+        "intake_id": "--intake-id",
+        "mode": "--mode",
+        "status": "--status",
+        "provider_id": "--provider-id",
+        "model": "--model",
+        "limit": "--limit",
+        "dry_run": "--dry-run",
+    },
+    "north-star-theme-seed": {
+        "subject_id": "--subject-id",
+        "provider_id": "--provider-id",
+        "model": "--model",
+        "max_tokens": "--max-tokens",
+    },
+    "north-star-theme-consult": {
+        "subject_id": "--subject-id",
+        "providers": "--providers",
+        "focus_type": "--focus-type",
+        "focus_id": "--focus-id",
+        "comment": "--comment",
+        "max_tokens": "--max-tokens",
+    },
+    "north-star-theme-suggestion-apply": {
+        "suggestion_id": "--suggestion-id",
+        "action": "--action",
+        "comment": "--comment",
+        "merge_target": "--merge-target",
+    },
+    "north-star-subject-plan-profile-run": {
+        "subject_id": "--subject-id",
+        "profile": "--profile",
+        "run_set": "--run-set",
+        "mode": "--mode",
+        "out": "--out",
+        "persist_profile": "--persist-profile",
+    },
+    "north-star-profile-order-compare": {
+        "subject_id": "--subject-id",
+        "orders": "--orders",
+        "mode": "--mode",
+        "out": "--out",
+        "report_path": "--report-path",
+    },
     "doc-nav-check": {"strict": "--strict", "detail": "--detail", "chat": "--chat"},
     "smoke-full-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
     "smoke-fast-triage": {"job_id": "--job-id", "detail": "--detail", "chat": "--chat"},
@@ -87,6 +251,15 @@ OP_ARG_MAP = {
     "airrunner-run": {"ticks": "--ticks", "mode": "--mode", "budget_seconds": "--budget_seconds", "chat": "--chat"},
     "planner-notes-create": {"title": "--title", "body": "--body", "tags": "--tags", "links_json": "--links-json"},
     "planner-chat-send": {"thread": None, "title": None, "body": None, "tags": None, "links_json": None},
+    "planner-chat-send-llm": {
+        "thread": None,
+        "title": None,
+        "body": None,
+        "tags": None,
+        "provider_id": None,
+        "model": None,
+        "profile": None,
+    },
     "overrides-write": {"name": None, "json": None},
 }
 
@@ -128,6 +301,9 @@ def _redact(obj: Any) -> Any:
 def _safe_resolve_path(raw_path: str, repo_root: Path, ws_root: Path, allow_roots: list[Path]) -> Path | None:
     if not raw_path or not isinstance(raw_path, str):
         return None
+    raw_path = str(raw_path).strip()
+    raw_path = re.sub(r"#L\d+(?::\d+)?$", "", raw_path)
+    raw_path = re.sub(r":\d+(?::\d+)?$", "", raw_path)
     if ".." in raw_path.replace("\\", "/").split("/"):
         return None
     try:
@@ -151,12 +327,18 @@ def _safe_resolve_path(raw_path: str, repo_root: Path, ws_root: Path, allow_root
 
 def _allow_roots(repo_root: Path, ws_root: Path) -> list[Path]:
     return [
+        repo_root.resolve(),
         (ws_root / ".cache" / "reports").resolve(),
         (ws_root / ".cache" / "index").resolve(),
+        (ws_root / ".cache" / "state").resolve(),
         (ws_root / ".cache" / "airunner").resolve(),
         (ws_root / ".cache" / "github_ops").resolve(),
         (ws_root / ".cache" / "policy_overrides").resolve(),
         (ws_root / ".cache" / "chat_console").resolve(),
+        (ws_root / ".cache" / "providers").resolve(),
+        (ws_root / "policies").resolve(),
+        (repo_root / "policies").resolve(),
+        (repo_root / "docs" / "OPERATIONS").resolve(),
         (repo_root / ".cache" / "script_budget").resolve(),
     ]
 
@@ -201,6 +383,187 @@ def _parse_links_value(raw: Any) -> list[dict[str, Any]]:
     return [item for item in parsed if isinstance(item, dict)] if isinstance(parsed, list) else []
 
 
+def _manifest_base_candidates(ws_root: Path) -> list[Path]:
+    candidates: list[Path] = []
+    candidates.append(ws_root)
+    if ws_root.parent != ws_root:
+        candidates.append(ws_root.parent)
+    return candidates
+
+
+def _managed_repos_manifest_candidates(ws_root: Path) -> list[Path]:
+    out: list[Path] = []
+    seen: set[str] = set()
+    for base in _manifest_base_candidates(ws_root):
+        path = (base / MANAGED_REPOS_MANIFEST_REL).resolve()
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return out
+
+
+def _read_managed_repos_manifest(ws_root: Path) -> dict[str, Any]:
+    for path in _managed_repos_manifest_candidates(ws_root):
+        if path.exists():
+            data, exists, json_valid = _read_json_file(path)
+            return {
+                "path": str(path),
+                "exists": bool(exists),
+                "json_valid": bool(json_valid),
+                "data": data if isinstance(data, dict) else {},
+                "source": "file",
+            }
+    return {
+        "path": str(_managed_repos_manifest_candidates(ws_root)[0]),
+        "exists": False,
+        "json_valid": False,
+        "data": {},
+        "source": "fallback",
+    }
+
+
+def _as_sorted_unique_paths(paths: list[Path]) -> list[Path]:
+    seen: set[str] = set()
+    out: list[Path] = []
+    for path in paths:
+        if not path:
+            continue
+        try:
+            norm = str(path.resolve())
+        except Exception:
+            norm = str(path)
+        if norm in seen:
+            continue
+        seen.add(norm)
+        out.append(path)
+    out.sort(key=lambda p: str(p))
+    return out
+
+
+def _collect_managed_repo_entries(ws_root: Path) -> list[dict[str, Any]]:
+    manifest = _read_managed_repos_manifest(ws_root)
+    raw = manifest.get("data", {}) if isinstance(manifest.get("data"), dict) else {}
+    repo_rows = raw.get("repos")
+    if not isinstance(repo_rows, list):
+        repo_rows = raw.get("managed_repos")
+    if not isinstance(repo_rows, list):
+        repo_rows = raw.get("entries")
+    if not isinstance(repo_rows, list):
+        repo_rows = []
+
+    items: list[dict[str, Any]] = []
+    manifest_base = Path(manifest.get("path", "")).resolve().parent if manifest.get("path") else ws_root
+
+    def add_entry(raw_entry: Any) -> None:
+        if isinstance(raw_entry, str):
+            entry = {"repo_root": raw_entry.strip()}
+        elif isinstance(raw_entry, dict):
+            entry = raw_entry
+        else:
+            return
+
+        repo_root_raw = str(entry.get("repo_root") or entry.get("repo") or "").strip()
+        ws_root_raw = str(entry.get("workspace_root") or entry.get("workspace") or entry.get("ws_root") or "").strip()
+
+        repo_root_path = Path(repo_root_raw).expanduser().resolve() if repo_root_raw else None
+        if ws_root_raw:
+            if Path(ws_root_raw).is_absolute():
+                workspace_root_path = Path(ws_root_raw).expanduser().resolve()
+            else:
+                workspace_root_path = (manifest_base / ws_root_raw).resolve()
+        else:
+            workspace_root_path = None
+
+        if not workspace_root_path and entry.get("workspace_id"):
+            workspace_id = str(entry.get("workspace_id") or "").strip()
+            candidates = [p for p in _manifest_base_candidates(ws_root) if p.exists()]
+            for parent in candidates:
+                candidate = parent / workspace_id
+                if candidate.exists():
+                    workspace_root_path = candidate
+                    break
+
+        if not workspace_root_path:
+            return
+
+        repo_slug = str(
+            entry.get("repo_slug")
+            or entry.get("slug")
+            or (repo_root_path.name if repo_root_path else workspace_root_path.name)
+        ).strip()
+        repo_id = str(entry.get("repo_id") or entry.get("id") or workspace_root_path.name).strip()
+
+        items.append(
+            {
+                "workspace_root": str(workspace_root_path),
+                "workspace_root_path": workspace_root_path,
+                "repo_root": str(repo_root_path) if repo_root_path else "",
+                "repo_slug": repo_slug,
+                "repo_id": repo_id,
+                "source": "manifest",
+            }
+        )
+
+    for raw_entry in repo_rows:
+        add_entry(raw_entry)
+
+    if not items:
+        fallback_roots = _as_sorted_unique_paths(list({d for d in {ws_root.parent, ws_root} if d is not None and d.exists()}))
+        workspace_roots: list[Path] = []
+        for root in fallback_roots:
+            workspace_roots.extend(
+                [child for child in root.iterdir() if child.is_dir() and child.name.startswith("repo-")],
+            )
+            if root.name.startswith("repo-"):
+                workspace_roots.append(root)
+        workspace_roots = _as_sorted_unique_paths(workspace_roots)
+        for workspace_root_path in workspace_roots:
+            if not workspace_root_path.exists():
+                continue
+            items.append(
+                {
+                    "workspace_root": str(workspace_root_path),
+                    "workspace_root_path": workspace_root_path,
+                    "repo_root": "",
+                    "repo_slug": workspace_root_path.name,
+                    "repo_id": workspace_root_path.name,
+                    "source": "fallback",
+                }
+            )
+
+    deduped: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        workspace_root = str(item.get("workspace_root") or "").strip()
+        if not workspace_root:
+            continue
+        existing = deduped.get(workspace_root)
+        if existing is None:
+            deduped[workspace_root] = item
+            continue
+        if (existing.get("source") == "fallback") and (item.get("source") == "manifest"):
+            deduped[workspace_root] = item
+
+    return sorted(deduped.values(), key=lambda item: str(item.get("repo_id") or item.get("workspace_root")))
+
+
+def _managed_repo_path_map(ws_root: Path) -> dict[str, Path]:
+    entries = _collect_managed_repo_entries(ws_root)
+    out: dict[str, Path] = {}
+    for item in entries:
+        ws_entry = str(item.get("workspace_root") or "").strip()
+        if not ws_entry:
+            continue
+        try:
+            out[ws_entry] = Path(ws_entry).resolve()
+        except Exception:
+            continue
+    return out
+
+
 def _chat_store_path(ws_root: Path) -> Path:
     return ws_root / ".cache" / "chat_console" / "chat_log.v1.jsonl"
 
@@ -223,6 +586,135 @@ def _sanitize_text(text: str) -> str:
         text,
     )
     return redacted
+
+
+def _shorten_text(text: str, limit: int = 240) -> str:
+    raw = str(text or "")
+    if len(raw) <= limit:
+        return raw
+    return raw[: max(0, limit - 3)] + "..."
+
+
+def _parse_bool_arg(value: Any) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _search_module():
+    import server_utils_search as _search_mod
+
+    return _search_mod
+
+
+def _classify_search_mode(query: str, mode_hint: str | None) -> str:
+    return _search_module()._classify_search_mode(query, mode_hint)
+
+
+def _normalize_search_scope(scope: str | None) -> str:
+    return _search_module()._normalize_search_scope(scope)
+
+
+def _search_namespace(scope: str | None) -> str:
+    return _search_module()._search_namespace(scope)
+
+
+def _search_index_manifest_path(ws_root: Path, scope: str | None) -> Path:
+    return _search_module()._search_index_manifest_path(ws_root, scope)
+
+
+def _workspace_search_roots(ws_root: Path) -> list[Path]:
+    return _search_module()._workspace_search_roots(ws_root)
+
+
+def _search_roots(repo_root: Path, ws_root: Path, scope: str | None) -> list[Path]:
+    return _search_module()._search_roots(repo_root, ws_root, scope)
+
+
+def _iter_index_files(repo_root: Path, roots: list[Path], max_files: int, max_bytes: int) -> tuple[list[Path], int]:
+    return _search_module()._iter_index_files(repo_root, roots, max_files, max_bytes)
+
+
+def _chunk_text(text: str, chunk_size: int) -> list[str]:
+    return _search_module()._chunk_text(text, chunk_size)
+
+
+def _apply_memory_env(ws_root: Path) -> None:
+    _search_module()._apply_memory_env(ws_root)
+
+
+def _clear_index_records(port: Any, namespace: str, record_ids: list[str]) -> int:
+    return _search_module()._clear_index_records(port, namespace, record_ids)
+
+
+def _build_semantic_index(*, repo_root: Path, ws_root: Path, port: Any, namespace: str, scope: str | None, max_files: int, max_bytes: int, chunk_size: int, rebuild: bool) -> dict[str, Any]:
+    return _search_module()._build_semantic_index(
+        repo_root=repo_root,
+        ws_root=ws_root,
+        port=port,
+        namespace=namespace,
+        scope=scope,
+        max_files=max_files,
+        max_bytes=max_bytes,
+        chunk_size=chunk_size,
+        rebuild=rebuild,
+    )
+
+
+def _resolve_rg_bin() -> str | None:
+    return _search_module()._resolve_rg_bin()
+
+
+def _git_grep_search(*, repo_root: Path, roots: list[Path], query: str, limit: int) -> dict[str, Any]:
+    return _search_module()._git_grep_search(repo_root=repo_root, roots=roots, query=query, limit=limit)
+
+
+def _normalize_hit_path(*, repo_root: Path, ws_root: Path, raw_path: str) -> str:
+    return _search_module()._normalize_hit_path(repo_root=repo_root, ws_root=ws_root, raw_path=raw_path)
+
+
+def _rg_search(*, repo_root: Path, ws_root: Path, roots: list[Path], query: str, limit: int) -> dict[str, Any]:
+    return _search_module()._rg_search(repo_root=repo_root, ws_root=ws_root, roots=roots, query=query, limit=limit)
+
+
+def _semantic_search(*, repo_root: Path, ws_root: Path, scope: str | None, query: str, limit: int, rebuild: bool, max_files: int, max_bytes: int, chunk_size: int) -> dict[str, Any]:
+    return _search_module()._semantic_search(
+        repo_root=repo_root,
+        ws_root=ws_root,
+        scope=scope,
+        query=query,
+        limit=limit,
+        rebuild=rebuild,
+        max_files=max_files,
+        max_bytes=max_bytes,
+        chunk_size=chunk_size,
+    )
+
+
+def _search_router(*, repo_root: Path, ws_root: Path, query: str, mode_hint: str | None, scope: str | None, limit: int, rebuild: bool, max_files: int, max_bytes: int, chunk_size: int) -> dict[str, Any]:
+    return _search_module()._search_router(
+        repo_root=repo_root,
+        ws_root=ws_root,
+        query=query,
+        mode_hint=mode_hint,
+        scope=scope,
+        limit=limit,
+        rebuild=rebuild,
+        max_files=max_files,
+        max_bytes=max_bytes,
+        chunk_size=chunk_size,
+    )
+
+
+def _semantic_index_handle(*, repo_root: Path, ws_root: Path, scope: str | None, action: str | None, rebuild: bool, max_files: int, max_bytes: int, chunk_size: int) -> dict[str, Any]:
+    return _search_module()._semantic_index_handle(
+        repo_root=repo_root,
+        ws_root=ws_root,
+        scope=scope,
+        action=action,
+        rebuild=rebuild,
+        max_files=max_files,
+        max_bytes=max_bytes,
+        chunk_size=chunk_size,
+    )
 
 
 def _chat_append(ws_root: Path, entry: dict[str, Any]) -> dict[str, Any]:
@@ -496,7 +988,7 @@ def _read_json_file(path: Path) -> tuple[dict[str, Any], bool, bool]:
                     continue
                 rows.append(json.loads(line))
             return {"items": rows}, True, True
-        if path.suffix == ".md":
+        if path.suffix in {".md", ".txt", ".py", ".toml", ".yaml", ".yml"}:
             return {"text": path.read_text(encoding="utf-8")}, True, True
         return json.loads(path.read_text(encoding="utf-8")), True, True
     except Exception:
@@ -504,9 +996,29 @@ def _read_json_file(path: Path) -> tuple[dict[str, Any], bool, bool]:
 
 
 def _watch_paths(repo_root: Path, ws_root: Path) -> list[Path]:
+    managed_workspace_map = _managed_repo_path_map(ws_root)
+    managed_roots = list(managed_workspace_map.values())
+    managed_roots = _as_sorted_unique_paths(managed_roots)
+    manifest = _read_managed_repos_manifest(ws_root)
+
+    managed_status_paths = []
+    for managed_root in managed_roots:
+        managed_status_paths.extend(
+            [
+                managed_root / ".cache" / "reports" / "system_status.v1.json",
+                managed_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json",
+                managed_root / ".cache" / "reports" / "codex_timeline_summary.v1.json",
+                managed_root / ".cache" / "reports" / "codex_timeline_summary.v1.v1.md",
+                managed_root / ".cache" / "index" / "work_intake.v1.json",
+                managed_root / ".cache" / "index" / "decision_inbox.v1.json",
+            ]
+        )
+
     return [
         ws_root / ".cache" / "reports" / "system_status.v1.json",
         ws_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json",
+        ws_root / ".cache" / "reports" / "codex_timeline_summary.v1.json",
+        ws_root / ".cache" / "reports" / "codex_timeline_summary.v1.v1.md",
         ws_root / ".cache" / "index" / "work_intake.v1.json",
         ws_root / ".cache" / "index" / "decision_inbox.v1.json",
         ws_root / ".cache" / "doer" / "doer_loop_lock.v1.json",
@@ -521,6 +1033,8 @@ def _watch_paths(repo_root: Path, ws_root: Path) -> list[Path]:
         repo_root / ".cache" / "script_budget" / "report.json",
         ws_root / ".cache" / "reports",
         ws_root / ".cache" / "index",
+        *managed_status_paths,
+        Path(manifest.get("path", "")) if manifest.get("path") else ws_root / MANAGED_REPOS_MANIFEST_REL,
     ]
 
 
@@ -555,7 +1069,93 @@ def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _trace_meta_for_op(op: str, args: dict[str, Any], ws_root: Path) -> dict[str, Any]:
+def _new_call_id() -> str:
+    seed = f"{time.time_ns()}|{os.getpid()}|{os.urandom(8).hex()}"
+    return f"call_{_hash_text(seed)[:24]}"
+
+
+def _trace_call_id(trace_meta: dict[str, Any]) -> str:
+    raw = trace_meta.get("call_id")
+    return str(raw).strip() if isinstance(raw, str) else ""
+
+
+def _terminal_result_status(status: Any, *, error_code: Any = "") -> str:
+    raw_status = str(status or "").strip().upper()
+    raw_error = str(error_code or "").strip().upper()
+    if raw_status in TERMINAL_RESULT_STATUSES:
+        return raw_status
+    if raw_error in {"TIMEOUT", "TIME_OUT"}:
+        return "TIMEOUT"
+    if raw_error in {"CANCELLED", "CANCELED", "ABORTED"}:
+        return "CANCELLED"
+    if raw_status in {"OK", "WARN", "IDLE", "DONE", "RUNNING", "PENDING"}:
+        return "OK"
+    return "FAIL"
+
+
+def _append_op_call(
+    ws_root: Path,
+    *,
+    op: str,
+    args: dict[str, Any],
+    trace_meta: dict[str, Any],
+    call_type: str = "OP_CALL",
+    evidence_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "version": "v1",
+        "type": call_type,
+        "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "op": op,
+        "args": _redact(args),
+        "trace_meta": trace_meta,
+        "evidence_paths": evidence_paths or [],
+    }
+    call_id = _trace_call_id(trace_meta)
+    if call_type == "OP_CALL" and call_id:
+        entry["call_id"] = call_id
+    return _chat_append(ws_root, entry)
+
+
+def _append_terminal_result(
+    ws_root: Path,
+    *,
+    op: str,
+    status: Any,
+    error_code: Any,
+    trace_meta: dict[str, Any],
+    evidence_paths: list[str] | None = None,
+    result_for_seq: int | None = None,
+    extra_fields: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    status_raw = str(status or "")
+    status_out = _terminal_result_status(status_raw, error_code=error_code)
+    entry: dict[str, Any] = {
+        "version": "v1",
+        "type": "RESULT",
+        "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "op": op,
+        "status": status_out,
+        "error_code": str(error_code or ""),
+        "trace_meta": trace_meta,
+        "evidence_paths": evidence_paths or [],
+    }
+    if status_raw and status_raw.upper() != status_out:
+        entry["status_raw"] = status_raw
+    call_id = _trace_call_id(trace_meta)
+    if call_id:
+        entry["call_id"] = call_id
+    if isinstance(result_for_seq, int) and result_for_seq > 0:
+        entry["result_for_seq"] = int(result_for_seq)
+    if isinstance(extra_fields, dict):
+        for key, value in extra_fields.items():
+            if key in {"status", "status_raw", "error_code", "type", "version", "op", "ts"}:
+                continue
+            entry[key] = value
+    return _chat_append(ws_root, entry)
+
+
+def _trace_meta_for_op(op: str, args: dict[str, Any], ws_root: Path, *, call_id: str | None = None) -> dict[str, Any]:
     owner_tag = os.environ.get("CODEX_CHAT_TAG", "").strip() or "unknown"
     payload = {
         "op": op,
@@ -564,8 +1164,10 @@ def _trace_meta_for_op(op: str, args: dict[str, Any], ws_root: Path) -> dict[str
         "owner_tag": owner_tag,
     }
     run_id = _hash_text(json.dumps(payload, sort_keys=True))
+    call_id_out = str(call_id or "").strip() or _new_call_id()
     return {
         "run_id": run_id,
+        "call_id": call_id_out,
         "work_item_id": f"op:{op}",
         "work_item_kind": "OP",
         "workspace_root": str(ws_root),
@@ -614,205 +1216,14 @@ def _parse_iso(ts: str | None) -> datetime | None:
         return None
 
 
+def _ops_module():
+    import server_utils_ops as _ops_mod
+
+    return _ops_mod
+
+
 def _run_op(repo_root: Path, ws_root: Path, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-    if payload.get("confirm") is not True:
-        return 400, {"status": "FAIL", "error": "CONFIRM_REQUIRED"}
-
-    op = str(payload.get("op") or "").strip()
-    if op not in OP_ARG_MAP:
-        return 400, {"status": "FAIL", "error": "OP_NOT_ALLOWED"}
-
-    args = payload.get("args")
-    if args is None:
-        args = {}
-    if not isinstance(args, dict):
-        return 400, {"status": "FAIL", "error": "ARGS_INVALID"}
-
-    if op == "overrides-write":
-        name = str(args.get("name") or "").strip()
-        if name not in SAFE_OVERRIDE_FILES:
-            return 400, {"status": "FAIL", "error": "OVERRIDE_NOT_ALLOWED"}
-        if not OVERRIDE_NAME_RE.match(name):
-            return 400, {"status": "FAIL", "error": "OVERRIDE_NAME_INVALID"}
-        override_obj = args.get("json")
-        if not isinstance(override_obj, dict):
-            return 400, {"status": "FAIL", "error": "OVERRIDE_JSON_INVALID"}
-        schema_path = _schema_path_for_override(repo_root, name)
-        base_path = _base_policy_path(repo_root, name)
-        merged_obj = override_obj
-        if base_path and base_path.exists():
-            try:
-                base_obj = json.loads(base_path.read_text(encoding="utf-8"))
-                merged_obj = _deep_merge(base_obj, override_obj)
-            except Exception:
-                return 400, {"status": "FAIL", "error": "BASE_POLICY_INVALID"}
-        if schema_path:
-            errors = _validate_against_schema(schema_path, merged_obj if isinstance(merged_obj, dict) else {})
-            if errors:
-                return 400, {"status": "FAIL", "error": "SCHEMA_INVALID", "errors": errors[:20]}
-        path = _override_path(ws_root, name)
-        if path is None:
-            return 400, {"status": "FAIL", "error": "OVERRIDE_PATH_INVALID"}
-        _atomic_write_text(path, _json_dumps_pretty(override_obj))
-        trace_meta = _trace_meta_for_op(op, {"name": name}, ws_root)
-        _chat_append(
-            ws_root,
-            {
-                "version": "v1",
-                "type": "OVERRIDE_SET",
-                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "op": op,
-                "filename": name,
-                "trace_meta": trace_meta,
-                "evidence_paths": [str(path)],
-            },
-        )
-        _chat_append(
-            ws_root,
-            {
-                "version": "v1",
-                "type": "RESULT",
-                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "op": op,
-                "status": "OK",
-                "trace_meta": trace_meta,
-                "evidence_paths": [str(path)],
-            },
-        )
-        return 200, {
-            "status": "OK",
-            "op": op,
-            "trace_meta": trace_meta,
-            "evidence_paths": [str(path)],
-            "schema_path": str(schema_path) if schema_path else "",
-        }
-
-    actual_op = op
-    allowed_args = OP_ARG_MAP.get(op, {})
-    merged = dict(OP_DEFAULTS.get(op, {}))
-
-    if op == "planner-chat-send":
-        thread = str(args.get("thread") or "default").strip().lower()
-        if not _thread_id_valid(thread):
-            return 400, {"status": "FAIL", "error": "THREAD_ID_INVALID"}
-        title = str(args.get("title") or "")
-        body = str(args.get("body") or "")
-        if not title and not body:
-            return 400, {"status": "FAIL", "error": "TITLE_OR_BODY_REQUIRED"}
-        tags = _parse_tags_value(args.get("tags"))
-        tags.append(_thread_tag(thread))
-        tags = sorted(set(tags))
-        links = _parse_links_value(args.get("links"))
-        if not links:
-            links = _parse_links_value(args.get("links_json"))
-        merged = {
-            "title": title,
-            "body": body,
-            "tags": ",".join(tags),
-            "links_json": json.dumps(links, ensure_ascii=True, sort_keys=True),
-        }
-        actual_op = "planner-notes-create"
-        allowed_args = {"title": "--title", "body": "--body", "tags": "--tags", "links_json": "--links-json"}
-    else:
-        for key, value in args.items():
-            if key not in allowed_args:
-                return 400, {"status": "FAIL", "error": "ARG_NOT_ALLOWED"}
-            max_len = 200
-            allow_newlines = False
-            if op == "planner-notes-create":
-                if key == "body":
-                    max_len = 4000
-                    allow_newlines = True
-                elif key == "links_json":
-                    max_len = 2000
-                elif key == "tags":
-                    max_len = 500
-            safe_value = _safe_arg_value(value, max_len=max_len, allow_newlines=allow_newlines)
-            if safe_value is None:
-                return 400, {"status": "FAIL", "error": "ARG_INVALID"}
-            merged[key] = safe_value
-
-    if op == "work-intake-check":
-        merged["mode"] = "strict"
-    if op == "auto-loop":
-        merged["budget_seconds"] = str(merged.get("budget_seconds") or "120")
-    if op == "airrunner-run":
-        merged["mode"] = "no_wait"
-        merged["ticks"] = str(merged.get("ticks") or "2")
-
-    if op in {"smoke-full-triage", "smoke-fast-triage"} and "job_id" not in merged:
-        return 400, {"status": "FAIL", "error": "JOB_ID_REQUIRED"}
-
-    trace_meta = _trace_meta_for_op(op, merged, ws_root)
-    call_type = "NOTE" if op == "planner-chat-send" else "OP_CALL"
-    _chat_append(
-        ws_root,
-        {
-            "version": "v1",
-            "type": call_type,
-            "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "op": op,
-            "args": _redact(merged),
-            "trace_meta": trace_meta,
-            "evidence_paths": [],
-        },
-    )
-
-    cmd = [sys.executable, "-m", "src.ops.manage", actual_op, "--workspace-root", str(ws_root)]
-    for key, flag in allowed_args.items():
-        if key in merged:
-            cmd.extend([flag, str(merged[key])])
-
-    proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True)
-
-    status = "OK" if proc.returncode == 0 else "FAIL"
-    evidence_paths: list[str] = []
-
-    parsed = None
-    for line in proc.stdout.splitlines()[::-1]:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            candidate = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(candidate, dict):
-            parsed = candidate
-            break
-
-    if isinstance(parsed, dict):
-        status = str(parsed.get("status") or status)
-        ev = parsed.get("evidence_paths")
-        if isinstance(ev, list):
-            evidence_paths = [str(p) for p in ev if isinstance(p, str)]
-
-    return_code = 200
-    payload_out = {
-        "status": status,
-        "op": op,
-        "trace_meta": trace_meta,
-        "evidence_paths": sorted(set(evidence_paths)),
-        "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
-    }
-    if proc.returncode != 0 and status not in {"WARN", "IDLE"}:
-        payload_out["status"] = "FAIL"
-
-    _chat_append(
-        ws_root,
-        {
-            "version": "v1",
-            "type": "RESULT",
-            "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "op": op,
-            "status": payload_out.get("status"),
-            "error_code": payload_out.get("error") or payload_out.get("error_code"),
-            "trace_meta": trace_meta,
-            "evidence_paths": payload_out.get("evidence_paths", []),
-        },
-    )
-    return return_code, payload_out
-
+    return _ops_module()._run_op(repo_root, ws_root, payload)
 
 __all__ = [
     "SECRET_KEY_HINTS",
@@ -846,6 +1257,7 @@ __all__ = [
     "_json_dumps_pretty",
     "_atomic_write_text",
     "_sanitize_text",
+    "_parse_bool_arg",
     "_chat_append",
     "_chat_read",
     "_policy_overrides_dir",
@@ -871,10 +1283,25 @@ __all__ = [
     "_last_modified",
     "_safe_arg_value",
     "_hash_text",
+    "_new_call_id",
+    "_trace_call_id",
+    "_terminal_result_status",
+    "_append_op_call",
+    "_append_terminal_result",
     "_trace_meta_for_op",
     "_summarize_intake",
     "_summarize_decisions",
     "_summarize_jobs",
+    "_manifest_base_candidates",
+    "_managed_repos_manifest_candidates",
+    "_read_managed_repos_manifest",
+    "_collect_managed_repo_entries",
+    "_managed_repo_path_map",
     "_parse_iso",
     "_run_op",
+    "_search_router",
+    "_semantic_index_handle",
+    "SEARCH_DEFAULT_MAX_FILES",
+    "SEARCH_DEFAULT_MAX_BYTES",
+    "SEARCH_DEFAULT_CHUNK",
 ]

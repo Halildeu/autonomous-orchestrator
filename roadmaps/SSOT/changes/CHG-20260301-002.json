@@ -1,0 +1,21 @@
+{
+  "change_id": "CHG-20260301-002",
+  "type": "modify",
+  "version": "v1",
+  "risk_level": "low",
+  "rationale": "script-budget gate fails with PY_FILE_NO_GROWTH on ci/smoke_test.py. This package isolates maintainability remediation from CHG-016 run_envelope refactor work.",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "gates": [
+    "python3 -m src.ops.manage script-budget",
+    "python3 -m src.ops.manage test-run --workspace-root .cache/ws_customer_default"
+  ],
+  "patches": [
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M0",
+      "note": "Isolated script-budget debt package: resolve PY_FILE_NO_GROWTH for ci/smoke_test.py without coupling to CHG-016 refactor."
+    }
+  ]
+}

@@ -12,7 +12,7 @@
     "notes": []
   },
   "docs_ref": "extensions/PRJ-UI-COCKPIT-LITE/README.md#prj-ui-cockpit-lite",
-  "enabled": false,
+  "enabled": true,
   "entrypoints": {
     "cockpit_sections": [
       "cockpit_lite"

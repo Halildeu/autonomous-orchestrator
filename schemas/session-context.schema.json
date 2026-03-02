@@ -22,6 +22,7 @@
     "created_at": { "type": "string", "minLength": 1 },
     "updated_at": { "type": "string", "minLength": 1 },
     "ttl_seconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+    "decision_ttl_seconds_default": { "type": "integer", "minimum": 60, "maximum": 604800, "default": 3600 },
     "expires_at": { "type": "string", "minLength": 1 },
     "paused": { "type": "boolean", "default": false },
     "ephemeral_decisions": {
@@ -41,7 +42,9 @@
             ]
           },
           "source": { "type": "string", "enum": ["user_chat", "agent"] },
-          "created_at": { "type": "string", "minLength": 1 }
+          "created_at": { "type": "string", "minLength": 1 },
+          "ttl_seconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+          "expires_at": { "type": "string", "minLength": 1 }
         }
       },
       "default": []
@@ -56,4 +59,3 @@
     }
   }
 }
-

@@ -35,10 +35,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "claude": {"$ref": "#/definitions/provider"},
         "deepseek": {"$ref": "#/definitions/provider"},
         "google": {"$ref": "#/definitions/provider"},
         "openai": {"$ref": "#/definitions/provider"},
-        "qwen": {"$ref": "#/definitions/provider"}
+        "qwen": {"$ref": "#/definitions/provider"},
+        "xai": {"$ref": "#/definitions/provider"}
       }
     },
     "live_gate": {

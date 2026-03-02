@@ -34,6 +34,7 @@ def build_gap_register(
     cooldown_seconds: int = 0,
 ) -> dict[str, Any]:
     gaps: list[dict[str, Any]] = []
+    seen_gap_ids: set[str] = set()
     previous_gap_ids: set[str] = set()
     previous_generated_at = None
     if isinstance(previous_gap_register, dict):
@@ -119,6 +120,17 @@ def build_gap_register(
             gap["report_only"] = True
         return gap
 
+    def _append_gap(gap: dict[str, Any] | None) -> None:
+        if not isinstance(gap, dict):
+            return
+        gap_id = gap.get("id")
+        if not isinstance(gap_id, str) or not gap_id:
+            return
+        if gap_id in seen_gap_ids:
+            return
+        seen_gap_ids.add(gap_id)
+        gaps.append(gap)
+
     for c in sorted(controls, key=lambda x: str(x.get("id") or "")):
         cid = c.get("id") if isinstance(c, dict) else None
         if not isinstance(cid, str) or not cid:
@@ -143,7 +155,7 @@ def build_gap_register(
             gap["evidence_pointers"] = list(evidence_pointers)
         if report_only:
             gap["report_only"] = True
-        gaps.append(gap)
+        _append_gap(gap)
     for m in sorted(metrics, key=lambda x: str(x.get("id") or "")):
         mid = m.get("id") if isinstance(m, dict) else None
         if not isinstance(mid, str) or not mid:
@@ -168,23 +180,20 @@ def build_gap_register(
             gap["evidence_pointers"] = list(evidence_pointers)
         if report_only:
             gap["report_only"] = True
-        gaps.append(gap)
-    if lens_signals:
-        for lens in sorted(
-            [l for l in lens_signals if isinstance(l, dict)],
-            key=lambda l: str(l.get("lens_id") or l.get("id") or ""),
-        ):
-            reasons = lens.get("reasons") if isinstance(lens.get("reasons"), list) else []
-            reason_list = [str(r) for r in reasons if isinstance(r, str) and r.strip()]
-            if reason_list:
-                for reason in sorted(set(reason_list)):
-                    gap = _lens_gap(lens, reason=reason)
-                    if gap is not None:
-                        gaps.append(gap)
+        _append_gap(gap)
+    if isinstance(lens_signals, list):
+        for lens in lens_signals:
+            if not isinstance(lens, dict):
                 continue
-            gap = _lens_gap(lens)
-            if gap is not None:
-                gaps.append(gap)
+            reasons_raw = lens.get("reasons")
+            reasons = [str(x).strip() for x in reasons_raw if isinstance(x, str) and str(x).strip()] if isinstance(
+                reasons_raw, list
+            ) else []
+            if reasons:
+                for reason in reasons:
+                    _append_gap(_lens_gap(lens, reason))
+                continue
+            _append_gap(_lens_gap(lens))
     return {
         "version": "v1",
         "generated_at": _now_iso(),
@@ -195,13 +204,21 @@ def build_gap_register(
 def build_gap_summary_md(*, gap_register: dict[str, Any]) -> str:
     gaps = gap_register.get("gaps") if isinstance(gap_register, dict) else None
     total = len(gaps) if isinstance(gaps, list) else 0
+    lens_gaps = 0
+    if isinstance(gaps, list):
+        for item in gaps:
+            gap_id = item.get("id") if isinstance(item, dict) else None
+            if isinstance(gap_id, str) and gap_id.startswith("GAP-EVAL-LENS-"):
+                lens_gaps += 1
     return "\n".join(
         [
             "# Gap Summary",
             "",
             f"Total gaps: {total}",
+            f"Lens-triggered gaps: {lens_gaps}",
             "",
             "Notes:",
-            "- Gaps are placeholders until assessments are completed.",
+            "- Control/metric gaps are placeholders until assessments are completed.",
+            "- Lens-triggered gaps are derived from assessment_eval lens statuses.",
         ]
     ) + "\n"

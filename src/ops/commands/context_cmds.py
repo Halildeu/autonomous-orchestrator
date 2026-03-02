@@ -3,12 +3,333 @@ from __future__ import annotations
 import argparse
 import json
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root, warn
 from src.ops.reaper import parse_bool as parse_reaper_bool
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _load_json_if_exists(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def _rel_to_workspace(workspace_root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(workspace_root.resolve()).as_posix()
+    except Exception:
+        return str(path.as_posix())
+
+
+def _write_workspace_json(*, workspace_root: Path, rel_path: Path, payload: dict[str, Any]) -> str:
+    abs_path = (workspace_root / rel_path).resolve()
+    abs_path.relative_to(workspace_root.resolve())
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    abs_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return str(rel_path.as_posix())
+
+
+def _resolve_manual_request_ref(*, workspace_root: Path, request_id_hint: str | None) -> tuple[str, str]:
+    manual_dir = workspace_root / ".cache" / "index" / "manual_requests"
+    request_id = str(request_id_hint or "").strip()
+    if request_id:
+        path = manual_dir / f"{request_id}.v1.json"
+        if path.exists():
+            return (request_id, _rel_to_workspace(workspace_root, path))
+    if not manual_dir.exists():
+        return (request_id, "")
+    paths = sorted([p for p in manual_dir.glob("*.v1.json") if p.is_file()], key=lambda p: p.as_posix())
+    if not paths:
+        return (request_id, "")
+    latest = paths[-1]
+    latest_obj = _load_json_if_exists(latest)
+    latest_id = latest_obj.get("request_id") if isinstance(latest_obj.get("request_id"), str) else latest.stem
+    return (str(latest_id), _rel_to_workspace(workspace_root, latest))
+
+
+def _find_manual_intake_item(*, intake_obj: dict[str, Any], request_id: str) -> dict[str, Any]:
+    items = intake_obj.get("items") if isinstance(intake_obj.get("items"), list) else []
+    candidates: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("source_type") or "") != "MANUAL_REQUEST":
+            continue
+        if str(item.get("source_ref") or "") != request_id:
+            continue
+        candidates.append(item)
+    if not candidates:
+        return {}
+    candidates_sorted = sorted(
+        candidates,
+        key=lambda item: (str(item.get("created_at") or ""), str(item.get("intake_id") or "")),
+        reverse=True,
+    )
+    return candidates_sorted[0]
+
+
+def _load_exec_trace_for_intake(*, workspace_root: Path, intake_id: str) -> dict[str, Any]:
+    exec_rel = Path(".cache") / "reports" / "work_intake_exec_ticket.v1.json"
+    exec_path = workspace_root / exec_rel
+    if not exec_path.exists():
+        return {
+            "report_path": "",
+            "status": "IDLE",
+            "matched_entry_found": False,
+            "matched_entry_status": "IDLE",
+            "applied_count": 0,
+            "planned_count": 0,
+            "idle_count": 0,
+            "ignored_count": 0,
+            "skipped_count": 0,
+        }
+    exec_obj = _load_json_if_exists(exec_path)
+    entries = exec_obj.get("entries") if isinstance(exec_obj.get("entries"), list) else []
+    matched_entry = None
+    if intake_id:
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("intake_id") or "") == intake_id:
+                matched_entry = entry
+                break
+    matched_status = str(matched_entry.get("status") or "") if isinstance(matched_entry, dict) else ""
+    return {
+        "report_path": str(exec_rel.as_posix()),
+        "status": str(exec_obj.get("status") or "UNKNOWN"),
+        "matched_entry_found": bool(matched_entry),
+        "matched_entry_status": matched_status or "IDLE",
+        "matched_entry_action_kind": str(matched_entry.get("action_kind") or "") if isinstance(matched_entry, dict) else "",
+        "matched_entry_evidence_paths": matched_entry.get("evidence_paths") if isinstance(matched_entry, dict) else [],
+        "applied_count": int(exec_obj.get("applied_count") or 0),
+        "planned_count": int(exec_obj.get("planned_count") or 0),
+        "idle_count": int(exec_obj.get("idle_count") or 0),
+        "ignored_count": int(exec_obj.get("ignored_count") or 0),
+        "skipped_count": int(exec_obj.get("skipped_count") or 0),
+    }
+
+
+def _load_context_orchestration_policy(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
+    ws_policy = workspace_root / "policies" / "policy_context_orchestration.v1.json"
+    core_policy = core_root / "policies" / "policy_context_orchestration.v1.json"
+    for candidate in (ws_policy, core_policy):
+        if not candidate.exists():
+            continue
+        obj = _load_json_if_exists(candidate)
+        if obj:
+            return obj
+    return {}
+
+
+def _resolve_required_input_path(*, required: str, core_root: Path, workspace_root: Path) -> Path:
+    known_map = {
+        "system_status.v1.json": workspace_root / ".cache" / "reports" / "system_status.v1.json",
+        "work_intake.v1.json": workspace_root / ".cache" / "index" / "work_intake.v1.json",
+        "session-context.schema.json": core_root / "schemas" / "session-context.schema.json",
+        "context-pack.schema.v1.json": core_root / "schemas" / "context-pack.schema.v1.json",
+    }
+    if required in known_map:
+        return known_map[required]
+    if required.startswith(".cache/"):
+        return workspace_root / Path(required)
+    ws_candidate = workspace_root / Path(required)
+    core_candidate = core_root / Path(required)
+    if ws_candidate.exists():
+        return ws_candidate
+    if core_candidate.exists():
+        return core_candidate
+    if str(required).endswith(".schema.json"):
+        return core_root / "schemas" / Path(required).name
+    return ws_candidate
+
+
+def _write_context_orchestration_artifacts(
+    *,
+    workspace_root: Path,
+    core_root: Path,
+    mode: str,
+    strict_mode: bool,
+    run_status: str,
+    run_error_code: str | None,
+    manual_request_id: str | None,
+    manual_submit_res: dict[str, Any] | None,
+    build_res: dict[str, Any],
+    route_res: dict[str, Any],
+    intake_obj: dict[str, Any],
+    work_intake_path: str | None,
+    system_status_path: str | None,
+    system_status_obj: dict[str, Any],
+) -> dict[str, str]:
+    request_id_hint = str(manual_request_id or "").strip()
+    if not request_id_hint:
+        for source in (build_res, route_res):
+            maybe_req = source.get("request_id") if isinstance(source, dict) else None
+            if isinstance(maybe_req, str) and maybe_req.strip():
+                request_id_hint = maybe_req.strip()
+                break
+
+    request_id, manual_request_path = _resolve_manual_request_ref(
+        workspace_root=workspace_root,
+        request_id_hint=request_id_hint or None,
+    )
+    matched_intake = _find_manual_intake_item(intake_obj=intake_obj, request_id=request_id)
+    intake_id = str(matched_intake.get("intake_id") or "") if isinstance(matched_intake, dict) else ""
+
+    context_pack_path = build_res.get("context_pack_path") if isinstance(build_res.get("context_pack_path"), str) else ""
+    router_result_rel = str(Path(".cache") / "reports" / "context_pack_router_result.v1.json")
+    work_intake_rel = str(work_intake_path) if isinstance(work_intake_path, str) and work_intake_path else ""
+    system_status_rel = str(system_status_path) if isinstance(system_status_path, str) and system_status_path else ""
+
+    exec_trace = _load_exec_trace_for_intake(workspace_root=workspace_root, intake_id=intake_id)
+    system_overall = str(system_status_obj.get("overall_status") or "")
+    if not system_overall and system_status_rel:
+        sys_obj = _load_json_if_exists((workspace_root / system_status_rel).resolve())
+        system_overall = str(sys_obj.get("overall_status") or "")
+
+    trace_missing: list[str] = []
+    if not request_id:
+        trace_missing.append("request_id")
+    if not context_pack_path:
+        trace_missing.append("context_pack_path")
+    if not work_intake_rel:
+        trace_missing.append("work_intake_path")
+    if not system_status_rel:
+        trace_missing.append("system_status_path")
+    trace_status = "OK" if not trace_missing else "WARN"
+
+    trace_payload: dict[str, Any] = {
+        "version": "v1",
+        "generated_at": _now_iso(),
+        "workspace_root": str(workspace_root),
+        "mode": mode,
+        "status": trace_status,
+        "request": {
+            "request_id": request_id,
+            "manual_request_path": manual_request_path,
+            "submitted_in_run": bool(isinstance(manual_submit_res, dict) and manual_submit_res.get("request_id")),
+            "submit_status": str(manual_submit_res.get("status") or "") if isinstance(manual_submit_res, dict) else "",
+        },
+        "routing": {
+            "context_pack_path": context_pack_path,
+            "context_router_result_path": router_result_rel,
+            "bucket": str(route_res.get("bucket") or ""),
+            "action": str(route_res.get("action") or ""),
+            "severity": str(route_res.get("severity") or ""),
+            "priority": str(route_res.get("priority") or ""),
+            "router_status": str(route_res.get("status") or ""),
+        },
+        "intake": {
+            "work_intake_path": work_intake_rel,
+            "matched_intake_found": bool(matched_intake),
+            "matched_intake_id": intake_id,
+            "bucket": str(matched_intake.get("bucket") or "") if isinstance(matched_intake, dict) else "",
+            "severity": str(matched_intake.get("severity") or "") if isinstance(matched_intake, dict) else "",
+            "priority": str(matched_intake.get("priority") or "") if isinstance(matched_intake, dict) else "",
+            "status": str(matched_intake.get("status") or "") if isinstance(matched_intake, dict) else "",
+        },
+        "execution": exec_trace,
+        "system_status": {
+            "system_status_path": system_status_rel,
+            "overall_status": system_overall,
+        },
+        "missing": trace_missing,
+        "notes": ["PROGRAM_LED=true", "trace=request_intake_to_exec"],
+    }
+    trace_rel = _write_workspace_json(
+        workspace_root=workspace_root,
+        rel_path=Path(".cache") / "reports" / "request_intake_to_exec_trace.v1.json",
+        payload=trace_payload,
+    )
+
+    policy = _load_context_orchestration_policy(core_root=core_root, workspace_root=workspace_root)
+    required_inputs = policy.get("inputs", {}).get("required") if isinstance(policy.get("inputs"), dict) else []
+    required_inputs = [str(x) for x in required_inputs if isinstance(x, str) and x]
+    input_checks: list[dict[str, Any]] = []
+    missing_required_inputs: list[str] = []
+    for req in required_inputs:
+        target = _resolve_required_input_path(required=req, core_root=core_root, workspace_root=workspace_root)
+        exists = target.exists()
+        target_path = str(target.as_posix())
+        try:
+            target_path = target.relative_to(workspace_root).as_posix()
+        except Exception:
+            try:
+                target_path = target.relative_to(core_root).as_posix()
+            except Exception:
+                target_path = str(target.as_posix())
+        input_checks.append({"id": req, "path": target_path, "exists": exists})
+        if not exists:
+            missing_required_inputs.append(req)
+
+    max_actions = 8
+    limits = policy.get("limits") if isinstance(policy.get("limits"), dict) else {}
+    if isinstance(limits.get("max_recommended_next_actions"), int):
+        max_actions = max(1, int(limits.get("max_recommended_next_actions")))
+    next_actions = route_res.get("next_actions") if isinstance(route_res.get("next_actions"), list) else []
+    next_actions = [str(x) for x in next_actions if isinstance(x, str) and x][:max_actions]
+
+    context_status = str(run_status or "WARN")
+    if context_status not in {"OK", "WARN", "IDLE", "FAIL"}:
+        context_status = "WARN"
+    guardrails = policy.get("guardrails") if isinstance(policy.get("guardrails"), dict) else {}
+    report_only_on_missing = bool(guardrails.get("report_only_on_missing_context", True))
+    if missing_required_inputs and context_status == "OK":
+        context_status = "WARN"
+    if strict_mode and missing_required_inputs and not report_only_on_missing:
+        context_status = "FAIL"
+
+    status_payload: dict[str, Any] = {
+        "version": "v1",
+        "generated_at": _now_iso(),
+        "workspace_root": str(workspace_root),
+        "extension_id": "PRJ-CONTEXT-ORCHESTRATION",
+        "mode": mode,
+        "strict_mode": strict_mode,
+        "status": context_status,
+        "single_gate_status": str(run_status or ""),
+        "single_gate_error_code": str(run_error_code or ""),
+        "request_id": request_id,
+        "context_pack_id": str(route_res.get("context_pack_id") or build_res.get("context_pack_id") or ""),
+        "bucket": str(route_res.get("bucket") or ""),
+        "action": str(route_res.get("action") or ""),
+        "required_inputs": input_checks,
+        "missing_required_inputs": missing_required_inputs,
+        "artifacts": {
+            "request_intake_to_exec_trace_path": trace_rel,
+            "context_pack_path": context_pack_path,
+            "context_router_result_path": router_result_rel,
+            "work_intake_path": work_intake_rel,
+            "system_status_path": system_status_rel,
+        },
+        "next_actions": next_actions,
+        "focus": policy.get("focus") if isinstance(policy.get("focus"), dict) else {},
+        "limits": limits if isinstance(limits, dict) else {},
+        "notes": ["PROGRAM_LED=true", "network_default=false"],
+    }
+    if missing_required_inputs:
+        status_payload["notes"].append("missing_required_inputs=true")
+    status_rel = _write_workspace_json(
+        workspace_root=workspace_root,
+        rel_path=Path(".cache") / "reports" / "context_orchestration_status.v1.json",
+        payload=status_payload,
+    )
+    return {
+        "request_id": request_id,
+        "request_intake_to_exec_trace_path": trace_rel,
+        "context_orchestration_status_path": status_rel,
+    }
 
 
 def cmd_manual_request_submit(args: argparse.Namespace) -> int:
@@ -217,6 +538,11 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
     chat = parse_reaper_bool(str(args.chat))
     detail = parse_reaper_bool(str(args.detail))
     dry_run = getattr(args, "dry_run", "false")
+    mode = str(args.mode or "report").strip().lower()
+    if mode not in {"report", "strict"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+    strict_mode = mode == "strict"
 
     manual_request_id = str(args.request_id or "").strip() or None
     manual_submit_res = None
@@ -254,7 +580,8 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
     from src.ops.work_intake_from_sources import run_work_intake_build
     from src.ops.system_status_report import run_system_status
 
-    build_res = build_context_pack(workspace_root=ws, request_id=manual_request_id, mode="summary")
+    build_mode = "detail" if strict_mode else "summary"
+    build_res = build_context_pack(workspace_root=ws, request_id=manual_request_id, mode=build_mode)
     pack_rel = build_res.get("context_pack_path") if isinstance(build_res, dict) else None
     pack_path = (ws / pack_rel).resolve() if isinstance(pack_rel, str) and pack_rel else None
     route_res = route_context_pack(workspace_root=ws, context_pack_path=pack_path)
@@ -288,27 +615,67 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
         plan_dir = ws / ".cache" / "reports" / "chg"
         plans = list(plan_dir.glob("CHG-INTAKE-*.plan.json")) if plan_dir.exists() else []
         if not plans:
-            status = "IDLE"
+            status = "FAIL" if strict_mode else "IDLE"
             error_code = "NO_PLAN_FOUND"
+
+    strict_doc_nav_rel = str(Path(".cache") / "reports" / "doc_graph_report.strict.v1.json")
+    strict_doc_nav_path = ws / strict_doc_nav_rel
+    if strict_mode:
+        if not strict_doc_nav_path.exists():
+            status = "FAIL"
+            error_code = "DOC_NAV_STRICT_MISSING"
+        elif status != "OK":
+            status = "FAIL"
+            if not isinstance(error_code, str) or not error_code:
+                error_code = "STRICT_ROUTER_NOT_OK"
+
+    system_status_rel = str(sys_rel) if isinstance(sys_rel, Path) else None
+    artifacts = _write_context_orchestration_artifacts(
+        workspace_root=ws,
+        core_root=root,
+        mode=mode,
+        strict_mode=strict_mode,
+        run_status=status,
+        run_error_code=error_code if isinstance(error_code, str) else None,
+        manual_request_id=manual_request_id,
+        manual_submit_res=manual_submit_res if isinstance(manual_submit_res, dict) else None,
+        build_res=build_res if isinstance(build_res, dict) else {},
+        route_res=route_res if isinstance(route_res, dict) else {},
+        intake_obj=intake_obj if isinstance(intake_obj, dict) else {},
+        work_intake_path=work_intake_path if isinstance(work_intake_path, str) else None,
+        system_status_path=system_status_rel,
+        system_status_obj=sys_res if isinstance(sys_res, dict) else {},
+    )
+    resolved_request_id = str(artifacts.get("request_id") or manual_request_id or "")
 
     payload = {
         "status": status,
         "error_code": error_code,
         "workspace_root": str(ws),
-        "request_id": manual_request_id,
+        "request_id": resolved_request_id,
         "context_pack_path": pack_rel,
         "context_router_result_path": str(Path(".cache") / "reports" / "context_pack_router_result.v1.json"),
         "work_intake_path": work_intake_path,
-        "system_status_path": str(sys_rel) if isinstance(sys_rel, Path) else None,
-        "notes": ["PROGRAM_LED=true"],
+        "system_status_path": system_status_rel,
+        "request_intake_to_exec_trace_path": artifacts.get("request_intake_to_exec_trace_path"),
+        "context_orchestration_status_path": artifacts.get("context_orchestration_status_path"),
+        "notes": [
+            f"mode={mode}",
+            "PROGRAM_LED=true",
+            f"build_mode={build_mode}",
+            f"strict_doc_nav_path={strict_doc_nav_rel}" if strict_mode else "",
+            "context_orchestration_artifacts=generated",
+        ],
     }
+    payload["notes"] = [str(x) for x in payload.get("notes", []) if isinstance(x, str) and x]
 
     if chat:
         print("PREVIEW:")
         print("PROGRAM-LED: manual-request-submit + context-pack-build + context-pack-route + work-intake-check + system-status")
         print(f"workspace_root={payload.get('workspace_root')}")
-        if manual_request_id:
-            print(f"request_id={manual_request_id}")
+        print(f"mode={mode}")
+        if resolved_request_id:
+            print(f"request_id={resolved_request_id}")
         print("RESULT:")
         print(f"status={status} bucket={route_res.get('bucket')} action={route_res.get('action')}")
         if error_code:
@@ -320,6 +687,8 @@ def cmd_context_router_check(args: argparse.Namespace) -> int:
             payload.get("context_router_result_path"),
             work_intake_path,
             payload.get("system_status_path"),
+            payload.get("request_intake_to_exec_trace_path"),
+            payload.get("context_orchestration_status_path"),
         ]:
             if p:
                 print(str(p))
@@ -419,3 +788,64 @@ def register_context_subcommands(parent: argparse._SubParsersAction[argparse.Arg
     ap_router.add_argument("--detail", default="false", help="true|false (default: false).")
     ap_router.add_argument("--dry-run", default="false", help="true|false (default: false).")
     ap_router.set_defaults(func=cmd_context_router_check)
+
+    ap_ns_bootstrap = parent.add_parser(
+        "north-star-theme-bootstrap",
+        help="Bootstrap theme/subtheme via LLM consult (subject open).",
+    )
+    ap_ns_bootstrap.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_bootstrap.add_argument("--subject-id", required=True, help="Subject id (e.g., ethics_case_management).")
+    ap_ns_bootstrap.add_argument(
+        "--providers",
+        default="",
+        help="Comma-separated providers (default: openai,google,claude,deepseek,qwen,xai).",
+    )
+    ap_ns_bootstrap.add_argument("--approve", action="store_true", help="Mark result ACTIVE (default: PROPOSED).")
+    from src.ops.north_star_theme_bootstrap import cmd_north_star_theme_bootstrap
+
+    ap_ns_bootstrap.set_defaults(func=cmd_north_star_theme_bootstrap)
+
+    ap_ns_seed = parent.add_parser(
+        "north-star-theme-seed",
+        help="Seed theme/subtheme suggestions via GPT-5.2 (PROPOSED only).",
+    )
+    ap_ns_seed.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_seed.add_argument("--subject-id", required=True, help="Subject id (e.g., ethics_program).")
+    ap_ns_seed.add_argument("--provider-id", default="openai", help="Provider id (default: openai).")
+    ap_ns_seed.add_argument("--model", default="gpt-5.2", help="Model id (default: gpt-5.2).")
+    ap_ns_seed.add_argument("--max-tokens", default="5000", help="Max tokens (default: 5000).")
+    from src.ops.north_star_theme_suggestions import cmd_north_star_theme_seed
+
+    ap_ns_seed.set_defaults(func=cmd_north_star_theme_seed)
+
+    ap_ns_consult = parent.add_parser(
+        "north-star-theme-consult",
+        help="Consult LLMs for suggestions only (missing/merge/too few/too many).",
+    )
+    ap_ns_consult.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_consult.add_argument("--subject-id", required=True, help="Subject id (e.g., ethics_program).")
+    ap_ns_consult.add_argument(
+        "--providers",
+        default="",
+        help="Comma-separated providers (default: openai,google,claude,deepseek,qwen,xai).",
+    )
+    ap_ns_consult.add_argument("--focus-type", default="", help="Optional focus type (theme|subtheme).")
+    ap_ns_consult.add_argument("--focus-id", default="", help="Optional focus id.")
+    ap_ns_consult.add_argument("--comment", default="", help="Optional user comment/context.")
+    ap_ns_consult.add_argument("--max-tokens", default="2500", help="Max tokens (default: 2500).")
+    from src.ops.north_star_theme_suggestions import cmd_north_star_theme_consult
+
+    ap_ns_consult.set_defaults(func=cmd_north_star_theme_consult)
+
+    ap_ns_apply = parent.add_parser(
+        "north-star-theme-suggestion-apply",
+        help="Apply suggestion (ACCEPT/REJECT/MERGE) with optional comment.",
+    )
+    ap_ns_apply.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_apply.add_argument("--suggestion-id", required=True, help="Suggestion id.")
+    ap_ns_apply.add_argument("--action", required=True, help="ACCEPT|REJECT|MERGE")
+    ap_ns_apply.add_argument("--comment", default="", help="Optional reviewer comment.")
+    ap_ns_apply.add_argument("--merge-target", default="", help="Optional merge target theme id.")
+    from src.ops.north_star_theme_suggestions import cmd_north_star_theme_suggestion_apply
+
+    ap_ns_apply.set_defaults(func=cmd_north_star_theme_suggestion_apply)

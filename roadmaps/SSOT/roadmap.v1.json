@@ -43,6 +43,13 @@
         {
           "text": "Maintainability guardrail (SSOT): Script Budget (soft=warn, hard=fail) is enforced in CI and Roadmap Runner global gates.",
           "type": "note"
+        },
+        {
+          "paths": [
+            "schemas/roadmap.schema.json",
+            "docs/LAYER-MODEL-LOCK.v1.md"
+          ],
+          "type": "assert_core_paths_exist"
         }
       ],
       "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold"
@@ -563,7 +570,8 @@
       "notes": [
         "Amaç: sohbet içi ephemeral kararları TTL ile yönetmek; provenance’a hash olarak yazmak.",
         "Deliverables: .cache/sessions/<session_id>/session_context.v1.json + session_context_hash.",
-        "v0.1 runnable: default session init ile workspace-root altında session_context dosyası üretir."
+        "v0.1 runnable: default session init ile workspace-root altında session_context dosyası üretir.",
+        "CHG-20260301-004: Context hardening package for Session RAM lane. Scope: fail-closed handling for roadmap/project bootstrap state mismatch, formalized session decision write/read E2E proof (session-set -> cross_session_context -> shared_decisions), schema/validation coverage for session_cross_context.v1.json artifact, and helper dedup for repeated _parse_iso8601 utilities."
       ],
       "steps": [
         {
@@ -1410,6 +1418,49 @@
         }
       ],
       "title": "System status projects section"
+    },
+    {
+      "constraints": {
+        "forbidden_paths": [
+          ".env",
+          "evidence/",
+          ".cache/secrets",
+          "dlq/*.json"
+        ]
+      },
+      "dod": [
+        "Router master closeout pack exists and is reviewed.",
+        "Router E2E smoke v3 (pytest-free, post-guardrails) is PASS.",
+        "FIX-PR-ROUTER-01/03/02A commits are recorded in evidence pack.",
+        "LLM router drift gate is OK (no vocab mismatch / unknown provider)."
+      ],
+      "gates": [],
+      "id": "M11.4",
+      "notes": [
+        "CHECKPOINT (COMPLETED): provider router integration + drift gate + workspace_root parameterization.",
+        "Evidence pack: .cache/ws_customer_default/.cache/reports/ROUTER_MASTER_CLOSEOUT_PACK.v1.json",
+        "Smoke PASS: .cache/ws_customer_default/.cache/reports/router_e2e_smoke_result.v3.post_guardrails.json",
+        "Commits (from evidence pack): FIX_PR_ROUTER_01_FINAL=0c419c2500a51633f931538ac1cc577d68d153ae, FIX_PR_ROUTER_03_FINAL=50acdb646c2336d71c8b4cdfb13301521278ad5e, FIX_PR_ROUTER_02A=16c0621175da20aaac55aacc9208d4d4dca0e75f",
+        "RB-001 Behavior Freeze Matrix: define 12 canonical scenarios for run_envelope (schema invalid, strategy/workflow invalid, unknown intent, quota hit, budget hit, policy violation, idempotent hit, suspended, completed). Record expected status/error_code/dlq stage/exit code for each scenario.",
+        "RB-002 Golden Snapshot Harness: capture summary.json, suspend.json, and DLQ payload snapshots for the freeze matrix. Add snapshot compare gate that fails on field-level drift unless explicitly approved.",
+        "RB-003 Exit Contract Tests: add characterization tests for SystemExit mappings (1/2) and policy error code families. Ensure unchanged CLI-visible behavior for failure and blocked paths.",
+        "RB-004 RunContext Introduction: create typed run context object carrying request/workflow/run/budget/quota/autonomy fields. Replace ad-hoc local variable fan-out with structured context while preserving behavior.",
+        "RB-005 Validation Stage Extraction: isolate envelope/strategy/workflow validations into dedicated stage helpers. Keep existing error codes and DLQ stage mapping unchanged.",
+        "RB-006 Governor Stage Extraction: move governor load, lock acquire/release, concurrency limit and quarantine checks into a governor stage module. Preserve fail-closed behavior and lock lifecycle.",
+        "RB-007 Routing Stage Extraction: isolate strategy load/validate, route_intent, workflow load/validate/fingerprint, and unknown-intent short-circuit path with identical summary and DLQ outputs.",
+        "RB-008 Idempotency Stage Extraction: extract key hash computation, store migration/update, deterministic run_id and IDEMPOTENT_HIT return path into dedicated module with characterization tests.",
+        "RB-009 Quota+Autonomy Stage Extraction: isolate quota counters/limits and autonomy mode/gate/update logic. Preserve quota_hit, autonomy snapshots, and failure summary fields.",
+        "RB-010 Execution/Error Stage Extraction: isolate executor invocation and exception-to-DLQ/summary mapping (PolicyViolation included). Keep stage selection and codes identical.",
+        "RB-011 Summary Builder Unification: consolidate all summary payload construction paths into one builder while keeping output schema and values backward compatible.",
+        "RB-012 workflow_exec_steps Modularization: split _exec_mod_a, _exec_approval, _exec_mod_b, _exec_mod_policy_review, _exec_mod_dlq_triage into separate modules and keep workflow outputs/evidence stable."
+      ],
+      "steps": [
+        {
+          "text": "Checkpoint milestone: no new SSOT work to apply. This milestone records completed Router lane evidence.",
+          "type": "note"
+        }
+      ],
+      "title": "Router core lane completed (checkpoint)"
     }
   ],
   "roadmap_id": "RM-SSOT-001",

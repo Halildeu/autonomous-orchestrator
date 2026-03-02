@@ -19,12 +19,63 @@ from src.ops.system_status_sections_airunner import (
 )
 
 
+def _surface_single_gate_state(workspace_root: Path) -> tuple[str, str, str, list[str]]:
+    single_gate_status = "IDLE"
+    last_enforcement_contract_path = ""
+    last_enforcement_extension_run_path = ""
+    notes: list[str] = []
+
+    run_rel = Path(".cache") / "reports" / "extension_run.PRJ-ENFORCEMENT-PACK.v1.json"
+    run_path = workspace_root / run_rel
+    if run_path.exists():
+        last_enforcement_extension_run_path = str(run_rel.as_posix())
+        try:
+            run_obj = _load_json(run_path)
+        except Exception:
+            notes.append("enforcement_extension_run_invalid")
+        else:
+            if isinstance(run_obj, dict):
+                raw_status = run_obj.get("single_gate_status")
+                if isinstance(raw_status, str) and raw_status:
+                    single_gate_status = raw_status
+                outputs = run_obj.get("single_gate_outputs")
+                if isinstance(outputs, dict):
+                    contract_path = outputs.get("contract_json")
+                    if isinstance(contract_path, str) and contract_path:
+                        last_enforcement_contract_path = contract_path
+    else:
+        fallback_dir = workspace_root / ".cache" / "reports" / "enforcement_check" / "PRJ-ENFORCEMENT-PACK"
+        if fallback_dir.exists():
+            candidates = sorted(fallback_dir.glob("enforcement_check.*.v1.json"))
+            if candidates:
+                latest = candidates[-1].resolve()
+                try:
+                    last_enforcement_contract_path = latest.relative_to(workspace_root.resolve()).as_posix()
+                except Exception:
+                    last_enforcement_contract_path = str(latest.as_posix())
+                single_gate_status = "UNKNOWN"
+                notes.append("enforcement_contract_from_fallback")
+
+    return (
+        single_gate_status,
+        last_enforcement_contract_path,
+        last_enforcement_extension_run_path,
+        notes,
+    )
+
+
 def _extensions_section(workspace_root: Path) -> dict[str, Any]:
     rel_path = str(Path(".cache") / "index" / "extension_registry.v1.json")
     path = workspace_root / rel_path
     notes: list[str] = []
     help_rel = str(Path(".cache") / "reports" / "extension_help.v1.json")
     help_path = workspace_root / help_rel
+    (
+        single_gate_status,
+        last_enforcement_contract_path,
+        last_enforcement_extension_run_path,
+        single_gate_notes,
+    ) = _surface_single_gate_state(workspace_root)
     isolation_summary = {
         "status": "IDLE",
         "workspace_root_base": ".cache/extensions",
@@ -44,7 +95,10 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
             "tests_coverage": {"total": 0, "with_tests_entrypoints": 0, "with_tests_files": 0},
             "isolation_summary": isolation_summary,
             "last_extension_help_path": "",
-            "notes": ["registry_missing"],
+            "single_gate_status": single_gate_status,
+            "last_enforcement_contract_path": last_enforcement_contract_path,
+            "last_enforcement_extension_run_path": last_enforcement_extension_run_path,
+            "notes": ["registry_missing"] + [n for n in single_gate_notes if n != "registry_missing"],
         }
     try:
         obj = _load_json(path)
@@ -59,7 +113,10 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
             "tests_coverage": {"total": 0, "with_tests_entrypoints": 0, "with_tests_files": 0},
             "isolation_summary": isolation_summary,
             "last_extension_help_path": "",
-            "notes": ["invalid_registry_json"],
+            "single_gate_status": single_gate_status,
+            "last_enforcement_contract_path": last_enforcement_contract_path,
+            "last_enforcement_extension_run_path": last_enforcement_extension_run_path,
+            "notes": ["invalid_registry_json"] + [n for n in single_gate_notes if n != "invalid_registry_json"],
         }
     status = obj.get("status") if isinstance(obj, dict) else None
     if status not in {"OK", "WARN", "IDLE", "FAIL"}:
@@ -180,12 +237,12 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
                     last_run_path = str(run_path)
                     break
             isolation_notes = []
-            status = "OK"
+            isolation_status = "OK"
             if network_allowed:
-                status = "WARN"
+                isolation_status = "WARN"
                 isolation_notes.append("network_allowed_true")
             isolation_summary = {
-                "status": status,
+                "status": isolation_status,
                 "workspace_root_base": base,
                 "workspace_roots": workspace_roots,
                 "network_allowed": False,
@@ -195,6 +252,7 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
     healthcheck_rel = str(Path(".cache") / "reports" / "cockpit_healthcheck.v1.json")
     healthcheck_path = workspace_root / healthcheck_rel
     last_cockpit_healthcheck_path = healthcheck_rel if healthcheck_path.exists() else ""
+    notes_all = notes + [n for n in single_gate_notes if n not in notes]
 
     return {
         "registry_status": str(status),
@@ -207,7 +265,10 @@ def _extensions_section(workspace_root: Path) -> dict[str, Any]:
         "isolation_summary": isolation_summary,
         "last_extension_help_path": last_help_path,
         "last_cockpit_healthcheck_path": last_cockpit_healthcheck_path,
-        "notes": notes,
+        "single_gate_status": single_gate_status,
+        "last_enforcement_contract_path": last_enforcement_contract_path,
+        "last_enforcement_extension_run_path": last_enforcement_extension_run_path,
+        "notes": notes_all,
     }
 def _cockpit_lite_section(workspace_root: Path) -> dict[str, Any]:
     healthcheck_rel = Path(".cache") / "reports" / "cockpit_healthcheck.v1.json"

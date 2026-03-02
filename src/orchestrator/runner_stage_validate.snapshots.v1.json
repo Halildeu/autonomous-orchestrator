@@ -1,0 +1,45 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "stage": "validate",
+  "scenarios": [
+    {
+      "id": "schema_missing_intent",
+      "fixture": "0001.json",
+      "mutations": [
+        "remove:intent"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "ENVELOPE_VALIDATE",
+        "dlq_error_code": "SCHEMA_INVALID",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "budget_schema_invalid",
+      "fixture": "0001.json",
+      "mutations": [
+        "set:budget.max_tokens=oops"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "BUDGET",
+        "dlq_error_code": "BUDGET_INVALID",
+        "stdout_status": null
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@
     "schemas/planner-plan.schema.v1.json",
     "schemas/planner-step.schema.v1.json",
     "schemas/policy-planner.schema.v1.json",
+    "src/prj_planner/planner_build.py",
     "src/prj_airunner/airunner_tick.py",
     "src/prj_airunner/auto_mode_dispatch.py"
   ],
@@ -16,7 +17,7 @@
     "notes": []
   },
   "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-PLANNER",
-  "enabled": false,
+  "enabled": true,
   "entrypoints": {
     "cockpit_sections": [
       "decisions"
