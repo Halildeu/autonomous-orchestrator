@@ -63,6 +63,22 @@ def _now_iso8601() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _airunner_status_for_overall(airunner_section: dict[str, Any]) -> str:
+    air_status = str(airunner_section.get("status") or "WARN")
+    if air_status != "IDLE":
+        return air_status
+
+    auto_mode = airunner_section.get("auto_mode") if isinstance(airunner_section.get("auto_mode"), dict) else {}
+    auto_mode_effective = bool(auto_mode.get("auto_mode_effective", False))
+    jobs = airunner_section.get("jobs") if isinstance(airunner_section.get("jobs"), dict) else {}
+    jobs_total = int(jobs.get("total", 0) or 0)
+
+    # Auto-mode kapali ve kuyruk bos ise airunner IDLE normal kabul edilir.
+    if not auto_mode_effective and jobs_total == 0:
+        return "OK"
+    return "WARN"
+
+
 def _parse_iso(value: str | None) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -303,8 +319,7 @@ def build_system_status(
         ext_status = str(extensions_section.get("registry_status") or "WARN")
         section_statuses.append("WARN" if ext_status == "IDLE" else ext_status)
     if isinstance(airunner_section, dict):
-        air_status = str(airunner_section.get("status") or "WARN")
-        section_statuses.append("WARN" if air_status == "IDLE" else air_status)
+        section_statuses.append(_airunner_status_for_overall(airunner_section))
     if isinstance(pm_suite_section, dict):
         pm_status = str(pm_suite_section.get("status") or "WARN")
         section_statuses.append("WARN" if pm_status == "IDLE" else pm_status)
