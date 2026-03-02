@@ -28,6 +28,21 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         ws = Path(tmp) / "ws"
         (ws / ".cache" / "index").mkdir(parents=True, exist_ok=True)
+        (ws / "policies").mkdir(parents=True, exist_ok=True)
+        (ws / "policies" / "policy_north_star_eval_lenses.v1.json").write_text(
+            json.dumps(
+                {
+                    "version": "v1",
+                    "mode": "lensless",
+                    "workflow_axes": ["reference", "assessment", "gap"],
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         res = run_eval(workspace_root=ws, dry_run=False)
         _must(isinstance(res, dict), "run_eval result must be dict")
         out_path = ws / ".cache" / "index" / "assessment_eval.v1.json"

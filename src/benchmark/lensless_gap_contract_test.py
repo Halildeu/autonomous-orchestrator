@@ -27,13 +27,6 @@ def main() -> None:
     gap = build_gap_register(
         controls=[],
         metrics=[],
-        lens_signals=[
-            {
-                "lens_id": "operability",
-                "status": "FAIL",
-                "reasons": ["hard_exceeded_gt"],
-            }
-        ],
     )
     gaps = gap.get("gaps") if isinstance(gap, dict) else []
     gap_ids = [str(g.get("id") or "") for g in gaps if isinstance(g, dict)]

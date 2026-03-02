@@ -340,6 +340,28 @@ def _gate_planner_show_plan(*, core_root: Path, workspace_root: Path) -> dict[st
     return payload
 
 
+def _gate_context_router_check(*, core_root: Path, workspace_root: Path, mode: str) -> dict[str, Any]:
+    payload, rc, _ = _run_manage_json_command(
+        core_root,
+        [
+            "context-router-check",
+            "--workspace-root",
+            str(workspace_root),
+            "--mode",
+            "strict" if mode == "strict" else "report",
+            "--chat",
+            "false",
+            "--detail",
+            "false",
+        ],
+    )
+    payload.setdefault("gate", "context-router-check")
+    payload.setdefault("status", "FAIL" if rc != 0 else "UNKNOWN")
+    if rc != 0 and not isinstance(payload.get("error_code"), str):
+        payload["error_code"] = "SINGLE_GATE_EXEC_FAILED"
+    return payload
+
+
 def _dispatch_single_gate_for_extension(
     *,
     core_root: Path,
@@ -368,6 +390,11 @@ def _dispatch_single_gate_for_extension(
         "script-budget": lambda: _gate_script_budget(core_root=core_root, workspace_root=workspace_root),
         "work-intake-check": lambda: _gate_work_intake_check(core_root=core_root, workspace_root=workspace_root, mode=mode),
         "planner-show-plan": lambda: _gate_planner_show_plan(core_root=core_root, workspace_root=workspace_root),
+        "context-router-check": lambda: _gate_context_router_check(
+            core_root=core_root,
+            workspace_root=workspace_root,
+            mode=mode,
+        ),
     }
     handler = handlers.get(gate)
     if handler is None:

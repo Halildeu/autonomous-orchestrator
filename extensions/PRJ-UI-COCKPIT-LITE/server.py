@@ -55,23 +55,42 @@ def _normalize_jsonable(obj: Any, depth: int = 0, max_depth: int = 6) -> Any:
 class CockpitHandler(BaseHTTPRequestHandler):
     server: ThreadingHTTPServer
 
+    @staticmethod
+    def _is_client_disconnect(exc: Exception) -> bool:
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError)):
+            return True
+        if isinstance(exc, OSError):
+            if getattr(exc, "errno", None) in {32, 54, 104}:
+                return True
+        return False
+
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         data = _json_dumps(payload).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception as exc:
+            if self._is_client_disconnect(exc):
+                return
+            raise
 
     def _send_text(self, status: int, content: str, content_type: str) -> None:
         data = content.encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception as exc:
+            if self._is_client_disconnect(exc):
+                return
+            raise
 
     def _serve_static(self, path: Path, content_type: str) -> None:
         if not path.exists():

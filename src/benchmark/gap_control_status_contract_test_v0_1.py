@@ -23,6 +23,7 @@ def main() -> None:
     sys.path.insert(0, str(repo_root))
 
     from src.benchmark.assessment_runner import run_assessment
+    from jsonschema import Draft202012Validator
 
     ws_root = repo_root / ".cache" / "ws_customer_default" / ".cache" / "test_tmp" / "gap_control_status_contract"
     if ws_root.exists():
@@ -46,6 +47,13 @@ def main() -> None:
         "GAP-REL-NETWORK_POLICY_DEFAULT_OFF" not in gap_ids,
         "REL network policy control should be satisfied",
     )
+
+    maturity_path = ws_root / ".cache" / "index" / "north_star_maturity_tracking.v1.json"
+    _assert(maturity_path.exists(), "north_star_maturity_tracking missing")
+    maturity_obj = json.loads(maturity_path.read_text(encoding="utf-8"))
+    schema_path = repo_root / "schemas" / "north_star.maturity.schema.json"
+    schema_obj = json.loads(schema_path.read_text(encoding="utf-8"))
+    Draft202012Validator(schema_obj).validate(maturity_obj)
 
     print("OK")
 

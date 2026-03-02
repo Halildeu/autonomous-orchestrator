@@ -113,6 +113,7 @@ def _load_policy(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
                 "scorecard_md": ".cache/reports/benchmark_scorecard.v1.md",
                 "gap_register": ".cache/index/gap_register.v1.json",
                 "gap_summary_md": ".cache/reports/gap_summary.v1.md",
+                "maturity_tracking": ".cache/index/north_star_maturity_tracking.v1.json",
             },
             "max_controls": 2000,
         }
@@ -515,6 +516,51 @@ def _load_assessment_raw_integrity_status(path: Path) -> str:
     return ""
 
 
+def _collect_lens_signals(out_assessment_eval: Path) -> list[dict[str, Any]]:
+    if not out_assessment_eval.exists():
+        return []
+    try:
+        eval_obj = _load_json(out_assessment_eval)
+    except Exception:
+        return []
+    lenses = eval_obj.get("lenses") if isinstance(eval_obj, dict) else None
+    if not isinstance(lenses, dict):
+        return []
+
+    out: list[dict[str, Any]] = []
+    for lens_id in sorted(k for k in lenses.keys() if isinstance(k, str)):
+        lens = lenses.get(lens_id)
+        if not isinstance(lens, dict):
+            continue
+        status = str(lens.get("status") or "").strip().upper()
+        if not status:
+            continue
+        signal: dict[str, Any] = {"lens_id": lens_id, "status": status}
+        score = lens.get("score")
+        if isinstance(score, (int, float)):
+            signal["score"] = float(score)
+        reasons = lens.get("reasons")
+        if isinstance(reasons, list):
+            reason_list = [str(item).strip() for item in reasons if isinstance(item, str) and str(item).strip()]
+            if reason_list:
+                signal["reasons"] = reason_list
+        out.append(signal)
+    return out
+
+
+def _collect_maturity_document(out_assessment_eval: Path) -> dict[str, Any]:
+    if not out_assessment_eval.exists():
+        return {"version": "v1", "levels": []}
+    try:
+        eval_obj = _load_json(out_assessment_eval)
+    except Exception:
+        return {"version": "v1", "levels": []}
+    maturity_doc = eval_obj.get("maturity_tracking") if isinstance(eval_obj, dict) else None
+    if isinstance(maturity_doc, dict):
+        return maturity_doc
+    return {"version": "v1", "levels": []}
+
+
 def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     core_root = _repo_root()
     docs_drift_mapping = _load_docs_drift_mapping(core_root=core_root, workspace_root=workspace_root)
@@ -534,6 +580,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         out_scorecard_md = _resolve_output_path(workspace_root, str(outputs.get("scorecard_md")))
         out_gap_register = _resolve_output_path(workspace_root, str(outputs.get("gap_register")))
         out_gap_md = _resolve_output_path(workspace_root, str(outputs.get("gap_summary_md")))
+        out_maturity_tracking = _resolve_output_path(
+            workspace_root, str(outputs.get("maturity_tracking") or ".cache/index/north_star_maturity_tracking.v1.json")
+        )
         out_assessment_raw = _resolve_output_path(workspace_root, ".cache/index/assessment_raw.v1.json")
         out_bp_catalog = _resolve_output_path(workspace_root, ".cache/index/bp_catalog.v1.json")
         out_trend_catalog = _resolve_output_path(workspace_root, ".cache/index/trend_catalog.v1.json")
@@ -639,6 +688,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             and out_gap_register.exists()
             and out_assessment_raw.exists()
             and out_assessment_eval.exists()
+            and out_maturity_tracking.exists()
             and out_reference_matrix.exists()
             and out_assessment_matrix.exists()
             and out_gap_matrix.exists()
@@ -825,6 +875,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         out_scorecard_md,
         out_gap_register,
         out_gap_md,
+        out_maturity_tracking,
         out_assessment_raw,
         out_assessment_eval,
         out_reference_matrix,
@@ -860,12 +911,31 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
 
     eval_res = run_eval(workspace_root=workspace_root, dry_run=False)
     eval_report_only = bool(eval_res.get("report_only")) if isinstance(eval_res, dict) else False
+    lens_signals = _collect_lens_signals(out_assessment_eval)
+    maturity_doc = _collect_maturity_document(out_assessment_eval)
+    maturity_schema_path = core_root / "schemas" / "north_star.maturity.schema.json"
+    if maturity_schema_path.exists():
+        try:
+            maturity_schema = _load_json(maturity_schema_path)
+            Draft202012Validator(maturity_schema).validate(maturity_doc)
+        except Exception as e:
+            return _fail(
+                "BENCHMARK_SCHEMA_INVALID",
+                "north star maturity schema validation failed",
+                {"error": str(e)[:200]},
+            )
+    out_maturity_tracking.write_text(
+        json.dumps(maturity_doc, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     source_eval_hash = _hash_bytes(out_assessment_eval.read_bytes()) if out_assessment_eval.exists() else None
     source_raw_hash = _hash_bytes(out_assessment_raw.read_bytes()) if out_assessment_raw.exists() else None
     evidence_pointers = [str(Path(".cache") / "index" / "assessment_raw.v1.json"), integrity_ref]
     if out_assessment_eval.exists():
         evidence_pointers.append(str(Path(".cache") / "index" / "assessment_eval.v1.json"))
+    if out_maturity_tracking.exists():
+        evidence_pointers.append(str(Path(".cache") / "index" / "north_star_maturity_tracking.v1.json"))
     evidence_pointers = sorted(set(evidence_pointers))
 
     report_only = eval_report_only or integrity_result == "FAIL"
@@ -879,6 +949,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     gap_register = build_gap_register(
         controls=controls_for_gaps,
         metrics=metrics,
+        lens_signals=lens_signals,
         integrity_snapshot_ref=integrity_ref,
         source_eval_hash=source_eval_hash,
         source_raw_hash=source_raw_hash,

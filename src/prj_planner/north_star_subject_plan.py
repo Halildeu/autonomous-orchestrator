@@ -7,6 +7,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.prj_planner.north_star_subject_plan_defaults import DEFAULT_POLICY
+from src.prj_planner.north_star_subject_plan_reporting import (
+    validate_subject_plan_contract as _validate_subject_plan_contract,
+    write_subject_plan_summary as _write_summary,
+)
+
 
 _FOLD_TR = str.maketrans(
     {
@@ -36,157 +42,6 @@ _FOLD_TR = str.maketrans(
         "Ü": "u",
     }
 )
-
-
-_DEFAULT_POLICY: dict[str, Any] = {
-    "version": "v1",
-    "synthesis": {
-        "mode": "holistic_module_pack.v1",
-        "stopwords": [
-            "ve",
-            "ile",
-            "icin",
-            "for",
-            "the",
-            "and",
-            "of",
-            "to",
-            "in",
-            "a",
-            "an",
-            "modul",
-            "module",
-            "theme",
-            "subtheme",
-        ],
-        "module_blueprints": [
-            {
-                "module_id": "intake_scope_flow",
-                "title_tr": "Talep ve Kapsam Akisi",
-                "title_en": "Intake and Scope Flow",
-                "module_kind": "intake_scope",
-                "keywords": [
-                    "intake",
-                    "request",
-                    "talep",
-                    "scope",
-                    "kapsam",
-                    "acceptance",
-                    "requirements",
-                    "girdi",
-                    "brief",
-                ],
-                "flow": {
-                    "inputs": ["request_text", "constraints", "acceptance_criteria"],
-                    "process": ["normalize_intake", "scope_alignment", "priority_seed"],
-                    "outputs": ["structured_work_item", "accepted_scope"],
-                },
-            },
-            {
-                "module_id": "context_memory_layer",
-                "title_tr": "Baglam ve Hafiza Katmani",
-                "title_en": "Context and Memory Layer",
-                "module_kind": "context_memory",
-                "keywords": [
-                    "context",
-                    "baglam",
-                    "memory",
-                    "hafiza",
-                    "session",
-                    "state",
-                    "knowledge",
-                    "long",
-                    "history",
-                    "trace",
-                    "sync",
-                ],
-                "flow": {
-                    "inputs": ["session_events", "project_context", "subject_catalog"],
-                    "process": ["context_pack", "memory_sync", "resume_anchor"],
-                    "outputs": ["active_context_pack", "resume_checkpoint"],
-                },
-            },
-            {
-                "module_id": "execution_orchestration",
-                "title_tr": "Yurutme ve Orkestrasyon",
-                "title_en": "Execution and Orchestration",
-                "module_kind": "execution_control",
-                "keywords": [
-                    "execution",
-                    "yurutme",
-                    "orchestration",
-                    "dispatch",
-                    "control",
-                    "approval",
-                    "gate",
-                    "workflow",
-                    "apply",
-                    "run",
-                    "otomasyon",
-                    "otomat",
-                    "onay",
-                ],
-                "flow": {
-                    "inputs": ["approved_work_items", "module_plan", "policy_state"],
-                    "process": ["dispatch", "single_gate_checks", "apply_or_skip"],
-                    "outputs": ["execution_trace", "operation_status"],
-                },
-            },
-            {
-                "module_id": "quality_observability",
-                "title_tr": "Kalite ve Gozlemlenebilirlik",
-                "title_en": "Quality and Observability",
-                "module_kind": "quality_metrics",
-                "keywords": [
-                    "quality",
-                    "metric",
-                    "metrics",
-                    "kpi",
-                    "report",
-                    "observability",
-                    "monitor",
-                    "telemetry",
-                    "audit",
-                    "risk",
-                    "validation",
-                ],
-                "flow": {
-                    "inputs": ["execution_trace", "coverage_data", "quality_rules"],
-                    "process": ["contract_checks", "status_report", "evidence_bundle"],
-                    "outputs": ["quality_gate_status", "manager_summary"],
-                },
-            },
-            {
-                "module_id": "general_delivery_backlog",
-                "title_tr": "Genel Teslimat Backlogu",
-                "title_en": "General Delivery Backlog",
-                "module_kind": "general_delivery",
-                "keywords": [],
-                "flow": {
-                    "inputs": ["subject_catalog", "work_items"],
-                    "process": ["modularization", "backlog_ranking", "implementation_plan"],
-                    "outputs": ["delivery_backlog", "implementation_sequence"],
-                },
-            },
-        ],
-    },
-    "quality_gate": {
-        "enforce": True,
-        "max_module_count": 8,
-        "min_coverage_quality": 0.9,
-        "require_full_coverage": True,
-        "scoring_weights": {
-            "pair_weight": 0.55,
-            "theme_weight": 0.35,
-            "completeness_weight": 0.10,
-        },
-    },
-    "limits": {
-        "max_steps": 16,
-        "max_plan_bytes": 131072,
-        "plan_bytes_over_limit_action": "warn",
-    },
-}
 
 
 def _now_iso8601() -> str:
@@ -295,7 +150,7 @@ def _policy_paths(workspace_root: Path) -> list[Path]:
 
 
 def _subject_plan_policy(workspace_root: Path) -> tuple[dict[str, Any], str]:
-    policy_obj = deepcopy(_DEFAULT_POLICY)
+    policy_obj = deepcopy(DEFAULT_POLICY)
     applied_sources: list[str] = []
     for path in _policy_paths(workspace_root):
         if not path.exists():
@@ -361,7 +216,7 @@ def _effective_synthesis_mode(policy_obj: dict[str, Any]) -> str:
 
 
 def _effective_stopwords(policy_obj: dict[str, Any]) -> set[str]:
-    defaults = _DEFAULT_POLICY.get("synthesis", {}).get("stopwords", [])
+    defaults = DEFAULT_POLICY.get("synthesis", {}).get("stopwords", [])
     synthesis = policy_obj.get("synthesis") if isinstance(policy_obj.get("synthesis"), dict) else {}
     raw = synthesis.get("stopwords")
     source = raw if isinstance(raw, list) else defaults
@@ -415,7 +270,7 @@ def _normalize_blueprint(raw: dict[str, Any], index: int) -> dict[str, Any] | No
 def _effective_module_blueprints(policy_obj: dict[str, Any]) -> list[dict[str, Any]]:
     synthesis = policy_obj.get("synthesis") if isinstance(policy_obj.get("synthesis"), dict) else {}
     raw_blueprints = synthesis.get("module_blueprints")
-    source = raw_blueprints if isinstance(raw_blueprints, list) else _DEFAULT_POLICY.get("synthesis", {}).get("module_blueprints", [])
+    source = raw_blueprints if isinstance(raw_blueprints, list) else DEFAULT_POLICY.get("synthesis", {}).get("module_blueprints", [])
     out: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     for index, item in enumerate(source, start=1):
@@ -950,156 +805,6 @@ def _build_steps(
         step_no += 1
 
     return steps, truncated
-
-
-def _write_summary(
-    *,
-    workspace_root: Path,
-    plan: dict[str, Any],
-    plan_rel: str,
-    subject_id: str,
-    themes: list[dict[str, Any]],
-    modules: list[dict[str, Any]],
-) -> str:
-    summary_path = workspace_root / ".cache" / "reports" / "north_star_subject_plan_summary.v1.md"
-    decision = plan.get("decision") if isinstance(plan.get("decision"), dict) else {}
-    coverage = decision.get("coverage") if isinstance(decision.get("coverage"), dict) else {}
-    quality_gate = decision.get("quality_gate") if isinstance(decision.get("quality_gate"), dict) else {}
-    thresholds = quality_gate.get("thresholds") if isinstance(quality_gate.get("thresholds"), dict) else {}
-    actuals = quality_gate.get("actuals") if isinstance(quality_gate.get("actuals"), dict) else {}
-    scoring_weights = thresholds.get("scoring_weights") if isinstance(thresholds.get("scoring_weights"), dict) else {}
-
-    lines: list[str] = [
-        "# North Star Subject Plan Summary",
-        "",
-        f"- plan_id: {plan.get('plan_id', '')}",
-        f"- created_at: {plan.get('created_at', '')}",
-        f"- subject_id: {subject_id}",
-        f"- plan_path: {plan_rel}",
-        f"- theme_count: {coverage.get('theme_count', 0)}",
-        f"- subtheme_count: {coverage.get('subtheme_count', 0)}",
-        f"- module_count: {decision.get('module_count', 0)}",
-        f"- coverage_complete: {coverage.get('is_complete', False)}",
-        f"- coverage_quality_score: {coverage.get('coverage_quality_score', 0)}",
-        "",
-        "## Quality Gate",
-        f"- status: {quality_gate.get('status', 'UNKNOWN')}",
-        f"- enforced: {quality_gate.get('enforced', False)}",
-        f"- enforced_result: {quality_gate.get('enforced_result', False)}",
-        f"- max_module_count: {thresholds.get('max_module_count', '')}",
-        f"- min_coverage_quality: {thresholds.get('min_coverage_quality', '')}",
-        f"- require_full_coverage: {thresholds.get('require_full_coverage', '')}",
-        f"- scoring_pair_weight: {scoring_weights.get('pair_weight', '')}",
-        f"- scoring_theme_weight: {scoring_weights.get('theme_weight', '')}",
-        f"- scoring_completeness_weight: {scoring_weights.get('completeness_weight', '')}",
-        f"- actual_module_count: {actuals.get('module_count', '')}",
-        f"- actual_coverage_quality_score: {actuals.get('coverage_quality_score', '')}",
-        "",
-        "## Theme/Subtheme Catalog",
-    ]
-
-    if not themes:
-        lines.append("- (none)")
-    for theme in themes:
-        theme_id = _safe_str(theme.get("theme_id"))
-        subthemes = theme.get("subthemes") if isinstance(theme.get("subthemes"), list) else []
-        sub_ids = ", ".join(_safe_str(item.get("subtheme_id")) for item in subthemes if isinstance(item, dict)) or "-"
-        lines.append(f"- {theme_id}: {sub_ids}")
-
-    lines.append("")
-    lines.append("## Module Plan")
-    if not modules:
-        lines.append("- (none)")
-    for module in modules:
-        module_id = _safe_str(module.get("module_id"))
-        coverage_item = module.get("coverage") if isinstance(module.get("coverage"), dict) else {}
-        theme_ids = module.get("covered_theme_ids") if isinstance(module.get("covered_theme_ids"), list) else []
-        pairs = module.get("covered_subtheme_pairs") if isinstance(module.get("covered_subtheme_pairs"), list) else []
-        pair_labels = ", ".join(
-            f"{_safe_str(item.get('theme_id'))}/{_safe_str(item.get('subtheme_id'))}"
-            for item in pairs
-            if isinstance(item, dict)
-        )
-        lines.append(
-            (
-                f"- {module_id}: themes={','.join(str(x) for x in theme_ids)} "
-                f"subtheme_pairs={coverage_item.get('subtheme_pair_count', 0)} "
-                f"[{pair_labels or '-'}]"
-            )
-        )
-
-    lines.append("")
-    lines.append("## Coverage")
-    lines.append(f"- covered_theme_ids: {', '.join(coverage.get('covered_theme_ids', [])) or '-'}")
-    uncovered_themes = coverage.get("uncovered_theme_ids") if isinstance(coverage.get("uncovered_theme_ids"), list) else []
-    lines.append(f"- uncovered_theme_ids: {', '.join(str(x) for x in uncovered_themes) or '-'}")
-    uncovered_pairs = (
-        coverage.get("uncovered_theme_subtheme_pairs")
-        if isinstance(coverage.get("uncovered_theme_subtheme_pairs"), list)
-        else []
-    )
-    if uncovered_pairs:
-        pair_text = ", ".join(
-            f"{_safe_str(item.get('theme_id'))}/{_safe_str(item.get('subtheme_id'))}"
-            for item in uncovered_pairs
-            if isinstance(item, dict)
-        )
-    else:
-        pair_text = "-"
-    lines.append(f"- uncovered_theme_subtheme_pairs: {pair_text}")
-
-    lines.append("")
-    lines.append("## Steps")
-    for step in plan.get("steps", []) if isinstance(plan.get("steps"), list) else []:
-        if not isinstance(step, dict):
-            continue
-        ops = step.get("ops") if isinstance(step.get("ops"), list) else []
-        lines.append(f"- {step.get('step_id', '')}: {step.get('type', '')} -> {', '.join(str(op) for op in ops)}")
-
-    summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return _rel_path(workspace_root, summary_path)
-
-
-def _validate_subject_plan_contract(
-    *,
-    workspace_root: Path,
-    plan_obj: dict[str, Any],
-) -> tuple[bool, list[str], str]:
-    schema_path = _repo_root() / "schemas" / "north-star-subject-plan.schema.v1.json"
-    schema_label = _policy_rel_label(workspace_root, schema_path)
-    if not schema_path.exists():
-        return False, ["contract_schema_missing"], schema_label
-
-    try:
-        from jsonschema import Draft202012Validator
-    except Exception:
-        return False, ["contract_validator_missing:jsonschema"], schema_label
-
-    try:
-        schema_obj = _load_json(schema_path)
-    except Exception:
-        return False, ["contract_schema_invalid_json"], schema_label
-    if not isinstance(schema_obj, dict):
-        return False, ["contract_schema_invalid_object"], schema_label
-
-    try:
-        validator = Draft202012Validator(schema_obj)
-    except Exception:
-        return False, ["contract_schema_invalid_definition"], schema_label
-
-    errors = sorted(validator.iter_errors(plan_obj), key=lambda err: list(err.path))
-    if not errors:
-        return True, ["contract_validation=pass"], schema_label
-
-    notes: list[str] = []
-    for err in errors[:10]:
-        path = "/".join(str(part) for part in err.path) or "$"
-        message = str(err.message).replace("\n", " ").strip()
-        notes.append(f"contract_error:{path}:{message}")
-    if len(errors) > 10:
-        notes.append(f"contract_error_truncated:{len(errors)}")
-    return False, notes, schema_label
 
 
 def run_north_star_subject_to_plan(

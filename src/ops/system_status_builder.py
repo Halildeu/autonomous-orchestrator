@@ -399,6 +399,18 @@ def build_system_status(
                 "lenses": bench.get("lenses") or [],
                 "lens_gaps_count": int(bench.get("lens_gaps_count") or 0),
                 "lens_gaps_top": bench.get("lens_gaps_top") or [],
+                "subject_plan_ab_summary": bench.get("subject_plan_ab_summary")
+                or {
+                    "status": "FAIL",
+                    "report_path": str(Path(".cache") / "reports" / "north_star_subject_plan_ab_test.v1.json"),
+                    "subject_id": "",
+                    "available_profiles": [],
+                    "missing_profiles": ["A", "B", "C"],
+                    "best_profile": "",
+                    "best_score": 0.0,
+                    "last_requested_profile": "",
+                    "last_run_set": "",
+                },
                 "top_next_actions": bench.get("top_next_actions") or [],
                 "notes": bench.get("notes") or [],
             },
@@ -762,6 +774,24 @@ def _render_md(report: dict[str, Any]) -> str:
                 f"- {a.get('gap_id', '')} severity={a.get('severity', '')} "
                 f"risk={a.get('risk_class', '')} effort={a.get('effort', '')}"
             )
+    subject_plan_ab = bench.get("subject_plan_ab_summary") if isinstance(bench, dict) else None
+    if isinstance(subject_plan_ab, dict):
+        lines.append(
+            "Subject-plan A/B: "
+            f"status={subject_plan_ab.get('status', '')} "
+            f"subject={subject_plan_ab.get('subject_id', '')} "
+            f"best={subject_plan_ab.get('best_profile', '')} "
+            f"score={subject_plan_ab.get('best_score', 0)}"
+        )
+        available = subject_plan_ab.get("available_profiles")
+        if isinstance(available, list) and available:
+            lines.append("Profiles available: " + ", ".join(str(item) for item in available))
+        missing = subject_plan_ab.get("missing_profiles")
+        if isinstance(missing, list) and missing:
+            lines.append("Profiles missing: " + ", ".join(str(item) for item in missing))
+        report_path = subject_plan_ab.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            lines.append(f"Subject-plan report: {report_path}")
     lines.append("")
 
     work_intake = sections.get("work_intake") if isinstance(sections, dict) else {}

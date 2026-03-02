@@ -26,6 +26,10 @@ from src.ops.work_intake_helpers import (
     _normalize_evidence,
     _suggested_extensions,
 )
+from src.ops.work_intake_remediation import (
+    note_is_warning as _note_is_warning,
+    seed_source_artifacts as _seed_source_artifacts,
+)
 from src.ops.work_item_state import FINAL_STATES, load_state_map
 from src.ops.work_intake_autopilot import (
     _autopilot_labels,
@@ -44,6 +48,51 @@ def _load_json(path: Path) -> Any:
 
 def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _workspace_repo_fallback_id(workspace_root: Path) -> str:
+    digest = hashlib.sha1(str(workspace_root.resolve()).encode("utf-8")).hexdigest()[:8]
+    return f"WS-{digest}"
+
+
+def _load_workspace_repo_binding(workspace_root: Path) -> dict[str, str]:
+    fallback = {
+        "repo_id": _workspace_repo_fallback_id(workspace_root),
+        "repo_root": "",
+        "repo_slug": "",
+    }
+    binding_path = workspace_root / ".cache" / "index" / "workspace_repo_binding.v1.json"
+    if not binding_path.exists():
+        return fallback
+    try:
+        obj = _load_json(binding_path)
+    except Exception:
+        return fallback
+    if not isinstance(obj, dict):
+        return fallback
+
+    repo_id = str(obj.get("repo_id") or "").strip()
+    repo_root_raw = str(obj.get("repo_root") or "").strip()
+    repo_slug = str(obj.get("repo_slug") or "").strip()
+    workspace_raw = str(obj.get("workspace_root") or "").strip()
+    if workspace_raw:
+        try:
+            if Path(workspace_raw).expanduser().resolve() != workspace_root.resolve():
+                return fallback
+        except Exception:
+            return fallback
+
+    repo_root = ""
+    if repo_root_raw:
+        try:
+            repo_root = str(Path(repo_root_raw).expanduser().resolve())
+        except Exception:
+            repo_root = repo_root_raw
+    return {
+        "repo_id": repo_id or fallback["repo_id"],
+        "repo_root": repo_root,
+        "repo_slug": repo_slug,
+    }
 
 
 def _normalize_band(value: str) -> str:
@@ -118,6 +167,7 @@ def _policy_defaults() -> dict[str, Any]:
         "version": "v2",
         "enabled": True,
         "plan_policy": "optional",
+        "auto_remediation": {"enabled": True, "seed_tag": "work_intake_auto_remediation"},
         "bucket_order": ["INCIDENT", "TICKET", "PROJECT", "ROADMAP"],
         "bucket_rules": [
             {
@@ -707,6 +757,8 @@ def _load_context_router_overrides(workspace_root: Path, notes: list[str]) -> di
     except Exception:
         notes.append("context_router_result_invalid")
         return {}
+    if isinstance(obj, dict) and bool(obj.get("seed")):
+        return {}
     request_id = obj.get("request_id") if isinstance(obj, dict) else None
     bucket = obj.get("bucket") if isinstance(obj, dict) else None
     if not (isinstance(request_id, str) and request_id and isinstance(bucket, str) and bucket):
@@ -749,11 +801,15 @@ def _load_manual_request_sources(
         if not isinstance(obj, dict):
             notes.append("manual_request_invalid")
             continue
+        if bool(obj.get("seed")):
+            continue
+        kind = obj.get("kind") if isinstance(obj.get("kind"), str) else "unspecified"
+        if kind in {"seed", "__seed__"}:
+            continue
         request_id = obj.get("request_id") if isinstance(obj.get("request_id"), str) else path.stem
         if not request_id or request_id in seen:
             continue
         seen.add(request_id)
-        kind = obj.get("kind") if isinstance(obj.get("kind"), str) else "unspecified"
         impact_scope = obj.get("impact_scope") if isinstance(obj.get("impact_scope"), str) else "workspace-only"
         allowed_scopes = {"doc-only", "workspace-only", "core-change", "external-change"}
         if impact_scope not in allowed_scopes:
@@ -827,7 +883,12 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
     if not bool(policy.get("enabled", True)):
         return {"status": "IDLE", "reason": "policy_disabled"}
 
+    _seed_source_artifacts(workspace_root=workspace_root, policy=policy, notes=notes)
+
     generated_at = _now_iso()
+    repo_binding = _load_workspace_repo_binding(workspace_root)
+    repo_id = str(repo_binding.get("repo_id") or "").strip()
+    repo_root = str(repo_binding.get("repo_root") or "").strip()
 
     sources: list[dict[str, Any]] = []
     sources.extend(_load_gap_sources(workspace_root, notes))
@@ -895,6 +956,10 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
             "owner_tenant": owner_tenant,
             "layer": "L2",
         }
+        if repo_id:
+            item["repo_id"] = repo_id
+        if repo_root:
+            item["source_repo_root"] = repo_root
         last_seen = str(source.get("last_seen") or source.get("job_last_seen") or "")
         if last_seen:
             item["last_seen"] = last_seen
@@ -1004,6 +1069,10 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
             summary_item["autopilot_reason"] = item.get("autopilot_reason")
         if "autopilot_notes" in item:
             summary_item["autopilot_notes"] = item.get("autopilot_notes")
+        if "repo_id" in item:
+            summary_item["repo_id"] = item.get("repo_id")
+        if "source_repo_root" in item:
+            summary_item["source_repo_root"] = item.get("source_repo_root")
         if "lens_id" in item:
             summary_item["lens_id"] = item.get("lens_id")
         if "lens_reason" in item:
@@ -1020,11 +1089,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
                 next_focus = f"{bucket}:{intake_id}"
 
     status = "OK" if items else "IDLE"
-    warn_notes = [
-        n
-        for n in notes
-        if not str(n).startswith(("job_status_suppressed=", "github_ops_suppressed=", "deploy_job_suppressed="))
-    ]
+    warn_notes = [n for n in notes if _note_is_warning(str(n))]
     if warn_notes and status == "OK":
         status = "WARN"
 

@@ -66,6 +66,12 @@ def main() -> None:
         extension_id="PRJ-GITHUB-OPS",
         expected_gate="github-ops-check",
     )
+    context_router_payload = _run_case(
+        run_extension_run=run_extension_run,
+        ws=ws,
+        extension_id="PRJ-CONTEXT-ORCHESTRATION",
+        expected_gate="context-router-check",
+    )
 
     print(
         json.dumps(
@@ -74,6 +80,10 @@ def main() -> None:
                 "cases": [
                     {"extension_id": "PRJ-SEARCH", "single_gate_status": search_payload.get("single_gate_status")},
                     {"extension_id": "PRJ-GITHUB-OPS", "single_gate_status": github_payload.get("single_gate_status")},
+                    {
+                        "extension_id": "PRJ-CONTEXT-ORCHESTRATION",
+                        "single_gate_status": context_router_payload.get("single_gate_status"),
+                    },
                 ],
             },
             ensure_ascii=False,

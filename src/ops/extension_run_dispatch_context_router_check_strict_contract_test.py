@@ -39,6 +39,19 @@ def main() -> None:
         raise SystemExit("extension_run_dispatch_context_router_check_strict_contract_test failed: single_gate_status!=OK")
     if str(payload.get("status") or "") != "OK":
         raise SystemExit("extension_run_dispatch_context_router_check_strict_contract_test failed: run_status!=OK")
+    ws_root = Path(str(payload.get("workspace_root") or ""))
+    if not ws_root.is_absolute() or not ws_root.exists():
+        raise SystemExit("extension_run_dispatch_context_router_check_strict_contract_test failed: workspace_root invalid")
+    outputs = payload.get("single_gate_outputs") if isinstance(payload.get("single_gate_outputs"), dict) else {}
+    for key in ["request_intake_to_exec_trace_path", "context_orchestration_status_path"]:
+        rel = str(outputs.get(key) or "").strip()
+        if not rel:
+            raise SystemExit(f"extension_run_dispatch_context_router_check_strict_contract_test failed: missing {key}")
+        artifact = ws_root / rel
+        if not artifact.exists():
+            raise SystemExit(
+                f"extension_run_dispatch_context_router_check_strict_contract_test failed: artifact_not_found {key}={rel}"
+            )
     print(
         json.dumps(
             {

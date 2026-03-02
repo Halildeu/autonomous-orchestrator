@@ -100,6 +100,12 @@ const EXTENSION_DESCRIPTIONS_TR = {
     when: "Planlama/istişare çağrılarında.",
     output: "Plan adımları ve öneriler.",
   },
+  "PRJ-CONTEXT-ORCHESTRATION": {
+    summary: "AI yazılım geliştirme bağlamını uçtan uca orkestre eder.",
+    value: "Kaldığı yerden devam, bağlam paketleme ve bellek sürekliliği sağlar.",
+    when: "Bağlam yönetimi ve proje akışı birlikte işletildiğinde.",
+    output: "Context paketleri, oturum durumu ve izlenebilir plan/apply kanıtı.",
+  },
   "PRJ-PM-SUITE": {
     summary: "Proje/portföy yönetimi bileşenlerini sağlar.",
     value: "Projeleri yapılandırılmış biçimde takip etmeyi sağlar.",
@@ -630,6 +636,20 @@ const I18N = {
     "north_star.suggestions.modal_cancel": "Cancel",
     "north_star.suggestions.modal_submit": "Submit",
     "north_star.suggestions.modal_open_chat": "Open chat",
+    "north_star.subject_plan.title": "Subject -> Plan (A/B/C)",
+    "north_star.subject_plan.hint": "Pick scoring profile, run the same subject, and view A/B/C comparison.",
+    "north_star.subject_plan.subject_label": "Subject ID",
+    "north_star.subject_plan.subject_placeholder": "e.g., ai_ile_yazilim_projesi_yonetimi",
+    "north_star.subject_plan.profile_label": "Profile",
+    "north_star.subject_plan.runset_label": "Run set",
+    "north_star.subject_plan.runset_single": "Fast (single profile)",
+    "north_star.subject_plan.runset_abc": "Full (A/B/C)",
+    "north_star.subject_plan.persist": "Persist profile to scoring override",
+    "north_star.subject_plan.run_btn": "Run profile",
+    "north_star.subject_plan.subject_required": "Subject ID is required.",
+    "north_star.subject_plan.compare_empty": "No A/B/C comparison data yet.",
+    "north_star.subject_plan.meta": "subject={subject} profile={profile} run_set={run_set} best={best} score={score}",
+    "north_star.subject_plan.refresh_hint": "Run profile to refresh comparison.",
     "north_star.catalog_create.title": "Catalog Builder",
     "north_star.catalog_create.hint": "Prompt: v0.4.8 (prompt_refine_consolidated)",
     "north_star.catalog_create.subject_label": "Topic",
@@ -1313,6 +1333,20 @@ const I18N = {
     "north_star.suggestions.modal_cancel": "Vazgeç",
     "north_star.suggestions.modal_submit": "Gönder",
     "north_star.suggestions.modal_open_chat": "Sohbete git",
+    "north_star.subject_plan.title": "Subject -> Plan (A/B/C)",
+    "north_star.subject_plan.hint": "Scoring profilini seç, aynı subject için koşu al ve A/B/C kıyasını gör.",
+    "north_star.subject_plan.subject_label": "Subject ID",
+    "north_star.subject_plan.subject_placeholder": "örn: ai_ile_yazilim_projesi_yonetimi",
+    "north_star.subject_plan.profile_label": "Profil",
+    "north_star.subject_plan.runset_label": "Koşu tipi",
+    "north_star.subject_plan.runset_single": "Hızlı (tek profil)",
+    "north_star.subject_plan.runset_abc": "Tam (A/B/C)",
+    "north_star.subject_plan.persist": "Profili scoring override'a kalıcı yaz",
+    "north_star.subject_plan.run_btn": "Profili çalıştır",
+    "north_star.subject_plan.subject_required": "Subject ID gerekli.",
+    "north_star.subject_plan.compare_empty": "Henüz A/B/C kıyas verisi yok.",
+    "north_star.subject_plan.meta": "subject={subject} profile={profile} run_set={run_set} best={best} score={score}",
+    "north_star.subject_plan.refresh_hint": "Kıyas için profil koşusu çalıştırın.",
     "north_star.catalog_create.title": "Yeni Katalog Oluştur",
     "north_star.catalog_create.hint": "Prompt: v0.4.8 (prompt_refine_consolidated)",
     "north_star.catalog_create.subject_label": "Konu",
@@ -1581,6 +1615,7 @@ const northStarFlow2PolicySimPath = ".cache/policy_check/sim_report.json";
 const northStarFlow2PolicyDiffPath = ".cache/policy_check/policy_diff_report.json";
 const northStarFlow2SystemStatusPath = ".cache/ws_customer_default/.cache/reports/system_status.v1.json";
 const northStarFlow2ProjectStatusPath = ".cache/ws_customer_default/.cache/reports/project_status.v1.txt";
+const northStarSubjectPlanABReportPath = ".cache/ws_customer_default/.cache/reports/north_star_subject_plan_ab_test.v1.json";
 const extensionUsageReportPath = ".cache/reports/extension_usage_from_ops_log.v1.json";
 const opsLogIndexPointerPath = ".cache/reports/ops_log_index_canonical_pointer.v0.3.json";
 const promptRegistryPath = "registry/prompt_registry.v1.json";
@@ -1606,6 +1641,7 @@ const state = {
   northStarMechanismsSuggestions: null,
   northStarMechanismsHistory: null,
   northStarFlow2Status: null,
+  northStarSubjectPlanProfileRun: null,
   northStarMatrices: {
     reference: null,
     assessment: null,
@@ -1820,6 +1856,7 @@ const state = {
 let northStarFindingsUiAttached = false;
 let northStarFindingsControlsAttached = false;
 let northStarMechanismsControlsAttached = false;
+let northStarSubjectPlanControlsAttached = false;
 
 function unwrap(payload) {
   return payload && payload.data ? payload.data : payload;
@@ -1886,6 +1923,35 @@ async function fetchNorthStarMechanismsHistory() {
     return unwrap(data || {});
   } catch (err) {
     showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_history", error: formatError(err) }), "warn");
+    return null;
+  }
+}
+
+function deriveNorthStarSubjectPlanProfileRunFromReport(payload) {
+  const report = unwrap(payload || {}) || {};
+  const subjects = report && typeof report.subjects === "object" ? report.subjects : {};
+  const subjectId = String(report.last_subject_id || "").trim();
+  if (!subjectId) return null;
+  const subject = subjects && typeof subjects === "object" ? subjects[subjectId] : null;
+  if (!subject || typeof subject !== "object") return null;
+  const comparison = subject.comparison && typeof subject.comparison === "object" ? subject.comparison : {};
+  return {
+    status: String(comparison.status || "IDLE"),
+    subject_id: subjectId,
+    profile: String(subject.last_requested_profile || ""),
+    run_set: String(subject.last_run_set || ""),
+    runs: [],
+    comparison,
+    report_path: northStarSubjectPlanABReportPath,
+  };
+}
+
+async function fetchNorthStarSubjectPlanABReport() {
+  try {
+    const data = await fetchOptionalJson(northStarSubjectPlanABReportPath);
+    return deriveNorthStarSubjectPlanProfileRunFromReport(data);
+  } catch (err) {
+    showToast(t("toast.refresh_failed", { name: "north_star_subject_plan_ab", error: formatError(err) }), "warn");
     return null;
   }
 }
@@ -5798,6 +5864,132 @@ function renderNorthStarSuggestions() {
   container.innerHTML = `${filterBar}${rows}`;
   attachNorthStarSuggestionHandlers();
   bindSuggestionFilters();
+}
+
+function renderNorthStarSubjectPlanProfileRun() {
+  const badgeEl = $("#ns-subject-plan-status");
+  const metaEl = $("#ns-subject-plan-meta");
+  const compareEl = $("#ns-subject-plan-compare");
+  const subjectInput = $("#ns-subject-plan-subject");
+  const profileSelect = $("#ns-subject-plan-profile");
+  const runSetSelect = $("#ns-subject-plan-runset");
+
+  if (!badgeEl || !metaEl || !compareEl) return;
+
+  const defaultSubject = String(getPrimaryMechanismsSubjectFilter() || "").trim();
+  if (subjectInput && !String(subjectInput.value || "").trim() && defaultSubject) {
+    subjectInput.value = defaultSubject;
+  }
+
+  const payload =
+    state.northStarSubjectPlanProfileRun && typeof state.northStarSubjectPlanProfileRun === "object"
+      ? state.northStarSubjectPlanProfileRun
+      : null;
+
+  if (!payload) {
+    setBadge(badgeEl, "IDLE");
+    metaEl.textContent = t("north_star.subject_plan.refresh_hint");
+    compareEl.innerHTML = `<div class="empty">${escapeHtml(t("north_star.subject_plan.compare_empty"))}</div>`;
+    attachNorthStarSubjectPlanHandlers();
+    return;
+  }
+
+  const status = String(payload.status || "IDLE");
+  setBadge(badgeEl, status);
+
+  const subject = String(payload.subject_id || "").trim() || defaultSubject || "-";
+  const profile = String(payload.profile || "").trim() || "-";
+  const runSet = String(payload.run_set || "").trim() || "-";
+  const comparison = payload.comparison && typeof payload.comparison === "object" ? payload.comparison : {};
+  const bestProfile = String(comparison.best_profile || "").trim() || "-";
+  const bestScore = formatNumber(comparison.best_score);
+
+  if (profileSelect && profile && profile !== "-") profileSelect.value = profile;
+  if (runSetSelect && runSet && runSet !== "-") runSetSelect.value = runSet;
+
+  metaEl.textContent = t("north_star.subject_plan.meta", {
+    subject,
+    profile,
+    run_set: runSet,
+    best: bestProfile,
+    score: bestScore,
+  });
+
+  const rows = Array.isArray(comparison.profiles)
+    ? comparison.profiles
+        .filter((item) => item && typeof item === "object")
+        .map((item) => ({
+          profile: String(item.profile || ""),
+          status: String(item.status || ""),
+          gate: String(item.quality_gate_status || ""),
+          score: formatNumber(item.coverage_quality_score),
+          modules: String(toSafeInt(item.module_count, 0)),
+          plan_id: String(item.plan_id || ""),
+          ran_at: formatTimestamp(item.ran_at || "") || String(item.ran_at || ""),
+        }))
+    : [];
+
+  if (!rows.length) {
+    compareEl.innerHTML = `<div class="empty">${escapeHtml(t("north_star.subject_plan.compare_empty"))}</div>`;
+  } else {
+    renderStaticTable("#ns-subject-plan-compare", rows, [
+      { key: "profile", label: "Profile" },
+      { key: "status", label: t("table.status") },
+      { key: "gate", label: "Gate" },
+      { key: "score", label: t("table.score") },
+      { key: "modules", label: "Modules" },
+      { key: "plan_id", label: "Plan ID" },
+      { key: "ran_at", label: "Run At" },
+    ]);
+  }
+
+  attachNorthStarSubjectPlanHandlers();
+}
+
+function attachNorthStarSubjectPlanHandlers() {
+  if (northStarSubjectPlanControlsAttached) return;
+
+  const runBtn = $("#ns-subject-plan-run-btn");
+  const subjectInput = $("#ns-subject-plan-subject");
+  const profileSelect = $("#ns-subject-plan-profile");
+  const runSetSelect = $("#ns-subject-plan-runset");
+  const persistCheckbox = $("#ns-subject-plan-persist");
+
+  if (runBtn) {
+    runBtn.onclick = async () => {
+      const subjectRaw = String(subjectInput?.value || "").trim();
+      const fallbackSubject = String(getPrimaryMechanismsSubjectFilter() || "").trim();
+      const subjectId = subjectRaw || fallbackSubject;
+      if (!subjectId) {
+        showToast(t("north_star.subject_plan.subject_required"), "warn");
+        return;
+      }
+      if (subjectInput && !subjectRaw) subjectInput.value = subjectId;
+      const profile = String(profileSelect?.value || "C").trim() || "C";
+      const runSet = String(runSetSelect?.value || "single").trim() || "single";
+      const persistProfile = Boolean(persistCheckbox?.checked);
+
+      try {
+        const result = ensureOpOk(
+          await postOp("north-star-subject-plan-profile-run", {
+            subject_id: subjectId,
+            profile,
+            run_set: runSet,
+            mode: "plan_first",
+            out: "latest",
+            persist_profile: persistProfile ? "true" : "false",
+          }),
+          "north-star-subject-plan-profile-run"
+        );
+        state.northStarSubjectPlanProfileRun = result;
+        renderNorthStarSubjectPlanProfileRun();
+      } catch (err) {
+        showToast(formatError(err), "warn");
+      }
+    };
+  }
+
+  northStarSubjectPlanControlsAttached = true;
 }
 
 function loadAiSuggestThreadStorage() {
@@ -9831,6 +10023,7 @@ function renderNorthStar() {
   renderNorthStarLensDetails(payload, evalData);
   renderNorthStarMechanisms();
   renderNorthStarSuggestions();
+  renderNorthStarSubjectPlanProfileRun();
 
   // Lens Findings source comes from eval; visible rows are fail-closed behind manual transfer scopes.
   const sourceFindingsByLens = {};
@@ -13146,13 +13339,14 @@ async function refreshOverview() {
 }
 
 async function refreshNorthStar() {
-  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory, flow2Status] = await Promise.all([
+  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory, flow2Status, subjectPlanAb] = await Promise.all([
     fetchJson(endpoints.northStar),
     fetchNorthStarCriteriaPacks(),
     fetchNorthStarMechanismsRegistry(),
     fetchNorthStarMechanismsSuggestions(),
     fetchNorthStarMechanismsHistory(),
     fetchNorthStarFlow2Status(),
+    fetchNorthStarSubjectPlanABReport(),
   ]);
   state.northStar = northStar;
   if (criteriaPacks) state.northStarCriteriaPacks = criteriaPacks;
@@ -13160,6 +13354,7 @@ async function refreshNorthStar() {
   if (mechanismsSuggestions) state.northStarMechanismsSuggestions = mechanismsSuggestions;
   if (mechanismsHistory) state.northStarMechanismsHistory = mechanismsHistory;
   state.northStarFlow2Status = flow2Status || null;
+  state.northStarSubjectPlanProfileRun = subjectPlanAb && typeof subjectPlanAb === "object" ? subjectPlanAb : null;
   renderNorthStar();
 }
 

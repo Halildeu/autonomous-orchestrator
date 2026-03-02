@@ -2450,6 +2450,41 @@
               <div class="subtle" id="north-star-suggestions-meta"></div>
               <div id="north-star-suggestions"></div>
             </div>
+            <div class="card">
+              <div class="row" style="justify-content: space-between; align-items: center;">
+                <h3 data-i18n="north_star.subject_plan.title" style="margin: 0;">Subject -> Plan (A/B/C)</h3>
+                <div class="badge" id="ns-subject-plan-status">IDLE</div>
+              </div>
+              <div class="subtle" data-i18n="north_star.subject_plan.hint">Scoring profilini seç, aynı subject için hızlı koşu al ve A/B/C kıyasını gör.</div>
+              <div class="row" style="gap: 8px; align-items: flex-end; margin-top: 8px; flex-wrap: wrap;">
+                <div class="field-stack" style="min-width: 260px; flex: 1 1 260px;">
+                  <label class="subtle" for="ns-subject-plan-subject" data-i18n="north_star.subject_plan.subject_label">Subject ID</label>
+                  <input class="input" id="ns-subject-plan-subject" placeholder="ai_ile_yazilim_projesi_yonetimi" data-i18n-placeholder="north_star.subject_plan.subject_placeholder" />
+                </div>
+                <div class="field-stack" style="min-width: 140px;">
+                  <label class="subtle" for="ns-subject-plan-profile" data-i18n="north_star.subject_plan.profile_label">Profil</label>
+                  <select class="input" id="ns-subject-plan-profile">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C" selected>C</option>
+                  </select>
+                </div>
+                <div class="field-stack" style="min-width: 160px;">
+                  <label class="subtle" for="ns-subject-plan-runset" data-i18n="north_star.subject_plan.runset_label">Koşu tipi</label>
+                  <select class="input" id="ns-subject-plan-runset">
+                    <option value="single" data-i18n="north_star.subject_plan.runset_single">Hızlı (tek profil)</option>
+                    <option value="abc" data-i18n="north_star.subject_plan.runset_abc">Tam (A/B/C)</option>
+                  </select>
+                </div>
+                <label class="checkbox" style="margin-bottom: 6px;">
+                  <input id="ns-subject-plan-persist" type="checkbox" checked />
+                  <span data-i18n="north_star.subject_plan.persist">Profili override’a kalıcı yaz</span>
+                </label>
+                <button class="btn ghost small" id="ns-subject-plan-run-btn" type="button" data-i18n="north_star.subject_plan.run_btn">Profili çalıştır</button>
+              </div>
+              <div class="subtle" id="ns-subject-plan-meta"></div>
+              <div id="ns-subject-plan-compare" class="table-wrap" style="margin-top: 8px;"></div>
+            </div>
 			            <div class="card">
 				              <h3 data-i18n="h.lens_findings">Lens Findings</h3>
 				              <div class="subtle" id="ns-findings-meta" data-i18n="north_star.select_lens_hint">Select a lens to explore findings.</div>

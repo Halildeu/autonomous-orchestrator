@@ -139,6 +139,59 @@ def cmd_planner_build_plan(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
+def cmd_north_star_subject_to_plan(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    subject_id = str(getattr(args, "subject_id", "") or "").strip()
+    if not subject_id:
+        warn("FAIL error=SUBJECT_ID_REQUIRED")
+        return 2
+
+    mode = str(getattr(args, "mode", "plan_first") or "plan_first").strip() or "plan_first"
+    out = str(getattr(args, "out", "latest") or "latest").strip() or "latest"
+
+    from src.prj_planner.north_star_subject_plan import run_north_star_subject_to_plan
+
+    payload = run_north_star_subject_to_plan(workspace_root=ws, subject_id=subject_id, mode=mode, out=out)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_north_star_subject_plan_profile_run(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    subject_id = str(getattr(args, "subject_id", "") or "").strip()
+    if not subject_id:
+        warn("FAIL error=SUBJECT_ID_REQUIRED")
+        return 2
+
+    profile = str(getattr(args, "profile", "C") or "C").strip() or "C"
+    run_set = str(getattr(args, "run_set", "abc") or "abc").strip() or "abc"
+    mode = str(getattr(args, "mode", "plan_first") or "plan_first").strip() or "plan_first"
+    out = str(getattr(args, "out", "latest") or "latest").strip() or "latest"
+    persist_profile = parse_reaper_bool(str(getattr(args, "persist_profile", "true")))
+
+    from src.prj_planner.north_star_subject_plan_profile_run import run_north_star_subject_plan_profile_run
+
+    payload = run_north_star_subject_plan_profile_run(
+        workspace_root=ws,
+        subject_id=subject_id,
+        profile=profile,
+        run_set=run_set,
+        mode=mode,
+        out=out,
+        persist_profile=persist_profile,
+    )
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_planner_show_plan(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:

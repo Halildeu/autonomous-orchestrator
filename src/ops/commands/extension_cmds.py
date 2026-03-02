@@ -34,6 +34,8 @@ from src.ops.commands.extension_cmds_airunner import (
     cmd_extension_help,
     cmd_extension_registry,
     cmd_extension_run,
+    cmd_north_star_subject_plan_profile_run,
+    cmd_north_star_subject_to_plan,
     cmd_planner_apply_selection,
     cmd_planner_build_plan,
     cmd_planner_show_plan,
@@ -809,6 +811,33 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
     ap_planner_build.add_argument("--mode", default="plan_first", help="Plan mode (default: plan_first).")
     ap_planner_build.add_argument("--out", default="latest", help="latest|<plan_id> (default: latest).")
     ap_planner_build.set_defaults(func=cmd_planner_build_plan)
+
+    ap_ns_subject_plan = parent.add_parser(
+        "north-star-subject-to-plan",
+        help="Bridge North Star subject catalog to standardized planner plan JSON.",
+    )
+    ap_ns_subject_plan.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_subject_plan.add_argument("--subject-id", required=True, help="North Star subject id.")
+    ap_ns_subject_plan.add_argument("--mode", default="plan_first", help="Plan mode (default: plan_first).")
+    ap_ns_subject_plan.add_argument("--out", default="latest", help="latest|<plan_id> (default: latest).")
+    ap_ns_subject_plan.set_defaults(func=cmd_north_star_subject_to_plan)
+
+    ap_ns_subject_profile = parent.add_parser(
+        "north-star-subject-plan-profile-run",
+        help="Run North Star subject-to-plan with scoring profile presets (A/B/C) and emit comparison report.",
+    )
+    ap_ns_subject_profile.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_subject_profile.add_argument("--subject-id", required=True, help="North Star subject id.")
+    ap_ns_subject_profile.add_argument("--profile", default="C", help="A|B|C (default: C).")
+    ap_ns_subject_profile.add_argument("--run-set", default="abc", help="single|abc (default: abc; forced to abc).")
+    ap_ns_subject_profile.add_argument("--mode", default="plan_first", help="Plan mode (default: plan_first).")
+    ap_ns_subject_profile.add_argument("--out", default="latest", help="latest|<plan_prefix> (default: latest).")
+    ap_ns_subject_profile.add_argument(
+        "--persist-profile",
+        default="true",
+        help="true|false (default: true). true keeps selected profile in scoring override.",
+    )
+    ap_ns_subject_profile.set_defaults(func=cmd_north_star_subject_plan_profile_run)
 
     ap_planner_show = parent.add_parser("planner-show-plan", help="Show planner plan (program-led, local).")
     ap_planner_show.add_argument("--workspace-root", required=True, help="Workspace root path.")

@@ -6,6 +6,28 @@ from typing import Any, Callable
 from server_utils import _read_json_file
 
 
+def _matrix_payload_perf_safe(path: Path) -> dict[str, Any]:
+    """Return matrix metadata only; avoid shipping 30MB+ matrix payloads to the browser."""
+    exists = path.exists()
+    size_bytes = 0
+    if exists:
+        try:
+            size_bytes = int(path.stat().st_size)
+        except Exception:
+            size_bytes = 0
+    return {
+        "path": str(path),
+        "exists": bool(exists),
+        "json_valid": None,
+        "data": {
+            "items": [],
+            "omitted": True,
+            "reason": "MATRIX_OMITTED_FOR_PERF",
+            "size_bytes": size_bytes,
+        },
+    }
+
+
 def build_north_star_payload(
     *,
     repo_root: Path,
@@ -28,9 +50,9 @@ def build_north_star_payload(
     trend_catalog_payload = wrap_file(trend_catalog_path)
     bp_catalog_payload = wrap_file(bp_catalog_path)
     north_star_catalog_payload = wrap_file(north_star_catalog_path)
-    reference_matrix_payload = wrap_file(reference_matrix_path)
-    assessment_matrix_payload = wrap_file(assessment_matrix_path)
-    gap_matrix_payload = wrap_file(gap_matrix_path)
+    reference_matrix_payload = _matrix_payload_perf_safe(reference_matrix_path)
+    assessment_matrix_payload = _matrix_payload_perf_safe(assessment_matrix_path)
+    gap_matrix_payload = _matrix_payload_perf_safe(gap_matrix_path)
     scorecard_payload = wrap_file(scorecard_path)
 
     eval_data = eval_payload.get("data") if isinstance(eval_payload, dict) else {}

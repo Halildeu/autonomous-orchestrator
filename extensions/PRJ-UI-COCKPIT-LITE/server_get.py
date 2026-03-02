@@ -21,6 +21,27 @@ def _short_str(value: Any, limit: int = 300) -> str:
     return f"{text[: max(0, limit - 3)]}..."
 
 
+def _normalize_jsonable(obj: Any, depth: int = 0, max_depth: int = 6) -> Any:
+    if depth > max_depth:
+        return _short_str(obj)
+    if isinstance(obj, dict):
+        return {str(key): _normalize_jsonable(value, depth + 1, max_depth) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_jsonable(item, depth + 1, max_depth) for item in obj]
+    if isinstance(obj, (tuple, set)):
+        return [_normalize_jsonable(item, depth + 1, max_depth) for item in obj]
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, bytes):
+        try:
+            return obj.decode("utf-8")
+        except Exception:
+            return _short_str(obj)
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return _short_str(obj)
+
+
 def _multi_repo_status_value(raw: Any, *, missing_to: str = "MISSING") -> str:
     raw_text = str(raw or "").strip().upper()
     if raw_text:

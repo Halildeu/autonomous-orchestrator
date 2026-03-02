@@ -21,12 +21,70 @@ from src.benchmark.eval_runner import (
     _write_if_missing,
 )
 
+_DEFAULT_DIMENSION_MAP = {
+    "trend_best_practice": "A",
+    "integrity_compat": "B",
+    "ai_ops_fit": "C",
+    "github_ops_release": "D",
+    "operability": "E",
+    "integration_coherence": "F",
+}
+
+_DEFAULT_MATURITY_LEVELS: list[dict[str, Any]] = [
+    {
+        "id": "L1",
+        "label": "Foundation",
+        "description": "Signal visibility is basic and mostly reactive.",
+        "min_score": 0.0,
+        "max_score": 0.24,
+        "criteria": ["Core signals are partially present", "Most checks are manual"],
+    },
+    {
+        "id": "L2",
+        "label": "Managed",
+        "description": "Signals are consistently produced with limited automation.",
+        "min_score": 0.25,
+        "max_score": 0.49,
+        "criteria": ["Critical checks are repeatable", "Partial gate automation exists"],
+    },
+    {
+        "id": "L3",
+        "label": "Defined",
+        "description": "Process and execution controls are standardized.",
+        "min_score": 0.5,
+        "max_score": 0.69,
+        "criteria": ["Policy-driven execution is standard", "Evidence paths are stable"],
+    },
+    {
+        "id": "L4",
+        "label": "Measured",
+        "description": "Quality and flow are tracked with proactive remediation.",
+        "min_score": 0.7,
+        "max_score": 0.84,
+        "criteria": ["Lens-based scoring drives backlog", "Regression loops are controlled"],
+    },
+    {
+        "id": "L5",
+        "label": "Autonomous",
+        "description": "End-to-end execution is deterministic and continuously optimized.",
+        "min_score": 0.85,
+        "max_score": 1.0,
+        "criteria": ["Quality bar is consistently enforced", "Execution is mostly self-healing"],
+    },
+]
+
 
 def _load_policy_north_star_eval_lenses(*, core_root: Path, workspace_root: Path) -> dict[str, Any]:
     defaults = {
         "version": "v1",
-        "mode": "lensless",
+        "mode": "lenses",
         "workflow_axes": ["reference", "assessment", "gap"],
+        "dimension_map": dict(_DEFAULT_DIMENSION_MAP),
+        "maturity_tracking": {
+            "enabled": True,
+            "output_path": ".cache/index/north_star_maturity_tracking.v1.json",
+            "levels": list(_DEFAULT_MATURITY_LEVELS),
+        },
     }
     ws_policy = workspace_root / "policies" / "policy_north_star_eval_lenses.v1.json"
     core_policy = core_root / "policies" / "policy_north_star_eval_lenses.v1.json"
@@ -205,6 +263,141 @@ def _ensure_catalogs(workspace_root: Path, *, allow_write: bool) -> tuple[Path, 
     return bp_path, trend_path, bp_items, trend_items
 
 
+def _safe_unit_float(value: Any, default: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except Exception:
+        parsed = default
+    if parsed < 0.0:
+        return 0.0
+    if parsed > 1.0:
+        return 1.0
+    return parsed
+
+
+def _normalized_dimension_map(lenses_policy: dict[str, Any]) -> dict[str, str]:
+    raw = lenses_policy.get("dimension_map")
+    if not isinstance(raw, dict):
+        return dict(_DEFAULT_DIMENSION_MAP)
+    out = dict(_DEFAULT_DIMENSION_MAP)
+    allowed = {"A", "B", "C", "D", "E", "F"}
+    for lens_id in _DEFAULT_DIMENSION_MAP.keys():
+        value = raw.get(lens_id)
+        if isinstance(value, str) and value in allowed:
+            out[lens_id] = value
+    return out
+
+
+def _normalized_maturity_levels(lenses_policy: dict[str, Any]) -> list[dict[str, Any]]:
+    mt = lenses_policy.get("maturity_tracking") if isinstance(lenses_policy.get("maturity_tracking"), dict) else {}
+    raw_levels = mt.get("levels")
+    source = raw_levels if isinstance(raw_levels, list) else list(_DEFAULT_MATURITY_LEVELS)
+    out: list[dict[str, Any]] = []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        level_id = str(item.get("id") or "").strip()
+        label = str(item.get("label") or "").strip()
+        if not level_id or not label:
+            continue
+        criteria_raw = item.get("criteria")
+        criteria = [str(x).strip() for x in criteria_raw if isinstance(x, str) and str(x).strip()] if isinstance(
+            criteria_raw, list
+        ) else []
+        min_score = _safe_unit_float(item.get("min_score"), 0.0)
+        max_score = _safe_unit_float(item.get("max_score"), 1.0)
+        if max_score < min_score:
+            min_score, max_score = max_score, min_score
+        level_obj: dict[str, Any] = {
+            "id": level_id,
+            "label": label,
+            "criteria": criteria,
+            "min_score": round(min_score, 4),
+            "max_score": round(max_score, 4),
+        }
+        description = item.get("description")
+        if isinstance(description, str) and description.strip():
+            level_obj["description"] = description.strip()
+        out.append(level_obj)
+    if not out:
+        return list(_DEFAULT_MATURITY_LEVELS)
+    out.sort(key=lambda item: float(item.get("min_score", 0.0)))
+    return out
+
+
+def _maturity_level_for_score(levels: list[dict[str, Any]], score: float) -> dict[str, Any]:
+    if not levels:
+        return {
+            "id": "L0",
+            "label": "Unknown",
+            "criteria": [],
+            "min_score": 0.0,
+            "max_score": 1.0,
+        }
+    for item in levels:
+        min_score = _safe_unit_float(item.get("min_score"), 0.0)
+        max_score = _safe_unit_float(item.get("max_score"), 1.0)
+        if min_score <= score <= max_score:
+            return item
+    if score < _safe_unit_float(levels[0].get("min_score"), 0.0):
+        return levels[0]
+    return levels[-1]
+
+
+def _build_maturity_document(
+    *,
+    workspace_root: Path,
+    lenses_policy: dict[str, Any],
+    mode: str,
+    coverage: float,
+    lens_scores: dict[str, dict[str, Any]],
+    fallback_score: float,
+) -> dict[str, Any]:
+    dimension_map = _normalized_dimension_map(lenses_policy)
+    levels = _normalized_maturity_levels(lenses_policy)
+    has_lens_scores = any(isinstance(lens_scores.get(lens_id), dict) for lens_id in dimension_map.keys())
+    dimensions: list[dict[str, Any]] = []
+    if has_lens_scores:
+        ordered_pairs = sorted(dimension_map.items(), key=lambda item: (str(item[1]), str(item[0])))
+        for lens_id, dimension in ordered_pairs:
+            lens = lens_scores.get(lens_id) if isinstance(lens_scores.get(lens_id), dict) else {}
+            status = str(lens.get("status") or "UNKNOWN").upper()
+            if status not in {"OK", "WARN", "FAIL"}:
+                status = "UNKNOWN"
+            score = _safe_unit_float(lens.get("score"), 0.0)
+            dimensions.append(
+                {
+                    "dimension": dimension,
+                    "lens_id": lens_id,
+                    "status": status,
+                    "score": round(score, 4),
+                }
+            )
+
+    if has_lens_scores and dimensions:
+        maturity_score = round(sum(float(item.get("score", 0.0)) for item in dimensions) / float(len(dimensions)), 4)
+    else:
+        maturity_score = round(_safe_unit_float(fallback_score), 4)
+
+    current_level = _maturity_level_for_score(levels, maturity_score)
+    return {
+        "version": "v1",
+        "levels": levels,
+        "tracking": {
+            "generated_at": _now_iso(),
+            "workspace_root": str(workspace_root),
+            "mode": mode,
+            "source_eval_ref": str(Path(".cache") / "index" / "assessment_eval.v1.json"),
+            "score": maturity_score,
+            "coverage": round(_safe_unit_float(coverage), 4),
+            "current_level_id": str(current_level.get("id") or "L0"),
+            "current_level_label": str(current_level.get("label") or "Unknown"),
+            "dimensions": dimensions,
+            "notes": [],
+        },
+    }
+
+
 def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     core_root = Path(__file__).resolve().parents[2]
     raw_path = workspace_root / ".cache" / "index" / "assessment_raw.v1.json"
@@ -288,6 +481,22 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "reference_catalog_items": int(bp_items + trend_items),
             "notes": sorted(set(notes)),
         }
+        integrity_component = 1.0 if integrity_state == "PASS" else (0.5 if integrity_state == "WARN" else 0.0)
+        raw_component = 1.0 if bool(raw_path.exists()) else 0.0
+        catalog_component = _safe_unit_float(coverage, 0.0)
+        maturity_avg = round((integrity_component + raw_component + catalog_component) / 3.0, 4)
+        maturity_doc = _build_maturity_document(
+            workspace_root=workspace_root,
+            lenses_policy=lenses_policy,
+            mode="lensless",
+            coverage=coverage,
+            lens_scores={},
+            fallback_score=maturity_avg,
+        )
+        maturity_avg = _safe_unit_float(
+            (maturity_doc.get("tracking") if isinstance(maturity_doc.get("tracking"), dict) else {}).get("score"),
+            maturity_avg,
+        )
 
         payload = {
             "version": "v1",
@@ -302,6 +511,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "scores": {"maturity_avg": round(maturity_avg, 4), "coverage": round(coverage, 4)},
             "inputs": {"controls": controls, "metrics": metrics, "bp_items": bp_items, "trend_items": trend_items},
             "assessment": assessment_payload,
+            "maturity_tracking": maturity_doc,
             "notes": sorted(set(notes)),
         }
 
@@ -846,6 +1056,25 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "airrunner_jobs_index_path": jobs_signal.get("jobs_index_path"),
         },
     )
+    lens_dimension_map = _normalized_dimension_map(lenses_policy)
+    lens_scores_map = {
+        "trend_best_practice": {"status": trend_status, "score": round(float(coverage), 4)},
+        "integrity_compat": {"status": integrity_lens_status, "score": round(float(integrity_score), 4)},
+        "integration_coherence": {"status": integration_classification, "score": round(float(integration_score), 4)},
+        "ai_ops_fit": {"status": ai_ops_status, "score": round(float(ai_ops_score), 4)},
+        "github_ops_release": {"status": gh_status, "score": round(float(gh_score), 4)},
+        "operability": {"status": operability_status, "score": round(float(operability_score), 4)},
+    }
+    maturity_doc = _build_maturity_document(
+        workspace_root=workspace_root,
+        lenses_policy=lenses_policy,
+        mode="lenses",
+        coverage=coverage,
+        lens_scores=lens_scores_map,
+        fallback_score=coverage,
+    )
+    maturity_tracking = maturity_doc.get("tracking") if isinstance(maturity_doc.get("tracking"), dict) else {}
+    maturity_avg = _safe_unit_float(maturity_tracking.get("score"), 0.0)
 
     payload = {
         "version": "v1",
@@ -861,6 +1090,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "inputs": {"controls": controls, "metrics": metrics, "bp_items": bp_items, "trend_items": trend_items},
         "lenses": {
             "trend_best_practice": {
+                "dimension": lens_dimension_map.get("trend_best_practice", "A"),
                 "status": trend_status,
                 "score": round(float(coverage), 4),
                 "coverage": round(float(coverage), 4),
@@ -868,12 +1098,14 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "findings": trend_findings,
             },
             "integrity_compat": {
+                "dimension": lens_dimension_map.get("integrity_compat", "B"),
                 "status": integrity_lens_status,
                 "score": round(float(integrity_score), 4),
                 "integrity_status": str(integrity_status or "FAIL"),
                 "notes": [],
             },
             "integration_coherence": {
+                "dimension": lens_dimension_map.get("integration_coherence", "F"),
                 "status": integration_classification,
                 "score": round(float(integration_score), 4),
                 "classification": integration_classification,
@@ -882,6 +1114,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "findings": integration_findings,
             },
             "ai_ops_fit": {
+                "dimension": lens_dimension_map.get("ai_ops_fit", "C"),
                 "status": ai_ops_status,
                 "score": round(float(ai_ops_score), 4),
                 "requirements": {
@@ -893,6 +1126,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "findings": ai_ops_findings,
             },
             "github_ops_release": {
+                "dimension": lens_dimension_map.get("github_ops_release", "D"),
                 "status": gh_status,
                 "score": round(float(gh_score), 4),
                 "coverage": round(float(gh_score), 4),
@@ -901,6 +1135,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "findings": gh_ops_findings,
             },
             "operability": {
+                "dimension": lens_dimension_map.get("operability", "E"),
                 "status": operability_status,
                 "score": round(float(operability_score), 4),
                 "classification": operability_classification,
@@ -914,6 +1149,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "findings": operability_findings,
             },
         },
+        "maturity_tracking": maturity_doc,
         "notes": sorted(set(notes)),
     }
 
