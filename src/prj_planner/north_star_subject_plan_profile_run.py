@@ -236,7 +236,7 @@ def _comparison_summary(latest_by_profile: dict[str, dict[str, Any]]) -> dict[st
     )
     best_profile = str(ranked[0].get("profile") or "") if ranked else ""
     best_score = round(_safe_float(ranked[0].get("coverage_quality_score"), 0.0), 6) if ranked else 0.0
-    status = "OK" if len(missing_profiles) == 0 else ("WARN" if available_profiles else "IDLE")
+    status = "OK" if len(missing_profiles) == 0 else "FAIL"
 
     return {
         "status": status,
