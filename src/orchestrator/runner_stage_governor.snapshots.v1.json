@@ -1,0 +1,45 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "stage": "governor",
+  "scenarios": [
+    {
+      "id": "governor_quarantined_intent",
+      "fixture": "0001.json",
+      "mutations": [
+        "governor:quarantine_intent"
+      ],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "GOVERNOR",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "governor_concurrency_lock",
+      "fixture": "0001.json",
+      "mutations": [
+        "governor:concurrency_lock_exists"
+      ],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "GOVERNOR",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    }
+  ]
+}

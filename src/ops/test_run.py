@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -66,6 +68,11 @@ def _format_test_result(name: str, passed: bool, details: str | None = None) -> 
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _tail_line(text: str) -> str:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
 
 
 def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any]:
@@ -216,6 +223,126 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
             rel = str(state_out)
         evidence_paths.append(rel)
 
+    # 6) session decision -> cross-session -> context-pack mandatory E2E contract.
+    session_context_pack_cmd = [sys.executable, "-m", "src.ops.session_context_pack_e2e_contract_test"]
+    session_context_pack_proc = subprocess.run(session_context_pack_cmd, cwd=repo_root(), text=True, capture_output=True)
+    session_context_pack_ok = session_context_pack_proc.returncode == 0
+    session_context_pack_detail = (
+        _tail_line(session_context_pack_proc.stdout)
+        or _tail_line(session_context_pack_proc.stderr)
+        or f"rc={session_context_pack_proc.returncode}"
+    )
+    tests.append(_format_test_result("session_context_pack_e2e_contract", session_context_pack_ok, session_context_pack_detail))
+    if not session_context_pack_ok:
+        failures.append("session_context_pack_e2e_contract")
+
+    # 7) system-status airunner idle overall contract (idle+disabled must not force WARN).
+    airunner_idle_cmd = [sys.executable, "-m", "src.ops.system_status_airunner_idle_overall_contract_test"]
+    airunner_idle_proc = subprocess.run(airunner_idle_cmd, cwd=repo_root(), text=True, capture_output=True)
+    airunner_idle_ok = airunner_idle_proc.returncode == 0
+    airunner_idle_detail = (
+        _tail_line(airunner_idle_proc.stdout)
+        or _tail_line(airunner_idle_proc.stderr)
+        or f"rc={airunner_idle_proc.returncode}"
+    )
+    tests.append(_format_test_result("system_status_airunner_idle_overall_contract", airunner_idle_ok, airunner_idle_detail))
+    if not airunner_idle_ok:
+        failures.append("system_status_airunner_idle_overall_contract")
+
+    # 8) derived artifact missing action reconcile contract (stale -> resolved, missing -> reopened).
+    artifact_reconcile_cmd = [sys.executable, "-m", "src.roadmap.artifact_missing_action_reconcile_contract_test"]
+    artifact_reconcile_proc = subprocess.run(artifact_reconcile_cmd, cwd=repo_root(), text=True, capture_output=True)
+    artifact_reconcile_ok = artifact_reconcile_proc.returncode == 0
+    artifact_reconcile_detail = (
+        _tail_line(artifact_reconcile_proc.stdout)
+        or _tail_line(artifact_reconcile_proc.stderr)
+        or f"rc={artifact_reconcile_proc.returncode}"
+    )
+    tests.append(_format_test_result("artifact_missing_action_reconcile_contract", artifact_reconcile_ok, artifact_reconcile_detail))
+    if not artifact_reconcile_ok:
+        failures.append("artifact_missing_action_reconcile_contract")
+
+    # 9) roadmap change proposal replace_milestone_steps contract.
+    change_steps_cmd = [sys.executable, "-m", "src.roadmap.change_proposals_replace_steps_contract_test"]
+    change_steps_proc = subprocess.run(change_steps_cmd, cwd=repo_root(), text=True, capture_output=True)
+    change_steps_ok = change_steps_proc.returncode == 0
+    change_steps_detail = (
+        _tail_line(change_steps_proc.stdout)
+        or _tail_line(change_steps_proc.stderr)
+        or f"rc={change_steps_proc.returncode}"
+    )
+    tests.append(_format_test_result("change_proposals_replace_steps_contract", change_steps_ok, change_steps_detail))
+    if not change_steps_ok:
+        failures.append("change_proposals_replace_steps_contract")
+
+    # 10) runner_execute behavior freeze contract (RB-001 baseline lock).
+    contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_execute_behavior_freeze_contract_test"]
+    contract_proc = subprocess.run(contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    contract_ok = contract_proc.returncode == 0
+    contract_detail = _tail_line(contract_proc.stdout) or _tail_line(contract_proc.stderr) or f"rc={contract_proc.returncode}"
+    tests.append(_format_test_result("runner_execute_behavior_freeze_contract", contract_ok, contract_detail))
+    if not contract_ok:
+        failures.append("runner_execute_behavior_freeze_contract")
+
+    # 11) stage-level runner contracts (modular freeze lock, per-stage visibility).
+    stage_modules: list[tuple[str, str]] = [
+        ("validate", "src.orchestrator.runner_stage_validate_contract_test"),
+        ("governor", "src.orchestrator.runner_stage_governor_contract_test"),
+        ("routing_workflow", "src.orchestrator.runner_stage_routing_workflow_contract_test"),
+        ("idempotency", "src.orchestrator.runner_stage_idempotency_contract_test"),
+        ("quota_autonomy", "src.orchestrator.runner_stage_quota_autonomy_contract_test"),
+        ("execute_finalize", "src.orchestrator.runner_stage_execute_finalize_contract_test"),
+    ]
+    stage_contracts: dict[str, str] = {}
+    stage_contract_details: dict[str, str] = {}
+    for stage_name, stage_module in stage_modules:
+        stage_proc = subprocess.run([sys.executable, "-m", stage_module], cwd=repo_root(), text=True, capture_output=True)
+        stage_ok = stage_proc.returncode == 0
+        stage_detail = _tail_line(stage_proc.stdout) or _tail_line(stage_proc.stderr) or f"rc={stage_proc.returncode}"
+        stage_contracts[stage_name] = "PASS" if stage_ok else "FAIL"
+        stage_contract_details[stage_name] = stage_detail
+        test_name = f"runner_stage_contract_{stage_name}"
+        tests.append(_format_test_result(test_name, stage_ok, stage_detail))
+        if not stage_ok:
+            failures.append(test_name)
+
+    # 12) stage-level runner contract suite aggregate.
+    stage_contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_stage_contract_suite_test"]
+    stage_contract_proc = subprocess.run(stage_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    stage_contract_ok = stage_contract_proc.returncode == 0
+    stage_contract_detail = (
+        _tail_line(stage_contract_proc.stdout) or _tail_line(stage_contract_proc.stderr) or f"rc={stage_contract_proc.returncode}"
+    )
+    tests.append(_format_test_result("runner_stage_contract_suite", stage_contract_ok, stage_contract_detail))
+    if not stage_contract_ok:
+        failures.append("runner_stage_contract_suite")
+
+    # 13) reaper critical-pin contract (ws_customer_default critical cache paths survive unless explicit override).
+    reaper_contract_cmd = [sys.executable, "-m", "src.ops.reaper_critical_pin_contract_test"]
+    reaper_contract_proc = subprocess.run(reaper_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    reaper_contract_ok = reaper_contract_proc.returncode == 0
+    reaper_contract_detail = (
+        _tail_line(reaper_contract_proc.stdout)
+        or _tail_line(reaper_contract_proc.stderr)
+        or f"rc={reaper_contract_proc.returncode}"
+    )
+    tests.append(_format_test_result("reaper_critical_pin_contract", reaper_contract_ok, reaper_contract_detail))
+    if not reaper_contract_ok:
+        failures.append("reaper_critical_pin_contract")
+
+    # 14) reaper cleanup guard contract (pre-snapshot + post-validate mandatory gate on delete mode).
+    reaper_guard_cmd = [sys.executable, "-m", "src.ops.reaper_cleanup_guard_contract_test"]
+    reaper_guard_proc = subprocess.run(reaper_guard_cmd, cwd=repo_root(), text=True, capture_output=True)
+    reaper_guard_ok = reaper_guard_proc.returncode == 0
+    reaper_guard_detail = (
+        _tail_line(reaper_guard_proc.stdout)
+        or _tail_line(reaper_guard_proc.stderr)
+        or f"rc={reaper_guard_proc.returncode}"
+    )
+    tests.append(_format_test_result("reaper_cleanup_guard_contract", reaper_guard_ok, reaper_guard_detail))
+    if not reaper_guard_ok:
+        failures.append("reaper_cleanup_guard_contract")
+
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"
 
@@ -231,6 +358,8 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         "workspace_root": str(workspace_root),
         "status": status,
         "failures": failures,
+        "stage_contracts": stage_contracts,
+        "stage_contract_details": stage_contract_details,
         "tests": tests,
         "evidence_paths": evidence_paths,
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "TRAVERSAL_BLOCKED=true"],
@@ -253,7 +382,13 @@ def cmd_test_run(args: argparse.Namespace) -> int:
     if status == "FAIL":
         warn("FAIL error=TEST_RUN_FAILED")
         return 2
-    print(json.dumps({k: result.get(k) for k in ("status", "failures", "evidence_paths")}, ensure_ascii=False, sort_keys=True))
+    print(
+        json.dumps(
+            {k: result.get(k) for k in ("status", "failures", "stage_contracts", "evidence_paths")},
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
     return 0
 
 

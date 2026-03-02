@@ -157,6 +157,8 @@ def _load_release_sources(workspace_root: Path, notes: list[str]) -> list[dict[s
     unpushed_commits: int | None = None
     publish_blocked: bool | None = None
     plan_present: bool | None = None
+    plan_seed = False
+    manifest_seed = False
 
     if plan_path.exists():
         try:
@@ -168,9 +170,11 @@ def _load_release_sources(workspace_root: Path, notes: list[str]) -> list[dict[s
             evidence.append(plan_rel)
             if isinstance(plan, dict):
                 channel = str(plan.get("channel") or channel)
-                plan_present = True
-                dirty_tree = bool(plan.get("dirty_tree", False))
-                release_status = str(plan.get("status") or "")
+                plan_seed = bool(plan.get("seed"))
+                if not plan_seed:
+                    plan_present = True
+                    dirty_tree = bool(plan.get("dirty_tree", False))
+                    release_status = str(plan.get("status") or "")
     else:
         notes.append("release_plan_missing")
 
@@ -184,19 +188,22 @@ def _load_release_sources(workspace_root: Path, notes: list[str]) -> list[dict[s
             evidence.append(manifest_rel)
             if isinstance(manifest, dict):
                 channel = str(manifest.get("channel") or channel)
-                dirty_tree = bool(manifest.get("dirty_tree", dirty_tree or False))
-                publish_blocked = not bool(manifest.get("publish_allowed", False))
-                release_status = str(manifest.get("status") or release_status or "")
+                manifest_seed = bool(manifest.get("seed"))
+                if not manifest_seed:
+                    dirty_tree = bool(manifest.get("dirty_tree", dirty_tree or False))
+                    publish_blocked = not bool(manifest.get("publish_allowed", False))
+                    release_status = str(manifest.get("status") or release_status or "")
     else:
         notes.append("release_manifest_missing")
 
     if notes_path.exists():
         evidence.append(notes_rel)
 
+    seeded_release = plan_seed or manifest_seed
     repo_root = _find_repo_root(Path(__file__).resolve())
     if dirty_tree is None:
-        dirty_tree = _git_dirty_tree(repo_root)
-    unpushed_commits = _git_unpushed_commits(repo_root)
+        dirty_tree = False if seeded_release else _git_dirty_tree(repo_root)
+    unpushed_commits = 0 if seeded_release else _git_unpushed_commits(repo_root)
 
     sources: list[dict[str, Any]] = []
     if plan_present:
@@ -284,6 +291,4 @@ def _load_release_sources(workspace_root: Path, notes: list[str]) -> list[dict[s
             )
         )
 
-    if not sources:
-        notes.append("release_sources_empty")
     return sources

@@ -825,6 +825,151 @@
               ],
               "type": "string"
             },
+            "subject_plan_ab_summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "report_path",
+                "subject_id",
+                "available_profiles",
+                "missing_profiles",
+                "best_profile",
+                "best_score",
+                "last_requested_profile",
+                "last_run_set"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "OK",
+                    "WARN",
+                    "FAIL",
+                    "IDLE"
+                  ]
+                },
+                "report_path": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string"
+                },
+                "available_profiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "missing_profiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "best_profile": {
+                  "type": "string"
+                },
+                "best_score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "last_requested_profile": {
+                  "type": "string"
+                },
+                "last_run_set": {
+                  "type": "string"
+                }
+              }
+            },
+            "profile_order_compare_summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "report_path",
+                "subject_id",
+                "orders_spec",
+                "scenarios_count",
+                "all_runs_ok",
+                "all_comparisons_ok",
+                "best_profile_counts",
+                "last_best_profile",
+                "generated_at",
+                "errors_count",
+                "notes"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "OK",
+                    "WARN",
+                    "FAIL",
+                    "IDLE"
+                  ]
+                },
+                "report_path": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string"
+                },
+                "orders_spec": {
+                  "type": "string"
+                },
+                "scenarios_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "all_runs_ok": {
+                  "type": "boolean"
+                },
+                "all_comparisons_ok": {
+                  "type": "boolean"
+                },
+                "best_profile_counts": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "A",
+                    "B",
+                    "C"
+                  ],
+                  "properties": {
+                    "A": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "B": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "C": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "last_best_profile": {
+                  "type": "string"
+                },
+                "generated_at": {
+                  "type": "string"
+                },
+                "errors_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
             "top_next_actions": {
               "items": {
                 "additionalProperties": false,
@@ -1281,6 +1426,24 @@
             "last_extension_help_path": {
               "type": "string"
             },
+            "single_gate_status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "BLOCKED",
+                "IDLE",
+                "UNKNOWN",
+                "SKIPPED"
+              ],
+              "type": "string"
+            },
+            "last_enforcement_contract_path": {
+              "type": "string"
+            },
+            "last_enforcement_extension_run_path": {
+              "type": "string"
+            },
             "last_cockpit_healthcheck_path": {
               "type": "string"
             },
@@ -1342,6 +1505,9 @@
             "tests_coverage",
             "isolation_summary",
             "last_extension_help_path",
+            "single_gate_status",
+            "last_enforcement_contract_path",
+            "last_enforcement_extension_run_path",
             "notes"
           ],
           "type": "object"

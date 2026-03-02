@@ -233,8 +233,6 @@ def _load_github_ops_sources(workspace_root: Path, notes: list[str]) -> list[dic
 
     if pruned_by_pass:
         notes.append(f"github_ops_pruned_by_pass={pruned_by_pass}")
-    if not sources:
-        notes.append("github_ops_sources_empty")
     return sources
 
 
@@ -324,8 +322,6 @@ def _load_deploy_job_sources(workspace_root: Path, notes: list[str]) -> list[dic
             source["override_bucket"] = "ROADMAP"
         sources.append(source)
 
-    if not sources:
-        notes.append("deploy_jobs_sources_empty")
     return sources
 
 

@@ -1,0 +1,58 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "stage": "execute_finalize",
+  "scenarios": [
+    {
+      "id": "completed_low_risk",
+      "fixture": "0001.json",
+      "mutations": [],
+      "expected": {
+        "exit_code": 0,
+        "summary_status": "COMPLETED",
+        "summary_result_state": "COMPLETED",
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": null,
+        "dlq_error_code": null,
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "suspended_high_risk",
+      "fixture": "0800_suspend.json",
+      "mutations": [],
+      "expected": {
+        "exit_code": 0,
+        "summary_status": "SUSPENDED",
+        "summary_result_state": "SUSPENDED",
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": null,
+        "dlq_error_code": null,
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "budget_tokens_exceeded",
+      "fixture": "0840_budget_tokens_exceeded.json",
+      "mutations": [],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": "FAILED",
+        "summary_result_state": "FAILED",
+        "summary_reason": null,
+        "summary_policy_violation_code": "BUDGET_TOKENS_EXCEEDED",
+        "summary_budget_hit": "TOKENS",
+        "summary_quota_hit": null,
+        "dlq_stage": "BUDGET",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    }
+  ]
+}

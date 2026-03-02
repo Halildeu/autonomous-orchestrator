@@ -23,7 +23,7 @@
     "schemas/policies",
     "policies/schemas"
   ],
-  "summary_timeout_seconds": 5,
+  "summary_timeout_seconds": 10,
   "strict_timeout_seconds": 180,
   "max_items": {
     "broken_refs": 1000,

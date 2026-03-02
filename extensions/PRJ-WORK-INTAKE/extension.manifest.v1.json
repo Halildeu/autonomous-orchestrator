@@ -80,5 +80,6 @@
   ],
   "semver": "0.1.0",
   "ui_surfaces": [],
-  "version": "v1"
+  "version": "v1",
+  "enabled": true
 }

@@ -4,8 +4,11 @@ Bu doküman, kritik SSOT artefact’ların tek canonical haritasıdır.
 Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu deterministik hale getirmek.
 
 ## Roadmaps
-- roadmaps/SSOT/roadmap.v1.json
+- roadmaps/SSOT/roadmap.v1.json (RM-SSOT-001) — CANONICAL
+- docs/ROADMAP.md — MIRROR (derived/human summary)
 - roadmaps/SSOT/changes/.gitkeep
+- roadmaps/SSOT/changes/CHG-20260217-001.json
+- roadmaps/SSOT/changes/CHG-20260301-002.json
 - roadmaps/SSOT/changes/debt/README.md
 - roadmaps/PROJECTS/README.md
 - roadmaps/PROJECTS/project-roadmap.template.v1.json
@@ -23,6 +26,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/LAYER-MODEL-LOCK.v1.md
 - docs/OPERATIONS/EXTENSIONS.md
 - docs/OPERATIONS/NORTH-STAR-EVAL-LENSES.v1.md
+- docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules tiers demos; vendor-neutral)
+- docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
 
 ## Operations SSOT (Kalıcı)
 
@@ -34,6 +39,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/OPERATIONS/CHATGPT-PLANNER-INSTRUCTIONS.v1.md
 - docs/OPERATIONS/RUN-CARD-TEMPLATE.v1.md
 - docs/OPERATIONS/NEW-CHAT-BOOTSTRAP.v1.md
+- docs/OPERATIONS/north_star_criteria_packs.v1.json
 ## Schemas (SSOT)
 - schemas/advisor-suggestions.schema.json
 - schemas/airunner-heartbeat.schema.v1.json
@@ -78,6 +84,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-integrity.schema.json
 - schemas/policy-integrity.schema.v1.json
 - schemas/policy-layer-boundary.schema.v1.json
+- schemas/policy-llm-batch.schema.json
 - schemas/policy-llm-live.schema.json
 - schemas/policy-llm-providers-guardrails.schema.json
 - schemas/policy-north-star-eval-lenses.schema.v1.json
@@ -97,6 +104,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/north_star.control.schema.json
 - schemas/north_star.maturity.schema.json
 - schemas/north_star.metric.schema.json
+- schemas/north-star-catalog.schema.v1.json
 - schemas/manual-request.schema.v1.json
 - schemas/pack-advisor-suggestions.schema.json
 - schemas/pack-manifest.schema.v1.json
@@ -155,9 +163,11 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/roadmap.schema.json
 - schemas/script-budget.schema.json
 - schemas/session-context.schema.json
+- schemas/smoke-root-cause-report.schema.v1.json
 - schemas/spec-capability.schema.json
 - schemas/spec-core.schema.json
 - schemas/system-status.schema.json
+- schemas/tenant-context.schema.v1.json
 - schemas/ui-snapshot-bundle.schema.v1.json
 - schemas/work-intake.schema.v1.json
 - schemas/work-intake-action.schema.v1.json
@@ -255,12 +265,12 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - packs/standards/pack-release-automation/metrics.v1.json
 
 ## Extensions (SSOT)
-- extensions/release-automation/extension.manifest.v1.json
+- extensions/PRJ-RELEASE-AUTOMATION/extension.manifest.v1.json
 - extensions/PRJ-DEPLOY/extension.manifest.v1.json
 - extensions/PRJ-DEPLOY/README.md
 - extensions/PRJ-DEPLOY/tests/contract_test.py
 - extensions/PRJ-AIRUNNER/extension.manifest.v1.json
-- extensions/prj-github-ops/extension.manifest.v1.json
+- extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json
 - extensions/PRJ-KERNEL-API/extension.manifest.v1.json
 - extensions/PRJ-M0-MAINTAINABILITY/extension.manifest.v1.json
 - extensions/PRJ-PM-SUITE/extension.manifest.v1.json
@@ -275,6 +285,15 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - extensions/PRJ-UI-COCKPIT-LITE/tests/evidence_browser_path_traversal_contract_test.py
 - extensions/PRJ-UI-COCKPIT-LITE/tests/dashboard_endpoints_contract_test.py
 - extensions/PRJ-WORK-INTAKE/extension.manifest.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/extension.manifest.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/README.md
+- extensions/PRJ-ENFORCEMENT-PACK/contract/enforcement-check.schema.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/contract/enforcement-check.example.v1.json
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep001_boundary_breach.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep002_structure_align.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep003_contract_drift.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep004_allow_paths_hitchhiking.yaml
+- extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep005_evidence_check.yaml
 
 ## Contract Tests (SSOT-bound)
 - src/ops/system_status_release_apply_proof_contract_test.py

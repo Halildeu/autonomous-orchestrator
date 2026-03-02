@@ -9,6 +9,12 @@
     "allow_models": ["*"]
   },
   "providers": {
+    "claude": {
+      "enabled": true,
+      "expected_env_keys": ["ANTHROPIC_API_KEY", "CLAUDE_API_KEY"],
+      "allow_models": ["claude-3-haiku-20240307"],
+      "default_model": "claude-3-haiku-20240307"
+    },
     "deepseek": {
       "enabled": true,
       "expected_env_keys": ["DEEPSEEK_API_KEY"],
@@ -30,10 +36,15 @@
       "enabled": false,
       "expected_env_keys": ["QWEN_API_KEY"],
       "allow_models": ["qwen2.5-72b-instruct"]
+    },
+    "xai": {
+      "enabled": false,
+      "expected_env_keys": ["XAI_API_KEY"],
+      "allow_models": ["grok-4-latest"]
     }
   },
   "live_gate": {
-    "policy_live_enabled": false,
+    "policy_live_enabled": true,
     "require_env_key_present": true,
     "require_explicit_live_flag": true,
     "explicit_live_flag_env": "KERNEL_API_LLM_LIVE"

@@ -424,6 +424,12 @@ def finish(
                             _upsert_actions(reg_ac, [_artifact_heal_failed_action(item)])
                     _atomic_write_json(actions_file, reg_ac)
 
+            reg_ac = _load_action_register(actions_file, roadmap_path=roadmap_path, workspace_root=workspace_root)
+            missing_reconcile = _reconcile_artifact_missing_actions(actions_reg=reg_ac, current_missing=still_missing)
+            if missing_reconcile.get("changed"):
+                _atomic_write_json(actions_file, reg_ac)
+            write_json(run_dir / "artifact_missing_action_reconcile_report.json", missing_reconcile)
+
             artifact_completeness = {
                 "missing": missing_before,
                 "healed": sorted(healed_ids),
@@ -431,6 +437,7 @@ def finish(
                 "attempted_milestones": attempted,
                 "pack_conflict_blocked": pack_conflict_blocked,
                 "pack_conflict_report_path": pack_conflict_report_path,
+                "missing_action_reconcile": missing_reconcile,
             }
             write_json(run_dir / "artifact_completeness_report.json", artifact_completeness)
 

@@ -1,0 +1,17 @@
+rules:
+  - id: enf.v1.ep002.structure_align
+    languages: [generic]
+    message: "EP-002 Structure Align: extension folder name should match extension_id casing (expected extensions/<extension_id>/)."
+    severity: WARNING
+    paths:
+      include:
+        - extensions/prj-github-ops/extension.manifest.v1.json
+        - extensions/release-automation/extension.manifest.v1.json
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
+    pattern-regex: '"extension_id"\s*:\s*"PRJ-(GITHUB-OPS|RELEASE-AUTOMATION)"'
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-002"
+      stage: "v1_real"
+      rationale: "Deterministic structure drift demo: legacy lowercase extension dir contains canonical PRJ-* extension_id."

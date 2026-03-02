@@ -1,0 +1,37 @@
+{
+  "change_id": "CHG-20260302-001",
+  "gates": [
+    "python ci/validate_schemas.py",
+    "python -m src.ops.manage smoke --level fast"
+  ],
+  "patches": [
+    {
+      "milestone_id": "M0",
+      "op": "replace_milestone_steps",
+      "steps": [
+        {
+          "text": "M0 is a roadmap definition milestone (v0.3): core↔workspace boundary, workspace bootstrap/sanitize conventions, promotion-lane scan gates.",
+          "type": "note"
+        },
+        {
+          "text": "Maintainability guardrail (SSOT): Script Budget (soft=warn, hard=fail) is enforced in CI and Roadmap Runner global gates.",
+          "type": "note"
+        },
+        {
+          "paths": [
+            "schemas/roadmap.schema.json",
+            "docs/LAYER-MODEL-LOCK.v1.md"
+          ],
+          "type": "assert_core_paths_exist"
+        }
+      ]
+    }
+  ],
+  "rationale": "M0 placeholder uyarısını kapatmak için milestone'a deterministic, side-effect-free executable step eklenir.",
+  "risk_level": "low",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "type": "modify",
+  "version": "v1"
+}

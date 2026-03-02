@@ -2,7 +2,7 @@
   "version": "v1",
   "kill_switch": false,
   "allowed_side_effect_policies": ["none", "draft"],
-  "network_access": true,
+  "network_access": false,
   "network_allowlist": ["api.github.com", "api.openai.com", "uploads.github.com"],
   "max_risk_score": 0.95,
   "note": "Allowlisted network access (minimal): api.openai.com + api.github.com (+ uploads.github.com)"

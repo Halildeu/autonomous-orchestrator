@@ -15,6 +15,7 @@
     "formats",
     "governor",
     "modules",
+    "tenant",
     "orchestrator",
     "packs",
     "policies",
@@ -23,6 +24,7 @@
     "schemas",
     "scripts",
     "src",
+    "tests",
     "supply_chain",
     "templates",
     "workflows"
@@ -32,6 +34,7 @@
     ".gitignore",
     "AGENTS.md",
     "CHANGELOG.md",
+    ".pre-commit-config.yaml",
     "pyproject.toml",
     "README.md",
     "requirements-dev.txt",
@@ -47,6 +50,7 @@
   "generated_files_patterns": [
     ".DS_Store",
     ".env",
+    ".env.bak*",
     "openai_ping_last.json",
     "reaper_report*.json",
     "sbom.v1.json",

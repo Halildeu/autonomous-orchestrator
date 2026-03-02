@@ -63,6 +63,22 @@ def _now_iso8601() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _airunner_status_for_overall(airunner_section: dict[str, Any]) -> str:
+    air_status = str(airunner_section.get("status") or "WARN")
+    if air_status != "IDLE":
+        return air_status
+
+    auto_mode = airunner_section.get("auto_mode") if isinstance(airunner_section.get("auto_mode"), dict) else {}
+    auto_mode_effective = bool(auto_mode.get("auto_mode_effective", False))
+    jobs = airunner_section.get("jobs") if isinstance(airunner_section.get("jobs"), dict) else {}
+    jobs_total = int(jobs.get("total", 0) or 0)
+
+    # Auto-mode kapali ve kuyruk bos ise airunner IDLE normal kabul edilir.
+    if not auto_mode_effective and jobs_total == 0:
+        return "OK"
+    return "WARN"
+
+
 def _parse_iso(value: str | None) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -303,8 +319,7 @@ def build_system_status(
         ext_status = str(extensions_section.get("registry_status") or "WARN")
         section_statuses.append("WARN" if ext_status == "IDLE" else ext_status)
     if isinstance(airunner_section, dict):
-        air_status = str(airunner_section.get("status") or "WARN")
-        section_statuses.append("WARN" if air_status == "IDLE" else air_status)
+        section_statuses.append(_airunner_status_for_overall(airunner_section))
     if isinstance(pm_suite_section, dict):
         pm_status = str(pm_suite_section.get("status") or "WARN")
         section_statuses.append("WARN" if pm_status == "IDLE" else pm_status)
@@ -399,6 +414,33 @@ def build_system_status(
                 "lenses": bench.get("lenses") or [],
                 "lens_gaps_count": int(bench.get("lens_gaps_count") or 0),
                 "lens_gaps_top": bench.get("lens_gaps_top") or [],
+                "subject_plan_ab_summary": bench.get("subject_plan_ab_summary")
+                or {
+                    "status": "FAIL",
+                    "report_path": str(Path(".cache") / "reports" / "north_star_subject_plan_ab_test.v1.json"),
+                    "subject_id": "",
+                    "available_profiles": [],
+                    "missing_profiles": ["A", "B", "C"],
+                    "best_profile": "",
+                    "best_score": 0.0,
+                    "last_requested_profile": "",
+                    "last_run_set": "",
+                },
+                "profile_order_compare_summary": bench.get("profile_order_compare_summary")
+                or {
+                    "status": "IDLE",
+                    "report_path": str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json"),
+                    "subject_id": "",
+                    "orders_spec": "",
+                    "scenarios_count": 0,
+                    "all_runs_ok": False,
+                    "all_comparisons_ok": False,
+                    "best_profile_counts": {"A": 0, "B": 0, "C": 0},
+                    "last_best_profile": "",
+                    "generated_at": "",
+                    "errors_count": 0,
+                    "notes": [],
+                },
                 "top_next_actions": bench.get("top_next_actions") or [],
                 "notes": bench.get("notes") or [],
             },
@@ -762,6 +804,48 @@ def _render_md(report: dict[str, Any]) -> str:
                 f"- {a.get('gap_id', '')} severity={a.get('severity', '')} "
                 f"risk={a.get('risk_class', '')} effort={a.get('effort', '')}"
             )
+    subject_plan_ab = bench.get("subject_plan_ab_summary") if isinstance(bench, dict) else None
+    if isinstance(subject_plan_ab, dict):
+        lines.append(
+            "Subject-plan A/B: "
+            f"status={subject_plan_ab.get('status', '')} "
+            f"subject={subject_plan_ab.get('subject_id', '')} "
+            f"best={subject_plan_ab.get('best_profile', '')} "
+            f"score={subject_plan_ab.get('best_score', 0)}"
+        )
+        available = subject_plan_ab.get("available_profiles")
+        if isinstance(available, list) and available:
+            lines.append("Profiles available: " + ", ".join(str(item) for item in available))
+        missing = subject_plan_ab.get("missing_profiles")
+        if isinstance(missing, list) and missing:
+            lines.append("Profiles missing: " + ", ".join(str(item) for item in missing))
+        report_path = subject_plan_ab.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            lines.append(f"Subject-plan report: {report_path}")
+    profile_order_compare = bench.get("profile_order_compare_summary") if isinstance(bench, dict) else None
+    if isinstance(profile_order_compare, dict):
+        best_counts = profile_order_compare.get("best_profile_counts")
+        best_counts_text = ""
+        if isinstance(best_counts, dict):
+            parts = []
+            for key in ["A", "B", "C"]:
+                value = best_counts.get(key, 0)
+                try:
+                    parts.append(f"{key}:{int(value)}")
+                except Exception:
+                    parts.append(f"{key}:0")
+            best_counts_text = ", ".join(parts)
+        lines.append(
+            "Profile-order compare: "
+            f"status={profile_order_compare.get('status', '')} "
+            f"subject={profile_order_compare.get('subject_id', '')} "
+            f"orders={profile_order_compare.get('orders_spec', '')} "
+            f"scenarios={profile_order_compare.get('scenarios_count', 0)} "
+            f"best_counts={best_counts_text}"
+        )
+        compare_report_path = profile_order_compare.get("report_path")
+        if isinstance(compare_report_path, str) and compare_report_path:
+            lines.append(f"Profile-order report: {compare_report_path}")
     lines.append("")
 
     work_intake = sections.get("work_intake") if isinstance(sections, dict) else {}

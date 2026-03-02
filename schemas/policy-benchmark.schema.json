@@ -28,7 +28,8 @@
         "scorecard_json": { "type": "string", "minLength": 1 },
         "scorecard_md": { "type": "string", "minLength": 1 },
         "gap_register": { "type": "string", "minLength": 1 },
-        "gap_summary_md": { "type": "string", "minLength": 1 }
+        "gap_summary_md": { "type": "string", "minLength": 1 },
+        "maturity_tracking": { "type": "string", "minLength": 1 }
       }
     },
     "max_controls": { "type": "integer", "minimum": 1, "default": 2000 }

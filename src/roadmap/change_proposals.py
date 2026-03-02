@@ -33,6 +33,20 @@ def _find_milestone(roadmap_obj: dict[str, Any], milestone_id: str) -> dict[str,
     return None
 
 
+def _coerce_steps(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or not value:
+        raise ValueError("CHANGE_INVALID: replace_milestone_steps requires steps[]")
+    out: list[dict[str, Any]] = []
+    for idx, step in enumerate(value):
+        if not isinstance(step, dict):
+            raise ValueError(f"CHANGE_INVALID: steps[{idx}] must be an object")
+        step_type = step.get("type")
+        if not isinstance(step_type, str) or not step_type.strip():
+            raise ValueError(f"CHANGE_INVALID: steps[{idx}].type missing")
+        out.append(dict(step))
+    return out
+
+
 def apply_change_to_roadmap_obj(*, roadmap_obj: dict[str, Any], change_obj: dict[str, Any]) -> dict[str, Any]:
     change_type = change_obj.get("type")
     if change_type != "modify":
@@ -85,6 +99,9 @@ def apply_change_to_roadmap_obj(*, roadmap_obj: dict[str, Any], change_obj: dict
                 raise ValueError("CHANGE_INVALID: replace_milestone_notes requires notes[]")
             ms["notes"] = [str(x) for x in notes if str(x).strip()]
 
+        elif op == "replace_milestone_steps":
+            ms["steps"] = _coerce_steps(patch.get("steps"))
+
         elif op == "replace_milestone_title":
             title = patch.get("title")
             if not isinstance(title, str) or not title.strip():
@@ -95,4 +112,3 @@ def apply_change_to_roadmap_obj(*, roadmap_obj: dict[str, Any], change_obj: dict
             raise ValueError(f"PATCH_OP_UNSUPPORTED: {op!r}")
 
     return updated
-

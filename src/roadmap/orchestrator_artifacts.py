@@ -135,7 +135,7 @@ def _artifact_missing_action(item: dict[str, Any]) -> dict[str, Any]:
     severity = "WARN" if item.get("severity") != "block" else "FAIL"
     msg = f"Missing derived artifact: {check_id} path={path} owner={owner}"
     return {
-        "action_id": _sha256_hex(f"DERIVED_ARTIFACT_MISSING|{check_id}|{path}|{owner}")[:16],
+        "action_id": _artifact_missing_action_id(check_id=check_id, path=path, owner=owner),
         "severity": severity,
         "kind": "DERIVED_ARTIFACT_MISSING",
         "milestone_hint": owner,
@@ -150,6 +150,62 @@ def _artifact_missing_action(item: dict[str, Any]) -> dict[str, Any]:
         },
         "message": msg[:300],
         "resolved": False,
+    }
+
+
+def _artifact_missing_action_id(*, check_id: str, path: str, owner: str) -> str:
+    return _sha256_hex(f"DERIVED_ARTIFACT_MISSING|{check_id}|{path}|{owner}")[:16]
+
+
+def _reconcile_artifact_missing_actions(*, actions_reg: dict[str, Any], current_missing: list[dict[str, Any]]) -> dict[str, Any]:
+    actions = actions_reg.get("actions")
+    if not isinstance(actions, list):
+        return {"changed": False, "resolved_count": 0, "reopened_count": 0, "active_count": 0}
+
+    active_ids: set[str] = set()
+    for item in current_missing:
+        if not isinstance(item, dict):
+            continue
+        check_id = str(item.get("id") or "").strip()
+        path = str(item.get("path") or "").strip()
+        owner = str(item.get("owner_milestone") or "").strip()
+        if not (check_id and path and owner):
+            continue
+        active_ids.add(_artifact_missing_action_id(check_id=check_id, path=path, owner=owner))
+
+    changed = False
+    resolved_count = 0
+    reopened_count = 0
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        if str(action.get("kind") or "") != "DERIVED_ARTIFACT_MISSING":
+            continue
+        action_id = action.get("action_id")
+        if not isinstance(action_id, str) or not action_id:
+            continue
+        should_resolve = action_id not in active_ids
+        is_resolved = action.get("resolved") is True
+        if should_resolve and not is_resolved:
+            action["resolved"] = True
+            resolved_count += 1
+            changed = True
+        elif (not should_resolve) and is_resolved:
+            action["resolved"] = False
+            reopened_count += 1
+            changed = True
+
+    if changed:
+        actions_reg["actions"] = sorted(
+            [x for x in actions if isinstance(x, dict)],
+            key=lambda x: str(x.get("action_id") or ""),
+        )
+
+    return {
+        "changed": changed,
+        "resolved_count": resolved_count,
+        "reopened_count": reopened_count,
+        "active_count": len(active_ids),
     }
 
 

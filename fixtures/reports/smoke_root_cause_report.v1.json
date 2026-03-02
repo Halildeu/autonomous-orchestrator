@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "taxonomy_version": "v1",
+  "generated_at": "2026-03-01T00:00:00Z",
+  "status": "FAIL",
+  "level": "fast",
+  "root_error_code": "SCRIPT_BUDGET",
+  "root_error_category": "MAINTAINABILITY",
+  "root_error_severity": "HIGH",
+  "root_error_retryable": false,
+  "root_error_summary": "Script Budget gate violated (hard/no-growth).",
+  "root_error_ci_action": "Split oversized scripts or update baseline via approved CHG.",
+  "classification_source": "failed_error_code+cmd_hint",
+  "failed_step_id": "GLOBAL:G:001",
+  "failed_cmd": "python ci/check_script_budget.py --out .cache/script_budget/report.json",
+  "failed_error_code": "CMD_FAILED",
+  "failed_stderr_preview": "PY_FILE_NO_GROWTH",
+  "report_path": ".cache/reports/smoke_root_cause_report.v1.json"
+}

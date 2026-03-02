@@ -21,7 +21,10 @@ python -m src.ops.manage dlq --limit 5
 python -m src.ops.manage suspends --limit 5
 
 # Retention / disk sanity (dry-run)
-python -m src.ops.reaper --dry-run true --out reaper_report.json
+python -m src.ops.manage reaper --dry-run true --out reaper_report.json
+
+# Retention guarded cleanup (non-dry-run, pre/post snapshot gate)
+python -m src.ops.manage reaper --dry-run false --out reaper_report_delete.json
 
 # Supply chain artifacts (local dev uses DEV_KEY fallback; CI requires secret)
 python supply_chain/sbom.py && python supply_chain/sign.py && python supply_chain/verify.py
@@ -53,6 +56,10 @@ python supply_chain/cve_gate.py
 ### Reaper
 - `reaper_report.json` içinde candidates/deleted sayıları mantıklı olmalı.
 - Dry-run’da silme olmamalı; `deleted` değerleri 0 kalır.
+- Non-dry-run’da cleanup guard artifact'lari oluşmalı:
+  - `.cache/reports/reaper_cleanup_pre_snapshot.v1.json`
+  - `.cache/reports/reaper_cleanup_post_validate.v1.json`
+- `reaper_cleanup_post_validate.v1.json.status=PASS` beklenir; `FAIL` release gate bloklar.
 
 ### Supply chain
 - `supply_chain/sbom.v1.json` güncel olmalı ve `project.name/version` içermeli.

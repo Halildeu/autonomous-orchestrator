@@ -1,9 +1,10 @@
 # SSOT Yol Haritası (Kilitli) — v1.0.0 sonrası
 ## “ISO Sırası Çekirdek + Genel Platform + Katalog‑Temelli Üretim + Learning (Suggest‑Only) + Autopilot (İnsansız)”
 
-> **CANONICAL:** Bu dosya tek SSOT yol haritasıdır. Legacy arşiv: `ROADMAP_v2.7_legacy.md` (archive only).
+> **MIRROR:** Human summary. Canonical roadmap is `roadmaps/SSOT/roadmap.v1.json` (`RM-SSOT-001`).  
+> Sync: This file mirrors key milestones; source of truth is `roadmaps/SSOT/roadmap.v1.json`.
 
-> Bu doküman artık **tek doğru** (SSOT) yol haritamızdır.  
+> Bu doküman artık **mirror** (insan-okur) yol haritasıdır.  
 > Amaç: Mevcut v1.0.0 çekirdeğimizden sapmadan, ürünün “genel platform” kimliğini tamamlamak ve insansız otomasyonu sürdürülebilir şekilde büyütmek.
 
 ### Değişiklik yönetimi (kilit)
@@ -120,6 +121,16 @@ Hedef: her işte aynı zinciri otomatikleştirmek (O(delta), pointer‑only).
 
 **C1 — North Star (Standards catalog)**  
 Controls + Metrics + Maturity (0–5) deterministik kriterlerle (pointer + schema + index sinyali).
+
+Kısa işletim sırası (canonical):
+1) Theme/Subtheme (mekanizma kataloğu) yaşam döngüsü ve onay.
+2) Değerlendirme zinciri (ölçüm hattı) yalnız onaylı katalog üzerinden çalışır.
+
+İşletim terim notu (canonical):
+- Reference: trend_catalog + bp_catalog + onaylı mekanizma kataloğu (hedef durum).
+- Assessment: assessment_raw + assessment_eval (mevcut durum ölçümü).
+- Gap: gap_register (referans ile mevcut durum sapmaları).
+- Lens Findings içindeki `trend/bp/lens` değerleri süreç aşaması değil, yalnızca bulgu kaynak tipidir.
 
 **C2 — Assessment (O(delta))**  
 system_status + pack index + quality + repo hygiene + harvest sinyallerini okur.

@@ -9,6 +9,60 @@ def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+_WORK_INTAKE_TOP_NEXT_REQUIRED = {
+    "intake_id",
+    "bucket",
+    "severity",
+    "priority",
+    "status",
+    "title",
+    "source_type",
+    "source_ref",
+}
+
+_WORK_INTAKE_TOP_NEXT_ALLOWED = {
+    *sorted(_WORK_INTAKE_TOP_NEXT_REQUIRED),
+    "autopilot_allowed",
+    "autopilot_notes",
+    "autopilot_reason",
+    "autopilot_selected",
+    "suggested_extension",
+    "lens_id",
+    "lens_reason",
+}
+
+
+def _sanitize_work_intake_top_next_actions(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        cleaned: dict[str, Any] = {}
+        for field in sorted(_WORK_INTAKE_TOP_NEXT_ALLOWED):
+            item = raw.get(field)
+            if field in _WORK_INTAKE_TOP_NEXT_REQUIRED:
+                if isinstance(item, str) and item:
+                    cleaned[field] = item
+                continue
+            if field in {"autopilot_allowed", "autopilot_selected"}:
+                if isinstance(item, bool):
+                    cleaned[field] = item
+                continue
+            if field in {"autopilot_notes", "suggested_extension"}:
+                if isinstance(item, list):
+                    vals = [str(x) for x in item if isinstance(x, str) and x]
+                    if vals:
+                        cleaned[field] = vals
+                continue
+            if isinstance(item, str) and item:
+                cleaned[field] = item
+        if _WORK_INTAKE_TOP_NEXT_REQUIRED.issubset(set(cleaned.keys())):
+            out.append(cleaned)
+    return out
+
+
 def _work_intake_section(workspace_root: Path) -> dict[str, Any] | None:
     intake_path = workspace_root / ".cache" / "index" / "work_intake.v1.json"
     if not intake_path.exists():
@@ -31,7 +85,7 @@ def _work_intake_section(workspace_root: Path) -> dict[str, Any] | None:
     summary = obj.get("summary") if isinstance(obj, dict) else None
     items_count = len(items) if isinstance(items, list) else 0
     counts_by_bucket = summary.get("counts_by_bucket") if isinstance(summary, dict) else None
-    top_next_actions = summary.get("top_next_actions") if isinstance(summary, dict) else None
+    top_next_actions_raw = summary.get("top_next_actions") if isinstance(summary, dict) else None
     next_focus = summary.get("next_intake_focus") if isinstance(summary, dict) else None
     by_bucket = summary.get("by_bucket") if isinstance(summary, dict) else None
     top_next = summary.get("top_next") if isinstance(summary, dict) else None
@@ -39,8 +93,7 @@ def _work_intake_section(workspace_root: Path) -> dict[str, Any] | None:
     status_str = status if status in {"OK", "WARN", "IDLE"} else "WARN"
     if not isinstance(counts_by_bucket, dict):
         counts_by_bucket = {"ROADMAP": 0, "PROJECT": 0, "TICKET": 0, "INCIDENT": 0}
-    if not isinstance(top_next_actions, list):
-        top_next_actions = []
+    top_next_actions = _sanitize_work_intake_top_next_actions(top_next_actions_raw)
     if not isinstance(next_focus, str):
         next_focus = "NONE"
     if not isinstance(by_bucket, dict):

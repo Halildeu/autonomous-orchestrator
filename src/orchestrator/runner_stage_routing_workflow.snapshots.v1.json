@@ -1,0 +1,64 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "stage": "routing_workflow",
+  "scenarios": [
+    {
+      "id": "unknown_intent_blocked",
+      "fixture": "0001.json",
+      "mutations": [
+        "set:intent=urn:unknown:intent"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": "BLOCKED",
+        "summary_result_state": "FAILED",
+        "summary_reason": "unknown_intent",
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "ROUTE",
+        "dlq_error_code": "UNKNOWN_INTENT",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "strategy_invalid_routes_type",
+      "fixture": "0001.json",
+      "mutations": [
+        "strategy:routes_object"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "STRATEGY_VALIDATE",
+        "dlq_error_code": "STRATEGY_INVALID",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "workflow_invalid_structure",
+      "fixture": "0001.json",
+      "mutations": [
+        "workflow:wf_core_steps_empty"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "WORKFLOW_VALIDATE",
+        "dlq_error_code": "WORKFLOW_INVALID",
+        "stdout_status": null
+      }
+    }
+  ]
+}

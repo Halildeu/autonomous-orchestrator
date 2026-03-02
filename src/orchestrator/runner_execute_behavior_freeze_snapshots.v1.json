@@ -1,0 +1,227 @@
+{
+  "version": "v1",
+  "target": "run_envelope",
+  "scenarios": [
+    {
+      "id": "schema_missing_intent",
+      "fixture": "0001.json",
+      "mutations": [
+        "remove:intent"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "ENVELOPE_VALIDATE",
+        "dlq_error_code": "SCHEMA_INVALID",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "budget_schema_invalid",
+      "fixture": "0001.json",
+      "mutations": [
+        "set:budget.max_tokens=oops"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "BUDGET",
+        "dlq_error_code": "BUDGET_INVALID",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "unknown_intent_blocked",
+      "fixture": "0001.json",
+      "mutations": [
+        "set:intent=urn:unknown:intent"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": "BLOCKED",
+        "summary_result_state": "FAILED",
+        "summary_reason": "unknown_intent",
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "ROUTE",
+        "dlq_error_code": "UNKNOWN_INTENT",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "governor_quarantined_intent",
+      "fixture": "0001.json",
+      "mutations": [
+        "governor:quarantine_intent"
+      ],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "GOVERNOR",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "governor_concurrency_lock",
+      "fixture": "0001.json",
+      "mutations": [
+        "governor:concurrency_lock_exists"
+      ],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "GOVERNOR",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "strategy_invalid_routes_type",
+      "fixture": "0001.json",
+      "mutations": [
+        "strategy:routes_object"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "STRATEGY_VALIDATE",
+        "dlq_error_code": "STRATEGY_INVALID",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "workflow_invalid_structure",
+      "fixture": "0001.json",
+      "mutations": [
+        "workflow:wf_core_steps_empty"
+      ],
+      "expected": {
+        "exit_code": 2,
+        "summary_status": null,
+        "summary_result_state": null,
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": "WORKFLOW_VALIDATE",
+        "dlq_error_code": "WORKFLOW_INVALID",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "completed_low_risk",
+      "fixture": "0001.json",
+      "mutations": [],
+      "expected": {
+        "exit_code": 0,
+        "summary_status": "COMPLETED",
+        "summary_result_state": "COMPLETED",
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": null,
+        "dlq_error_code": null,
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "suspended_high_risk",
+      "fixture": "0999_valid.json",
+      "mutations": [],
+      "expected": {
+        "exit_code": 0,
+        "summary_status": "SUSPENDED",
+        "summary_result_state": "SUSPENDED",
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": null,
+        "dlq_error_code": null,
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "budget_tokens_exceeded",
+      "fixture": "0840_budget_tokens_exceeded.json",
+      "mutations": [],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": "FAILED",
+        "summary_result_state": "FAILED",
+        "summary_reason": null,
+        "summary_policy_violation_code": "BUDGET_TOKENS_EXCEEDED",
+        "summary_budget_hit": "TOKENS",
+        "summary_quota_hit": null,
+        "dlq_stage": "BUDGET",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "quota_runs_exceeded",
+      "fixture": "0001.json",
+      "mutations": [
+        "quota:runs_exceeded"
+      ],
+      "expected": {
+        "exit_code": 1,
+        "summary_status": "FAILED",
+        "summary_result_state": "FAILED",
+        "summary_reason": null,
+        "summary_policy_violation_code": "QUOTA_RUNS_EXCEEDED",
+        "summary_budget_hit": null,
+        "summary_quota_hit": "RUNS",
+        "dlq_stage": "QUOTA",
+        "dlq_error_code": "POLICY_VIOLATION",
+        "stdout_status": null
+      }
+    },
+    {
+      "id": "idempotent_hit_second_run",
+      "fixture": "0001.json",
+      "mutations": [],
+      "repeat_runs": 2,
+      "expected": {
+        "exit_code": 0,
+        "summary_status": "COMPLETED",
+        "summary_result_state": "COMPLETED",
+        "summary_reason": null,
+        "summary_policy_violation_code": null,
+        "summary_budget_hit": null,
+        "summary_quota_hit": null,
+        "dlq_stage": null,
+        "dlq_error_code": null,
+        "stdout_status": "IDEMPOTENT_HIT"
+      }
+    }
+  ]
+}

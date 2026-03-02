@@ -82,6 +82,7 @@ def _read_actions_top(workspace_root: Path, *, limit: int = 3) -> tuple[int, lis
         if not isinstance(actions, list):
             actions = []
     actions = actions if isinstance(actions, list) else []
+    actions = [a for a in actions if not (isinstance(a, dict) and a.get("resolved") is True)]
     script_budget_actions = script_budget_actions_from_report(repo_root())
     if script_budget_actions is not None:
         actions = [

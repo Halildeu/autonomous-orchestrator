@@ -24,6 +24,7 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+.gemini/
 
 # Local secrets
 .env

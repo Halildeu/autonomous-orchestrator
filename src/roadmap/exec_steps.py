@@ -1093,18 +1093,25 @@ def _apply_plan_steps(
                             unlock_env_var=str(core_policy.allow_env_var),
                             unlock_env_value=str(core_policy.allow_env_value),
                         )
+            details = e.details if isinstance(getattr(e, "details", None), dict) else {}
             state.dlq = {
                 "stage": "ROADMAP_STEP",
                 "error_code": e.error_code,
                 "message": e.message,
                 "step_id": step_id,
                 "milestone_id": ms_id,
-                "details": e.details if getattr(e, "details", None) else {},
+                "details": details,
                 "ts": _now_iso8601(),
             }
             summary["status"] = "FAIL"
             summary["failed_step_id"] = step_id
             summary["failed_milestone_id"] = ms_id
+            summary["failed_error_code"] = e.error_code
+            summary["failed_message"] = e.message
+            summary["failed_cmd"] = details.get("cmd")
+            summary["failed_return_code"] = details.get("return_code")
+            summary["failed_stderr_preview"] = details.get("stderr_tail")
+            summary["failed_stdout_preview"] = details.get("stdout_tail")
             raise
         finally:
             write_step_evidence(paths=evidence_paths, step_id=step_id, step_input=step_input, step_output=step_output, logs=logs)
