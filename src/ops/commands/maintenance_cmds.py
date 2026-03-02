@@ -31,6 +31,7 @@ from src.ops.commands.maintenance_cmds_runtime import (
     cmd_decision_seed as _cmd_decision_seed_runtime,
     cmd_work_intake_check as _cmd_work_intake_check_runtime,
     cmd_work_intake_exec_ticket as _cmd_work_intake_exec_ticket_runtime,
+    cmd_work_intake_historical_prune as _cmd_work_intake_historical_prune_runtime,
 )
 from src.ops.commands.maintenance_cmds_planner import register_planner_and_intake_subcommands
 from src.ops.commands.intake_link_report_cmds import cmd_intake_link_report
@@ -449,6 +450,9 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
 def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
     return int(_cmd_work_intake_exec_ticket_runtime(args))
 
+def cmd_work_intake_historical_prune(args: argparse.Namespace) -> int:
+    return int(_cmd_work_intake_historical_prune_runtime(args))
+
 def cmd_auto_loop(args: argparse.Namespace) -> int:
     return int(_cmd_auto_loop_runtime(args))
 
@@ -743,6 +747,15 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_intake_exec.add_argument("--limit", default="3", help="Max items to execute (default: 3).")
     ap_intake_exec.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_intake_exec.set_defaults(func=cmd_work_intake_exec_ticket)
+
+    ap_intake_prune = parent.add_parser(
+        "work-intake-historical-prune",
+        help="Prune superseded historical job records (workspace-only).",
+    )
+    ap_intake_prune.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_prune.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_intake_prune.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_intake_prune.set_defaults(func=cmd_work_intake_historical_prune)
 
     ap_auto_loop = parent.add_parser(
         "auto-loop",
