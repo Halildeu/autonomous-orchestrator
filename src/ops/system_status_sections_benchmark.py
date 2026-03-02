@@ -40,6 +40,8 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
     lens_gaps_top: list[str] = []
     subject_plan_ab_path = workspace_root / ".cache" / "reports" / "north_star_subject_plan_ab_test.v1.json"
     rel_subject_plan_ab = str(Path(".cache") / "reports" / "north_star_subject_plan_ab_test.v1.json")
+    profile_order_compare_path = workspace_root / ".cache" / "reports" / "north_star_profile_order_ab_compare.v1.json"
+    rel_profile_order_compare = str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json")
     subject_plan_ab_summary: dict[str, Any] = {
         "status": "FAIL",
         "report_path": rel_subject_plan_ab,
@@ -50,6 +52,20 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
         "best_score": 0.0,
         "last_requested_profile": "",
         "last_run_set": "",
+    }
+    profile_order_compare_summary: dict[str, Any] = {
+        "status": "IDLE",
+        "report_path": rel_profile_order_compare,
+        "subject_id": "",
+        "orders_spec": "",
+        "scenarios_count": 0,
+        "all_runs_ok": False,
+        "all_comparisons_ok": False,
+        "best_profile_counts": {"A": 0, "B": 0, "C": 0},
+        "last_best_profile": "",
+        "generated_at": "",
+        "errors_count": 0,
+        "notes": [],
     }
     if not catalog_path.exists():
         status = "WARN"
@@ -265,6 +281,82 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
         subject_plan_ab_summary["status"] = "FAIL"
         status = "FAIL"
         notes.append("missing_subject_plan_ab_report")
+    if profile_order_compare_path.exists():
+        try:
+            compare_obj = _load_json(profile_order_compare_path)
+        except Exception:
+            profile_order_compare_summary["status"] = "FAIL"
+            profile_order_compare_summary["notes"] = ["invalid_profile_order_compare_report"]
+            status = "WARN" if status != "FAIL" else status
+            notes.append("invalid_profile_order_compare_report")
+        else:
+            summary_obj = compare_obj.get("summary") if isinstance(compare_obj, dict) else {}
+            scenarios_obj = compare_obj.get("scenarios") if isinstance(compare_obj, dict) else []
+            errors_obj = compare_obj.get("errors") if isinstance(compare_obj, dict) else []
+            best_counts_raw = (
+                summary_obj.get("best_profile_counts")
+                if isinstance(summary_obj, dict) and isinstance(summary_obj.get("best_profile_counts"), dict)
+                else {}
+            )
+            best_counts = {"A": 0, "B": 0, "C": 0}
+            for key in ["A", "B", "C"]:
+                raw_val = best_counts_raw.get(key) if isinstance(best_counts_raw, dict) else 0
+                try:
+                    best_counts[key] = max(0, int(raw_val))
+                except Exception:
+                    best_counts[key] = 0
+
+            scenarios_count = 0
+            if isinstance(summary_obj, dict):
+                try:
+                    scenarios_count = max(0, int(summary_obj.get("total_scenarios") or 0))
+                except Exception:
+                    scenarios_count = 0
+            if scenarios_count <= 0 and isinstance(scenarios_obj, list):
+                scenarios_count = len([item for item in scenarios_obj if isinstance(item, dict)])
+
+            all_runs_ok = bool(summary_obj.get("all_runs_ok")) if isinstance(summary_obj, dict) else False
+            all_comparisons_ok = bool(summary_obj.get("all_comparisons_ok")) if isinstance(summary_obj, dict) else False
+            errors_count = len(errors_obj) if isinstance(errors_obj, list) else 0
+            compare_status = "OK"
+            if scenarios_count <= 0:
+                compare_status = "WARN"
+            if not all_runs_ok or not all_comparisons_ok:
+                compare_status = "WARN"
+            if errors_count > 0:
+                compare_status = "WARN"
+
+            last_best_profile = ""
+            if isinstance(scenarios_obj, list):
+                valid_scenarios = [item for item in scenarios_obj if isinstance(item, dict)]
+                if valid_scenarios:
+                    last_best_profile = str(valid_scenarios[-1].get("best_profile") or "")
+
+            compare_notes: list[str] = []
+            if compare_status != "OK":
+                if scenarios_count <= 0:
+                    compare_notes.append("no_profile_order_scenarios")
+                if not all_runs_ok:
+                    compare_notes.append("profile_order_runs_not_ok")
+                if not all_comparisons_ok:
+                    compare_notes.append("profile_order_comparisons_not_ok")
+                if errors_count > 0:
+                    compare_notes.append("profile_order_report_has_errors")
+
+            profile_order_compare_summary = {
+                "status": compare_status,
+                "report_path": rel_profile_order_compare,
+                "subject_id": str(compare_obj.get("subject_id") or ""),
+                "orders_spec": str(compare_obj.get("orders_spec") or ""),
+                "scenarios_count": scenarios_count,
+                "all_runs_ok": all_runs_ok,
+                "all_comparisons_ok": all_comparisons_ok,
+                "best_profile_counts": best_counts,
+                "last_best_profile": last_best_profile,
+                "generated_at": str(compare_obj.get("generated_at") or ""),
+                "errors_count": errors_count,
+                "notes": compare_notes,
+            }
     assessment_path_rel = rel_assessment_eval if assessment_eval_path.exists() else rel_assessment
     return {
         "status": status,
@@ -287,5 +379,6 @@ def _benchmark_status(workspace_root: Path) -> dict[str, Any]:
         "lens_gaps_count": lens_gaps_count,
         "lens_gaps_top": lens_gaps_top,
         "subject_plan_ab_summary": subject_plan_ab_summary,
+        "profile_order_compare_summary": profile_order_compare_summary,
         "notes": notes,
     }

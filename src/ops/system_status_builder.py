@@ -426,6 +426,21 @@ def build_system_status(
                     "last_requested_profile": "",
                     "last_run_set": "",
                 },
+                "profile_order_compare_summary": bench.get("profile_order_compare_summary")
+                or {
+                    "status": "IDLE",
+                    "report_path": str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json"),
+                    "subject_id": "",
+                    "orders_spec": "",
+                    "scenarios_count": 0,
+                    "all_runs_ok": False,
+                    "all_comparisons_ok": False,
+                    "best_profile_counts": {"A": 0, "B": 0, "C": 0},
+                    "last_best_profile": "",
+                    "generated_at": "",
+                    "errors_count": 0,
+                    "notes": [],
+                },
                 "top_next_actions": bench.get("top_next_actions") or [],
                 "notes": bench.get("notes") or [],
             },
@@ -807,6 +822,30 @@ def _render_md(report: dict[str, Any]) -> str:
         report_path = subject_plan_ab.get("report_path")
         if isinstance(report_path, str) and report_path:
             lines.append(f"Subject-plan report: {report_path}")
+    profile_order_compare = bench.get("profile_order_compare_summary") if isinstance(bench, dict) else None
+    if isinstance(profile_order_compare, dict):
+        best_counts = profile_order_compare.get("best_profile_counts")
+        best_counts_text = ""
+        if isinstance(best_counts, dict):
+            parts = []
+            for key in ["A", "B", "C"]:
+                value = best_counts.get(key, 0)
+                try:
+                    parts.append(f"{key}:{int(value)}")
+                except Exception:
+                    parts.append(f"{key}:0")
+            best_counts_text = ", ".join(parts)
+        lines.append(
+            "Profile-order compare: "
+            f"status={profile_order_compare.get('status', '')} "
+            f"subject={profile_order_compare.get('subject_id', '')} "
+            f"orders={profile_order_compare.get('orders_spec', '')} "
+            f"scenarios={profile_order_compare.get('scenarios_count', 0)} "
+            f"best_counts={best_counts_text}"
+        )
+        compare_report_path = profile_order_compare.get("report_path")
+        if isinstance(compare_report_path, str) and compare_report_path:
+            lines.append(f"Profile-order report: {compare_report_path}")
     lines.append("")
 
     work_intake = sections.get("work_intake") if isinstance(sections, dict) else {}
