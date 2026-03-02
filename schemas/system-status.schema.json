@@ -825,6 +825,64 @@
               ],
               "type": "string"
             },
+            "subject_plan_ab_summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "report_path",
+                "subject_id",
+                "available_profiles",
+                "missing_profiles",
+                "best_profile",
+                "best_score",
+                "last_requested_profile",
+                "last_run_set"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "OK",
+                    "WARN",
+                    "FAIL",
+                    "IDLE"
+                  ]
+                },
+                "report_path": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string"
+                },
+                "available_profiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "missing_profiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "best_profile": {
+                  "type": "string"
+                },
+                "best_score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "last_requested_profile": {
+                  "type": "string"
+                },
+                "last_run_set": {
+                  "type": "string"
+                }
+              }
+            },
             "top_next_actions": {
               "items": {
                 "additionalProperties": false,

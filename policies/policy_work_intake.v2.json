@@ -2,6 +2,10 @@
   "version": "v2",
   "enabled": true,
   "plan_policy": "optional",
+  "auto_remediation": {
+    "enabled": true,
+    "seed_tag": "work_intake_auto_remediation"
+  },
   "bucket_order": [
     "INCIDENT",
     "TICKET",
