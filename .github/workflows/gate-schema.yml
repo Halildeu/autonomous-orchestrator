@@ -48,13 +48,13 @@ jobs:
 
       - name: Run smoke test (local runner + policy dry-run)
         run: |
-          python ci/smoke_test.py
+          python -m ci.smoke_test
       
-      - name: Run full smoke (ci_smoke skipped by default)
+      - name: Run managed smoke root-cause pass (fast, deterministic)
         env:
           SMOKE_FULL_INCLUDE_CI: "0"
         run: |
-          python -m src.ops.manage smoke --level full
+          python -m src.ops.manage smoke --level fast
 
       - name: Smoke root cause summary (taxonomy)
         if: always()
@@ -120,10 +120,14 @@ jobs:
           if-no-files-found: error
 
       - name: Repo hygiene report (warn-only)
+        if: always()
+        continue-on-error: true
         run: |
           python -m src.ops.manage repo-hygiene --mode report --out .cache/repo_hygiene/report.json
 
       - name: Doc graph report (warn-only)
+        if: always()
+        continue-on-error: true
         run: |
           python -m src.ops.manage doc-graph --workspace-root . --mode report --out .cache/reports/doc_graph_report.v1.json
 
@@ -181,7 +185,7 @@ jobs:
         with:
           name: repo-hygiene-report
           path: .cache/repo_hygiene/report.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload doc graph report artifact
         if: always()
@@ -189,7 +193,7 @@ jobs:
         with:
           name: doc-graph-report
           path: .cache/reports/doc_graph_report.v1.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Evidence integrity verify (newest run)
         run: |

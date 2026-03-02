@@ -342,7 +342,6 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     tests.append(_format_test_result("reaper_cleanup_guard_contract", reaper_guard_ok, reaper_guard_detail))
     if not reaper_guard_ok:
         failures.append("reaper_cleanup_guard_contract")
-
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"
 
