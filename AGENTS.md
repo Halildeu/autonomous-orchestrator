@@ -95,8 +95,8 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 
 ### Bootstrap komutu (agent çalıştırır)
 ```
-python -m src.ops.main system-status --workspace-root .
-python -m src.ops.main portfolio-status --workspace-root .
+python -m src.ops.manage system-status --workspace-root .
+python -m src.ops.manage portfolio-status --workspace-root .
 ```
 
 ## Repo conventions

@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+# Support both `python ci/smoke_test.py` and `python -m ci.smoke_test`.
+if __package__ in {None, ""}:
+    _repo_root = Path(__file__).resolve().parents[1]
+    if str(_repo_root) not in sys.path:
+        sys.path.insert(0, str(_repo_root))
 
 from ci.smoke_helpers.integration_smoke import run_smoke_sequence
 

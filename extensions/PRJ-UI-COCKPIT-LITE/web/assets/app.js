@@ -9115,11 +9115,10 @@ function renderActionResponse() {
   if (status) status.textContent = t("action.last_action", { op: last.op || "", status: last.status || "" });
   const trace = last.trace_meta || {};
   const evidence = Array.isArray(last.evidence_paths) ? last.evidence_paths.length : 0;
-  const maskedError = maskSensitiveReason(last.error || last.error_code || "", { maxLen: 600 });
   if (meta) {
-    meta.textContent = `status=${last.status || ""} error=${maskedError} run_id=${trace.run_id || ""} work_item_id=${trace.work_item_id || ""} evidence_paths=${evidence}`;
+    meta.textContent = `status=${last.status || ""} error=${last.error || last.error_code || ""} run_id=${trace.run_id || ""} work_item_id=${trace.work_item_id || ""} evidence_paths=${evidence}`;
   }
-  renderJson(target, maskSensitiveDisplayValue(last));
+  renderJson(target, last);
 }
 
 function setConnectionStatus(ok) {
@@ -9139,61 +9138,6 @@ function setSseStatus(connected) {
   el.textContent = t("status.sse", { status });
 }
 
-function maskSensitiveReason(raw, { maxLen = 240 } = {}) {
-  let text = String(raw || "").trim();
-  if (!text) return "";
-  text = text.replace(
-    /([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|KEY|DSN|URL)[A-Z0-9_]*=)(.*?)(?=(?:[A-Z][A-Z0-9_]*=)|$)/g,
-    "$1***"
-  );
-  text = text.replace(/([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)([^@\s/]+)@/gi, "$1***@");
-  text = text.replace(/([?&](?:token|secret|password|key|api_key)=)([^&\s]+)/gi, "$1***");
-  text = text.replace(/(Bearer\s+)[A-Za-z0-9._-]+/gi, "$1***");
-  if (text.length > maxLen) return `${text.slice(0, maxLen)}...`;
-  return text;
-}
-
-function shouldMaskDisplayKey(key) {
-  const lower = String(key || "").trim().toLowerCase();
-  if (!lower) return false;
-  return [
-    "error",
-    "reason",
-    "token",
-    "secret",
-    "password",
-    "api_key",
-    "apikey",
-    "key",
-    "dsn",
-    "url",
-    "auth",
-    "authorization",
-    "bearer",
-    "stderr",
-    "message",
-    "exception",
-  ].some((hint) => lower.includes(hint));
-}
-
-function maskSensitiveDisplayValue(value, depth = 0) {
-  if (depth > 10) return value;
-  if (value === null || value === undefined) return value;
-  if (typeof value === "string") return maskSensitiveReason(value, { maxLen: 1200 });
-  if (Array.isArray(value)) return value.map((item) => maskSensitiveDisplayValue(item, depth + 1));
-  if (typeof value !== "object") return value;
-
-  const out = {};
-  Object.entries(value).forEach(([key, val]) => {
-    if (typeof val === "string" && shouldMaskDisplayKey(key)) {
-      out[key] = maskSensitiveReason(val, { maxLen: 1200 });
-    } else {
-      out[key] = maskSensitiveDisplayValue(val, depth + 1);
-    }
-  });
-  return out;
-}
-
 function setMemoryStatus(payload) {
   const el = $("#memory-status");
   if (!el) return;
@@ -9202,9 +9146,8 @@ function setMemoryStatus(payload) {
   setBadge(el, status);
   el.textContent = t("status.memory", { status });
   const reason = payload?.availability?.reason || payload?.reason || "";
-  const maskedReason = maskSensitiveReason(reason);
   const generatedAt = payload?.generated_at || "";
-  el.title = [generatedAt ? `generated_at=${generatedAt}` : "", maskedReason ? `reason=${maskedReason}` : ""]
+  el.title = [generatedAt ? `generated_at=${generatedAt}` : "", reason ? `reason=${reason}` : ""]
     .filter(Boolean)
     .join(" • ");
 }
@@ -14193,10 +14136,7 @@ async function postAction(action, url, payload = {}) {
     const kind = status === "FAIL" ? "fail" : status === "WARN" ? "warn" : "ok";
     showToast(t("job.done", { op: action, status }), kind);
     if (!res.ok) {
-      showToast(
-        t("toast.action_failed", { error: maskSensitiveReason(data.error || data.status || "UNKNOWN", { maxLen: 300 }) }),
-        "fail"
-      );
+      showToast(t("toast.action_failed", { error: data.error || data.status || "UNKNOWN" }), "fail");
       return data;
     }
     await refreshAll();
@@ -14847,18 +14787,17 @@ function setupOps() {
       const result = await postOp(op, args);
       if (result) {
         const meta = $("#composer-meta");
-        const maskedComposerError = maskSensitiveReason(result.error || result.error_code || "", { maxLen: 600 });
         if (meta) {
-          meta.textContent = `status=${result.status || ""} error=${maskedComposerError}`;
+          meta.textContent = `status=${result.status || ""} error=${result.error || result.error_code || ""}`;
         }
-        renderJson($("#composer-response"), maskSensitiveDisplayValue(result));
+        renderJson($("#composer-response"), result);
       }
       if (result && result.status && (state.plannerThread || "default")) {
         const thread = state.plannerThread || "default";
         const summary = {
           status: result.status,
           op: result.op,
-          error: maskSensitiveReason(result.error || result.error_code || "", { maxLen: 600 }),
+          error: result.error || result.error_code || "",
           trace_meta: result.trace_meta || {},
           evidence_paths: result.evidence_paths || [],
         };
