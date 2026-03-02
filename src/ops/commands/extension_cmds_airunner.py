@@ -192,6 +192,46 @@ def cmd_north_star_subject_plan_profile_run(args: argparse.Namespace) -> int:
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
 
 
+def cmd_north_star_profile_order_compare(args: argparse.Namespace) -> int:
+    ws = _resolve_workspace_root(args)
+    if ws is None:
+        return 2
+
+    subject_id = str(getattr(args, "subject_id", "") or "").strip()
+    if not subject_id:
+        warn("FAIL error=SUBJECT_ID_REQUIRED")
+        return 2
+
+    orders = str(getattr(args, "orders", "BCA;ACB;CAB") or "BCA;ACB;CAB").strip() or "BCA;ACB;CAB"
+    mode = str(getattr(args, "mode", "plan_first") or "plan_first").strip() or "plan_first"
+    out = str(getattr(args, "out", "latest") or "latest").strip() or "latest"
+    report_path = (
+        str(
+            getattr(
+                args,
+                "report_path",
+                str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json"),
+            )
+            or str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json")
+        ).strip()
+        or str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json")
+    )
+
+    from src.prj_planner.north_star_profile_order_compare import run_north_star_profile_order_compare
+
+    payload = run_north_star_profile_order_compare(
+        workspace_root=ws,
+        subject_id=subject_id,
+        orders_spec=orders,
+        mode=mode,
+        out=out,
+        report_path=report_path,
+    )
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    status = payload.get("status") if isinstance(payload, dict) else "WARN"
+    return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_planner_show_plan(args: argparse.Namespace) -> int:
     ws = _resolve_workspace_root(args)
     if ws is None:

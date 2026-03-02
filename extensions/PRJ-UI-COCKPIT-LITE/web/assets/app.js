@@ -650,6 +650,12 @@ const I18N = {
     "north_star.subject_plan.compare_empty": "No A/B/C comparison data yet.",
     "north_star.subject_plan.meta": "subject={subject} profile={profile} run_set={run_set} best={best} score={score}",
     "north_star.subject_plan.refresh_hint": "Run profile to refresh comparison.",
+    "north_star.subject_plan.orders_label": "Order set",
+    "north_star.subject_plan.orders_placeholder": "BCA;ACB;CAB",
+    "north_star.subject_plan.compare_btn": "Run order compare",
+    "north_star.subject_plan.order_refresh_hint": "Run order compare to refresh.",
+    "north_star.subject_plan.order_compare_empty": "No order comparison data yet.",
+    "north_star.subject_plan.order_meta": "subject={subject} scenarios={scenarios} runs_ok={runs_ok} compare_ok={compare_ok} winners={winners}",
     "north_star.catalog_create.title": "Catalog Builder",
     "north_star.catalog_create.hint": "Prompt: v0.4.8 (prompt_refine_consolidated)",
     "north_star.catalog_create.subject_label": "Topic",
@@ -1347,6 +1353,12 @@ const I18N = {
     "north_star.subject_plan.compare_empty": "Henüz A/B/C kıyas verisi yok.",
     "north_star.subject_plan.meta": "subject={subject} profile={profile} run_set={run_set} best={best} score={score}",
     "north_star.subject_plan.refresh_hint": "Kıyas için profil koşusu çalıştırın.",
+    "north_star.subject_plan.orders_label": "Sıra seti",
+    "north_star.subject_plan.orders_placeholder": "BCA;ACB;CAB",
+    "north_star.subject_plan.compare_btn": "Sıra kıyasını çalıştır",
+    "north_star.subject_plan.order_refresh_hint": "Kıyas verisini yenilemek için sıra kıyasını çalıştırın.",
+    "north_star.subject_plan.order_compare_empty": "Henüz sıra kıyas verisi yok.",
+    "north_star.subject_plan.order_meta": "subject={subject} senaryo={scenarios} runs_ok={runs_ok} compare_ok={compare_ok} kazanan={winners}",
     "north_star.catalog_create.title": "Yeni Katalog Oluştur",
     "north_star.catalog_create.hint": "Prompt: v0.4.8 (prompt_refine_consolidated)",
     "north_star.catalog_create.subject_label": "Konu",
@@ -1616,6 +1628,9 @@ const northStarFlow2PolicyDiffPath = ".cache/policy_check/policy_diff_report.jso
 const northStarFlow2SystemStatusPath = ".cache/ws_customer_default/.cache/reports/system_status.v1.json";
 const northStarFlow2ProjectStatusPath = ".cache/ws_customer_default/.cache/reports/project_status.v1.txt";
 const northStarSubjectPlanABReportPath = ".cache/ws_customer_default/.cache/reports/north_star_subject_plan_ab_test.v1.json";
+const northStarProfileOrderCompareReportPath =
+  ".cache/ws_customer_default/.cache/reports/north_star_profile_order_ab_compare.v1.json";
+const northStarProfileOrderCompareDefaultOrders = "BCA;ACB;CAB";
 const extensionUsageReportPath = ".cache/reports/extension_usage_from_ops_log.v1.json";
 const opsLogIndexPointerPath = ".cache/reports/ops_log_index_canonical_pointer.v0.3.json";
 const promptRegistryPath = "registry/prompt_registry.v1.json";
@@ -1642,6 +1657,7 @@ const state = {
   northStarMechanismsHistory: null,
   northStarFlow2Status: null,
   northStarSubjectPlanProfileRun: null,
+  northStarProfileOrderCompare: null,
   northStarMatrices: {
     reference: null,
     assessment: null,
@@ -1952,6 +1968,37 @@ async function fetchNorthStarSubjectPlanABReport() {
     return deriveNorthStarSubjectPlanProfileRunFromReport(data);
   } catch (err) {
     showToast(t("toast.refresh_failed", { name: "north_star_subject_plan_ab", error: formatError(err) }), "warn");
+    return null;
+  }
+}
+
+function deriveNorthStarProfileOrderCompareFromReport(payload) {
+  const report = unwrap(payload || {}) || {};
+  const scenarios = Array.isArray(report.scenarios)
+    ? report.scenarios.filter((item) => item && typeof item === "object")
+    : [];
+  if (!scenarios.length) return null;
+
+  const errors = Array.isArray(report.errors) ? report.errors : [];
+  const summary = report.summary && typeof report.summary === "object" ? report.summary : {};
+  return {
+    status: errors.length ? "WARN" : "OK",
+    subject_id: String(report.subject_id || "").trim(),
+    orders_spec: String(report.orders_spec || "").trim(),
+    generated_at: String(report.generated_at || "").trim(),
+    report_path: northStarProfileOrderCompareReportPath,
+    scenarios,
+    summary,
+    errors,
+  };
+}
+
+async function fetchNorthStarProfileOrderCompareReport() {
+  try {
+    const data = await fetchOptionalJson(northStarProfileOrderCompareReportPath);
+    return deriveNorthStarProfileOrderCompareFromReport(data);
+  } catch (err) {
+    showToast(t("toast.refresh_failed", { name: "north_star_profile_order_compare", error: formatError(err) }), "warn");
     return null;
   }
 }
@@ -5873,6 +5920,7 @@ function renderNorthStarSubjectPlanProfileRun() {
   const subjectInput = $("#ns-subject-plan-subject");
   const profileSelect = $("#ns-subject-plan-profile");
   const runSetSelect = $("#ns-subject-plan-runset");
+  const ordersInput = $("#ns-subject-plan-orders");
 
   if (!badgeEl || !metaEl || !compareEl) return;
 
@@ -5890,6 +5938,10 @@ function renderNorthStarSubjectPlanProfileRun() {
     setBadge(badgeEl, "IDLE");
     metaEl.textContent = t("north_star.subject_plan.refresh_hint");
     compareEl.innerHTML = `<div class="empty">${escapeHtml(t("north_star.subject_plan.compare_empty"))}</div>`;
+    if (ordersInput && !String(ordersInput.value || "").trim()) {
+      ordersInput.value = northStarProfileOrderCompareDefaultOrders;
+    }
+    renderNorthStarProfileOrderCompare();
     attachNorthStarSubjectPlanHandlers();
     return;
   }
@@ -5906,6 +5958,10 @@ function renderNorthStarSubjectPlanProfileRun() {
 
   if (profileSelect && profile && profile !== "-") profileSelect.value = profile;
   if (runSetSelect && runSet && runSet !== "-") runSetSelect.value = runSet;
+  if (ordersInput && !String(ordersInput.value || "").trim()) {
+    const compareOrdersSpec = String(state.northStarProfileOrderCompare?.orders_spec || "").trim();
+    ordersInput.value = compareOrdersSpec || northStarProfileOrderCompareDefaultOrders;
+  }
 
   metaEl.textContent = t("north_star.subject_plan.meta", {
     subject,
@@ -5943,17 +5999,97 @@ function renderNorthStarSubjectPlanProfileRun() {
     ]);
   }
 
+  renderNorthStarProfileOrderCompare();
   attachNorthStarSubjectPlanHandlers();
+}
+
+function renderNorthStarProfileOrderCompare() {
+  const metaEl = $("#ns-subject-plan-order-meta");
+  const compareEl = $("#ns-subject-plan-order-compare");
+  const ordersInput = $("#ns-subject-plan-orders");
+  if (!metaEl || !compareEl) return;
+
+  const payload =
+    state.northStarProfileOrderCompare && typeof state.northStarProfileOrderCompare === "object"
+      ? state.northStarProfileOrderCompare
+      : null;
+
+  if (!payload) {
+    metaEl.textContent = t("north_star.subject_plan.order_refresh_hint");
+    compareEl.innerHTML = `<div class="empty">${escapeHtml(t("north_star.subject_plan.order_compare_empty"))}</div>`;
+    if (ordersInput && !String(ordersInput.value || "").trim()) {
+      ordersInput.value = northStarProfileOrderCompareDefaultOrders;
+    }
+    return;
+  }
+
+  const subject = String(payload.subject_id || "").trim() || "-";
+  const summary = payload.summary && typeof payload.summary === "object" ? payload.summary : {};
+  const ordersSpec = String(payload.orders_spec || "").trim() || northStarProfileOrderCompareDefaultOrders;
+  if (ordersInput && !String(ordersInput.value || "").trim()) {
+    ordersInput.value = ordersSpec;
+  }
+
+  const winnersEntries =
+    summary.best_profile_counts && typeof summary.best_profile_counts === "object"
+      ? Object.entries(summary.best_profile_counts)
+          .map(([profile, count]) => `${String(profile || "").trim() || "-"}:${toSafeInt(count, 0)}`)
+          .join(", ")
+      : "";
+  const winners = winnersEntries || "-";
+
+  metaEl.textContent = t("north_star.subject_plan.order_meta", {
+    subject,
+    scenarios: String(toSafeInt(summary.total_scenarios, 0)),
+    runs_ok: String(Boolean(summary.all_runs_ok)),
+    compare_ok: String(Boolean(summary.all_comparisons_ok)),
+    winners,
+  });
+
+  const rows = Array.isArray(payload.scenarios)
+    ? payload.scenarios
+        .filter((item) => item && typeof item === "object")
+        .map((item) => ({
+          scenario: String(item.scenario_id || ""),
+          preferred_order: Array.isArray(item.preferred_profile_order)
+            ? item.preferred_profile_order.map((it) => String(it || "")).filter(Boolean).join(" > ")
+            : "",
+          run_status: String(item.run_status || ""),
+          compare_status: String(item.comparison_status || ""),
+          best_profile: String(item.best_profile || ""),
+          best_score: formatNumber(item.best_score),
+          available: Array.isArray(item.available_profiles) ? item.available_profiles.join(",") : "",
+          missing: Array.isArray(item.missing_profiles) ? item.missing_profiles.join(",") : "",
+        }))
+    : [];
+
+  if (!rows.length) {
+    compareEl.innerHTML = `<div class="empty">${escapeHtml(t("north_star.subject_plan.order_compare_empty"))}</div>`;
+    return;
+  }
+
+  renderStaticTable("#ns-subject-plan-order-compare", rows, [
+    { key: "scenario", label: "Scenario" },
+    { key: "preferred_order", label: "Order" },
+    { key: "run_status", label: "Run" },
+    { key: "compare_status", label: "Compare" },
+    { key: "best_profile", label: "Best" },
+    { key: "best_score", label: t("table.score") },
+    { key: "available", label: "Available" },
+    { key: "missing", label: "Missing" },
+  ]);
 }
 
 function attachNorthStarSubjectPlanHandlers() {
   if (northStarSubjectPlanControlsAttached) return;
 
   const runBtn = $("#ns-subject-plan-run-btn");
+  const compareBtn = $("#ns-subject-plan-compare-btn");
   const subjectInput = $("#ns-subject-plan-subject");
   const profileSelect = $("#ns-subject-plan-profile");
   const runSetSelect = $("#ns-subject-plan-runset");
   const persistCheckbox = $("#ns-subject-plan-persist");
+  const ordersInput = $("#ns-subject-plan-orders");
 
   if (runBtn) {
     runBtn.onclick = async () => {
@@ -5982,6 +6118,40 @@ function attachNorthStarSubjectPlanHandlers() {
           "north-star-subject-plan-profile-run"
         );
         state.northStarSubjectPlanProfileRun = result;
+        renderNorthStarSubjectPlanProfileRun();
+      } catch (err) {
+        showToast(formatError(err), "warn");
+      }
+    };
+  }
+
+  if (compareBtn) {
+    compareBtn.onclick = async () => {
+      const subjectRaw = String(subjectInput?.value || "").trim();
+      const fallbackSubject = String(getPrimaryMechanismsSubjectFilter() || "").trim();
+      const subjectId = subjectRaw || fallbackSubject;
+      if (!subjectId) {
+        showToast(t("north_star.subject_plan.subject_required"), "warn");
+        return;
+      }
+      if (subjectInput && !subjectRaw) subjectInput.value = subjectId;
+
+      const ordersRaw = String(ordersInput?.value || "").trim();
+      const orders = ordersRaw || northStarProfileOrderCompareDefaultOrders;
+      if (ordersInput && !ordersRaw) ordersInput.value = orders;
+
+      try {
+        const result = ensureOpOk(
+          await postOp("north-star-profile-order-compare", {
+            subject_id: subjectId,
+            orders,
+            mode: "plan_first",
+            out: "latest",
+            report_path: ".cache/reports/north_star_profile_order_ab_compare.v1.json",
+          }),
+          "north-star-profile-order-compare"
+        );
+        state.northStarProfileOrderCompare = result;
         renderNorthStarSubjectPlanProfileRun();
       } catch (err) {
         showToast(formatError(err), "warn");
@@ -13339,7 +13509,7 @@ async function refreshOverview() {
 }
 
 async function refreshNorthStar() {
-  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory, flow2Status, subjectPlanAb] = await Promise.all([
+  const [northStar, criteriaPacks, mechanismsRegistry, mechanismsSuggestions, mechanismsHistory, flow2Status, subjectPlanAb, profileOrderCompare] = await Promise.all([
     fetchJson(endpoints.northStar),
     fetchNorthStarCriteriaPacks(),
     fetchNorthStarMechanismsRegistry(),
@@ -13347,6 +13517,7 @@ async function refreshNorthStar() {
     fetchNorthStarMechanismsHistory(),
     fetchNorthStarFlow2Status(),
     fetchNorthStarSubjectPlanABReport(),
+    fetchNorthStarProfileOrderCompareReport(),
   ]);
   state.northStar = northStar;
   if (criteriaPacks) state.northStarCriteriaPacks = criteriaPacks;
@@ -13355,6 +13526,7 @@ async function refreshNorthStar() {
   if (mechanismsHistory) state.northStarMechanismsHistory = mechanismsHistory;
   state.northStarFlow2Status = flow2Status || null;
   state.northStarSubjectPlanProfileRun = subjectPlanAb && typeof subjectPlanAb === "object" ? subjectPlanAb : null;
+  state.northStarProfileOrderCompare = profileOrderCompare && typeof profileOrderCompare === "object" ? profileOrderCompare : null;
   renderNorthStar();
 }
 

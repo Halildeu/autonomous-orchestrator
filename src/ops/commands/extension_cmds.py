@@ -35,6 +35,7 @@ from src.ops.commands.extension_cmds_airunner import (
     cmd_extension_registry,
     cmd_extension_run,
     cmd_north_star_subject_plan_profile_run,
+    cmd_north_star_profile_order_compare,
     cmd_north_star_subject_to_plan,
     cmd_planner_apply_selection,
     cmd_planner_build_plan,
@@ -838,6 +839,26 @@ def register_extension_subcommands(parent: argparse._SubParsersAction[argparse.A
         help="true|false (default: true). true keeps selected profile in scoring override.",
     )
     ap_ns_subject_profile.set_defaults(func=cmd_north_star_subject_plan_profile_run)
+
+    ap_ns_profile_compare = parent.add_parser(
+        "north-star-profile-order-compare",
+        help="Run A/B/C profile-order comparison scenarios and write unified compare report.",
+    )
+    ap_ns_profile_compare.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_profile_compare.add_argument("--subject-id", required=True, help="North Star subject id.")
+    ap_ns_profile_compare.add_argument(
+        "--orders",
+        default="BCA;ACB;CAB",
+        help="Semicolon-separated order list, e.g. BCA;ACB;CAB (default: BCA;ACB;CAB).",
+    )
+    ap_ns_profile_compare.add_argument("--mode", default="plan_first", help="Plan mode (default: plan_first).")
+    ap_ns_profile_compare.add_argument("--out", default="latest", help="latest|<plan_prefix> (default: latest).")
+    ap_ns_profile_compare.add_argument(
+        "--report-path",
+        default=str(Path(".cache") / "reports" / "north_star_profile_order_ab_compare.v1.json"),
+        help="Relative/absolute report path (default: .cache/reports/north_star_profile_order_ab_compare.v1.json).",
+    )
+    ap_ns_profile_compare.set_defaults(func=cmd_north_star_profile_order_compare)
 
     ap_planner_show = parent.add_parser("planner-show-plan", help="Show planner plan (program-led, local).")
     ap_planner_show.add_argument("--workspace-root", required=True, help="Workspace root path.")
