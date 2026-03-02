@@ -7,6 +7,9 @@ for _name in dir(_core):
         continue
     globals().setdefault(_name, getattr(_core, _name))
 
+_RC_PENDING_ERROR_CODE = "RC_PENDING"
+_RC_PENDING_GRACE_SECONDS = 3
+
 
 def _run_pr_open_job(
     rc_path: str,
@@ -866,6 +869,11 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
     timeout_seconds = int(
         (policy.get("job") or {}).get("ttl_seconds", 0) if isinstance(policy.get("job"), dict) else 0
     )
+    retry_budget = int(policy.get("retry_count", 0) or 0)
+    if retry_budget < 0:
+        retry_budget = 0
+    rc_pending_grace_seconds = min(15, _RC_PENDING_GRACE_SECONDS + retry_budget)
+    rc_pending_note_prefix = "rc_pending_since:"
     if status in {"QUEUED", "RUNNING"}:
         pid = target.get("pid")
         job_time = _job_time(target)
@@ -888,6 +896,16 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
                     running = False
             if running:
                 target["status"] = "RUNNING"
+                if str(target.get("error_code") or "") == _RC_PENDING_ERROR_CODE:
+                    target["error_code"] = ""
+                notes_list = target.get("notes") if isinstance(target.get("notes"), list) else []
+                cleaned_notes = [
+                    note
+                    for note in notes_list
+                    if isinstance(note, str) and not note.startswith(rc_pending_note_prefix)
+                ]
+                if len(cleaned_notes) != len(notes_list):
+                    target["notes"] = cleaned_notes
             else:
                 rc_path = _job_output_paths(workspace_root, job_id)[2]
                 rc = None
@@ -900,15 +918,70 @@ def poll_github_ops_job(*, workspace_root: Path, job_id: str) -> dict[str, Any]:
                     except Exception:
                         rc = None
                 if rc is None:
-                    target["status"] = "FAIL"
-                    target["error_code"] = "RC_MISSING"
+                    notes_list = target.get("notes") if isinstance(target.get("notes"), list) else []
+                    was_pending = str(target.get("error_code") or "") == _RC_PENDING_ERROR_CODE
+                    pending_since_value = ""
+                    for note in notes_list:
+                        if isinstance(note, str) and note.startswith(rc_pending_note_prefix):
+                            pending_since_value = note[len(rc_pending_note_prefix) :]
+                            break
+                    pending_since = _parse_iso(pending_since_value)
+                    pending_elapsed = (
+                        now - pending_since if pending_since is not None else timedelta(seconds=0)
+                    )
+                    pending_window_active = (
+                        not was_pending
+                        or pending_since is None
+                        or pending_elapsed <= timedelta(seconds=rc_pending_grace_seconds)
+                    )
+                    if pending_window_active:
+                        target["status"] = "RUNNING"
+                        target["error_code"] = _RC_PENDING_ERROR_CODE
+                        pending_marker = f"{rc_pending_note_prefix}{_now_iso()}"
+                        if was_pending and pending_since_value:
+                            pending_marker = f"{rc_pending_note_prefix}{pending_since_value}"
+                        cleaned_notes = [
+                            note
+                            for note in notes_list
+                            if isinstance(note, str) and not note.startswith(rc_pending_note_prefix)
+                        ]
+                        cleaned_notes.append(pending_marker)
+                        target["notes"] = cleaned_notes
+                    else:
+                        target["status"] = "FAIL"
+                        target["error_code"] = "RC_MISSING"
+                        cleaned_notes = [
+                            note
+                            for note in notes_list
+                            if isinstance(note, str) and not note.startswith(rc_pending_note_prefix)
+                        ]
+                        if len(cleaned_notes) != len(notes_list):
+                            target["notes"] = cleaned_notes
                 elif rc == 0:
                     target["status"] = "PASS"
                     target["failure_class"] = "PASS"
+                    if str(target.get("error_code") or "") == _RC_PENDING_ERROR_CODE:
+                        target["error_code"] = ""
+                    notes_list = target.get("notes") if isinstance(target.get("notes"), list) else []
+                    cleaned_notes = [
+                        note
+                        for note in notes_list
+                        if isinstance(note, str) and not note.startswith(rc_pending_note_prefix)
+                    ]
+                    if len(cleaned_notes) != len(notes_list):
+                        target["notes"] = cleaned_notes
                 else:
                     target["status"] = "FAIL"
                     target["error_code"] = "RC_NONZERO"
                     target["rc"] = rc
+                    notes_list = target.get("notes") if isinstance(target.get("notes"), list) else []
+                    cleaned_notes = [
+                        note
+                        for note in notes_list
+                        if isinstance(note, str) and not note.startswith(rc_pending_note_prefix)
+                    ]
+                    if len(cleaned_notes) != len(notes_list):
+                        target["notes"] = cleaned_notes
                 if rc_obj is not None:
                     pr_meta = _extract_pr_metadata_from_rc(rc_obj)
                     for meta_key, meta_value in pr_meta.items():
