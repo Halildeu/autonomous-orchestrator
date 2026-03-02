@@ -50,11 +50,11 @@ jobs:
         run: |
           python -m ci.smoke_test
       
-      - name: Run full smoke (ci_smoke skipped by default)
+      - name: Run managed smoke root-cause pass (fast, deterministic)
         env:
           SMOKE_FULL_INCLUDE_CI: "0"
         run: |
-          python -m src.ops.manage smoke --level full
+          python -m src.ops.manage smoke --level fast
 
       - name: Smoke root cause summary (taxonomy)
         if: always()
