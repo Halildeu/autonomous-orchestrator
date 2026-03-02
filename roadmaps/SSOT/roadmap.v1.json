@@ -43,6 +43,13 @@
         {
           "text": "Maintainability guardrail (SSOT): Script Budget (soft=warn, hard=fail) is enforced in CI and Roadmap Runner global gates.",
           "type": "note"
+        },
+        {
+          "paths": [
+            "schemas/roadmap.schema.json",
+            "docs/LAYER-MODEL-LOCK.v1.md"
+          ],
+          "type": "assert_core_paths_exist"
         }
       ],
       "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold"
