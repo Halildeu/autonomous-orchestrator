@@ -112,6 +112,7 @@ def _seed_policy(ws: Path) -> None:
             "max_module_count": 6,
             "min_coverage_quality": 0.70,
             "require_full_coverage": True,
+            "preferred_profile_order": ["C", "B", "A"],
             "scoring_weights": {
                 "pair_weight": 0.55,
                 "theme_weight": 0.35,
@@ -157,6 +158,7 @@ def main() -> None:
     comparison = payload.get("comparison") if isinstance(payload.get("comparison"), dict) else {}
     available = comparison.get("available_profiles") if isinstance(comparison.get("available_profiles"), list) else []
     _must(sorted(str(item) for item in available) == ["A", "B", "C"], "comparison available profiles mismatch")
+    _must(str(comparison.get("best_profile") or "") == "C", "best_profile must honor preferred_profile_order")
     runs = payload.get("runs") if isinstance(payload.get("runs"), list) else []
     _must(len(runs) == 3, "abc run must produce 3 entries")
 
@@ -189,6 +191,7 @@ def main() -> None:
     single_comparison = payload_single.get("comparison") if isinstance(payload_single.get("comparison"), dict) else {}
     single_missing = single_comparison.get("missing_profiles") if isinstance(single_comparison.get("missing_profiles"), list) else []
     _must(len(single_missing) == 0, "forced abc run must not have missing profiles")
+    _must(str(single_comparison.get("best_profile") or "") == "C", "single run best_profile must honor preferred_profile_order")
     _must(override_path.exists(), "override file must exist when persist_profile=true")
     override_obj = _load_json(override_path)
     weights = (

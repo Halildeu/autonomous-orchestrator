@@ -134,6 +134,20 @@
         "require_full_coverage": {
           "type": "boolean"
         },
+        "preferred_profile_order": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C"
+            ]
+          }
+        },
         "scoring_weights": {
           "type": "object",
           "additionalProperties": false,

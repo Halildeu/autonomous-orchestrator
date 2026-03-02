@@ -100,6 +100,38 @@ def _normalize_profile(value: str) -> str:
     return _DEFAULT_PROFILE
 
 
+def _normalize_preferred_profile_order(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        profile = _safe_str(item).upper()
+        if profile not in _ALLOWED_PROFILES or profile in seen:
+            continue
+        out.append(profile)
+        seen.add(profile)
+    return out
+
+
+def _resolve_preferred_profile_order(workspace_root: Path) -> tuple[list[str], str]:
+    default_order = list(_ALLOWED_PROFILES)
+    try:
+        from src.prj_planner.north_star_subject_plan import _subject_plan_policy
+
+        policy_obj, policy_source = _subject_plan_policy(workspace_root)
+    except Exception:
+        return default_order, "defaults_fallback"
+    gate = policy_obj.get("quality_gate") if isinstance(policy_obj.get("quality_gate"), dict) else {}
+    order = _normalize_preferred_profile_order(gate.get("preferred_profile_order"))
+    for profile in _ALLOWED_PROFILES:
+        if profile not in order:
+            order.append(profile)
+    if not order:
+        order = default_order
+    return order, _safe_str(policy_source) or "defaults"
+
+
 def _normalize_run_set(value: str) -> str:
     _ = _safe_str(value).lower()
     return "abc"
@@ -193,7 +225,17 @@ def _extract_run_entry(
     return entry
 
 
-def _comparison_summary(latest_by_profile: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _comparison_summary(
+    latest_by_profile: dict[str, dict[str, Any]],
+    *,
+    preferred_profile_order: list[str],
+) -> dict[str, Any]:
+    order = _normalize_preferred_profile_order(preferred_profile_order)
+    for profile in _ALLOWED_PROFILES:
+        if profile not in order:
+            order.append(profile)
+    order_index = {profile: index for index, profile in enumerate(order)}
+
     profiles: list[dict[str, Any]] = []
     available_profiles: list[str] = []
     for profile in _ALLOWED_PROFILES:
@@ -231,7 +273,7 @@ def _comparison_summary(latest_by_profile: dict[str, dict[str, Any]]) -> dict[st
             0 if str(row.get("quality_gate_status") or "").upper() == "PASS" else 1,
             -_safe_float(row.get("coverage_quality_score"), 0.0),
             _safe_int(row.get("module_count"), 999999),
-            str(row.get("profile") or ""),
+            order_index.get(_safe_str(row.get("profile")).upper(), len(order_index) + 1),
         )
     )
     best_profile = str(ranked[0].get("profile") or "") if ranked else ""
@@ -244,6 +286,7 @@ def _comparison_summary(latest_by_profile: dict[str, dict[str, Any]]) -> dict[st
         "missing_profiles": missing_profiles,
         "best_profile": best_profile,
         "best_score": best_score,
+        "preferred_profile_order": order,
         "profiles": profiles,
     }
 
@@ -296,6 +339,10 @@ def run_north_star_subject_plan_profile_run(
     ]
     if requested_run_set != "abc":
         notes.append(f"run_set_forced=abc(requested:{requested_run_set})")
+
+    preferred_profile_order, tie_break_policy_source = _resolve_preferred_profile_order(workspace_root)
+    notes.append(f"preferred_profile_order={','.join(preferred_profile_order)}")
+    notes.append(f"tie_break_policy_source={tie_break_policy_source}")
 
     override_path = workspace_root / ".cache" / "policy_overrides" / "policy_north_star_subject_plan_scoring.override.v1.json"
     report_path = workspace_root / ".cache" / "reports" / "north_star_subject_plan_ab_test.v1.json"
@@ -361,6 +408,7 @@ def run_north_star_subject_plan_profile_run(
                     "missing_profiles": [p for p in _ALLOWED_PROFILES if p not in {e.get("profile") for e in run_entries}],
                     "best_profile": "",
                     "best_score": 0.0,
+                    "preferred_profile_order": preferred_profile_order,
                     "profiles": [],
                 },
                 "report_path": _rel_path(workspace_root, report_path),
@@ -417,7 +465,10 @@ def run_north_star_subject_plan_profile_run(
     if len(cleaned_history) > 60:
         cleaned_history = cleaned_history[-60:]
 
-    comparison = _comparison_summary(latest_by_profile)
+    comparison = _comparison_summary(
+        latest_by_profile,
+        preferred_profile_order=preferred_profile_order,
+    )
 
     subject_report = {
         "subject_id": subject_norm,

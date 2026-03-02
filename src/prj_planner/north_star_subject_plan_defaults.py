@@ -139,6 +139,7 @@ DEFAULT_POLICY: dict[str, Any] = {
         "max_module_count": 8,
         "min_coverage_quality": 0.9,
         "require_full_coverage": True,
+        "preferred_profile_order": ["A", "B", "C"],
         "scoring_weights": {
             "pair_weight": 0.55,
             "theme_weight": 0.35,
