@@ -132,6 +132,7 @@ class SystemStatusPolicy:
     max_actions: int
     max_suggestions: int
     include_repo_hygiene_suggestions: bool
+    core_integrity_dirty_mode: str
     on_fail: str
 
 
@@ -143,6 +144,7 @@ def _load_policy(core_root: Path, workspace_root: Path) -> SystemStatusPolicy:
         max_actions=10,
         max_suggestions=10,
         include_repo_hygiene_suggestions=False,
+        core_integrity_dirty_mode="fail",
         on_fail="warn",
     )
 
@@ -181,6 +183,10 @@ def _load_policy(core_root: Path, workspace_root: Path) -> SystemStatusPolicy:
         obj.get("include_repo_hygiene_suggestions", defaults.include_repo_hygiene_suggestions)
     )
 
+    core_integrity_dirty_mode = obj.get("core_integrity_dirty_mode", defaults.core_integrity_dirty_mode)
+    if core_integrity_dirty_mode not in {"fail", "warn"}:
+        core_integrity_dirty_mode = defaults.core_integrity_dirty_mode
+
     on_fail = obj.get("on_fail", defaults.on_fail)
     if on_fail not in {"warn", "block"}:
         on_fail = defaults.on_fail
@@ -192,6 +198,7 @@ def _load_policy(core_root: Path, workspace_root: Path) -> SystemStatusPolicy:
         max_actions=max_actions,
         max_suggestions=max_suggestions,
         include_repo_hygiene_suggestions=include_repo_hygiene_suggestions,
+        core_integrity_dirty_mode=str(core_integrity_dirty_mode),
         on_fail=str(on_fail),
     )
 
@@ -217,6 +224,16 @@ def build_system_status(
     iso_status, iso_missing, iso_paths = _iso_core_status(workspace_root)
     spec_status, spec_paths, spec_examples, spec_notes = _spec_core_status(core_root)
     core_integrity = _core_integrity_section(core_root, workspace_root)
+    if (
+        isinstance(core_integrity, dict)
+        and str(core_integrity.get("status") or "") == "FAIL"
+        and str(policy.core_integrity_dirty_mode) == "warn"
+    ):
+        core_integrity["status"] = "WARN"
+        notes = core_integrity.get("notes")
+        notes_list = [str(x) for x in notes] if isinstance(notes, list) else []
+        notes_list.append("core_integrity_dirty_mode=warn")
+        core_integrity["notes"] = notes_list
     core_lock = _core_lock_section(core_root, workspace_root)
     project_boundary = _project_boundary_section(workspace_root)
     layer_boundary = _layer_boundary_section(workspace_root)
