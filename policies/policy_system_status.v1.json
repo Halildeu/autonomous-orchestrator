@@ -6,5 +6,6 @@
   "max_actions": 10,
   "max_suggestions": 10,
   "include_repo_hygiene_suggestions": false,
-  "on_fail": "warn"
+  "on_fail": "warn",
+  "core_integrity_dirty_mode": "warn"
 }

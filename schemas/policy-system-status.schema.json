@@ -21,6 +21,7 @@
     "max_actions": { "type": "integer", "minimum": 0, "maximum": 1000000 },
     "max_suggestions": { "type": "integer", "minimum": 0, "maximum": 1000000 },
     "include_repo_hygiene_suggestions": { "type": "boolean" },
+    "core_integrity_dirty_mode": { "type": "string", "enum": ["fail", "warn"] },
     "on_fail": { "type": "string", "enum": ["warn", "block"] },
     "note": { "type": "string" }
   }
