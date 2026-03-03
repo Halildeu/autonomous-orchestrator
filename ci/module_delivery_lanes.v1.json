@@ -1,0 +1,27 @@
+{
+  "version": "v1",
+  "managed_repo_profile": "python-default",
+  "merge_requires_all_green": true,
+  "lanes": {
+    "unit": {
+      "command": "python3 -m py_compile ci/check_module_delivery_lanes.py ci/run_module_delivery_lane.py",
+      "timeout_seconds": 600
+    },
+    "contract": {
+      "command": "python3 ci/check_standards_lock.py",
+      "timeout_seconds": 600
+    },
+    "integration": {
+      "command": "python3 ci/check_module_delivery_lanes.py --strict",
+      "timeout_seconds": 900
+    },
+    "e2e": {
+      "command": "python3 scripts/sync_managed_repo_standards.py --target-repo-root . --include-self",
+      "timeout_seconds": 900
+    }
+  },
+  "notes": [
+    "Managed repo CI lane template: her lane komutu repo bazlı override edilebilir.",
+    "Sync standardında preserve_existing_paths sayesinde bu dosya taşeron repoda korunur."
+  ]
+}

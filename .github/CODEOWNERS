@@ -1,0 +1,18 @@
+# Core ownership baseline
+* @halilkocoglu
+
+# SSOT and governance critical paths
+/AGENTS.md @halilkocoglu
+/standards.lock @halilkocoglu
+/docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md @halilkocoglu
+/docs/OPERATIONS/SSOT-MAP.md @halilkocoglu
+/scripts/sync_managed_repo_standards.py @halilkocoglu
+/ci/check_module_delivery_lanes.py @halilkocoglu
+/ci/run_module_delivery_lane.py @halilkocoglu
+/ci/module_delivery_lanes.v1.json @halilkocoglu
+/.github/workflows/module-delivery-lanes.yml @halilkocoglu
+/policies/ @halilkocoglu
+/schemas/ @halilkocoglu
+/workflows/ @halilkocoglu
+/ci/ @halilkocoglu
+/.github/workflows/ @halilkocoglu

@@ -1,0 +1,77 @@
+{
+  "version": "v1",
+  "generated_at": "2026-03-03T00:00:00Z",
+  "operating_contract": "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+  "standard_sources": {
+    "coding_standards": "docs/OPERATIONS/CODING-STANDARDS.md",
+    "repo_layout": "docs/OPERATIONS/repo-layout.v1.json",
+    "layer_boundary_policy": "policies/policy_layer_boundary.v1.json",
+    "llm_live_policy": "policies/policy_llm_live.v1.json",
+    "llm_provider_guardrails_policy": "policies/policy_llm_providers_guardrails.v1.json",
+    "kernel_api_guardrails_policy": "policies/policy_kernel_api_guardrails.v1.json",
+    "security_policy": "policies/policy_security.v1.json",
+    "secrets_policy": "policies/policy_secrets.v1.json"
+  },
+  "required_files": [
+    "standards.lock",
+    ".github/CODEOWNERS",
+    ".github/workflows/gate-enforcement-check.yml",
+    ".github/workflows/module-delivery-lanes.yml",
+    "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+    "scripts/sync_managed_repo_standards.py",
+    "ci/check_standards_lock.py",
+    "ci/check_module_delivery_lanes.py",
+    "ci/run_module_delivery_lane.py",
+    "ci/module_delivery_lanes.v1.json"
+  ],
+  "required_commands": [
+    "python ci/validate_schemas.py",
+    "python ci/policy_dry_run.py --fixtures fixtures/envelopes --out sim_report.json",
+    "python ci/check_script_budget.py --out .cache/script_budget/report.json",
+    "python -m src.ops.manage enforcement-check --profile strict",
+    "python3 scripts/sync_managed_repo_standards.py --target-repo-root <repo_root>",
+    "python3 ci/check_module_delivery_lanes.py --strict"
+  ],
+  "required_gates": [
+    "enforcement-check",
+    "gate-schema",
+    "gate-policy-dry-run",
+    "gate-secrets",
+    "module-delivery-gate"
+  ],
+  "managed_repo_sync": {
+    "default_mode": "dry-run",
+    "script": "scripts/sync_managed_repo_standards.py",
+    "source_of_truth": "standards.lock",
+    "apply_requires_flag": true,
+    "validation_command_template": "python3 ci/check_standards_lock.py --repo-root <repo_root>",
+    "preserve_existing_paths": [
+      "ci/module_delivery_lanes.v1.json"
+    ]
+  },
+  "module_delivery_contract": {
+    "service_scopes": [
+      "backend",
+      "frontend",
+      "database",
+      "api"
+    ],
+    "required_test_lanes": [
+      "unit",
+      "contract",
+      "integration",
+      "e2e"
+    ],
+    "merge_requires_all_green": true
+  },
+  "branch_protection": {
+    "default_branch": "main",
+    "required_checks": [
+      "module-delivery-gate"
+    ],
+    "verification_mode": "report_only"
+  },
+  "pr_gate_mode": {
+    "enforcement_check_pull_request": "blocking"
+  }
+}
