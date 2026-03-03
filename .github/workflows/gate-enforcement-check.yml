@@ -23,6 +23,14 @@ jobs:
           pip install -r requirements-dev.txt
           pip install semgrep==1.146.0
 
+      - name: Standards lock + ownership baseline
+        run: |
+          python3 ci/check_standards_lock.py
+
+      - name: Module delivery lanes contract
+        run: |
+          python3 ci/check_module_delivery_lanes.py --strict
+
       - name: Resolve PR baseline (merge-base)
         if: github.event_name == 'pull_request'
         run: |
@@ -33,9 +41,8 @@ jobs:
           echo "ENF_PR_HEAD=${PR_HEAD_PARENT}" >> "${GITHUB_ENV}"
           echo "ENF_BASELINE=git:${MERGE_BASE}" >> "${GITHUB_ENV}"
 
-      - name: Enforcement check (PR advisory)
+      - name: Enforcement check (PR strict)
         if: github.event_name == 'pull_request'
-        continue-on-error: true
         run: |
           set -euo pipefail
           git checkout "${ENF_PR_HEAD}"
