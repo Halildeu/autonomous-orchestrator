@@ -19,6 +19,7 @@
     ".github/workflows/module-delivery-lanes.yml",
     "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
     "scripts/sync_managed_repo_standards.py",
+    "scripts/check_branch_protection_solo_policy.py",
     "ci/check_standards_lock.py",
     "ci/check_module_delivery_lanes.py",
     "ci/run_module_delivery_lane.py",
@@ -30,7 +31,8 @@
     "python ci/check_script_budget.py --out .cache/script_budget/report.json",
     "python -m src.ops.manage enforcement-check --profile strict",
     "python3 scripts/sync_managed_repo_standards.py --target-repo-root <repo_root>",
-    "python3 ci/check_module_delivery_lanes.py --strict"
+    "python3 ci/check_module_delivery_lanes.py --strict",
+    "python3 scripts/check_branch_protection_solo_policy.py --repo-slug <owner/repo>"
   ],
   "required_gates": [
     "enforcement-check",
@@ -56,6 +58,18 @@
       "database",
       "api"
     ],
+    "scope_lane_map": {
+      "backend": "unit",
+      "frontend": "contract",
+      "integration": "integration",
+      "e2e_gate": "e2e"
+    },
+    "delivery_sequence": [
+      "backend",
+      "frontend",
+      "integration",
+      "e2e"
+    ],
     "required_test_lanes": [
       "unit",
       "contract",
@@ -67,9 +81,22 @@
   "branch_protection": {
     "default_branch": "main",
     "required_checks": [
-      "module-delivery-gate"
+      "module-delivery-gate",
+      "enforcement-check",
+      "validate-schemas",
+      "policy-dry-run",
+      "gitleaks"
     ],
-    "verification_mode": "report_only"
+    "verification_mode": "live_evidence"
+  },
+  "solo_developer_policy": {
+    "enabled": true,
+    "single_writer_requires_review_count": 0,
+    "single_writer_require_code_owner_reviews": false,
+    "multi_writer_min_review_count": 1,
+    "multi_writer_require_code_owner_reviews": true,
+    "strict_required_status_checks": true,
+    "enforce_admins_required": true
   },
   "pr_gate_mode": {
     "enforcement_check_pull_request": "blocking"

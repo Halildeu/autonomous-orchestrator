@@ -7,6 +7,7 @@
 /docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md @halilkocoglu
 /docs/OPERATIONS/SSOT-MAP.md @halilkocoglu
 /scripts/sync_managed_repo_standards.py @halilkocoglu
+/scripts/check_branch_protection_solo_policy.py @halilkocoglu
 /ci/check_module_delivery_lanes.py @halilkocoglu
 /ci/run_module_delivery_lane.py @halilkocoglu
 /ci/module_delivery_lanes.v1.json @halilkocoglu

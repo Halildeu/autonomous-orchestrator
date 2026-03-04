@@ -17,6 +17,7 @@ REQUIRED_FILES = (
     "ci/check_module_delivery_lanes.py",
     "ci/run_module_delivery_lane.py",
     "ci/module_delivery_lanes.v1.json",
+    "scripts/check_branch_protection_solo_policy.py",
 )
 
 REQUIRED_LOCK_KEYS = (
@@ -29,6 +30,7 @@ REQUIRED_LOCK_KEYS = (
     "managed_repo_sync",
     "module_delivery_contract",
     "branch_protection",
+    "solo_developer_policy",
     "pr_gate_mode",
 )
 
@@ -58,6 +60,7 @@ REQUIRED_COMMANDS = (
     "python -m src.ops.manage enforcement-check --profile strict",
     "python3 scripts/sync_managed_repo_standards.py --target-repo-root <repo_root>",
     "python3 ci/check_module_delivery_lanes.py --strict",
+    "python3 scripts/check_branch_protection_solo_policy.py --repo-slug <owner/repo>",
 )
 
 REQUIRED_PRESERVE_PATHS = (
@@ -66,7 +69,19 @@ REQUIRED_PRESERVE_PATHS = (
 
 REQUIRED_BRANCH_PROTECTION_CHECKS = (
     "module-delivery-gate",
+    "enforcement-check",
+    "validate-schemas",
+    "policy-dry-run",
+    "gitleaks",
 )
+
+REQUIRED_DELIVERY_SEQUENCE = ("backend", "frontend", "integration", "e2e")
+REQUIRED_SCOPE_LANE_MAP = {
+    "backend": "unit",
+    "frontend": "contract",
+    "integration": "integration",
+    "e2e_gate": "e2e",
+}
 
 
 def _repo_root() -> Path:
@@ -284,7 +299,13 @@ def _check_module_delivery_contract(section: Any) -> tuple[bool, dict[str, Any]]
         details["invalid_values"].append("module_delivery_contract:not_object")
         return False, details
 
-    required_keys = ("service_scopes", "required_test_lanes", "merge_requires_all_green")
+    required_keys = (
+        "service_scopes",
+        "required_test_lanes",
+        "delivery_sequence",
+        "scope_lane_map",
+        "merge_requires_all_green",
+    )
     for key in required_keys:
         if key not in section:
             details["missing_keys"].append(key)
@@ -310,6 +331,27 @@ def _check_module_delivery_contract(section: Any) -> tuple[bool, dict[str, Any]]
         missing_lanes = sorted(expected_lanes - actual_lanes)
         if missing_lanes:
             details["invalid_values"].append(f"required_test_lanes:missing_{','.join(missing_lanes)}")
+
+    delivery_sequence = section.get("delivery_sequence")
+    if not isinstance(delivery_sequence, list) or not delivery_sequence:
+        details["invalid_values"].append("delivery_sequence:must_be_nonempty_list")
+    else:
+        actual_sequence = [str(item) for item in delivery_sequence]
+        if actual_sequence != list(REQUIRED_DELIVERY_SEQUENCE):
+            details["invalid_values"].append(
+                f"delivery_sequence:must_equal_{','.join(REQUIRED_DELIVERY_SEQUENCE)}"
+            )
+
+    scope_lane_map = section.get("scope_lane_map")
+    if not isinstance(scope_lane_map, dict):
+        details["invalid_values"].append("scope_lane_map:must_be_object")
+    else:
+        for scope, expected_lane in REQUIRED_SCOPE_LANE_MAP.items():
+            actual_lane = scope_lane_map.get(scope)
+            if actual_lane != expected_lane:
+                details["invalid_values"].append(
+                    f"scope_lane_map:{scope}_must_map_to_{expected_lane}"
+                )
 
     if section.get("merge_requires_all_green") is not True:
         details["invalid_values"].append("merge_requires_all_green:must_be_true")
@@ -352,6 +394,55 @@ def _check_branch_protection(section: Any) -> tuple[bool, dict[str, Any]]:
     return ok, details
 
 
+def _check_solo_developer_policy(section: Any) -> tuple[bool, dict[str, Any]]:
+    details: dict[str, Any] = {"missing_keys": [], "invalid_values": []}
+    if not isinstance(section, dict):
+        details["invalid_values"].append("solo_developer_policy:not_object")
+        return False, details
+
+    required_keys = (
+        "enabled",
+        "single_writer_requires_review_count",
+        "single_writer_require_code_owner_reviews",
+        "multi_writer_min_review_count",
+        "multi_writer_require_code_owner_reviews",
+        "strict_required_status_checks",
+        "enforce_admins_required",
+    )
+    for key in required_keys:
+        if key not in section:
+            details["missing_keys"].append(key)
+    if details["missing_keys"]:
+        return False, details
+
+    if section.get("enabled") is not True:
+        details["invalid_values"].append("enabled:must_be_true")
+
+    single_reviews = section.get("single_writer_requires_review_count")
+    if not isinstance(single_reviews, int) or single_reviews != 0:
+        details["invalid_values"].append("single_writer_requires_review_count:must_be_0")
+
+    single_code_owner = section.get("single_writer_require_code_owner_reviews")
+    if single_code_owner is not False:
+        details["invalid_values"].append("single_writer_require_code_owner_reviews:must_be_false")
+
+    multi_reviews = section.get("multi_writer_min_review_count")
+    if not isinstance(multi_reviews, int) or multi_reviews < 1:
+        details["invalid_values"].append("multi_writer_min_review_count:must_be_int_gte_1")
+
+    multi_code_owner = section.get("multi_writer_require_code_owner_reviews")
+    if multi_code_owner is not True:
+        details["invalid_values"].append("multi_writer_require_code_owner_reviews:must_be_true")
+
+    if section.get("strict_required_status_checks") is not True:
+        details["invalid_values"].append("strict_required_status_checks:must_be_true")
+    if section.get("enforce_admins_required") is not True:
+        details["invalid_values"].append("enforce_admins_required:must_be_true")
+
+    ok = not details["missing_keys"] and not details["invalid_values"]
+    return ok, details
+
+
 def _check_enforcement_workflow(root: Path) -> tuple[bool, dict[str, Any]]:
     details: dict[str, Any] = {"issues": []}
     wf_path = root / ".github/workflows/gate-enforcement-check.yml"
@@ -383,6 +474,14 @@ def _check_module_delivery_workflow(root: Path) -> tuple[bool, dict[str, Any]]:
     for marker in required_markers:
         if marker not in text:
             details["issues"].append(f"missing:{marker}")
+    required_sequence_markers = (
+        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+        "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-contract]",
+        "module-lane-e2e:\n    runs-on: ubuntu-latest\n    needs: [module-lane-integration]",
+    )
+    for marker in required_sequence_markers:
+        if marker not in text:
+            details["issues"].append(f"missing_sequence:{marker}")
     if "needs.module-lane-unit.result" not in text:
         details["issues"].append("gate_job_result_check_missing")
     return not details["issues"], details
@@ -471,6 +570,14 @@ def main(argv: list[str] | None = None) -> int:
             details=branch_details,
         )
 
+    solo_ok, solo_details = _check_solo_developer_policy(lock.get("solo_developer_policy"))
+    if not solo_ok:
+        return _fail(
+            "SOLO_DEVELOPER_POLICY_INVALID",
+            "solo_developer_policy section is missing required keys or contains invalid values.",
+            details=solo_details,
+        )
+
     standard_sources = lock.get("standard_sources")
     if not isinstance(standard_sources, dict):
         return _fail("STANDARD_SOURCES_INVALID", "standard_sources must be an object.")
@@ -528,7 +635,12 @@ def main(argv: list[str] | None = None) -> int:
                 "checked_standard_sources": list(REQUIRED_STANDARD_SOURCES),
                 "checked_commands": list(REQUIRED_COMMANDS),
                 "checked_gates": list(REQUIRED_GATES),
-                "checked_sections": ["managed_repo_sync", "module_delivery_contract", "branch_protection"],
+                "checked_sections": [
+                    "managed_repo_sync",
+                    "module_delivery_contract",
+                    "branch_protection",
+                    "solo_developer_policy",
+                ],
                 "lock_path": str(lock_path.as_posix()),
                 "repo_root": str(root.as_posix()),
             },
