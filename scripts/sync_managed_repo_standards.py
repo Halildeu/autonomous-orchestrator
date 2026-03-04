@@ -4,12 +4,31 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+DEFAULT_BRANCH = "main"
+DEFAULT_REQUIRED_BRANCH_CHECKS = [
+    "module-delivery-gate",
+    "enforcement-check",
+    "validate-schemas",
+    "policy-dry-run",
+    "gitleaks",
+]
+DEFAULT_SOLO_POLICY = {
+    "enabled": True,
+    "single_writer_requires_review_count": 0,
+    "single_writer_require_code_owner_reviews": False,
+    "multi_writer_min_review_count": 1,
+    "multi_writer_require_code_owner_reviews": True,
+    "strict_required_status_checks": True,
+    "enforce_admins_required": True,
+}
 
 
 def _now_iso_utc() -> str:
@@ -129,14 +148,367 @@ def _run_standards_validation(source_root: Path, target_root: Path) -> dict[str,
     }
 
 
+def _safe_bool(value: Any, *, default: bool) -> bool:
+    return value if isinstance(value, bool) else default
+
+
+def _safe_int(value: Any, *, default: int) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _parse_repo_slug(raw: str) -> str:
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    if "/" in text and not text.startswith(("http://", "https://", "git@", "ssh://")):
+        candidate = text.strip("/")
+        if candidate.count("/") == 1:
+            owner, repo = candidate.split("/", 1)
+            owner = owner.strip()
+            repo = repo.strip().removesuffix(".git")
+            if owner and repo:
+                return f"{owner}/{repo}"
+
+    patterns = [
+        r"^https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$",
+        r"^git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$",
+        r"^ssh://git@github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$",
+    ]
+    for pattern in patterns:
+        m = re.match(pattern, text)
+        if not m:
+            continue
+        owner, repo = m.group(1), m.group(2)
+        if owner and repo:
+            return f"{owner}/{repo}"
+    return ""
+
+
+def _detect_repo_slug(target_root: Path) -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(target_root), "remote", "get-url", "origin"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except Exception:
+        return ""
+    if proc.returncode != 0:
+        return ""
+    return _parse_repo_slug(proc.stdout.strip())
+
+
+def _run_gh_api_json(path: str) -> tuple[bool, Any, str]:
+    try:
+        proc = subprocess.run(
+            ["gh", "api", path],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return False, None, "GH_CLI_NOT_FOUND"
+    except Exception as exc:
+        return False, None, f"GH_EXEC_ERROR:{exc}"
+
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").strip()
+        return False, None, f"GH_API_ERROR:{stderr[:240]}"
+
+    raw = (proc.stdout or "").strip()
+    if not raw:
+        return False, None, "GH_API_EMPTY"
+    try:
+        return True, json.loads(raw), ""
+    except Exception:
+        return False, None, "GH_API_INVALID_JSON"
+
+
+def _extract_required_contexts(protection_obj: dict[str, Any]) -> list[str]:
+    required_status_checks = (
+        protection_obj.get("required_status_checks")
+        if isinstance(protection_obj.get("required_status_checks"), dict)
+        else {}
+    )
+    contexts: list[str] = []
+    raw_contexts = required_status_checks.get("contexts")
+    if isinstance(raw_contexts, list):
+        contexts = [str(item).strip() for item in raw_contexts if isinstance(item, str) and str(item).strip()]
+    if contexts:
+        return sorted(set(contexts))
+
+    checks = required_status_checks.get("checks")
+    if isinstance(checks, list):
+        for item in checks:
+            if not isinstance(item, dict):
+                continue
+            ctx = item.get("context")
+            if isinstance(ctx, str) and ctx.strip():
+                contexts.append(ctx.strip())
+    return sorted(set(contexts))
+
+
+def _read_branch_policy_from_lock(lock_obj: dict[str, Any]) -> tuple[str, list[str], dict[str, Any]]:
+    branch_obj = lock_obj.get("branch_protection") if isinstance(lock_obj.get("branch_protection"), dict) else {}
+    default_branch = str(branch_obj.get("default_branch") or "").strip() or DEFAULT_BRANCH
+    raw_required_checks = branch_obj.get("required_checks")
+    required_checks = [
+        str(item).strip()
+        for item in (raw_required_checks if isinstance(raw_required_checks, list) else [])
+        if isinstance(item, str) and str(item).strip()
+    ]
+    if not required_checks:
+        required_checks = list(DEFAULT_REQUIRED_BRANCH_CHECKS)
+
+    solo_raw = lock_obj.get("solo_developer_policy") if isinstance(lock_obj.get("solo_developer_policy"), dict) else {}
+    solo_policy = {
+        "enabled": _safe_bool(solo_raw.get("enabled"), default=DEFAULT_SOLO_POLICY["enabled"]),
+        "single_writer_requires_review_count": _safe_int(
+            solo_raw.get("single_writer_requires_review_count"),
+            default=DEFAULT_SOLO_POLICY["single_writer_requires_review_count"],
+        ),
+        "single_writer_require_code_owner_reviews": _safe_bool(
+            solo_raw.get("single_writer_require_code_owner_reviews"),
+            default=DEFAULT_SOLO_POLICY["single_writer_require_code_owner_reviews"],
+        ),
+        "multi_writer_min_review_count": _safe_int(
+            solo_raw.get("multi_writer_min_review_count"),
+            default=DEFAULT_SOLO_POLICY["multi_writer_min_review_count"],
+        ),
+        "multi_writer_require_code_owner_reviews": _safe_bool(
+            solo_raw.get("multi_writer_require_code_owner_reviews"),
+            default=DEFAULT_SOLO_POLICY["multi_writer_require_code_owner_reviews"],
+        ),
+        "strict_required_status_checks": _safe_bool(
+            solo_raw.get("strict_required_status_checks"),
+            default=DEFAULT_SOLO_POLICY["strict_required_status_checks"],
+        ),
+        "enforce_admins_required": _safe_bool(
+            solo_raw.get("enforce_admins_required"),
+            default=DEFAULT_SOLO_POLICY["enforce_admins_required"],
+        ),
+    }
+    return default_branch, sorted(set(required_checks)), solo_policy
+
+
+def _live_branch_protection_check(
+    *,
+    target_root: Path,
+    default_branch: str,
+    required_checks: list[str],
+    solo_policy: dict[str, Any],
+) -> dict[str, Any]:
+    repo_slug = _detect_repo_slug(target_root)
+    if not repo_slug:
+        return {
+            "source": "github_live_check",
+            "status": "UNVERIFIED",
+            "repo_slug": "",
+            "branch": default_branch,
+            "required_checks": required_checks,
+            "required_present": None,
+            "missing_required_checks": [],
+            "contexts": [],
+            "strict": None,
+            "enforce_admins": None,
+            "required_pull_request_reviews": None,
+            "collaborator_write_count": None,
+            "collaborator_write_users": [],
+            "solo_policy": {
+                "enabled": bool(solo_policy.get("enabled")),
+                "status": "UNVERIFIED",
+                "rule": "unknown",
+                "violations": ["repo_slug_not_detected"],
+            },
+        }
+
+    protection_ok, protection_obj, protection_error = _run_gh_api_json(
+        f"repos/{repo_slug}/branches/{default_branch}/protection"
+    )
+    if not protection_ok or not isinstance(protection_obj, dict):
+        return {
+            "source": "github_live_check",
+            "status": "UNVERIFIED",
+            "repo_slug": repo_slug,
+            "branch": default_branch,
+            "required_checks": required_checks,
+            "required_present": None,
+            "missing_required_checks": [],
+            "contexts": [],
+            "strict": None,
+            "enforce_admins": None,
+            "required_pull_request_reviews": None,
+            "collaborator_write_count": None,
+            "collaborator_write_users": [],
+            "error": protection_error or "protection_unavailable",
+            "solo_policy": {
+                "enabled": bool(solo_policy.get("enabled")),
+                "status": "UNVERIFIED",
+                "rule": "unknown",
+                "violations": ["protection_unavailable"],
+            },
+        }
+
+    contexts = _extract_required_contexts(protection_obj)
+    missing_required_checks = [check for check in required_checks if check not in set(contexts)]
+    required_present = bool(required_checks) and not missing_required_checks
+
+    required_status_checks = (
+        protection_obj.get("required_status_checks")
+        if isinstance(protection_obj.get("required_status_checks"), dict)
+        else {}
+    )
+    strict = required_status_checks.get("strict")
+    strict = strict if isinstance(strict, bool) else None
+
+    enforce_admins_obj = (
+        protection_obj.get("enforce_admins")
+        if isinstance(protection_obj.get("enforce_admins"), dict)
+        else {}
+    )
+    enforce_admins = enforce_admins_obj.get("enabled")
+    enforce_admins = enforce_admins if isinstance(enforce_admins, bool) else None
+
+    reviews_obj = (
+        protection_obj.get("required_pull_request_reviews")
+        if isinstance(protection_obj.get("required_pull_request_reviews"), dict)
+        else {}
+    )
+    review_count_raw = reviews_obj.get("required_approving_review_count")
+    review_count = review_count_raw if isinstance(review_count_raw, int) else 0
+    require_code_owner = reviews_obj.get("require_code_owner_reviews")
+    require_code_owner = require_code_owner if isinstance(require_code_owner, bool) else False
+
+    collab_ok, collab_obj, collab_error = _run_gh_api_json(f"repos/{repo_slug}/collaborators?per_page=100")
+    collaborator_write_count: int | None = None
+    collaborator_write_users: list[str] = []
+    collaborator_violations: list[str] = []
+    if collab_ok and isinstance(collab_obj, list):
+        for item in collab_obj:
+            if not isinstance(item, dict):
+                continue
+            login = str(item.get("login") or "").strip()
+            permissions = item.get("permissions") if isinstance(item.get("permissions"), dict) else {}
+            can_write = bool(
+                permissions.get("admin") is True
+                or permissions.get("maintain") is True
+                or permissions.get("push") is True
+            )
+            if can_write and login:
+                collaborator_write_users.append(login)
+        collaborator_write_users = sorted(set(collaborator_write_users))
+        collaborator_write_count = len(collaborator_write_users)
+    else:
+        collaborator_violations.append("collaborators_unverified")
+        if collab_error:
+            collaborator_violations.append(collab_error)
+
+    policy_enabled = bool(solo_policy.get("enabled"))
+    solo_status = "SKIPPED" if not policy_enabled else "OK"
+    solo_rule = "none"
+    violations: list[str] = []
+    expected: dict[str, Any] = {}
+
+    if policy_enabled:
+        if collaborator_write_count is None:
+            solo_status = "UNVERIFIED"
+            solo_rule = "unknown"
+            violations.extend(collaborator_violations)
+        elif collaborator_write_count <= 1:
+            solo_rule = "single_writer"
+            expected = {
+                "required_approving_review_count": int(solo_policy.get("single_writer_requires_review_count") or 0),
+                "require_code_owner_reviews": bool(solo_policy.get("single_writer_require_code_owner_reviews")),
+            }
+            if review_count != expected["required_approving_review_count"]:
+                violations.append("single_writer_required_approving_review_count_mismatch")
+            if require_code_owner is not expected["require_code_owner_reviews"]:
+                violations.append("single_writer_require_code_owner_reviews_mismatch")
+        else:
+            solo_rule = "multi_writer"
+            expected = {
+                "required_approving_review_count_min": int(solo_policy.get("multi_writer_min_review_count") or 1),
+                "require_code_owner_reviews": bool(solo_policy.get("multi_writer_require_code_owner_reviews")),
+            }
+            if review_count < expected["required_approving_review_count_min"]:
+                violations.append("multi_writer_required_approving_review_count_too_low")
+            if require_code_owner is not expected["require_code_owner_reviews"]:
+                violations.append("multi_writer_require_code_owner_reviews_mismatch")
+
+        if bool(solo_policy.get("strict_required_status_checks")) and strict is not True:
+            violations.append("strict_required_status_checks_must_be_true")
+        if bool(solo_policy.get("enforce_admins_required")) and enforce_admins is not True:
+            violations.append("enforce_admins_must_be_true")
+        if missing_required_checks:
+            violations.append("missing_required_branch_checks")
+
+        if solo_status != "UNVERIFIED":
+            solo_status = "FAIL" if violations else "OK"
+
+    status = "OK"
+    if missing_required_checks:
+        status = "FAIL"
+    if solo_status == "FAIL":
+        status = "FAIL"
+    elif solo_status == "UNVERIFIED" and status == "OK":
+        status = "UNVERIFIED"
+
+    return {
+        "source": "github_live_check",
+        "status": status,
+        "repo_slug": repo_slug,
+        "branch": default_branch,
+        "required_check": required_checks[0] if required_checks else "",
+        "required_checks": required_checks,
+        "required_present": required_present,
+        "missing_required_checks": missing_required_checks,
+        "contexts": contexts,
+        "strict": strict,
+        "enforce_admins": enforce_admins,
+        "required_pull_request_reviews": {
+            "required_approving_review_count": review_count,
+            "require_code_owner_reviews": require_code_owner,
+            "dismiss_stale_reviews": (
+                bool(reviews_obj.get("dismiss_stale_reviews"))
+                if isinstance(reviews_obj.get("dismiss_stale_reviews"), bool)
+                else None
+            ),
+        },
+        "collaborator_write_count": collaborator_write_count,
+        "collaborator_write_users": collaborator_write_users,
+        "solo_policy": {
+            "enabled": policy_enabled,
+            "status": solo_status,
+            "rule": solo_rule,
+            "expected": expected,
+            "actual": {
+                "required_approving_review_count": review_count,
+                "require_code_owner_reviews": require_code_owner,
+                "strict_required_status_checks": strict,
+                "enforce_admins": enforce_admins,
+                "collaborator_write_count": collaborator_write_count,
+            },
+            "violations": sorted(set(violations)),
+        },
+    }
+
+
 def _sync_target_repo(
     *,
     source_root: Path,
     target_root: Path,
     rel_paths: list[str],
     preserve_existing_paths: set[str],
+    default_branch: str,
+    required_branch_checks: list[str],
+    solo_policy: dict[str, Any],
     apply: bool,
     validate_after_sync: bool,
+    branch_live_check: bool,
 ) -> dict[str, Any]:
     if not target_root.exists() or not target_root.is_dir():
         return {
@@ -144,6 +516,21 @@ def _sync_target_repo(
             "status": "FAIL",
             "reason": "TARGET_REPO_NOT_FOUND",
             "files": [],
+            "branch_protection": {
+                "source": "github_live_check",
+                "status": "UNVERIFIED",
+                "repo_slug": "",
+                "branch": default_branch,
+                "required_checks": required_branch_checks,
+                "required_present": None,
+                "missing_required_checks": [],
+                "solo_policy": {
+                    "enabled": bool(solo_policy.get("enabled")),
+                    "status": "UNVERIFIED",
+                    "rule": "unknown",
+                    "violations": ["target_repo_not_found"],
+                },
+            },
         }
 
     file_results: list[dict[str, Any]] = []
@@ -205,6 +592,21 @@ def _sync_target_repo(
             "reason": "SOURCE_FILES_MISSING",
             "missing_source_files": missing_source,
             "files": file_results,
+            "branch_protection": {
+                "source": "github_live_check",
+                "status": "UNVERIFIED",
+                "repo_slug": "",
+                "branch": default_branch,
+                "required_checks": required_branch_checks,
+                "required_present": None,
+                "missing_required_checks": [],
+                "solo_policy": {
+                    "enabled": bool(solo_policy.get("enabled")),
+                    "status": "UNVERIFIED",
+                    "rule": "unknown",
+                    "violations": ["source_files_missing"],
+                },
+            },
         }
 
     if write_errors:
@@ -214,6 +616,21 @@ def _sync_target_repo(
             "reason": "WRITE_FAILED",
             "write_errors": write_errors,
             "files": file_results,
+            "branch_protection": {
+                "source": "github_live_check",
+                "status": "UNVERIFIED",
+                "repo_slug": "",
+                "branch": default_branch,
+                "required_checks": required_branch_checks,
+                "required_present": None,
+                "missing_required_checks": [],
+                "solo_policy": {
+                    "enabled": bool(solo_policy.get("enabled")),
+                    "status": "UNVERIFIED",
+                    "rule": "unknown",
+                    "violations": ["write_failed"],
+                },
+            },
         }
 
     validation: dict[str, Any] | None = None
@@ -224,6 +641,31 @@ def _sync_target_repo(
     if isinstance(validation, dict) and validation.get("status") != "OK":
         status = "FAIL"
 
+    branch_report = (
+        _live_branch_protection_check(
+            target_root=target_root,
+            default_branch=default_branch,
+            required_checks=required_branch_checks,
+            solo_policy=solo_policy,
+        )
+        if branch_live_check
+        else {
+            "source": "github_live_check",
+            "status": "UNVERIFIED",
+            "repo_slug": "",
+            "branch": default_branch,
+            "required_checks": required_branch_checks,
+            "required_present": None,
+            "missing_required_checks": [],
+            "solo_policy": {
+                "enabled": bool(solo_policy.get("enabled")),
+                "status": "UNVERIFIED",
+                "rule": "unknown",
+                "violations": ["branch_live_check_disabled"],
+            },
+        }
+    )
+
     return {
         "repo_root": str(target_root),
         "status": status,
@@ -231,6 +673,7 @@ def _sync_target_repo(
         "changed_files": changed_count,
         "files": file_results,
         "validation": validation,
+        "branch_protection": branch_report,
     }
 
 
@@ -272,6 +715,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Run standards.lock validation per target after apply.",
     )
+    parser.add_argument(
+        "--skip-branch-live-check",
+        action="store_true",
+        help="Skip GitHub live branch protection check (report uses UNVERIFIED).",
+    )
     return parser.parse_args(argv)
 
 
@@ -301,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
 
     lock_obj = _load_json(lock_path)
     rel_paths = _collect_standard_paths(lock_obj)
+    default_branch, required_branch_checks, solo_policy = _read_branch_policy_from_lock(lock_obj)
 
     managed_repo_sync = lock_obj.get("managed_repo_sync")
     preserve_existing_paths: set[str] = set()
@@ -359,8 +808,12 @@ def main(argv: list[str] | None = None) -> int:
             target_root=target,
             rel_paths=rel_paths,
             preserve_existing_paths=preserve_existing_paths,
+            default_branch=default_branch,
+            required_branch_checks=required_branch_checks,
+            solo_policy=solo_policy,
             apply=bool(args.apply),
             validate_after_sync=bool(args.validate_after_sync),
+            branch_live_check=not bool(args.skip_branch_live_check),
         )
         for target in targets
     ]
@@ -380,6 +833,12 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": _now_iso_utc(),
         "source_root": str(source_root),
         "mode": "apply" if args.apply else "dry-run",
+        "branch_policy": {
+            "default_branch": default_branch,
+            "required_checks": required_branch_checks,
+            "solo_developer_policy": solo_policy,
+            "live_check_enabled": not bool(args.skip_branch_live_check),
+        },
         "sync_paths": rel_paths,
         "preserve_existing_paths": sorted(preserve_existing_paths),
         "target_count": len(results),

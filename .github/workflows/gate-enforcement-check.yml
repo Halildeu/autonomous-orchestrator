@@ -20,7 +20,11 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            echo "requirements-dev.txt bulunamadi; enforcement baseline mode ile devam."
+          fi
           pip install semgrep==1.146.0
 
       - name: Standards lock + ownership baseline
@@ -31,8 +35,26 @@ jobs:
         run: |
           python3 ci/check_module_delivery_lanes.py --strict
 
+      - name: Solo branch policy guard (advisory)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/check_branch_protection_solo_policy.py \
+            --repo-slug "${{ github.repository }}" \
+            --mode warn \
+            --out .cache/reports/branch_protection_solo_policy_ci.v1.json
+
+      - name: Detect enforcement runtime
+        id: detect-enforcement-runtime
+        run: |
+          if [ -f src/ops/manage.py ]; then
+            echo "has_runtime=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_runtime=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Resolve PR baseline (merge-base)
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |
           set -euo pipefail
           BASE_PARENT="$(git rev-parse HEAD^1)"
@@ -42,21 +64,30 @@ jobs:
           echo "ENF_BASELINE=git:${MERGE_BASE}" >> "${GITHUB_ENV}"
 
       - name: Enforcement check (PR strict)
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |
           set -euo pipefail
           git checkout "${ENF_PR_HEAD}"
           python3 -m src.ops.manage enforcement-check --profile strict --baseline "${ENF_BASELINE}" --outdir .cache/ws_customer_default/.cache/reports/enf_ci
 
       - name: Enforcement check (main strict)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |
           python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/ws_customer_default/.cache/reports/enf_ci
+
+      - name: Enforcement fallback (portable baseline)
+        if: steps.detect-enforcement-runtime.outputs.has_runtime != 'true'
+        run: |
+          echo "src/ops/manage.py bulunamadi; portable enforcement baseline ile devam."
+          python3 ci/check_standards_lock.py
+          python3 ci/check_module_delivery_lanes.py --strict
 
       - name: Upload enforcement evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: enforcement-check-evidence
-          path: .cache/ws_customer_default/.cache/reports/enf_ci
-          if-no-files-found: error
+          path: |
+            .cache/ws_customer_default/.cache/reports/enf_ci
+            .cache/reports/branch_protection_solo_policy_ci.v1.json
+          if-no-files-found: warn

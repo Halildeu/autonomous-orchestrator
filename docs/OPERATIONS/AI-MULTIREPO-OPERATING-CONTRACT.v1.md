@@ -25,6 +25,7 @@ Amaç: Çok repolu ERP ürün ailesinde standardizasyon drift'ini engellemek, AI
 - Provider guardrails: `policies/policy_llm_providers_guardrails.v1.json`
 - Kernel API gate policy: `policies/policy_kernel_api_guardrails.v1.json`
 - Managed repo sync scripti: `scripts/sync_managed_repo_standards.py`
+- Solo branch policy guard: `scripts/check_branch_protection_solo_policy.py`
 - Lane config + runner: `ci/module_delivery_lanes.v1.json`, `ci/run_module_delivery_lane.py`, `ci/check_module_delivery_lanes.py`
 
 ## Standart Kaynakları (Neye Göre Kontrol Eder?)
@@ -43,6 +44,7 @@ Bu kontrat `standards.lock` içindeki `standard_sources` haritasını canonical 
 - Uyum doğrulama komutu: `python3 ci/check_standards_lock.py`
 - Taşeron repo sync doğrulama komutu: `python3 ci/check_standards_lock.py --repo-root <repo_root>`
 - Lane kontrat doğrulama komutu: `python3 ci/check_module_delivery_lanes.py --strict`
+- Solo branch policy doğrulama komutu: `python3 scripts/check_branch_protection_solo_policy.py --repo-slug <owner/repo>`
 - System summary kaynakları:
   - `.cache/reports/system_status.v1.json`
   - `.cache/reports/portfolio_status.v1.json`
@@ -52,10 +54,11 @@ Bu kontrat `standards.lock` içindeki `standard_sources` haritasını canonical 
 1. Onboarding: Repo, managed manifest (`.cache/managed_repos.v1.json`) içine alınır.
 2. Sync: `scripts/sync_managed_repo_standards.py` dry-run ile drift ölçer; `--apply` ile standart dosyaları hedef repoya taşır.
 3. Verify: Sync sonrası hedef repoda `ci/check_standards_lock.py --repo-root <repo_root>` çalışır; FAIL ise merge/promotion durur.
-4. Delivery lane: Backend, frontend, database ve API scope'ları ayrı geliştirilir; `unit + contract + integration + e2e` lane’leri `.github/workflows/module-delivery-lanes.yml` ile çalışır ve `module-delivery-gate` geçmeden merge olmaz.
+4. Delivery lane: Backend, frontend, database ve API scope'ları ayrı geliştirilir; lane mapping `backend->unit`, `frontend->contract`, `integration->integration`, `e2e_gate->e2e` olarak uygulanır. CI sırası `backend -> frontend -> integration -> e2e` zorunludur ve `module-delivery-gate` geçmeden merge olmaz.
 5. Observability: Sync çıktısı `system_status` ve `portfolio_status` içinde `managed_repo_standards` section’ında taşeron repo bazında drift olarak görünür.
 6. Drift scoreboard: `system_status` + `portfolio_status` akışları `.cache/reports/drift_scoreboard.v1.json` üretir; lane override matrisi (`repo -> unit/contract/integration/e2e command`) ve preserve tabanlı rollout önerisi tek JSON'da izlenir.
 7. Branch protection policy: `standards.lock.branch_protection.required_checks` içinde `module-delivery-gate` zorunludur; canlı doğrulama kanıtı yoksa durum `UNVERIFIED` olarak raporlanır.
+8. Solo developer policy: write yetkili collaborator sayısı `<=1` ise `required_approving_review_count=0` ve `require_code_owner_reviews=false` zorunludur; `>1` olduğunda minimum `1` review ve code-owner review zorunludur.
 
 ## Değişiklik Yönetimi
 - Bu kontratta değişiklik sessiz yapılmaz; CHG süreci ve gate kanıtı gerekir.
