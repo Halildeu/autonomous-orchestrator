@@ -12,7 +12,17 @@ REQUIRED_FILES = (
     ".github/workflows/gate-enforcement-check.yml",
     ".github/workflows/module-delivery-lanes.yml",
     "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+    "docs/OPERATIONS/ARCHITECTURE-CONSTRAINTS.md",
+    "policies/policy_ui_design_system.v1.json",
+    "registry/technical_baseline.aistd.v1.json",
+    "registry/archives/legacy_standards_archive.aistd.v1.json",
+    "schemas/policy-ui-design-system.schema.v1.json",
+    "schemas/technical-baseline-aistd.schema.v1.json",
+    "schemas/legacy-standards-archive-aistd.schema.v1.json",
     "scripts/sync_managed_repo_standards.py",
+    "scripts/archive_legacy_standards.py",
+    "scripts/ops_technical_baseline_checklist.py",
+    "scripts/export_managed_repo_standards_dashboard.py",
     "ci/check_standards_lock.py",
     "ci/check_module_delivery_lanes.py",
     "ci/run_module_delivery_lane.py",
@@ -43,12 +53,12 @@ REQUIRED_GATES = (
 )
 
 REQUIRED_STANDARD_SOURCES = (
-    "coding_standards",
-    "repo_layout",
+    "technical_baseline_aistd",
     "layer_boundary_policy",
     "llm_live_policy",
     "llm_provider_guardrails_policy",
     "kernel_api_guardrails_policy",
+    "ui_design_system_policy",
     "security_policy",
     "secrets_policy",
 )
@@ -58,6 +68,8 @@ REQUIRED_COMMANDS = (
     "python ci/policy_dry_run.py --fixtures fixtures/envelopes --out sim_report.json",
     "python ci/check_script_budget.py --out .cache/script_budget/report.json",
     "python -m src.ops.manage enforcement-check --profile strict",
+    "python3 scripts/ops_technical_baseline_checklist.py --repo-root .",
+    "python3 scripts/export_managed_repo_standards_dashboard.py --workspace-root .",
     "python3 scripts/sync_managed_repo_standards.py --target-repo-root <repo_root>",
     "python3 ci/check_module_delivery_lanes.py --strict",
     "python3 scripts/check_branch_protection_solo_policy.py --repo-slug <owner/repo>",
@@ -65,6 +77,7 @@ REQUIRED_COMMANDS = (
 
 REQUIRED_PRESERVE_PATHS = (
     "ci/module_delivery_lanes.v1.json",
+    "registry/archives/legacy_standards_archive.aistd.v1.json",
 )
 
 REQUIRED_BRANCH_PROTECTION_CHECKS = (
@@ -75,13 +88,18 @@ REQUIRED_BRANCH_PROTECTION_CHECKS = (
     "gitleaks",
 )
 
-REQUIRED_DELIVERY_SEQUENCE = ("backend", "frontend", "integration", "e2e")
+REQUIRED_DELIVERY_SEQUENCE = ("backend", "database", "api", "frontend", "integration", "e2e")
 REQUIRED_SCOPE_LANE_MAP = {
     "backend": "unit",
+    "database": "database",
+    "api": "api",
     "frontend": "contract",
     "integration": "integration",
     "e2e_gate": "e2e",
 }
+REQUIRED_LANES = ("unit", "database", "api", "contract", "integration", "e2e")
+REQUIRED_BACKEND_LAYERS = ("config", "controller", "dto", "model", "repository", "security", "service")
+REQUIRED_FRONTEND_LAYOUT_EXPORTS = ("PageLayout", "DetailDrawer", "FormDrawer")
 
 
 def _repo_root() -> Path:
@@ -125,6 +143,278 @@ def _require_json_file(root: Path, rel_path: str, *, key: str) -> dict[str, Any]
     return obj if isinstance(obj, dict) else None
 
 
+def _check_technical_baseline_aistd(root: Path, rel_path: str) -> tuple[bool, dict[str, Any]]:
+    details: dict[str, Any] = {"invalid_values": [], "missing_files": []}
+    baseline = _require_json_file(root, rel_path, key="technical_baseline_aistd")
+    if not isinstance(baseline, dict):
+        details["invalid_values"].append("technical_baseline_aistd:invalid_json")
+        return False, details
+
+    if baseline.get("version") != "v1":
+        details["invalid_values"].append("technical_baseline_aistd:version_must_be_v1")
+    if baseline.get("kind") != "technical-baseline-aistd":
+        details["invalid_values"].append("technical_baseline_aistd:kind_must_be_technical-baseline-aistd")
+    if baseline.get("status") != "ACTIVE":
+        details["invalid_values"].append("technical_baseline_aistd:status_must_be_ACTIVE")
+
+    ownership = baseline.get("ownership")
+    if not isinstance(ownership, dict):
+        details["invalid_values"].append("technical_baseline_aistd:ownership_missing")
+    else:
+        if str(ownership.get("sync_script") or "") != "scripts/sync_managed_repo_standards.py":
+            details["invalid_values"].append("technical_baseline_aistd:ownership.sync_script_invalid")
+        if str(ownership.get("validation_script") or "") != "ci/check_standards_lock.py":
+            details["invalid_values"].append("technical_baseline_aistd:ownership.validation_script_invalid")
+
+    baseline_obj = baseline.get("baseline")
+    if not isinstance(baseline_obj, dict):
+        details["invalid_values"].append("technical_baseline_aistd:baseline_missing")
+        return False, details
+
+    backend = baseline_obj.get("backend")
+    if not isinstance(backend, dict):
+        details["invalid_values"].append("technical_baseline_aistd:baseline.backend_missing")
+    else:
+        if backend.get("language") != "java":
+            details["invalid_values"].append("technical_baseline_aistd:backend.language_must_be_java")
+        if int(backend.get("java_major") or 0) < 21:
+            details["invalid_values"].append("technical_baseline_aistd:backend.java_major_must_be_gte_21")
+        if backend.get("framework") != "spring-boot":
+            details["invalid_values"].append("technical_baseline_aistd:backend.framework_must_be_spring-boot")
+        if backend.get("service_architecture") != "microservice":
+            details["invalid_values"].append("technical_baseline_aistd:backend.service_architecture_must_be_microservice")
+        layer_set = {
+            str(item).strip()
+            for item in (backend.get("required_layers") if isinstance(backend.get("required_layers"), list) else [])
+            if isinstance(item, str) and str(item).strip()
+        }
+        missing_layers = [name for name in REQUIRED_BACKEND_LAYERS if name not in layer_set]
+        if missing_layers:
+            details["invalid_values"].append(
+                f"technical_baseline_aistd:backend.required_layers_missing_{','.join(missing_layers)}"
+            )
+        comm_set = {
+            str(item).strip()
+            for item in (
+                backend.get("inter_service_communication")
+                if isinstance(backend.get("inter_service_communication"), list)
+                else []
+            )
+            if isinstance(item, str) and str(item).strip()
+        }
+        if "rest" not in comm_set or "event" not in comm_set:
+            details["invalid_values"].append("technical_baseline_aistd:backend.inter_service_communication_must_include_rest_event")
+
+    frontend = baseline_obj.get("frontend")
+    if not isinstance(frontend, dict):
+        details["invalid_values"].append("technical_baseline_aistd:baseline.frontend_missing")
+    else:
+        if frontend.get("language") != "typescript":
+            details["invalid_values"].append("technical_baseline_aistd:frontend.language_must_be_typescript")
+        if frontend.get("framework") != "react":
+            details["invalid_values"].append("technical_baseline_aistd:frontend.framework_must_be_react")
+        if int(frontend.get("node_major") or 0) != 20:
+            details["invalid_values"].append("technical_baseline_aistd:frontend.node_major_must_be_20")
+        if frontend.get("package_manager") != "npm":
+            details["invalid_values"].append("technical_baseline_aistd:frontend.package_manager_must_be_npm")
+        design_contract = frontend.get("design_contract")
+        if not isinstance(design_contract, dict):
+            details["invalid_values"].append("technical_baseline_aistd:frontend.design_contract_missing")
+        else:
+            if design_contract.get("single_ui_library") != "mfe-ui-kit":
+                details["invalid_values"].append("technical_baseline_aistd:frontend.design_contract.single_ui_library_invalid")
+            if (
+                str(design_contract.get("ui_package_manifest_path") or "")
+                != "web/packages/ui-kit/package.json"
+            ):
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.design_contract.ui_package_manifest_path_invalid"
+                )
+            if (
+                str(design_contract.get("design_catalog_index_path") or "")
+                != "web/apps/mfe-shell/src/pages/admin/design-lab.index.json"
+            ):
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.design_contract.design_catalog_index_path_invalid"
+                )
+            if str(design_contract.get("token_source_path") or "") != "web/design-tokens/figma.tokens.json":
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.design_contract.token_source_path_invalid"
+                )
+            forbidden_imports = {
+                str(item).strip()
+                for item in (
+                    design_contract.get("forbidden_imports")
+                    if isinstance(design_contract.get("forbidden_imports"), list)
+                    else []
+                )
+                if isinstance(item, str) and str(item).strip()
+            }
+            if "antd" not in forbidden_imports or "@ant-design/icons" not in forbidden_imports:
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.design_contract.forbidden_imports_missing_antd_rules"
+                )
+            generated_paths = {
+                str(item).strip()
+                for item in (
+                    design_contract.get("token_generated_paths")
+                    if isinstance(design_contract.get("token_generated_paths"), list)
+                    else []
+                )
+                if isinstance(item, str) and str(item).strip()
+            }
+            required_generated = {
+                "web/apps/mfe-shell/src/styles/theme.css",
+                "web/design-tokens/generated/theme-contract.json",
+            }
+            missing_generated = sorted(required_generated - generated_paths)
+            if missing_generated:
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.design_contract.token_generated_paths_missing_"
+                    + ",".join(missing_generated)
+                )
+
+        page_composition = frontend.get("page_composition")
+        if not isinstance(page_composition, dict):
+            details["invalid_values"].append("technical_baseline_aistd:frontend.page_composition_missing")
+        else:
+            layout_exports = {
+                str(item).strip()
+                for item in (
+                    page_composition.get("required_layout_exports")
+                    if isinstance(page_composition.get("required_layout_exports"), list)
+                    else []
+                )
+                if isinstance(item, str) and str(item).strip()
+            }
+            missing_layout_exports = [name for name in REQUIRED_FRONTEND_LAYOUT_EXPORTS if name not in layout_exports]
+            if missing_layout_exports:
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.page_composition.required_layout_exports_missing_"
+                    + ",".join(missing_layout_exports)
+                )
+            if str(page_composition.get("ui_import_prefix") or "") != "from 'mfe-ui-kit'":
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.page_composition.ui_import_prefix_invalid"
+                )
+            if str(page_composition.get("pages_root") or "") != "web/apps":
+                details["invalid_values"].append("technical_baseline_aistd:frontend.page_composition.pages_root_invalid")
+
+        parametric_data = frontend.get("parametric_data")
+        if not isinstance(parametric_data, dict):
+            details["invalid_values"].append("technical_baseline_aistd:frontend.parametric_data_missing")
+        else:
+            if (
+                str(parametric_data.get("query_builder_path") or "")
+                != "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts"
+            ):
+                details["invalid_values"].append("technical_baseline_aistd:frontend.parametric_data.query_builder_path_invalid")
+            if (
+                str(parametric_data.get("theme_contract_runtime_path") or "")
+                != "web/packages/ui-kit/src/runtime/theme-contract.ts"
+            ):
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.parametric_data.theme_contract_runtime_path_invalid"
+                )
+            if (
+                str(parametric_data.get("theme_context_provider_path") or "")
+                != "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
+            ):
+                details["invalid_values"].append(
+                    "technical_baseline_aistd:frontend.parametric_data.theme_context_provider_path_invalid"
+                )
+
+    database = baseline_obj.get("database")
+    if not isinstance(database, dict):
+        details["invalid_values"].append("technical_baseline_aistd:baseline.database_missing")
+    else:
+        if database.get("engine") != "postgresql":
+            details["invalid_values"].append("technical_baseline_aistd:database.engine_must_be_postgresql")
+        if database.get("migration_tool") != "flyway":
+            details["invalid_values"].append("technical_baseline_aistd:database.migration_tool_must_be_flyway")
+
+    api = baseline_obj.get("api")
+    if not isinstance(api, dict):
+        details["invalid_values"].append("technical_baseline_aistd:baseline.api_missing")
+    else:
+        if api.get("protocol") != "rest":
+            details["invalid_values"].append("technical_baseline_aistd:api.protocol_must_be_rest")
+        if api.get("version_prefix") != "/api/v1":
+            details["invalid_values"].append("technical_baseline_aistd:api.version_prefix_must_be_/api/v1")
+        if api.get("auth_scheme") != "bearer-jwt":
+            details["invalid_values"].append("technical_baseline_aistd:api.auth_scheme_must_be_bearer-jwt")
+        fields = {
+            str(item).strip()
+            for item in (api.get("error_envelope_fields") if isinstance(api.get("error_envelope_fields"), list) else [])
+            if isinstance(item, str) and str(item).strip()
+        }
+        required_fields = {"code", "message", "timestamp", "path"}
+        missing_fields = sorted(required_fields - fields)
+        if missing_fields:
+            details["invalid_values"].append(
+                f"technical_baseline_aistd:api.error_envelope_fields_missing_{','.join(missing_fields)}"
+            )
+
+    topology = baseline.get("topology")
+    if not isinstance(topology, dict):
+        details["invalid_values"].append("technical_baseline_aistd:topology_missing")
+    else:
+        if topology.get("edge_gateway") != "spring-cloud-gateway":
+            details["invalid_values"].append("technical_baseline_aistd:topology.edge_gateway_invalid")
+        if topology.get("service_discovery") != "eureka":
+            details["invalid_values"].append("technical_baseline_aistd:topology.service_discovery_invalid")
+
+    ci_contract = baseline.get("ci_contract")
+    if not isinstance(ci_contract, dict):
+        details["invalid_values"].append("technical_baseline_aistd:ci_contract_missing")
+    else:
+        actual_sequence = [str(item) for item in (ci_contract.get("delivery_sequence") or [])]
+        if actual_sequence != list(REQUIRED_DELIVERY_SEQUENCE):
+            details["invalid_values"].append(
+                f"technical_baseline_aistd:ci_contract.delivery_sequence_must_equal_{','.join(REQUIRED_DELIVERY_SEQUENCE)}"
+            )
+        lane_set = {
+            str(item).strip()
+            for item in (ci_contract.get("required_lanes") if isinstance(ci_contract.get("required_lanes"), list) else [])
+            if isinstance(item, str) and str(item).strip()
+        }
+        missing_lanes = [name for name in REQUIRED_LANES if name not in lane_set]
+        if missing_lanes:
+            details["invalid_values"].append(
+                f"technical_baseline_aistd:ci_contract.required_lanes_missing_{','.join(missing_lanes)}"
+            )
+        if ci_contract.get("gate_name") != "module-delivery-gate":
+            details["invalid_values"].append("technical_baseline_aistd:ci_contract.gate_name_invalid")
+        if ci_contract.get("merge_requires_all_green") is not True:
+            details["invalid_values"].append("technical_baseline_aistd:ci_contract.merge_requires_all_green_must_be_true")
+
+    archive = baseline.get("archive")
+    if not isinstance(archive, dict):
+        details["invalid_values"].append("technical_baseline_aistd:archive_missing")
+    else:
+        if archive.get("legacy_mode") != "read-only":
+            details["invalid_values"].append("technical_baseline_aistd:archive.legacy_mode_must_be_read-only")
+        manifest_rel = str(archive.get("legacy_manifest_path") or "")
+        if manifest_rel != "registry/archives/legacy_standards_archive.aistd.v1.json":
+            details["invalid_values"].append("technical_baseline_aistd:archive.legacy_manifest_path_invalid")
+        else:
+            manifest_path = root / manifest_rel
+            if not manifest_path.exists():
+                details["missing_files"].append(manifest_rel)
+            else:
+                manifest_obj = _require_json_file(root, manifest_rel, key="legacy_standards_archive_aistd")
+                if not isinstance(manifest_obj, dict):
+                    details["invalid_values"].append("technical_baseline_aistd:archive.manifest_invalid_json")
+                else:
+                    if manifest_obj.get("kind") != "legacy-standards-archive-aistd":
+                        details["invalid_values"].append("technical_baseline_aistd:archive.manifest_kind_invalid")
+                    if manifest_obj.get("version") != "v1":
+                        details["invalid_values"].append("technical_baseline_aistd:archive.manifest_version_invalid")
+
+    ok = not details["invalid_values"] and not details["missing_files"]
+    return ok, details
+
+
 def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     details: dict[str, Any] = {"missing_keys": [], "missing_files": [], "invalid_content": []}
 
@@ -145,20 +435,6 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
 
     if details["missing_files"] or any(item.endswith(":path_invalid") for item in details["invalid_content"]):
         return False, details
-
-    # Minimal semantic checks against existing system standards
-    coding_path = root / str(standard_sources["coding_standards"])
-    coding_text = coding_path.read_text(encoding="utf-8")
-    if "src/shared/utils.py" not in coding_text:
-        details["invalid_content"].append("coding_standards:missing_shared_utils_reference")
-
-    repo_layout = _require_json_file(root, str(standard_sources["repo_layout"]), key="repo_layout")
-    if not isinstance(repo_layout, dict):
-        details["invalid_content"].append("repo_layout:invalid_json")
-    else:
-        allowed_dirs = repo_layout.get("allowed_top_level_dirs")
-        if not isinstance(allowed_dirs, list) or "src" not in allowed_dirs or "policies" not in allowed_dirs:
-            details["invalid_content"].append("repo_layout:allowed_top_level_dirs_invalid")
 
     layer_boundary = _require_json_file(root, str(standard_sources["layer_boundary_policy"]), key="layer_boundary_policy")
     if not isinstance(layer_boundary, dict):
@@ -206,6 +482,121 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
         if not isinstance(audit, dict) or audit.get("enabled") is not True:
             details["invalid_content"].append("kernel_api_guardrails_policy:audit_enabled_required")
 
+    ui_design_policy = _require_json_file(root, str(standard_sources["ui_design_system_policy"]), key="ui_design_system_policy")
+    if not isinstance(ui_design_policy, dict):
+        details["invalid_content"].append("ui_design_system_policy:invalid_json")
+    else:
+        if ui_design_policy.get("version") != "v1":
+            details["invalid_content"].append("ui_design_system_policy:version_must_be_v1")
+        if ui_design_policy.get("kind") != "policy-ui-design-system":
+            details["invalid_content"].append("ui_design_system_policy:kind_invalid")
+        if ui_design_policy.get("status") != "ACTIVE":
+            details["invalid_content"].append("ui_design_system_policy:status_must_be_ACTIVE")
+        if ui_design_policy.get("enforcement_mode") != "blocking":
+            details["invalid_content"].append("ui_design_system_policy:enforcement_mode_must_be_blocking")
+        if ui_design_policy.get("ci_lane") != "contract":
+            details["invalid_content"].append("ui_design_system_policy:ci_lane_must_be_contract")
+        single_ui = ui_design_policy.get("single_ui_library")
+        if not isinstance(single_ui, dict):
+            details["invalid_content"].append("ui_design_system_policy:single_ui_library_missing")
+        else:
+            if single_ui.get("package_name") != "mfe-ui-kit":
+                details["invalid_content"].append("ui_design_system_policy:single_ui_library.package_name_invalid")
+            if str(single_ui.get("package_manifest_path") or "") != "web/packages/ui-kit/package.json":
+                details["invalid_content"].append(
+                    "ui_design_system_policy:single_ui_library.package_manifest_path_invalid"
+                )
+            if (
+                str(single_ui.get("design_catalog_index_path") or "")
+                != "web/apps/mfe-shell/src/pages/admin/design-lab.index.json"
+            ):
+                details["invalid_content"].append(
+                    "ui_design_system_policy:single_ui_library.design_catalog_index_path_invalid"
+                )
+            forbidden_imports = {
+                str(item).strip()
+                for item in (
+                    single_ui.get("forbidden_imports")
+                    if isinstance(single_ui.get("forbidden_imports"), list)
+                    else []
+                )
+                if isinstance(item, str) and str(item).strip()
+            }
+            if "antd" not in forbidden_imports or "@ant-design/icons" not in forbidden_imports:
+                details["invalid_content"].append(
+                    "ui_design_system_policy:single_ui_library.forbidden_imports_missing_antd_rules"
+                )
+        design_tokens = ui_design_policy.get("design_tokens")
+        if not isinstance(design_tokens, dict):
+            details["invalid_content"].append("ui_design_system_policy:design_tokens_missing")
+        else:
+            if str(design_tokens.get("source_path") or "") != "web/design-tokens/figma.tokens.json":
+                details["invalid_content"].append("ui_design_system_policy:design_tokens.source_path_invalid")
+            generated_paths = {
+                str(item).strip()
+                for item in (
+                    design_tokens.get("generated_paths")
+                    if isinstance(design_tokens.get("generated_paths"), list)
+                    else []
+                )
+                if isinstance(item, str) and str(item).strip()
+            }
+            required_generated = {
+                "web/apps/mfe-shell/src/styles/theme.css",
+                "web/design-tokens/generated/theme-contract.json",
+            }
+            missing_generated = sorted(required_generated - generated_paths)
+            if missing_generated:
+                details["invalid_content"].append(
+                    "ui_design_system_policy:design_tokens.generated_paths_missing_" + ",".join(missing_generated)
+                )
+        page_modularity = ui_design_policy.get("page_modularity")
+        if not isinstance(page_modularity, dict):
+            details["invalid_content"].append("ui_design_system_policy:page_modularity_missing")
+        else:
+            layout_exports = {
+                str(item).strip()
+                for item in (
+                    page_modularity.get("layout_exports_required")
+                    if isinstance(page_modularity.get("layout_exports_required"), list)
+                    else []
+                )
+                if isinstance(item, str) and str(item).strip()
+            }
+            missing_layout_exports = [name for name in REQUIRED_FRONTEND_LAYOUT_EXPORTS if name not in layout_exports]
+            if missing_layout_exports:
+                details["invalid_content"].append(
+                    "ui_design_system_policy:page_modularity.layout_exports_required_missing_"
+                    + ",".join(missing_layout_exports)
+                )
+            if str(page_modularity.get("ui_usage_import_prefix") or "") != "from 'mfe-ui-kit'":
+                details["invalid_content"].append("ui_design_system_policy:page_modularity.ui_usage_import_prefix_invalid")
+            if str(page_modularity.get("pages_root") or "") != "web/apps":
+                details["invalid_content"].append("ui_design_system_policy:page_modularity.pages_root_invalid")
+        parametric_data = ui_design_policy.get("parametric_data")
+        if not isinstance(parametric_data, dict):
+            details["invalid_content"].append("ui_design_system_policy:parametric_data_missing")
+        else:
+            if (
+                str(parametric_data.get("query_builder_path") or "")
+                != "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts"
+            ):
+                details["invalid_content"].append("ui_design_system_policy:parametric_data.query_builder_path_invalid")
+            if (
+                str(parametric_data.get("theme_contract_runtime_path") or "")
+                != "web/packages/ui-kit/src/runtime/theme-contract.ts"
+            ):
+                details["invalid_content"].append(
+                    "ui_design_system_policy:parametric_data.theme_contract_runtime_path_invalid"
+                )
+            if (
+                str(parametric_data.get("theme_context_provider_path") or "")
+                != "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
+            ):
+                details["invalid_content"].append(
+                    "ui_design_system_policy:parametric_data.theme_context_provider_path_invalid"
+                )
+
     security = _require_json_file(root, str(standard_sources["security_policy"]), key="security_policy")
     if not isinstance(security, dict):
         details["invalid_content"].append("security_policy:invalid_json")
@@ -223,6 +614,14 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
         allowed_ids = secrets.get("allowed_secret_ids")
         if not isinstance(allowed_ids, list) or not allowed_ids:
             details["invalid_content"].append("secrets_policy:allowed_secret_ids_missing")
+
+    technical_rel = str(standard_sources["technical_baseline_aistd"])
+    tech_ok, tech_details = _check_technical_baseline_aistd(root, technical_rel)
+    if not tech_ok:
+        for item in tech_details.get("invalid_values", []):
+            details["invalid_content"].append(item)
+        for item in tech_details.get("missing_files", []):
+            details["missing_files"].append(item)
 
     ok = not details["missing_keys"] and not details["missing_files"] and not details["invalid_content"]
     return ok, details
@@ -326,7 +725,7 @@ def _check_module_delivery_contract(section: Any) -> tuple[bool, dict[str, Any]]
     if not isinstance(lanes, list) or not lanes:
         details["invalid_values"].append("required_test_lanes:must_be_nonempty_list")
     else:
-        expected_lanes = {"unit", "contract", "integration", "e2e"}
+        expected_lanes = {"unit", "database", "api", "contract", "integration", "e2e"}
         actual_lanes = {str(item) for item in lanes}
         missing_lanes = sorted(expected_lanes - actual_lanes)
         if missing_lanes:
@@ -465,17 +864,27 @@ def _check_module_delivery_workflow(root: Path) -> tuple[bool, dict[str, Any]]:
     required_markers = (
         "module-delivery-contract-check",
         "module-lane-unit",
+        "module-lane-database",
+        "module-lane-api",
         "module-lane-contract",
         "module-lane-integration",
         "module-lane-e2e",
         "module-delivery-gate",
         "python3 ci/check_module_delivery_lanes.py --strict",
+        "python3 ci/run_module_delivery_lane.py --lane unit",
+        "python3 ci/run_module_delivery_lane.py --lane database",
+        "python3 ci/run_module_delivery_lane.py --lane api",
+        "python3 ci/run_module_delivery_lane.py --lane contract",
+        "python3 ci/run_module_delivery_lane.py --lane integration",
+        "python3 ci/run_module_delivery_lane.py --lane e2e",
     )
     for marker in required_markers:
         if marker not in text:
             details["issues"].append(f"missing:{marker}")
     required_sequence_markers = (
-        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+        "module-lane-database:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+        "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database]",
+        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-api]",
         "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-contract]",
         "module-lane-e2e:\n    runs-on: ubuntu-latest\n    needs: [module-lane-integration]",
     )
@@ -484,6 +893,16 @@ def _check_module_delivery_workflow(root: Path) -> tuple[bool, dict[str, Any]]:
             details["issues"].append(f"missing_sequence:{marker}")
     if "needs.module-lane-unit.result" not in text:
         details["issues"].append("gate_job_result_check_missing")
+    if "needs.module-lane-database.result" not in text:
+        details["issues"].append("gate_job_database_result_check_missing")
+    if "needs.module-lane-api.result" not in text:
+        details["issues"].append("gate_job_api_result_check_missing")
+    if "needs.module-lane-contract.result" not in text:
+        details["issues"].append("gate_job_contract_result_check_missing")
+    if "needs.module-lane-integration.result" not in text:
+        details["issues"].append("gate_job_integration_result_check_missing")
+    if "needs.module-lane-e2e.result" not in text:
+        details["issues"].append("gate_job_e2e_result_check_missing")
     return not details["issues"], details
 
 

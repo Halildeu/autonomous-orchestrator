@@ -1,0 +1,225 @@
+{
+  "version": "v1",
+  "kind": "ux-catalog-lock",
+  "status": "ACTIVE",
+  "subject_id": "ux_katalogu",
+  "subject_title_tr": "UX Kataloğu",
+  "subject_title_en": "UX Catalog",
+  "theme_count": 14,
+  "subtheme_count": 98,
+  "generated_at": "2026-03-05T17:04:21Z",
+  "themes": [
+    {
+      "theme_id": "task_completion_architecture",
+      "title_tr": "Görev Tamamlama Mimarisi",
+      "title_en": "Task Completion Architecture",
+      "subtheme_count": 8,
+      "subthemes": [
+        "role_goal_task_mapping",
+        "critical_path_minimization",
+        "progressive_disclosure_by_complexity",
+        "smart_defaults_and_prefill",
+        "cross_step_context_persistence",
+        "interruption_resume_flow",
+        "cross_channel_handover",
+        "error_prevention_during_navigation"
+      ]
+    },
+    {
+      "theme_id": "navigation_information_scent",
+      "title_tr": "Navigasyon ve Bilgi Kokusu",
+      "title_en": "Navigation and Information Scent",
+      "subtheme_count": 7,
+      "subthemes": [
+        "domain_based_information_architecture",
+        "role_based_navigation_paths",
+        "global_search_and_command_palette",
+        "deep_link_and_shareable_state",
+        "recent_items_and_favorites",
+        "orientation_and_wayfinding",
+        "contextual_quick_actions"
+      ]
+    },
+    {
+      "theme_id": "data_entry_validation_recovery",
+      "title_tr": "Veri Girişi, Doğrulama ve Kurtarma",
+      "title_en": "Data Entry, Validation, and Recovery",
+      "subtheme_count": 8,
+      "subthemes": [
+        "inline_validation_before_submit",
+        "dependency_aware_form_guidance",
+        "autosave_and_draft_recovery",
+        "undo_redo_and_reversible_actions",
+        "concurrency_conflict_resolution",
+        "bulk_operations_with_guardrails",
+        "input_error_prevention_patterns",
+        "multi_step_wizard_progress"
+      ]
+    },
+    {
+      "theme_id": "feedback_state_and_visibility",
+      "title_tr": "Geri Bildirim, Durum ve Görünürlük",
+      "title_en": "Feedback, State, and Visibility",
+      "subtheme_count": 7,
+      "subthemes": [
+        "response_time_budget_feedback",
+        "deterministic_state_model",
+        "loading_empty_error_success_patterns",
+        "long_running_operation_tracking",
+        "actionable_error_messages",
+        "confirmation_receipts_and_traceability",
+        "real_time_collaboration_presence"
+      ]
+    },
+    {
+      "theme_id": "ai_assisted_decision_experience",
+      "title_tr": "AI Destekli Karar Deneyimi",
+      "title_en": "AI-Assisted Decision Experience",
+      "subtheme_count": 8,
+      "subthemes": [
+        "contextual_recommendation_cards",
+        "confidence_and_source_transparency",
+        "explainable_ai_rationale",
+        "human_approval_checkpoints",
+        "safe_prompt_templates_and_scope",
+        "ai_fallback_to_manual_flow",
+        "ai_action_audit_trail",
+        "ai_bias_detection_feedback"
+      ]
+    },
+    {
+      "theme_id": "trust_privacy_security_ux",
+      "title_tr": "Güven, Gizlilik ve Güvenlik UX",
+      "title_en": "Trust, Privacy, and Security UX",
+      "subtheme_count": 8,
+      "subthemes": [
+        "least_privilege_interaction_design",
+        "sensitive_data_masking_and_redaction",
+        "consent_and_data_usage_notice",
+        "secure_session_step_up_authentication",
+        "high_risk_action_confirmation",
+        "user_visible_audit_log",
+        "data_export_portability",
+        "privacy_by_design_defaults"
+      ]
+    },
+    {
+      "theme_id": "accessibility_and_inclusive_design",
+      "title_tr": "Erişilebilirlik ve Kapsayıcı Tasarım",
+      "title_en": "Accessibility and Inclusive Design",
+      "subtheme_count": 7,
+      "subthemes": [
+        "keyboard_only_task_completion",
+        "screen_reader_semantic_structure",
+        "contrast_typography_readability",
+        "reduced_motion_and_focus_stability",
+        "locale_language_and_format_support",
+        "cognitive_load_reduction_patterns",
+        "assistive_error_recovery_guidance"
+      ]
+    },
+    {
+      "theme_id": "performance_resilience_experience",
+      "title_tr": "Performans ve Dayanıklılık Deneyimi",
+      "title_en": "Performance and Resilience Experience",
+      "subtheme_count": 6,
+      "subthemes": [
+        "perceived_performance_optimization",
+        "graceful_degradation_under_latency",
+        "offline_queue_and_sync_feedback",
+        "retry_idempotency_and_duplicate_prevention",
+        "reliability_sli_slo_visibility",
+        "device_network_adaptive_behavior"
+      ]
+    },
+    {
+      "theme_id": "consistency_and_pattern_governance",
+      "title_tr": "Tutarlılık ve Pattern Yönetişimi",
+      "title_en": "Consistency and Pattern Governance",
+      "subtheme_count": 7,
+      "subthemes": [
+        "ux_pattern_registry_usage",
+        "single_component_source_of_truth",
+        "behavior_contracts_across_modules",
+        "microcopy_tone_and_terminology",
+        "deprecation_migration_user_guidance",
+        "exception_management_and_review",
+        "component_naming_conventions"
+      ]
+    },
+    {
+      "theme_id": "personalization_and_adaptive_productivity",
+      "title_tr": "Kişiselleştirme ve Adaptif Verimlilik",
+      "title_en": "Personalization and Adaptive Productivity",
+      "subtheme_count": 7,
+      "subthemes": [
+        "role_based_default_workspaces",
+        "saved_filters_and_views",
+        "adaptive_density_layout_preferences",
+        "notification_and_attention_controls",
+        "shortcut_macro_personalization",
+        "preference_sync_cross_device",
+        "dashboard_widget_customization"
+      ]
+    },
+    {
+      "theme_id": "measurement_kpi_and_experimentation",
+      "title_tr": "Ölçüm, KPI ve Deney Tasarımı",
+      "title_en": "Measurement, KPI, and Experimentation",
+      "subtheme_count": 7,
+      "subthemes": [
+        "task_completion_time_p50_p95",
+        "first_attempt_success_rate",
+        "user_error_per_transaction",
+        "backtrack_cancel_reopen_rate",
+        "support_request_per_flow",
+        "a11y_consistency_violation_gate",
+        "experiment_rollout_and_guardrails"
+      ]
+    },
+    {
+      "theme_id": "onboarding_help_and_learnability",
+      "title_tr": "Onboarding, Yardım ve Öğrenilebilirlik",
+      "title_en": "Onboarding, Help, and Learnability",
+      "subtheme_count": 6,
+      "subthemes": [
+        "first_run_guided_onboarding",
+        "contextual_help_and_assistive_hints",
+        "process_tours_for_critical_flows",
+        "inline_examples_templates",
+        "release_change_communication",
+        "role_based_learning_path"
+      ]
+    },
+    {
+      "theme_id": "omnichannel_web_mobile_parity",
+      "title_tr": "Omnichannel Web-Mobil Paritesi",
+      "title_en": "Omnichannel Web-Mobile Parity",
+      "subtheme_count": 6,
+      "subthemes": [
+        "responsive_process_parity",
+        "touch_keyboard_input_parity",
+        "mobile_capture_scan_voice_patterns",
+        "push_inapp_handoff_journey",
+        "platform_specific_capability_fallback",
+        "channel_transition_without_data_loss"
+      ]
+    },
+    {
+      "theme_id": "ux_writing_and_microcopy",
+      "title_tr": "UX Yazımı ve Mikro Metin",
+      "title_en": "UX Writing and Microcopy",
+      "subtheme_count": 6,
+      "subthemes": [
+        "action_label_clarity",
+        "error_message_language",
+        "empty_state_guidance_copy",
+        "confirmation_and_success_copy",
+        "ai_message_tone_guardrails",
+        "terminology_and_localization_glossary"
+      ]
+    }
+  ],
+  "source": "ux_katalogu.final_lock.from_workspace",
+  "lock_hash_sha256": "0ca1abfde95038f0b38077340705739637ea0920dd3fc13811a7c89fafb95b69"
+}

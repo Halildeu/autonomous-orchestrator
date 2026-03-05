@@ -1,5 +1,6 @@
 name: gate-enforcement-check
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [ main ]
@@ -34,6 +35,25 @@ jobs:
       - name: Module delivery lanes contract
         run: |
           python3 ci/check_module_delivery_lanes.py --strict
+
+      - name: UX catalog gate
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_PARENT="$(git rev-parse HEAD^1)"
+            PR_HEAD_PARENT="$(git rev-parse HEAD^2)"
+            MERGE_BASE="$(git merge-base "${BASE_PARENT}" "${PR_HEAD_PARENT}")"
+            python3 extensions/PRJ-UX-NORTH-STAR/contract/check_ux_catalog_enforcement.py \
+              --repo-root . \
+              --base "${MERGE_BASE}" \
+              --head "${PR_HEAD_PARENT}" \
+              --out .cache/reports/ux_catalog_enforcement_ci.v1.json
+          else
+            python3 extensions/PRJ-UX-NORTH-STAR/contract/check_ux_catalog_enforcement.py \
+              --repo-root . \
+              --base "HEAD~1" \
+              --head "HEAD" \
+              --out .cache/reports/ux_catalog_enforcement_ci.v1.json
+          fi
 
       - name: Solo branch policy guard (advisory)
         env:
@@ -90,4 +110,5 @@ jobs:
           path: |
             .cache/ws_customer_default/.cache/reports/enf_ci
             .cache/reports/branch_protection_solo_policy_ci.v1.json
+            .cache/reports/ux_catalog_enforcement_ci.v1.json
           if-no-files-found: warn
