@@ -41,6 +41,7 @@ Bu kontrat `standards.lock` içindeki `standard_sources` haritasını canonical 
 - UI design system standardı (tek UI kit + token chain + modüler sayfa + parametrik veri): `policies/policy_ui_design_system.v1.json`
 - Network/security standardı: `policies/policy_security.v1.json`
 - Secret allowlist standardı: `policies/policy_secrets.v1.json`
+- PM execution bridge standardı: `policies/policy_pm_suite.v1.json`, `policies/policy_feature_execution_bridge.v1.json`
 
 Not (Hard Cutover v2):
 - Legacy doc tabanlı standart bağımlılıkları `standard_sources` dışına alınmıştır.
@@ -50,6 +51,7 @@ Not (Hard Cutover v2):
 - PR başına gate artefact'ları saklanır.
 - Uyum doğrulama komutu: `python3 ci/check_standards_lock.py`
 - Feature preflight teknik checklist komutu: `python3 scripts/ops_technical_baseline_checklist.py --repo-root .`
+- Feature execution bridge komutu: `python3 extensions/PRJ-PM-SUITE/contract/check_feature_execution_contract.py --repo-root .`
 - Dashboard export komutu (taşeron standart envanteri + bilinmeyen sinyaller): `python3 scripts/export_managed_repo_standards_dashboard.py --workspace-root .`
 - Taşeron repo sync doğrulama komutu: `python3 ci/check_standards_lock.py --repo-root <repo_root>`
 - Lane kontrat doğrulama komutu: `python3 ci/check_module_delivery_lanes.py --strict`
@@ -63,12 +65,13 @@ Not (Hard Cutover v2):
 1. Onboarding: Repo, managed manifest (`.cache/managed_repos.v1.json`) içine alınır.
 2. Sync: `scripts/sync_managed_repo_standards.py` dry-run ile drift ölçer; `--apply` ile standart dosyaları hedef repoya taşır.
 3. Verify: Sync sonrası hedef repoda `ci/check_standards_lock.py --repo-root <repo_root>` çalışır; FAIL ise merge/promotion durur.
-4. Delivery lane: Backend, database, API ve frontend scope'ları ayrı geliştirilir; lane mapping `backend->unit`, `database->database`, `api->api`, `frontend->contract`, `integration->integration`, `e2e_gate->e2e` olarak uygulanır. CI sırası `backend -> database -> api -> frontend -> integration -> e2e` zorunludur ve `module-delivery-gate` geçmeden merge olmaz.
-5. Observability: Sync çıktısı `system_status` ve `portfolio_status` içinde `managed_repo_standards` section’ında taşeron repo bazında drift olarak görünür.
-6. Drift scoreboard: `system_status` + `portfolio_status` akışları `.cache/reports/drift_scoreboard.v1.json` üretir; lane override matrisi (`repo -> unit/database/api/contract/integration/e2e command`) ve preserve tabanlı rollout önerisi tek JSON'da izlenir.
-7. Branch protection policy: `standards.lock.branch_protection.required_checks` içinde `module-delivery-gate` zorunludur; canlı doğrulama kanıtı yoksa durum `UNVERIFIED` olarak raporlanır.
-8. Solo developer policy: write yetkili collaborator sayısı `<=1` ise `required_approving_review_count=0` ve `require_code_owner_reviews=false` zorunludur; `>1` olduğunda minimum `1` review ve code-owner review zorunludur.
-9. Legacy format yönetimi: Eski markdown/json standart kaynakları yalnızca archive/snapshot amaçlı tutulur; normatif teknik kararlar `technical_baseline.aistd.v1.json` üzerinden yorumlanır.
+4. Feature execution contract: Kod degisikligi baslamadan once `extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json` guncellenir. Business hedefi, kapsam globs, UX theme/subtheme karari ve lane planinin tek JSON kontratta toplanmasi zorunludur.
+5. Delivery lane: Backend, database, API ve frontend scope'lari ayri gelistirilir; lane mapping `backend->unit`, `database->database`, `api->api`, `frontend->contract`, `integration->integration`, `e2e_gate->e2e` olarak uygulanir. CI sirasi `backend -> database -> api -> frontend -> integration -> e2e` zorunludur ve `module-delivery-gate` gecmeden merge olmaz.
+6. Observability: Sync ciktisi `system_status` ve `portfolio_status` icinde `managed_repo_standards` section'inda taseron repo bazinda drift olarak gorunur.
+7. Drift scoreboard: `system_status` + `portfolio_status` akislar `.cache/reports/drift_scoreboard.v1.json` uretir; lane override matrisi (`repo -> unit/database/api/contract/integration/e2e command`) ve preserve tabanli rollout onerisi tek JSON'da izlenir.
+8. Branch protection policy: `standards.lock.branch_protection.required_checks` icinde `module-delivery-gate` zorunludur; canli dogrulama kaniti yoksa durum `UNVERIFIED` olarak raporlanir.
+9. Solo developer policy: write yetkili collaborator sayisi `<=1` ise `required_approving_review_count=0` ve `require_code_owner_reviews=false` zorunludur; `>1` oldugunda minimum `1` review ve code-owner review zorunludur.
+10. Legacy format yonetimi: Eski markdown/json standart kaynaklari yalnizca archive/snapshot amacli tutulur; normatif teknik kararlar `technical_baseline.aistd.v1.json` uzerinden yorumlanir.
 
 ## Değişiklik Yönetimi
 - Bu kontratta değişiklik sessiz yapılmaz; CHG süreci ve gate kanıtı gerekir.

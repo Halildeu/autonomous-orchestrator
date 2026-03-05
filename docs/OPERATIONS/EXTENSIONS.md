@@ -90,10 +90,10 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 
 <a id="ext-PRJ-PM-SUITE"></a>
 ### PRJ-PM-SUITE
-- Purpose: professional project management schemas + cockpit summary (skeleton).
-- Single gate: pm-suite-check (planned).
-- Outputs: .cache/reports/pm_suite_status.v1.json
-- Policies: policies/policy_pm_suite.v1.json
+- Purpose: professional project management schemas + feature execution contract bridge for code generation.
+- Single gate: feature execution contract check (embedded in enforcement/module-delivery).
+- Outputs: .cache/reports/pm_suite_status.v1.json, .cache/reports/feature_execution_contract_check.v1.json
+- Policies: policies/policy_pm_suite.v1.json, policies/policy_feature_execution_bridge.v1.json
 
 <a id="ext-PRJ-CONTEXT-ORCHESTRATION"></a>
 ### PRJ-CONTEXT-ORCHESTRATION

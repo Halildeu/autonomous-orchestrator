@@ -35,6 +35,52 @@ jobs:
         run: |
           python3 ci/check_module_delivery_lanes.py --strict
 
+      - name: Feature execution bridge gate
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_PARENT="$(git rev-parse HEAD^1)"
+            PR_HEAD_PARENT="$(git rev-parse HEAD^2)"
+            MERGE_BASE="$(git merge-base "${BASE_PARENT}" "${PR_HEAD_PARENT}")"
+            python3 extensions/PRJ-PM-SUITE/contract/check_feature_execution_contract.py \
+              --repo-root . \
+              --base "${MERGE_BASE}" \
+              --head "${PR_HEAD_PARENT}" \
+              --out .cache/reports/feature_execution_contract_ci.v1.json
+          else
+            python3 extensions/PRJ-PM-SUITE/contract/check_feature_execution_contract.py \
+              --repo-root . \
+              --base "HEAD~1" \
+              --head "HEAD" \
+              --out .cache/reports/feature_execution_contract_ci.v1.json
+          fi
+
+      - name: Delivery session packet build
+        run: |
+          python3 extensions/PRJ-PM-SUITE/contract/build_delivery_session_packet.py \
+            --repo-root . \
+            --out .cache/reports/delivery_session_packet_ci.v1.json
+
+      - name: Delivery session guard
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_PARENT="$(git rev-parse HEAD^1)"
+            PR_HEAD_PARENT="$(git rev-parse HEAD^2)"
+            MERGE_BASE="$(git merge-base "${BASE_PARENT}" "${PR_HEAD_PARENT}")"
+            python3 extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py \
+              --repo-root . \
+              --packet .cache/reports/delivery_session_packet_ci.v1.json \
+              --base "${MERGE_BASE}" \
+              --head "${PR_HEAD_PARENT}" \
+              --out .cache/reports/delivery_session_guard_ci.v1.json
+          else
+            python3 extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py \
+              --repo-root . \
+              --packet .cache/reports/delivery_session_packet_ci.v1.json \
+              --base "HEAD~1" \
+              --head "HEAD" \
+              --out .cache/reports/delivery_session_guard_ci.v1.json
+          fi
+
       - name: UX catalog gate
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -109,5 +155,8 @@ jobs:
           path: |
             .cache/ws_customer_default/.cache/reports/enf_ci
             .cache/reports/branch_protection_solo_policy_ci.v1.json
+            .cache/reports/feature_execution_contract_ci.v1.json
+            .cache/reports/delivery_session_packet_ci.v1.json
+            .cache/reports/delivery_session_guard_ci.v1.json
             .cache/reports/ux_catalog_enforcement_ci.v1.json
           if-no-files-found: warn

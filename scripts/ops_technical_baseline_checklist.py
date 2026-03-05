@@ -12,6 +12,8 @@ from typing import Any
 
 EXPECTED_STANDARD_SOURCE_KEYS = {
     "technical_baseline_aistd",
+    "pm_suite_policy",
+    "feature_execution_bridge_policy",
     "layer_boundary_policy",
     "llm_live_policy",
     "llm_provider_guardrails_policy",
@@ -19,6 +21,8 @@ EXPECTED_STANDARD_SOURCE_KEYS = {
     "ui_design_system_policy",
     "security_policy",
     "secrets_policy",
+    "ux_catalog_enforcement_policy",
+    "ux_catalog_lock",
 }
 
 
@@ -185,6 +189,16 @@ def main(argv: list[str] | None = None) -> int:
     ui_policy_rel = str(standard_sources.get("ui_design_system_policy") or "").strip()
     ui_policy_path = (repo_root / ui_policy_rel).resolve() if ui_policy_rel else Path("")
     ui_policy: dict[str, Any] = _load_json(ui_policy_path) if ui_policy_rel and ui_policy_path.exists() else {}
+    pm_policy_rel = str(standard_sources.get("pm_suite_policy") or "").strip()
+    pm_policy_path = (repo_root / pm_policy_rel).resolve() if pm_policy_rel else Path("")
+    pm_policy: dict[str, Any] = _load_json(pm_policy_path) if pm_policy_rel and pm_policy_path.exists() else {}
+    feature_bridge_policy_rel = str(standard_sources.get("feature_execution_bridge_policy") or "").strip()
+    feature_bridge_policy_path = (repo_root / feature_bridge_policy_rel).resolve() if feature_bridge_policy_rel else Path("")
+    feature_bridge_policy: dict[str, Any] = (
+        _load_json(feature_bridge_policy_path)
+        if feature_bridge_policy_rel and feature_bridge_policy_path.exists()
+        else {}
+    )
 
     source_checks: list[dict[str, Any]] = []
     source_checks.append(
@@ -211,6 +225,193 @@ def main(argv: list[str] | None = None) -> int:
                 [rel] if rel else [],
             )
         )
+
+    execution_bridge_checks: list[dict[str, Any]] = []
+    execution_bridge_cfg = (
+        pm_policy.get("execution_bridge") if isinstance(pm_policy.get("execution_bridge"), dict) else {}
+    )
+    delivery_session_cfg = (
+        pm_policy.get("delivery_session") if isinstance(pm_policy.get("delivery_session"), dict) else {}
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.enabled",
+            "OK" if pm_policy.get("enabled") is True else "FAIL",
+            "true",
+            str(pm_policy.get("enabled")).lower(),
+            [pm_policy_rel] if pm_policy_rel else [],
+        )
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.execution_bridge.enabled",
+            "OK" if execution_bridge_cfg.get("enabled") is True else "FAIL",
+            "true",
+            str(execution_bridge_cfg.get("enabled")).lower(),
+            [pm_policy_rel] if pm_policy_rel else [],
+        )
+    )
+    contract_template_rel = str(execution_bridge_cfg.get("contract_path") or "").strip()
+    contract_template_path = (repo_root / contract_template_rel).resolve() if contract_template_rel else Path("")
+    checker_rel = str(execution_bridge_cfg.get("checker_path") or "").strip()
+    checker_path = (repo_root / checker_rel).resolve() if checker_rel else Path("")
+    seed_rel = str(execution_bridge_cfg.get("seed_script_path") or "").strip()
+    seed_path = (repo_root / seed_rel).resolve() if seed_rel else Path("")
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.execution_bridge.template",
+            "OK" if contract_template_rel and contract_template_path.exists() else "FAIL",
+            "feature_execution_contract_present",
+            contract_template_rel if contract_template_rel else "missing_path",
+            [contract_template_rel] if contract_template_rel else [],
+        )
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.execution_bridge.checker",
+            "OK" if checker_rel and checker_path.exists() else "FAIL",
+            "check_feature_execution_contract.py",
+            checker_rel if checker_rel else "missing_path",
+            [checker_rel] if checker_rel else [],
+        )
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.execution_bridge.seed",
+            "OK" if seed_rel and seed_path.exists() else "FAIL",
+            "seed_feature_execution_contract.py",
+            seed_rel if seed_rel else "missing_path",
+            [seed_rel] if seed_rel else [],
+        )
+    )
+    bridge_mode = str(feature_bridge_policy.get("enforcement_mode") or "").strip().lower()
+    execution_bridge_checks.append(
+        _check(
+            "feature_execution_bridge.enforcement_mode",
+            "OK" if bridge_mode == "blocking" else "FAIL",
+            "blocking",
+            bridge_mode or "missing",
+            [feature_bridge_policy_rel] if feature_bridge_policy_rel else [],
+        )
+    )
+    if checker_rel and checker_path.exists():
+        smoke_status, smoke_actual = _run_process(
+            [
+                "python3",
+                str(checker_path),
+                "--repo-root",
+                str(repo_root),
+                "--changed-files",
+                "README.md",
+                "--out",
+                str((repo_root / ".cache/reports/feature_execution_contract_check_smoke.v1.json").resolve()),
+            ],
+            repo_root,
+        )
+    else:
+        smoke_status, smoke_actual = ("FAIL", "checker_missing")
+    execution_bridge_checks.append(
+        _check(
+            "feature_execution_bridge.smoke",
+            smoke_status,
+            "exit=0",
+            smoke_actual,
+            [checker_rel] if checker_rel else [],
+        )
+    )
+    delivery_session_builder_rel = str(delivery_session_cfg.get("builder_path") or "").strip()
+    delivery_session_guard_rel = str(delivery_session_cfg.get("guard_path") or "").strip()
+    delivery_session_schema_rel = str(delivery_session_cfg.get("packet_schema_path") or "").strip()
+    delivery_session_builder_path = (repo_root / delivery_session_builder_rel).resolve() if delivery_session_builder_rel else Path("")
+    delivery_session_guard_path = (repo_root / delivery_session_guard_rel).resolve() if delivery_session_guard_rel else Path("")
+    delivery_session_schema_path = (repo_root / delivery_session_schema_rel).resolve() if delivery_session_schema_rel else Path("")
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.delivery_session.enabled",
+            "OK" if delivery_session_cfg.get("enabled") is True else "FAIL",
+            "true",
+            str(delivery_session_cfg.get("enabled")).lower(),
+            [pm_policy_rel] if pm_policy_rel else [],
+        )
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.delivery_session.builder",
+            "OK" if delivery_session_builder_rel and delivery_session_builder_path.exists() else "FAIL",
+            "build_delivery_session_packet.py",
+            delivery_session_builder_rel if delivery_session_builder_rel else "missing_path",
+            [delivery_session_builder_rel] if delivery_session_builder_rel else [],
+        )
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.delivery_session.guard",
+            "OK" if delivery_session_guard_rel and delivery_session_guard_path.exists() else "FAIL",
+            "check_delivery_session_guard.py",
+            delivery_session_guard_rel if delivery_session_guard_rel else "missing_path",
+            [delivery_session_guard_rel] if delivery_session_guard_rel else [],
+        )
+    )
+    execution_bridge_checks.append(
+        _check(
+            "pm_suite.delivery_session.packet_schema",
+            "OK" if delivery_session_schema_rel and delivery_session_schema_path.exists() else "FAIL",
+            "delivery-session-packet.schema.v1.json",
+            delivery_session_schema_rel if delivery_session_schema_rel else "missing_path",
+            [delivery_session_schema_rel] if delivery_session_schema_rel else [],
+        )
+    )
+    packet_smoke_out = str((repo_root / ".cache/reports/delivery_session_packet_check_smoke.v1.json").resolve())
+    if delivery_session_builder_rel and delivery_session_builder_path.exists():
+        packet_smoke_status, packet_smoke_actual = _run_process(
+            [
+                "python3",
+                str(delivery_session_builder_path),
+                "--repo-root",
+                str(repo_root),
+                "--out",
+                packet_smoke_out,
+            ],
+            repo_root,
+        )
+    else:
+        packet_smoke_status, packet_smoke_actual = ("FAIL", "builder_missing")
+    execution_bridge_checks.append(
+        _check(
+            "delivery_session.packet.smoke",
+            packet_smoke_status,
+            "exit=0",
+            packet_smoke_actual,
+            [delivery_session_builder_rel] if delivery_session_builder_rel else [],
+        )
+    )
+    if delivery_session_guard_rel and delivery_session_guard_path.exists() and packet_smoke_status == "OK":
+        guard_smoke_status, guard_smoke_actual = _run_process(
+            [
+                "python3",
+                str(delivery_session_guard_path),
+                "--repo-root",
+                str(repo_root),
+                "--packet",
+                packet_smoke_out,
+                "--changed-files",
+                "README.md",
+                "--out",
+                str((repo_root / ".cache/reports/delivery_session_guard_check_smoke.v1.json").resolve()),
+            ],
+            repo_root,
+        )
+    else:
+        guard_smoke_status, guard_smoke_actual = ("FAIL", "guard_missing_or_packet_build_failed")
+    execution_bridge_checks.append(
+        _check(
+            "delivery_session.guard.smoke",
+            guard_smoke_status,
+            "exit=0",
+            guard_smoke_actual,
+            [delivery_session_guard_rel] if delivery_session_guard_rel else [],
+        )
+    )
 
     backend_checks: list[dict[str, Any]] = []
     backend_dir = repo_root / "backend"
@@ -716,6 +917,7 @@ def main(argv: list[str] | None = None) -> int:
     sections = {
         "source_contract": {"checks": source_checks},
         "policies": {"checks": policy_checks},
+        "execution_bridge": {"checks": execution_bridge_checks},
         "backend": {"checks": backend_checks},
         "frontend": {"checks": frontend_checks},
         "database": {"checks": database_checks},
