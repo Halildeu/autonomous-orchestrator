@@ -57,6 +57,8 @@ from .system_status_sections import (
 )
 from .system_status_sections_intake import _doer_loop_section
 from .system_status_sections_catalog import _catalog_status, _iso_core_status
+from .managed_repo_standards import build_managed_repo_standards_summary
+from .drift_scoreboard import build_drift_scoreboard, build_drift_scoreboard_summary
 
 
 def _now_iso8601() -> str:
@@ -77,6 +79,29 @@ def _airunner_status_for_overall(airunner_section: dict[str, Any]) -> str:
     if not auto_mode_effective and jobs_total == 0:
         return "OK"
     return "WARN"
+
+
+def _core_integrity_status_for_overall(
+    core_integrity_section: dict[str, Any],
+    *,
+    dirty_mode: str,
+) -> str:
+    """
+    Core integrity detayini section bazinda korur, fakat dirty_mode=warn ise
+    gelistirme sirasindaki git-dirty durumu overall'i gereksiz WARN yapmasin.
+    """
+    status = str(core_integrity_section.get("status") or "WARN")
+    if status != "WARN":
+        return status
+    if str(dirty_mode or "").strip().lower() != "warn":
+        return status
+    notes = core_integrity_section.get("notes")
+    if not isinstance(notes, list):
+        return status
+    notes_set = {str(n) for n in notes if isinstance(n, str)}
+    if "git_dirty_live" in notes_set and "core_integrity_dirty_mode=warn" in notes_set:
+        return "OK"
+    return status
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -132,6 +157,7 @@ class SystemStatusPolicy:
     max_actions: int
     max_suggestions: int
     include_repo_hygiene_suggestions: bool
+    core_integrity_dirty_mode: str
     on_fail: str
 
 
@@ -143,6 +169,7 @@ def _load_policy(core_root: Path, workspace_root: Path) -> SystemStatusPolicy:
         max_actions=10,
         max_suggestions=10,
         include_repo_hygiene_suggestions=False,
+        core_integrity_dirty_mode="fail",
         on_fail="warn",
     )
 
@@ -181,6 +208,12 @@ def _load_policy(core_root: Path, workspace_root: Path) -> SystemStatusPolicy:
         obj.get("include_repo_hygiene_suggestions", defaults.include_repo_hygiene_suggestions)
     )
 
+    core_integrity_dirty_mode = str(
+        obj.get("core_integrity_dirty_mode", defaults.core_integrity_dirty_mode)
+    ).strip()
+    if core_integrity_dirty_mode not in {"fail", "warn"}:
+        core_integrity_dirty_mode = defaults.core_integrity_dirty_mode
+
     on_fail = obj.get("on_fail", defaults.on_fail)
     if on_fail not in {"warn", "block"}:
         on_fail = defaults.on_fail
@@ -192,6 +225,7 @@ def _load_policy(core_root: Path, workspace_root: Path) -> SystemStatusPolicy:
         max_actions=max_actions,
         max_suggestions=max_suggestions,
         include_repo_hygiene_suggestions=include_repo_hygiene_suggestions,
+        core_integrity_dirty_mode=core_integrity_dirty_mode,
         on_fail=str(on_fail),
     )
 
@@ -216,7 +250,11 @@ def build_system_status(
 ) -> dict[str, Any]:
     iso_status, iso_missing, iso_paths = _iso_core_status(workspace_root)
     spec_status, spec_paths, spec_examples, spec_notes = _spec_core_status(core_root)
-    core_integrity = _core_integrity_section(core_root, workspace_root)
+    core_integrity = _core_integrity_section(
+        core_root,
+        workspace_root,
+        dirty_mode=policy.core_integrity_dirty_mode,
+    )
     core_lock = _core_lock_section(core_root, workspace_root)
     project_boundary = _project_boundary_section(workspace_root)
     layer_boundary = _layer_boundary_section(workspace_root)
@@ -239,6 +277,18 @@ def build_system_status(
     deploy_section = _deploy_section(workspace_root)
     decisions_section = _decisions_section(workspace_root)
     context_router_section = build_context_router_section(workspace_root)
+    managed_repo_standards = build_managed_repo_standards_summary(
+        workspace_root=workspace_root,
+        core_root=core_root,
+        max_repos=100,
+    )
+    drift_scoreboard = build_drift_scoreboard(
+        workspace_root=workspace_root,
+        core_root=core_root,
+        managed_repo_standards_summary=managed_repo_standards,
+        max_repos=100,
+    )
+    drift_scoreboard_summary = build_drift_scoreboard_summary(drift_scoreboard)
     harvest_status, candidates_count, harvest_kinds = _harvest_status(workspace_root)
     adv_status, suggestions_count, adv_kinds = _advisor_status(workspace_root, policy.max_suggestions)
     pack_adv_status, pack_adv_count, pack_adv_kinds, pack_adv_pack_ids = _pack_advisor_status(
@@ -281,7 +331,10 @@ def build_system_status(
     section_statuses = [
         iso_status,
         spec_status,
-        str(core_integrity.get("status") or "WARN"),
+        _core_integrity_status_for_overall(
+            core_integrity,
+            dirty_mode=policy.core_integrity_dirty_mode,
+        ),
         str(core_lock.get("status") or "WARN"),
         str(projects_section.get("status") or "WARN"),
         cat_status,
@@ -315,6 +368,12 @@ def build_system_status(
     if isinstance(context_router_section, dict):
         router_status = str(context_router_section.get("status") or "WARN")
         section_statuses.append("WARN" if router_status == "IDLE" else router_status)
+    if isinstance(managed_repo_standards, dict):
+        mrs_status = str(managed_repo_standards.get("status") or "WARN")
+        section_statuses.append("WARN" if mrs_status == "IDLE" else mrs_status)
+    if isinstance(drift_scoreboard_summary, dict):
+        scoreboard_status = str(drift_scoreboard_summary.get("status") or "WARN")
+        section_statuses.append("WARN" if scoreboard_status == "IDLE" else scoreboard_status)
     if isinstance(extensions_section, dict):
         ext_status = str(extensions_section.get("registry_status") or "WARN")
         section_statuses.append("WARN" if ext_status == "IDLE" else ext_status)
@@ -475,6 +534,8 @@ def build_system_status(
                 "actions_count": int(act_count),
                 "top": act_top,
             },
+            "managed_repo_standards": managed_repo_standards,
+            "drift_scoreboard": drift_scoreboard_summary,
         },
         "notes": [],
     }
@@ -601,6 +662,59 @@ def _render_md(report: dict[str, Any]) -> str:
     if isinstance(notes, list) and notes:
         lines.append("Notes: " + ", ".join(str(x) for x in notes))
     lines.append("")
+
+    managed_repo_standards = sections.get("managed_repo_standards") if isinstance(sections, dict) else {}
+    if isinstance(managed_repo_standards, dict) and managed_repo_standards:
+        _section_title("Managed repo standards")
+        lines.append(f"Status: {managed_repo_standards.get('status', '')}")
+        lines.append(f"Mode: {managed_repo_standards.get('mode', '')}")
+        lines.append(f"Managed repos: {managed_repo_standards.get('managed_repo_count', 0)}")
+        lines.append(f"Targets in report: {managed_repo_standards.get('target_count', 0)}")
+        lines.append(f"Pending drift: {managed_repo_standards.get('drift_pending_count', 0)}")
+        lines.append(f"Fixed drift: {managed_repo_standards.get('drift_fixed_count', 0)}")
+        lines.append(f"Failed repos: {managed_repo_standards.get('failed_count', 0)}")
+        report_path = managed_repo_standards.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            lines.append(f"Sync report: {report_path}")
+        manifest_path = managed_repo_standards.get("manifest_path")
+        if isinstance(manifest_path, str) and manifest_path:
+            lines.append(f"Manifest: {manifest_path}")
+        notes = managed_repo_standards.get("notes")
+        if isinstance(notes, list) and notes:
+            lines.append("Notes: " + ", ".join(str(x) for x in notes))
+        lines.append("")
+
+    drift_scoreboard = sections.get("drift_scoreboard") if isinstance(sections, dict) else {}
+    if isinstance(drift_scoreboard, dict) and drift_scoreboard:
+        _section_title("Drift scoreboard")
+        lines.append(f"Status: {drift_scoreboard.get('status', '')}")
+        lines.append(f"Repos: {drift_scoreboard.get('repos_count', 0)}")
+        lines.append(f"Pending drift: {drift_scoreboard.get('drift_pending_count', 0)}")
+        lines.append(f"Failed drift: {drift_scoreboard.get('drift_failed_count', 0)}")
+        lines.append(f"Lane matrix: {drift_scoreboard.get('lane_matrix_status', '')}")
+        lines.append(
+            "Lane config issues: "
+            + f"missing={drift_scoreboard.get('repos_missing_lane_config', 0)} "
+            + f"invalid={drift_scoreboard.get('repos_invalid_lane_config', 0)} "
+            + f"partial={drift_scoreboard.get('repos_partial_lane_config', 0)} "
+            + f"placeholders={drift_scoreboard.get('repos_with_lane_placeholders', 0)}"
+        )
+        lines.append(f"Branch protection: {drift_scoreboard.get('branch_protection_status', '')}")
+        lines.append(
+            "Branch checks: "
+            + f"unverified={drift_scoreboard.get('branch_unverified_count', 0)} "
+            + f"missing_required={drift_scoreboard.get('branch_missing_required_check_count', 0)}"
+        )
+        lines.append(
+            "Rollout: "
+            + f"safe={drift_scoreboard.get('rollout_safe_count', 0)} "
+            + f"review={drift_scoreboard.get('rollout_review_count', 0)} "
+            + f"blocked={drift_scoreboard.get('rollout_blocked_count', 0)}"
+        )
+        report_path = drift_scoreboard.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            lines.append(f"Scoreboard: {report_path}")
+        lines.append("")
 
     extensions = sections.get("extensions") if isinstance(sections, dict) else {}
     if isinstance(extensions, dict) and extensions:

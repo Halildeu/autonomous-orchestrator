@@ -238,7 +238,8 @@ def _classify_ref(
     if _match_any(policy.workspace_bound_patterns, ref):
         return ("workspace_bound", "workspace")
 
-    if _match_any(policy.deprecated_patterns, ref) or "legacy" in ref:
+    # Deprecation must be policy-driven; avoid hardcoding substring heuristics.
+    if _match_any(policy.deprecated_patterns, ref):
         return ("deprecated", "core")
 
     if _match_any(policy.wrong_path_patterns, ref):

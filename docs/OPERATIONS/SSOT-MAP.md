@@ -9,6 +9,9 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - roadmaps/SSOT/changes/.gitkeep
 - roadmaps/SSOT/changes/CHG-20260217-001.json
 - roadmaps/SSOT/changes/CHG-20260301-002.json
+- roadmaps/SSOT/changes/CHG-20260301-003.json
+- roadmaps/SSOT/changes/CHG-20260301-004.json
+- roadmaps/SSOT/changes/CHG-20260302-001.json
 - roadmaps/SSOT/changes/debt/README.md
 - roadmaps/PROJECTS/README.md
 - roadmaps/PROJECTS/project-roadmap.template.v1.json
@@ -24,10 +27,28 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 
 ## Operations Docs (SSOT)
 - docs/LAYER-MODEL-LOCK.v1.md
+- docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md
 - docs/OPERATIONS/EXTENSIONS.md
 - docs/OPERATIONS/NORTH-STAR-EVAL-LENSES.v1.md
 - docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules tiers demos; vendor-neutral)
 - docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
+
+## Repo Governance (SSOT)
+- standards.lock
+- .github/CODEOWNERS
+- .github/workflows/gate-enforcement-check.yml
+- .github/workflows/module-delivery-lanes.yml
+- policies/policy_ui_design_system.v1.json
+- registry/technical_baseline.aistd.v1.json
+- registry/archives/legacy_standards_archive.aistd.v1.json
+- scripts/sync_managed_repo_standards.py
+- scripts/archive_legacy_standards.py
+- scripts/ops_technical_baseline_checklist.py
+- scripts/export_managed_repo_standards_dashboard.py
+- src/ops/drift_scoreboard.py
+- ci/module_delivery_lanes.v1.json
+- ci/check_module_delivery_lanes.py
+- ci/run_module_delivery_lane.py
 
 ## Operations SSOT (Kalıcı)
 
@@ -80,6 +101,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/kernel-api-request.schema.v1.json
 - schemas/kernel-api-response.schema.v1.json
 - schemas/layer-boundary-report.schema.v1.json
+- schemas/legacy-standards-archive-aistd.schema.v1.json
 - schemas/policy-kernel-api-guardrails.schema.json
 - schemas/policy-integrity.schema.json
 - schemas/policy-integrity.schema.v1.json
@@ -90,6 +112,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-north-star-eval-lenses.schema.v1.json
 - schemas/policy-north-star-integration-coherence.schema.v1.json
 - schemas/policy-north-star-operability.schema.v1.json
+- schemas/policy-north-star-subject-plan-scoring.schema.v1.json
+- schemas/policy-north-star-subject-plan.schema.v1.json
 - schemas/policy-pdca.schema.json
 - src/prj_kernel_api/http_gateway.py
 - src/prj_kernel_api/http_gateway_contract_test.py
@@ -105,6 +129,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/north_star.maturity.schema.json
 - schemas/north_star.metric.schema.json
 - schemas/north-star-catalog.schema.v1.json
+- schemas/north-star-subject-plan.schema.v1.json
 - schemas/manual-request.schema.v1.json
 - schemas/pack-advisor-suggestions.schema.json
 - schemas/pack-manifest.schema.v1.json
@@ -147,6 +172,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-secrets.schema.json
 - schemas/policy-security.schema.json
 - schemas/policy-system-status.schema.json
+- schemas/policy-ui-design-system.schema.v1.json
 - schemas/planner-plan.schema.v1.json
 - schemas/planner-step.schema.v1.json
 - schemas/preflight-stamp.schema.v1.json
@@ -167,6 +193,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/spec-capability.schema.json
 - schemas/spec-core.schema.json
 - schemas/system-status.schema.json
+- schemas/technical-baseline-aistd.schema.v1.json
 - schemas/tenant-context.schema.v1.json
 - schemas/ui-snapshot-bundle.schema.v1.json
 - schemas/work-intake.schema.v1.json
@@ -178,6 +205,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-decision-inbox.schema.v1.json
 - schemas/policy-work-intake.schema.json
 - schemas/policy-work-intake.schema.v1.json
+- schemas/policy-work-intake-historical-prune.schema.v1.json
 - schemas/policy-work-intake-exec.schema.v1.json
 - schemas/airunner-tick.schema.v1.json
 - schemas/trace-meta.schema.v1.json
@@ -237,6 +265,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/policy_system_status.v1.json
 - policies/policy_work_intake.v1.json
 - policies/policy_work_intake.v2.json
+- policies/policy_work_intake_historical_prune.v1.json
 - policies/policy_work_intake_exec.v1.json
 
 ## CAPABILITY Specs (SSOT)

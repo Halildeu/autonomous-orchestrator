@@ -20,6 +20,8 @@ Not:
   MANAGED_REPO_CRITICAL env ile override edilebilir (default true).
   Varsayılan olarak manifestte repo girdilerine critical=true yazılır.
   NETWORK_ENABLED, LIVE_GATE_ENABLED, LIVE_GATE_REQUIRE_ENV_KEY env'leri de bool olarak ayarlanabilir.
+  SYNC_STANDARDS_ONBOARD=true ise onboarding sonrası standart dosyaları target repolara sync edilir.
+  SYNC_STANDARDS_VALIDATE=true (default) ise sync sonrası target repoda standards.lock doğrulaması yapılır.
   repos.txt satır başına bir repo, virgül/; ile ayrılmış liste ya da boşluk içermeyen kombinasyonlar alabilir.
   Her çalıştırmada .cache/managed_repos.v1.json manifesti de güncellenir.
 EOF
@@ -33,6 +35,8 @@ NETWORK_ENABLED="${NETWORK_ENABLED:-true}"
 LIVE_GATE_ENABLED="${LIVE_GATE_ENABLED:-true}"
 LIVE_GATE_REQUIRE_ENV_KEY="${LIVE_GATE_REQUIRE_ENV_KEY:-false}"
 MANAGED_REPO_CRITICAL="${MANAGED_REPO_CRITICAL:-true}"
+SYNC_STANDARDS_ONBOARD="${SYNC_STANDARDS_ONBOARD:-false}"
+SYNC_STANDARDS_VALIDATE="${SYNC_STANDARDS_VALIDATE:-true}"
 POSITIONALS=()
 
 while [ "$#" -gt 0 ]; do
@@ -117,6 +121,17 @@ EOF
 
 trim() {
   printf '%s' "$1" | awk '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, ""); print}'
+}
+
+to_bool() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|y|on)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 add_repos_from_spec() {
@@ -333,3 +348,22 @@ manifest_path.write_text(json.dumps(manifest_payload, ensure_ascii=False, indent
 PY
 
 echo "Tamam: $CREATED repo için override üretildi. Manifest: ${WORKSPACE_PREFIX}/.cache/managed_repos.v1.json"
+
+if to_bool "$SYNC_STANDARDS_ONBOARD"; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  SYNC_SCRIPT="${SCRIPT_DIR}/sync_managed_repo_standards.py"
+  if [ ! -f "$SYNC_SCRIPT" ]; then
+    echo "UYARI: standards sync script bulunamadı: ${SYNC_SCRIPT}"
+    exit 3
+  fi
+
+  SYNC_ARGS=(
+    "$SYNC_SCRIPT"
+    --manifest-path "${WORKSPACE_PREFIX}/.cache/managed_repos.v1.json"
+    --apply
+  )
+  if to_bool "$SYNC_STANDARDS_VALIDATE"; then
+    SYNC_ARGS+=(--validate-after-sync)
+  fi
+  python3 "${SYNC_ARGS[@]}"
+fi

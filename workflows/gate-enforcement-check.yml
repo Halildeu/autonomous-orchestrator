@@ -1,0 +1,4 @@
+# Canonical CI workflow lives at:
+# .github/workflows/gate-enforcement-check.yml
+#
+# This mirror path exists for SSOT doc navigation compatibility.

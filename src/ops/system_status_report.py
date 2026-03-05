@@ -16,6 +16,10 @@ from .system_status_builder import (
     _validate_schema,
     build_system_status,
 )
+from .drift_scoreboard import (
+    build_drift_scoreboard,
+    write_drift_scoreboard,
+)
 
 def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -> dict[str, Any]:
     policy = _load_policy(core_root, workspace_root)
@@ -38,11 +42,20 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
         return {"status": "FAIL", "error_code": "SCHEMA_INVALID", "errors": errors[:10], "out_json": str(out_json), "out_md": str(out_md), "on_fail": policy.on_fail}
 
     if dry_run:
+        drift_payload = build_drift_scoreboard(
+            workspace_root=workspace_root,
+            core_root=core_root,
+            managed_repo_standards_summary=report.get("sections", {}).get("managed_repo_standards")
+            if isinstance(report.get("sections"), dict)
+            else None,
+            max_repos=200,
+        )
         return {
             "status": "WOULD_WRITE",
             "overall_status": report.get("overall_status"),
             "out_json": str(out_json),
             "out_md": str(out_md),
+            "drift_scoreboard_path": str(drift_payload.get("report_path") or ""),
             "on_fail": policy.on_fail,
         }
 
@@ -50,12 +63,22 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(_dump_json(report), encoding="utf-8")
     out_md.write_text(_render_md(report), encoding="utf-8")
+    drift_payload = build_drift_scoreboard(
+        workspace_root=workspace_root,
+        core_root=core_root,
+        managed_repo_standards_summary=report.get("sections", {}).get("managed_repo_standards")
+        if isinstance(report.get("sections"), dict)
+        else None,
+        max_repos=200,
+    )
+    drift_report_path = write_drift_scoreboard(workspace_root=workspace_root, scoreboard=drift_payload)
 
     return {
         "status": "OK",
         "overall_status": report.get("overall_status"),
         "out_json": str(out_json),
         "out_md": str(out_md),
+        "drift_scoreboard_path": drift_report_path,
         "on_fail": policy.on_fail,
     }
 

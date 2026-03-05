@@ -15,7 +15,6 @@
     "roadmaps/PROJECTS/**"
   ],
   "deprecated_patterns": [
-    "legacy",
     "deprecated",
     "ROADMAP_v2.7_legacy.md"
   ],

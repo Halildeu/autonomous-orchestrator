@@ -656,7 +656,15 @@ def _write_core_unlock_compliance(
     }
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report_path
-def _core_integrity_section(core_root: Path, workspace_root: Path) -> dict[str, Any]:
+def _core_integrity_section(
+    core_root: Path,
+    workspace_root: Path,
+    *,
+    dirty_mode: str = "fail",
+) -> dict[str, Any]:
+    mode = str(dirty_mode or "fail").strip().lower()
+    if mode not in {"fail", "warn"}:
+        mode = "fail"
     lines = _git_status_lines(core_root)
     report, report_path = _find_core_dirty_report(core_root, workspace_root)
     report_notes: list[str] = []
@@ -667,11 +675,15 @@ def _core_integrity_section(core_root: Path, workspace_root: Path) -> dict[str, 
     # Live git state always has precedence over stale evidence snapshots.
     if lines is not None:
         if lines:
+            status = "FAIL" if mode == "fail" else "WARN"
+            notes = report_notes + ["git_dirty_live"]
+            if mode == "warn":
+                notes.append("core_integrity_dirty_mode=warn")
             return {
-                "status": "FAIL",
+                "status": status,
                 "git_clean": False,
                 "dirty_files_count": len(lines),
-                "notes": report_notes + ["git_dirty_live"],
+                "notes": notes,
             }
         return {
             "status": "OK",
@@ -682,12 +694,18 @@ def _core_integrity_section(core_root: Path, workspace_root: Path) -> dict[str, 
 
     if report_path is not None and isinstance(report, list):
         dirty_lines = [str(x) for x in report if isinstance(x, str) and str(x).strip()]
-        status = "OK" if not dirty_lines else "FAIL"
+        if not dirty_lines:
+            status = "OK"
+        else:
+            status = "FAIL" if mode == "fail" else "WARN"
+        notes = report_notes + ["git_unavailable"]
+        if dirty_lines and mode == "warn":
+            notes.append("core_integrity_dirty_mode=warn")
         return {
             "status": status,
             "git_clean": not dirty_lines,
             "dirty_files_count": len(dirty_lines),
-            "notes": report_notes + ["git_unavailable"],
+            "notes": notes,
         }
 
     return {

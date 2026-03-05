@@ -2179,6 +2179,223 @@
           ],
           "type": "object"
         },
+        "managed_repo_standards": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "report_path": {
+              "type": "string"
+            },
+            "manifest_path": {
+              "type": "string"
+            },
+            "mode": {
+              "type": "string"
+            },
+            "target_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "managed_repo_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "failed_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "drift_pending_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "drift_fixed_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "clean_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "missing_in_report_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "repos": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "repo_root": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "OK",
+                      "FAIL"
+                    ],
+                    "type": "string"
+                  },
+                  "drift_state": {
+                    "enum": [
+                      "CLEAN",
+                      "PENDING",
+                      "FIXED",
+                      "FAILED"
+                    ],
+                    "type": "string"
+                  },
+                  "changed_files": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "validation_status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "repo_root",
+                  "status",
+                  "drift_state",
+                  "changed_files",
+                  "validation_status"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "report_path",
+            "manifest_path",
+            "mode",
+            "target_count",
+            "managed_repo_count",
+            "failed_count",
+            "drift_pending_count",
+            "drift_fixed_count",
+            "clean_count",
+            "missing_in_report_count",
+            "repos",
+            "notes"
+          ],
+          "type": "object"
+        },
+        "drift_scoreboard": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "report_path": {
+              "type": "string"
+            },
+            "repos_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "drift_pending_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "drift_failed_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lane_matrix_status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "repos_missing_lane_config": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "repos_invalid_lane_config": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "repos_partial_lane_config": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "repos_with_lane_placeholders": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "branch_protection_status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "branch_unverified_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "branch_missing_required_check_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rollout_safe_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rollout_review_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rollout_blocked_count": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "status",
+            "report_path",
+            "repos_count",
+            "drift_pending_count",
+            "drift_failed_count",
+            "lane_matrix_status",
+            "repos_missing_lane_config",
+            "repos_invalid_lane_config",
+            "repos_partial_lane_config",
+            "repos_with_lane_placeholders",
+            "branch_protection_status",
+            "branch_unverified_count",
+            "branch_missing_required_check_count",
+            "rollout_safe_count",
+            "rollout_review_count",
+            "rollout_blocked_count"
+          ],
+          "type": "object"
+        },
         "quality_gate": {
           "additionalProperties": false,
           "properties": {

@@ -27,6 +27,12 @@ from src.ops.roadmap_cli_helpers import (
     warn,
 )
 from src.ops.portfolio_release import read_release_summary
+from src.ops.managed_repo_standards import build_managed_repo_standards_summary
+from src.ops.drift_scoreboard import (
+    build_drift_scoreboard,
+    build_drift_scoreboard_summary,
+    write_drift_scoreboard,
+)
 
 
 def cmd_roadmap_plan(args: argparse.Namespace) -> int:
@@ -367,6 +373,7 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
 
     actions_count, actions_top = _read_actions_top(workspace_root, limit=5)
     bench_status = None
+    managed_repo_standards_summary: dict[str, Any] | None = None
     pm_suite_summary: dict[str, Any] = {
         "status": "IDLE",
         "extension_id": "PRJ-PM-SUITE",
@@ -389,6 +396,28 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
             pm_suite = sections.get("pm_suite") if isinstance(sections, dict) else None
             if isinstance(pm_suite, dict):
                 pm_suite_summary = pm_suite
+            managed_repo_standards = sections.get("managed_repo_standards") if isinstance(sections, dict) else None
+            if isinstance(managed_repo_standards, dict):
+                managed_repo_standards_summary = managed_repo_standards
+
+    if not isinstance(managed_repo_standards_summary, dict):
+        managed_repo_standards_summary = build_managed_repo_standards_summary(
+            workspace_root=workspace_root,
+            core_root=root,
+            max_repos=100,
+        )
+    drift_scoreboard_payload = build_drift_scoreboard(
+        workspace_root=workspace_root,
+        core_root=root,
+        managed_repo_standards_summary=managed_repo_standards_summary,
+        max_repos=200,
+    )
+    drift_scoreboard_path = write_drift_scoreboard(
+        workspace_root=workspace_root,
+        scoreboard=drift_scoreboard_payload,
+    )
+    drift_scoreboard_summary = build_drift_scoreboard_summary(drift_scoreboard_payload)
+    drift_scoreboard_summary["report_path"] = drift_scoreboard_path
 
     next_focus = _portfolio_next_focus(str(bench_status or "WARN"), actions_top, active_projects)
     intake_focus, intake_path = _read_work_intake_focus(workspace_root)
@@ -417,6 +446,8 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         "manual_requests_by_bucket": manual_request_by_bucket,
         "release": release_summary,
         "pm_suite": pm_suite_summary,
+        "managed_repo_standards": managed_repo_standards_summary,
+        "drift_scoreboard": drift_scoreboard_summary,
         "notes": [],
     }
 
@@ -436,6 +467,11 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         "release_version": release_summary.get("release_version"),
         "extensions_registry_status": registry_status,
         "extensions_registry_path": registry_path or "",
+        "managed_repo_standards_status": managed_repo_standards_summary.get("status"),
+        "managed_repo_drift_pending_count": int(managed_repo_standards_summary.get("drift_pending_count") or 0),
+        "managed_repo_failed_count": int(managed_repo_standards_summary.get("failed_count") or 0),
+        "drift_scoreboard_status": drift_scoreboard_summary.get("status"),
+        "drift_scoreboard_path": drift_scoreboard_summary.get("report_path"),
         "report_path": str(out_path.relative_to(workspace_root)) if out_path.is_relative_to(workspace_root) else str(out_path),
     }
 
@@ -447,16 +483,26 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
             f"manual_request_count={manual_request_count}",
             f"extensions_count={len(active_projects)}",
             f"release_status={release_summary.get('status')}",
+            f"managed_repo_standards_status={managed_repo_standards_summary.get('status')}",
+            f"managed_repo_drift_pending_count={managed_repo_standards_summary.get('drift_pending_count')}",
+            f"drift_scoreboard_status={drift_scoreboard_summary.get('status')}",
         ]
         result_lines = [
             f"status={status}",
             f"bench_status={bench_status or 'unknown'}",
+            f"managed_repo_failed_count={managed_repo_standards_summary.get('failed_count')}",
+            f"drift_scoreboard_blocked={drift_scoreboard_summary.get('rollout_blocked_count')}",
         ]
         evidence_lines = [f"portfolio_status={final_json.get('report_path')}"]
         if intake_path:
             evidence_lines.append(f"work_intake={intake_path}")
         if registry_path:
             evidence_lines.append(f"extension_registry={registry_path}")
+        sync_report_path = managed_repo_standards_summary.get("report_path")
+        if isinstance(sync_report_path, str) and sync_report_path:
+            evidence_lines.append(f"managed_repo_sync_report={sync_report_path}")
+        if isinstance(drift_scoreboard_path, str) and drift_scoreboard_path:
+            evidence_lines.append(f"drift_scoreboard={drift_scoreboard_path}")
         actions_lines = []
         for a in actions_top:
             actions_lines.append(

@@ -1658,6 +1658,9 @@ const state = {
   northStarFlow2Status: null,
   northStarSubjectPlanProfileRun: null,
   northStarProfileOrderCompare: null,
+  northStarUxReferenceBySubject: {},
+  northStarUxReferenceCatalog: null,
+  northStarUxReferencePending: false,
   northStarMatrices: {
     reference: null,
     assessment: null,
@@ -1941,6 +1944,250 @@ async function fetchNorthStarMechanismsHistory() {
     showToast(t("toast.refresh_failed", { name: "north_star_mechanisms_history", error: formatError(err) }), "warn");
     return null;
   }
+}
+
+function getNorthStarUxReferenceReportPath(subjectId) {
+  const subject = String(getMechanismsSubjectBaseId(subjectId) || subjectId || "").trim();
+  if (!subject) return "";
+  const subjectKey = normalizeKey(subject);
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  for (const item of subjects) {
+    if (!item || typeof item !== "object") continue;
+    const itemBaseKey = normalizeKey(getMechanismsSubjectBaseId(item?.subject_id || ""));
+    if (!itemBaseKey || itemBaseKey !== subjectKey) continue;
+    const metadata = item?.metadata && typeof item.metadata === "object" ? item.metadata : {};
+    const uxSources = metadata?.ux_sources && typeof metadata.ux_sources === "object" ? metadata.ux_sources : {};
+    const reportPathRaw = String(uxSources?.report || "").trim();
+    if (reportPathRaw) return resolveEvidencePathForApi(reportPathRaw);
+    return "";
+  }
+  return "";
+}
+
+function getNorthStarUxMetadataSources(subjectId) {
+  const subject = String(getMechanismsSubjectBaseId(subjectId) || subjectId || "").trim();
+  if (!subject) return {};
+  const subjectKey = normalizeKey(subject);
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  for (const item of subjects) {
+    if (!item || typeof item !== "object") continue;
+    const itemBaseKey = normalizeKey(getMechanismsSubjectBaseId(item?.subject_id || ""));
+    if (!itemBaseKey || itemBaseKey !== subjectKey) continue;
+    const metadata = item?.metadata && typeof item.metadata === "object" ? item.metadata : {};
+    const uxSources = metadata?.ux_sources && typeof metadata.ux_sources === "object" ? metadata.ux_sources : {};
+    return uxSources;
+  }
+  return {};
+}
+
+function isMechanismsUxLibrarySubject(subject) {
+  if (!subject || typeof subject !== "object") return false;
+  const metadata = subject?.metadata && typeof subject.metadata === "object" ? subject.metadata : {};
+  const tags = Array.isArray(subject?.tags) ? subject.tags.map((item) => String(item || "").trim().toLowerCase()) : [];
+  const libraryType = String(metadata?.library_type || "").trim().toUpperCase();
+  const isUxLibrary = metadata?.is_ux_library === true || metadata?.ux_library === true;
+  if (isUxLibrary) return true;
+  if (libraryType === "UX_LIBRARY") return true;
+  if (tags.includes("ux_library") || tags.includes("library:ux")) return true;
+  return false;
+}
+
+function getNorthStarUxSubjectCandidates() {
+  const candidates = [];
+  const seen = new Set();
+  const push = (value) => {
+    const normalized = String(getMechanismsSubjectBaseId(value) || value || "").trim();
+    if (!normalized) return;
+    if (!isUxSubjectId(normalized)) return;
+    const key = normalizeKey(normalized);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    candidates.push(normalized);
+  };
+
+  const selectedSubjects = state.filters?.northStarMechanisms?.subject || [];
+  (Array.isArray(selectedSubjects) ? selectedSubjects : [selectedSubjects]).forEach((subjectId) => push(subjectId));
+  push($("#ns-catalog-subject")?.value || "");
+  push($("#ns-subject-plan-subject")?.value || "");
+
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects.slice() : [];
+  subjects
+    .filter((subject) => isMechanismsUxLibrarySubject(subject))
+    .sort((a, b) => {
+      const sa = getMechanismsSubjectPreferenceScore(a);
+      const sb = getMechanismsSubjectPreferenceScore(b);
+      if (sb !== sa) return sb - sa;
+      return String(a?.subject_id || "").localeCompare(String(b?.subject_id || ""));
+    })
+    .forEach((subject) => push(subject?.subject_id || ""));
+  return candidates;
+}
+
+function isUxSubjectId(subjectId) {
+  const baseId = String(getMechanismsSubjectBaseId(subjectId) || subjectId || "").trim();
+  if (!baseId) return false;
+  const baseKey = normalizeKey(baseId);
+  if (!baseKey) return false;
+  const registry = unwrap(state.northStarMechanismsRegistry || {}) || {};
+  const subjects = Array.isArray(registry.subjects) ? registry.subjects : [];
+  for (const subject of subjects) {
+    if (!subject || typeof subject !== "object") continue;
+    const subjectBaseKey = normalizeKey(getMechanismsSubjectBaseId(subject?.subject_id || ""));
+    if (!subjectBaseKey || subjectBaseKey !== baseKey) continue;
+    if (isMechanismsUxLibrarySubject(subject)) return true;
+  }
+  return false;
+}
+
+function northStarUxPayloadExists(payload) {
+  return Boolean(payload && typeof payload === "object" && payload.exists === true);
+}
+
+function northStarUxArtifactCountHint(payload) {
+  const data = unwrap(payload || {}) || {};
+  const keyOrder = ["sections", "rows", "components", "flows", "quality_gates", "data_contracts"];
+  for (const key of keyOrder) {
+    const value = data?.[key];
+    if (Array.isArray(value)) return `${key}=${value.length}`;
+  }
+  const stats = data?.stats;
+  if (stats && typeof stats === "object") {
+    for (const [key, value] of Object.entries(stats)) {
+      if (typeof value === "number" && Number.isFinite(value)) return `${key}=${value}`;
+    }
+  }
+  return "";
+}
+
+async function fetchNorthStarUxReferenceCatalogForSubject(subjectId) {
+  const normalizedSubjectId = String(getMechanismsSubjectBaseId(subjectId) || subjectId || "").trim();
+  if (!normalizedSubjectId) return null;
+
+  const reportPath = getNorthStarUxReferenceReportPath(normalizedSubjectId);
+  const report = reportPath ? await fetchOptionalJson(reportPath) : null;
+  const reportData = unwrap(report || {}) || {};
+  const reportSources = reportData?.reference_scope?.sources && typeof reportData.reference_scope.sources === "object"
+    ? reportData.reference_scope.sources
+    : {};
+  const metadataSources = getNorthStarUxMetadataSources(normalizedSubjectId);
+  const uxCatalogPath = resolveEvidencePathForApi(String(metadataSources?.ux_catalog || reportSources?.ux_catalog || "").trim());
+  const uxBlueprintPath = resolveEvidencePathForApi(String(metadataSources?.ux_blueprint || reportSources?.ux_blueprint || "").trim());
+  const uxInteractionMatrixPath = resolveEvidencePathForApi(
+    String(metadataSources?.ux_interaction_matrix || reportSources?.ux_interaction_matrix || "").trim()
+  );
+
+  const [uxCatalog, uxBlueprint, uxInteractionMatrix] = await Promise.all([
+    uxCatalogPath ? fetchOptionalJson(uxCatalogPath) : Promise.resolve(null),
+    uxBlueprintPath ? fetchOptionalJson(uxBlueprintPath) : Promise.resolve(null),
+    uxInteractionMatrixPath ? fetchOptionalJson(uxInteractionMatrixPath) : Promise.resolve(null),
+  ]);
+  const payloads = [report, uxCatalog, uxBlueprint, uxInteractionMatrix];
+  const existsCount = payloads.filter((payload) => northStarUxPayloadExists(payload)).length;
+
+  return {
+    subject_id: normalizedSubjectId,
+    status: existsCount <= 0 ? "MISSING" : existsCount >= 4 ? "OK" : "PARTIAL",
+    exists_count: existsCount,
+    report,
+    ux_catalog: uxCatalog,
+    ux_blueprint: uxBlueprint,
+    ux_interaction_matrix: uxInteractionMatrix,
+  };
+}
+
+async function refreshNorthStarUxReferenceCatalog() {
+  if (state.northStarUxReferencePending) return state.northStarUxReferenceBySubject || {};
+  state.northStarUxReferencePending = true;
+  try {
+    const candidates = getNorthStarUxSubjectCandidates();
+    const refreshedAt = new Date().toISOString();
+    const bySubject = {};
+    for (const subjectId of candidates) {
+      const found = await fetchNorthStarUxReferenceCatalogForSubject(subjectId);
+      if (!found) continue;
+      const subjectKey = normalizeKey(found.subject_id);
+      if (!subjectKey) continue;
+      bySubject[subjectKey] = {
+        ...found,
+        candidates,
+        refreshed_at: refreshedAt,
+      };
+    }
+    state.northStarUxReferenceBySubject = bySubject;
+
+    let selected = null;
+    for (const subjectId of candidates) {
+      const subjectKey = normalizeKey(getMechanismsSubjectBaseId(subjectId) || subjectId);
+      if (!subjectKey) continue;
+      const candidate = bySubject[subjectKey];
+      if (candidate && Number(candidate.exists_count || 0) > 0) {
+        selected = candidate;
+        break;
+      }
+    }
+
+    if (!selected) {
+      const fallbackSubject = String(candidates[0] || "").trim();
+      const fallbackKey = normalizeKey(getMechanismsSubjectBaseId(fallbackSubject) || fallbackSubject);
+      selected = (fallbackKey && bySubject[fallbackKey]) || {
+        status: "MISSING",
+        subject_id: fallbackSubject,
+        exists_count: 0,
+        report: null,
+        ux_catalog: null,
+        ux_blueprint: null,
+        ux_interaction_matrix: null,
+        candidates,
+        refreshed_at: refreshedAt,
+      };
+    }
+    state.northStarUxReferenceCatalog = selected;
+    return bySubject;
+  } finally {
+    state.northStarUxReferencePending = false;
+  }
+}
+
+function getBadgeClassByStatus(status) {
+  const norm = String(status || "UNKNOWN").toUpperCase();
+  if (norm.includes("FAIL")) return "badge fail";
+  if (norm.includes("WARN") || norm.includes("MISSING") || norm.includes("PARTIAL")) return "badge warn";
+  if (norm.includes("PENDING") || norm.includes("RUNNING") || norm.includes("IDLE")) return "badge idle";
+  return "badge ok";
+}
+
+function getNorthStarUxReferenceForSubject(subjectId) {
+  const normalized = String(getMechanismsSubjectBaseId(subjectId) || subjectId || "").trim();
+  if (!normalized) return null;
+  const bySubject = state.northStarUxReferenceBySubject && typeof state.northStarUxReferenceBySubject === "object"
+    ? state.northStarUxReferenceBySubject
+    : {};
+  const subjectKey = normalizeKey(normalized);
+  if (!subjectKey) return null;
+  const found = bySubject[subjectKey];
+  if (found && typeof found === "object") return found;
+  return {
+    status: "MISSING",
+    subject_id: normalized,
+    exists_count: 0,
+    report: null,
+    ux_catalog: null,
+    ux_blueprint: null,
+    ux_interaction_matrix: null,
+  };
+}
+
+function renderNorthStarUxReferenceInline(subjectId) {
+  if (!isUxSubjectId(subjectId)) return "";
+  const payload = getNorthStarUxReferenceForSubject(subjectId);
+  if (!payload) return "";
+  const status = normalizeNorthStarStatusToken(payload.status || "MISSING", "MISSING");
+  const badgeClass = getBadgeClassByStatus(status);
+  const existsCount = Number(payload.exists_count || 0);
+  return `<div class="subtle" style="margin-top:6px;"><span class="${badgeClass}">UX REF ${escapeHtml(status)}</span> <span class="subtle">artifacts=${escapeHtml(String(Math.max(0, Math.min(4, existsCount))))}/4</span></div>`;
 }
 
 function deriveNorthStarSubjectPlanProfileRunFromReport(payload) {
@@ -5604,6 +5851,7 @@ function renderNorthStarMechanisms() {
         enabledTitle: transferBtnTitle,
         disabledTitle: transferBtnDisabledTitle,
       });
+      const uxReferenceInline = renderNorthStarUxReferenceInline(subjectId);
       const themeBlocks = themes
         .map((theme) => {
           const themeId = String(theme?.theme_id || "").trim();
@@ -5700,6 +5948,7 @@ function renderNorthStarMechanisms() {
           <div><strong>${escapeHtml(subjectLabel)}</strong> ${subjectIdHtml} ${transferSubjectBtn} ${aiSubjectBadge}</div>
           <div class="row" style="gap:6px;align-items:center;">${versionBadge}<div class="badge">${escapeHtml(statusLabel)}</div></div>
         </div>
+        ${uxReferenceInline}
         ${versionHistory}
         ${themeBlocks || `<div class="subtle">${escapeHtml(t("north_star.unknown"))}</div>`}
       </div>`;
@@ -13527,6 +13776,7 @@ async function refreshNorthStar() {
   state.northStarFlow2Status = flow2Status || null;
   state.northStarSubjectPlanProfileRun = subjectPlanAb && typeof subjectPlanAb === "object" ? subjectPlanAb : null;
   state.northStarProfileOrderCompare = profileOrderCompare && typeof profileOrderCompare === "object" ? profileOrderCompare : null;
+  await refreshNorthStarUxReferenceCatalog();
   renderNorthStar();
 }
 
