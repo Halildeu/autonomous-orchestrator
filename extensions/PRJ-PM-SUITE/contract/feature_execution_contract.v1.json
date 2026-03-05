@@ -10,7 +10,8 @@
     "source_refs": [
       "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
       "policies/policy_feature_execution_bridge.v1.json",
-      "standards.lock"
+      "standards.lock",
+      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js"
     ],
     "business_goal": "Prevent PM to code drift in the core orchestrator and keep UX or lane decisions machine-readable.",
     "requested_outcome": "Every governed code change must be traceable through a single execution contract before CI lanes or AI coding proceed."
@@ -36,19 +37,27 @@
       ".github/workflows/module-delivery-lanes.yml",
       "standards.lock",
       "schemas/policy-pm-suite.schema.v1.json",
-      "schemas/delivery-session-packet.schema.v1.json"
+      "schemas/delivery-session-packet.schema.v1.json",
+      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js"
     ],
     "affected_modules": [
       "PRJ-PM-SUITE",
+      "PRJ-UI-COCKPIT-LITE",
       "PRJ-UX-NORTH-STAR",
       "managed_repo_sync",
       "standards_lock"
     ]
   },
   "ux_contract": {
-    "mode": "NOT_APPLICABLE",
-    "rationale": "This rollout changes control-plane governance and CI behavior, not end-user UI surfaces.",
-    "artifacts": []
+    "mode": "REQUIRED",
+    "rationale": "This rollout also changes Cockpit Lite control-surface behavior, so the touched frontend path must stay bound to a locked UX theme and subtheme.",
+    "artifacts": [
+      {
+        "path_glob": "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js",
+        "ux_theme_id": "accessibility_and_inclusive_design",
+        "ux_subtheme_id": "locale_language_and_format_support"
+      }
+    ]
   },
   "technical_contract": {
     "baseline_profile_id": "erp-fullstack-java21-react18",
