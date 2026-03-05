@@ -1,0 +1,46 @@
+{
+  "archive_root": "docs/ARCHIVE/legacy_standards",
+  "generated_at": "2026-03-04T11:28:29Z",
+  "items": [
+    {
+      "archived_path": "docs/ARCHIVE/legacy_standards/2026-03-04/docs/OPERATIONS/CODING-STANDARDS.md",
+      "sha256_archive": "7ad822331b3f4e79740335bf7837cd03357418baa7c9527c081e016ded838aaa",
+      "sha256_source": "7ad822331b3f4e79740335bf7837cd03357418baa7c9527c081e016ded838aaa",
+      "source_id": "coding_standards_md",
+      "source_path": "docs/OPERATIONS/CODING-STANDARDS.md",
+      "status": "ARCHIVED"
+    },
+    {
+      "archived_path": "docs/ARCHIVE/legacy_standards/2026-03-04/docs/OPERATIONS/ARCHITECTURE-CONSTRAINTS.md",
+      "sha256_archive": "e13522e465952d8bc26327005945ec1f5af16fb660945902b5dd89aa4c42c019",
+      "sha256_source": "e13522e465952d8bc26327005945ec1f5af16fb660945902b5dd89aa4c42c019",
+      "source_id": "architecture_constraints_md",
+      "source_path": "docs/OPERATIONS/ARCHITECTURE-CONSTRAINTS.md",
+      "status": "ARCHIVED"
+    },
+    {
+      "archived_path": "docs/ARCHIVE/legacy_standards/2026-03-04/docs/OPERATIONS/repo-layout.v1.json",
+      "sha256_archive": "d51541d65b3cb54553119d9ddea0ac795d6c8cf898faf78574f3985f358ecfd0",
+      "sha256_source": "d51541d65b3cb54553119d9ddea0ac795d6c8cf898faf78574f3985f358ecfd0",
+      "source_id": "repo_layout_json",
+      "source_path": "docs/OPERATIONS/repo-layout.v1.json",
+      "status": "ARCHIVED"
+    },
+    {
+      "archived_path": "docs/ARCHIVE/legacy_standards/2026-03-04/docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+      "sha256_archive": "96b2684c9eeae0996343858c11c692a3b0cac75c16a32a5aa13e70c544f0ad7b",
+      "sha256_source": "96b2684c9eeae0996343858c11c692a3b0cac75c16a32a5aa13e70c544f0ad7b",
+      "source_id": "multi_repo_operating_contract_md",
+      "source_path": "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+      "status": "ARCHIVED"
+    }
+  ],
+  "kind": "legacy-standards-archive-aistd",
+  "missing_sources": [],
+  "notes": [
+    "legacy kaynaklar read-only archive olarak saklanir.",
+    "normatif standart artik registry/technical_baseline.aistd.v1.json dosyasidir."
+  ],
+  "snapshot_id": "2026-03-04",
+  "version": "v1"
+}

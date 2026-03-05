@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -24,6 +26,25 @@ jobs:
       - name: Validate lane config + workflow contract
         run: |
           python3 ci/check_module_delivery_lanes.py --strict
+
+      - name: UX catalog gate precheck
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_PARENT="$(git rev-parse HEAD^1)"
+            PR_HEAD_PARENT="$(git rev-parse HEAD^2)"
+            MERGE_BASE="$(git merge-base "${BASE_PARENT}" "${PR_HEAD_PARENT}")"
+            python3 extensions/PRJ-UX-NORTH-STAR/contract/check_ux_catalog_enforcement.py \
+              --repo-root . \
+              --base "${MERGE_BASE}" \
+              --head "${PR_HEAD_PARENT}" \
+              --out .cache/reports/ux_catalog_enforcement_module_delivery.v1.json
+          else
+            python3 extensions/PRJ-UX-NORTH-STAR/contract/check_ux_catalog_enforcement.py \
+              --repo-root . \
+              --base "HEAD~1" \
+              --head "HEAD" \
+              --out .cache/reports/ux_catalog_enforcement_module_delivery.v1.json
+          fi
 
   module-lane-unit:
     runs-on: ubuntu-latest
@@ -51,9 +72,61 @@ jobs:
         run: |
           python3 ci/run_module_delivery_lane.py --lane unit
 
-  module-lane-contract:
+  module-lane-database:
     runs-on: ubuntu-latest
     needs: [module-lane-unit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            echo "requirements-dev.txt bulunamadi; lane baseline mode ile devam."
+          fi
+      - name: Run database lane
+        run: |
+          python3 ci/run_module_delivery_lane.py --lane database
+
+  module-lane-api:
+    runs-on: ubuntu-latest
+    needs: [module-lane-database]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            echo "requirements-dev.txt bulunamadi; lane baseline mode ile devam."
+          fi
+      - name: Run api lane
+        run: |
+          python3 ci/run_module_delivery_lane.py --lane api
+
+  module-lane-contract:
+    runs-on: ubuntu-latest
+    needs: [module-lane-api]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -122,6 +195,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - module-lane-unit
+      - module-lane-database
+      - module-lane-api
       - module-lane-contract
       - module-lane-integration
       - module-lane-e2e
@@ -131,10 +206,14 @@ jobs:
         run: |
           set -euo pipefail
           echo "unit=${{ needs.module-lane-unit.result }}"
+          echo "database=${{ needs.module-lane-database.result }}"
+          echo "api=${{ needs.module-lane-api.result }}"
           echo "contract=${{ needs.module-lane-contract.result }}"
           echo "integration=${{ needs.module-lane-integration.result }}"
           echo "e2e=${{ needs.module-lane-e2e.result }}"
           test "${{ needs.module-lane-unit.result }}" = "success"
+          test "${{ needs.module-lane-database.result }}" = "success"
+          test "${{ needs.module-lane-api.result }}" = "success"
           test "${{ needs.module-lane-contract.result }}" = "success"
           test "${{ needs.module-lane-integration.result }}" = "success"
           test "${{ needs.module-lane-e2e.result }}" = "success"

@@ -1,14 +1,38 @@
 {
   "version": "v1",
-  "managed_repo_profile": "python-default",
+  "managed_repo_profile": "fullstack-java-node-fallback",
   "merge_requires_all_green": true,
+  "scope_lane_map": {
+    "backend": "unit",
+    "database": "database",
+    "api": "api",
+    "frontend": "contract",
+    "integration": "integration",
+    "e2e_gate": "e2e"
+  },
+  "execution_sequence": [
+    "backend",
+    "database",
+    "api",
+    "frontend",
+    "integration",
+    "e2e"
+  ],
   "lanes": {
     "unit": {
-      "command": "python3 -m py_compile ci/check_module_delivery_lanes.py ci/run_module_delivery_lane.py",
+      "command": "if [ -f scripts/run_lint_backend.sh ] && [ -f scripts/run_tests_backend.sh ] && [ -x backend/mvnw ] && command -v java >/dev/null 2>&1; then bash scripts/run_lint_backend.sh && bash scripts/run_tests_backend.sh; else python3 -m py_compile ci/check_module_delivery_lanes.py ci/run_module_delivery_lane.py; fi",
+      "timeout_seconds": 600
+    },
+    "database": {
+      "command": "if [ -f scripts/run_tests_database.sh ]; then bash scripts/run_tests_database.sh; elif [ -d backend ] && [ -x backend/mvnw ] && command -v java >/dev/null 2>&1; then (cd backend && ./mvnw -q -DskipTests validate); else python3 ci/check_standards_lock.py; fi",
+      "timeout_seconds": 600
+    },
+    "api": {
+      "command": "if [ -f scripts/run_tests_api.sh ]; then bash scripts/run_tests_api.sh; elif [ -f scripts/check_api_docs.py ]; then python3 scripts/check_api_docs.py; elif [ -d backend ] && [ -x backend/mvnw ] && command -v java >/dev/null 2>&1; then (cd backend && ./mvnw -q -DskipTests compile); else python3 ci/check_standards_lock.py; fi",
       "timeout_seconds": 600
     },
     "contract": {
-      "command": "python3 ci/check_standards_lock.py",
+      "command": "if [ -f scripts/run_lint_web.sh ] && [ -f scripts/run_tests_web.sh ] && [ -f web/package.json ] && command -v npm >/dev/null 2>&1; then if [ ! -d web/node_modules ]; then echo \"[module-lane-contract] web/node_modules missing, running npm install\"; (cd web && npm install --no-audit --no-fund); fi; bash scripts/run_lint_web.sh && bash scripts/run_tests_web.sh unit; else python3 ci/check_standards_lock.py; fi",
       "timeout_seconds": 600
     },
     "integration": {
@@ -22,6 +46,7 @@
   },
   "notes": [
     "Managed repo CI lane template: her lane komutu repo bazlı override edilebilir.",
+    "Varsayilan siralama backend(unit) -> database(database) -> api(api) -> frontend(contract) -> integration -> e2e olarak uygulanir.",
     "Sync standardında preserve_existing_paths sayesinde bu dosya taşeron repoda korunur."
   ]
 }
