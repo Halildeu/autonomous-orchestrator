@@ -1,6 +1,6 @@
 {
   "policy_version": "v0.1",
-  "generated_at": "",
+  "generated_at": "2026-03-05T00:00:00Z",
   "probe": {
     "ttl_hours_default": 72,
     "ttl_hours_by_class": {
@@ -14,9 +14,10 @@
       "providers": {
         "openai": {
           "pinned_model_id": "gpt-4o-mini",
-          "preferred_candidate_model_id": null,
+          "preferred_candidate_model_id": "gpt-5.2-mini",
           "models": [
-            { "model_id": "gpt-4o-mini", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+            { "model_id": "gpt-4o-mini", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "gpt-5.2-mini", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "google": {
@@ -37,9 +38,10 @@
         },
         "deepseek": {
           "pinned_model_id": "deepseek-chat",
-          "preferred_candidate_model_id": null,
+          "preferred_candidate_model_id": "deepseek-reasoner",
           "models": [
-            { "model_id": "deepseek-chat", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+            { "model_id": "deepseek-chat", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "deepseek-reasoner", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "qwen": {
@@ -58,14 +60,17 @@
           "pinned_model_id": "qwen-plus",
           "preferred_candidate_model_id": "qwen-plus-latest",
           "models": [
-            { "model_id": "qwen-plus", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+            { "model_id": "qwen-plus", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "qwen-plus-latest", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "qwen2.5-72b-instruct", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "deepseek": {
           "pinned_model_id": "deepseek-chat",
-          "preferred_candidate_model_id": null,
+          "preferred_candidate_model_id": "deepseek-reasoner",
           "models": [
-            { "model_id": "deepseek-chat", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+            { "model_id": "deepseek-chat", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "deepseek-reasoner", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "openai": {
@@ -85,6 +90,13 @@
           "preferred_candidate_model_id": null,
           "models": [
             { "model_id": "grok-4-latest", "stage": "verified", "verified_at": null, "probe_status": "ok", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+          ]
+        },
+        "deepseek": {
+          "pinned_model_id": "deepseek-reasoner",
+          "preferred_candidate_model_id": null,
+          "models": [
+            { "model_id": "deepseek-reasoner", "stage": "verified", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "qwen": {
@@ -118,9 +130,11 @@
       "providers": {
         "openai": {
           "pinned_model_id": "gpt-5.2-codex",
-          "preferred_candidate_model_id": "gpt-5.2-codex",
+          "preferred_candidate_model_id": "gpt-5.2",
           "models": [
-            { "model_id": "gpt-5.2-codex", "stage": "verified", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+            { "model_id": "gpt-5.2-codex", "stage": "verified", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "gpt-5.2", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "gpt-5.2-mini", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "xai": {
