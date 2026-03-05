@@ -413,6 +413,25 @@ def cmd_policy_check(args: argparse.Namespace) -> int:
         outdir=outdir,
         north_star_subject_plan_contract=north_star_contract,
     )
+    freshness_report_rel = ".cache/reports/model_catalog_freshness.v1.json"
+    freshness_status = "SKIP"
+    freshness_overall = ""
+    freshness_error_code = ""
+    try:
+        from src.ops.model_catalog_freshness import run_model_catalog_freshness
+
+        freshness_out = (root / freshness_report_rel).resolve()
+        freshness_res = run_model_catalog_freshness(repo_root=root, out_path=freshness_out)
+        freshness_status = str(freshness_res.get("status") or "FAIL")
+        freshness_overall = str(freshness_res.get("overall_status") or "")
+        freshness_error_code = str(freshness_res.get("error_code") or "")
+        rel = freshness_res.get("report_path")
+        if isinstance(rel, str) and rel.strip():
+            freshness_report_rel = rel
+    except Exception:
+        freshness_status = "FAIL"
+        freshness_error_code = "MODEL_CATALOG_FRESHNESS_EXCEPTION"
+
     report_rel = report_path.resolve().relative_to(root.resolve()).as_posix()
     sim_rel = sim_out.resolve().relative_to(root.resolve()).as_posix()
     diff_rel = diff_out.resolve().relative_to(root.resolve()).as_posix()
@@ -457,6 +476,10 @@ def cmd_policy_check(args: argparse.Namespace) -> int:
         "north_star_subject_plan_contract_schema_valid": bool(north_star_contract.get("schema_valid", False)),
         "north_star_subject_plan_contract_schema_id": str(north_star_contract.get("schema_id") or ""),
         "north_star_subject_plan_contract_schema_error": str(north_star_contract.get("schema_error") or ""),
+        "model_catalog_freshness_status": freshness_status,
+        "model_catalog_freshness_overall": freshness_overall,
+        "model_catalog_freshness_error_code": freshness_error_code,
+        "model_catalog_freshness_report": freshness_report_rel,
         "sim_report": sim_rel,
         "policy_diff": diff_rel,
         "report": report_rel,
