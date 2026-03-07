@@ -757,6 +757,47 @@ def _render_md(report: dict[str, Any]) -> str:
             lines.append("Notes: " + ", ".join(str(x) for x in md_notes))
         lines.append("")
 
+    cockpit_lite = sections.get("cockpit_lite") if isinstance(sections, dict) else {}
+    if isinstance(cockpit_lite, dict) and cockpit_lite:
+        _section_title("Cockpit Lite")
+        lines.append(f"Status: {cockpit_lite.get('status', '')}")
+        lines.append(f"Port: {cockpit_lite.get('port', 0)}")
+        healthcheck_path = cockpit_lite.get("last_healthcheck_path")
+        if isinstance(healthcheck_path, str) and healthcheck_path:
+            lines.append(f"Healthcheck: {healthcheck_path}")
+        last_request_id = cockpit_lite.get("last_request_id")
+        if isinstance(last_request_id, str) and last_request_id:
+            lines.append(f"Last request id: {last_request_id}")
+        chat_log_path = cockpit_lite.get("last_chat_log_path")
+        if isinstance(chat_log_path, str) and chat_log_path:
+            lines.append(f"Chat log: {chat_log_path}")
+        lines.append(
+            "Frontend telemetry: "
+            + f"status={cockpit_lite.get('frontend_telemetry_status', 'IDLE')} "
+            + f"runtime={cockpit_lite.get('frontend_runtime_error_count', 0)} "
+            + f"console={cockpit_lite.get('frontend_console_error_count', 0)} "
+            + f"unhandled={cockpit_lite.get('frontend_unhandled_rejection_count', 0)}"
+        )
+        frontend_summary_path = cockpit_lite.get("last_frontend_telemetry_summary_path")
+        if isinstance(frontend_summary_path, str) and frontend_summary_path:
+            lines.append(f"Frontend telemetry summary: {frontend_summary_path}")
+        frontend_events_path = cockpit_lite.get("last_frontend_telemetry_events_path")
+        if isinstance(frontend_events_path, str) and frontend_events_path:
+            lines.append(f"Frontend telemetry events: {frontend_events_path}")
+        last_frontend_event_type = cockpit_lite.get("last_frontend_event_type")
+        if isinstance(last_frontend_event_type, str) and last_frontend_event_type:
+            lines.append(
+                f"Last frontend event: {last_frontend_event_type} at {cockpit_lite.get('last_frontend_event_at', '')}"
+            )
+        last_frontend_event_message = cockpit_lite.get("last_frontend_event_message")
+        if isinstance(last_frontend_event_message, str) and last_frontend_event_message:
+            lines.append("Last frontend event message: " + last_frontend_event_message.replace("\n", " | "))
+        lines.append(f"Notes count: {cockpit_lite.get('notes_count', 0)}")
+        last_note_id = cockpit_lite.get("last_note_id")
+        if isinstance(last_note_id, str) and last_note_id:
+            lines.append(f"Last note id: {last_note_id}")
+        lines.append("")
+
     extensions = sections.get("extensions") if isinstance(sections, dict) else {}
     if isinstance(extensions, dict) and extensions:
         _section_title("Extensions")

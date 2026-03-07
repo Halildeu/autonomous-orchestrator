@@ -85,6 +85,7 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     last_chat_log_path: str | None = None
     cockpit_notes_count: int | None = None
     last_note_id: str | None = None
+    cockpit_frontend_telemetry_summary: dict[str, Any] | None = None
     system_status_obj: dict[str, Any] | None = None
 
     for key, rel in paths.items():
@@ -208,6 +209,44 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
             cockpit_notes_count = int(cockpit_section.get("notes_count") or 0)
         if isinstance(cockpit_section.get("last_note_id"), str):
             last_note_id = str(cockpit_section.get("last_note_id") or "")
+        frontend_telemetry_status = cockpit_section.get("frontend_telemetry_status")
+        frontend_runtime_error_count = cockpit_section.get("frontend_runtime_error_count")
+        frontend_console_error_count = cockpit_section.get("frontend_console_error_count")
+        frontend_unhandled_rejection_count = cockpit_section.get("frontend_unhandled_rejection_count")
+        if (
+            isinstance(frontend_telemetry_status, str)
+            and isinstance(frontend_runtime_error_count, int)
+            and isinstance(frontend_console_error_count, int)
+            and isinstance(frontend_unhandled_rejection_count, int)
+        ):
+            cockpit_frontend_telemetry_summary = {
+                "status": frontend_telemetry_status,
+                "runtime_error_count": int(frontend_runtime_error_count),
+                "console_error_count": int(frontend_console_error_count),
+                "unhandled_rejection_count": int(frontend_unhandled_rejection_count),
+            }
+            if isinstance(cockpit_section.get("last_frontend_event_type"), str) and cockpit_section.get(
+                "last_frontend_event_type"
+            ):
+                cockpit_frontend_telemetry_summary["last_event_type"] = str(
+                    cockpit_section.get("last_frontend_event_type")
+                )
+            if isinstance(cockpit_section.get("last_frontend_event_at"), str) and cockpit_section.get(
+                "last_frontend_event_at"
+            ):
+                cockpit_frontend_telemetry_summary["last_event_at"] = str(cockpit_section.get("last_frontend_event_at"))
+            if isinstance(cockpit_section.get("last_frontend_telemetry_summary_path"), str) and cockpit_section.get(
+                "last_frontend_telemetry_summary_path"
+            ):
+                cockpit_frontend_telemetry_summary["summary_path"] = str(
+                    cockpit_section.get("last_frontend_telemetry_summary_path")
+                )
+            if isinstance(cockpit_section.get("last_frontend_telemetry_events_path"), str) and cockpit_section.get(
+                "last_frontend_telemetry_events_path"
+            ):
+                cockpit_frontend_telemetry_summary["events_path"] = str(
+                    cockpit_section.get("last_frontend_telemetry_events_path")
+                )
 
         extensions_section = sections.get("extensions") if isinstance(sections.get("extensions"), dict) else {}
         if not last_cockpit_healthcheck_path and isinstance(extensions_section.get("last_cockpit_healthcheck_path"), str):
@@ -627,6 +666,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["cockpit_notes_count"] = cockpit_notes_count
     if isinstance(last_note_id, str) and last_note_id:
         payload["last_note_id"] = last_note_id
+    if isinstance(cockpit_frontend_telemetry_summary, dict):
+        payload["cockpit_frontend_telemetry_summary"] = cockpit_frontend_telemetry_summary
 
     out_path = out_path or (workspace_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -416,6 +416,41 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not reaper_guard_ok:
         failures.append("reaper_cleanup_guard_contract")
 
+    # 20) Cockpit frontend telemetry ingest contract.
+    frontend_telemetry_cmd = [
+        sys.executable,
+        str(repo_root() / "extensions" / "PRJ-UI-COCKPIT-LITE" / "tests" / "frontend_telemetry_contract_test.py"),
+    ]
+    frontend_telemetry_proc = subprocess.run(frontend_telemetry_cmd, cwd=repo_root(), text=True, capture_output=True)
+    frontend_telemetry_ok = frontend_telemetry_proc.returncode == 0
+    frontend_telemetry_detail = (
+        _tail_line(frontend_telemetry_proc.stdout)
+        or _tail_line(frontend_telemetry_proc.stderr)
+        or f"rc={frontend_telemetry_proc.returncode}"
+    )
+    tests.append(_format_test_result("cockpit_frontend_telemetry_contract", frontend_telemetry_ok, frontend_telemetry_detail))
+    if not frontend_telemetry_ok:
+        failures.append("cockpit_frontend_telemetry_contract")
+
+    # 21) system-status cockpit frontend telemetry surface contract.
+    cockpit_surface_cmd = [sys.executable, "-m", "src.ops.system_status_cockpit_frontend_telemetry_surface_contract_test"]
+    cockpit_surface_proc = subprocess.run(cockpit_surface_cmd, cwd=repo_root(), text=True, capture_output=True)
+    cockpit_surface_ok = cockpit_surface_proc.returncode == 0
+    cockpit_surface_detail = (
+        _tail_line(cockpit_surface_proc.stdout)
+        or _tail_line(cockpit_surface_proc.stderr)
+        or f"rc={cockpit_surface_proc.returncode}"
+    )
+    tests.append(
+        _format_test_result(
+            "system_status_cockpit_frontend_telemetry_surface_contract",
+            cockpit_surface_ok,
+            cockpit_surface_detail,
+        )
+    )
+    if not cockpit_surface_ok:
+        failures.append("system_status_cockpit_frontend_telemetry_surface_contract")
+
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"
 

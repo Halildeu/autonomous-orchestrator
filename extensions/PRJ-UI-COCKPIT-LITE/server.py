@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -50,6 +51,117 @@ def _normalize_jsonable(obj: Any, depth: int = 0, max_depth: int = 6) -> Any:
     if isinstance(obj, (str, int, float, bool)) or obj is None:
         return obj
     return _short_str(obj)
+
+
+FRONTEND_TELEMETRY_ALLOWED_TYPES = {"runtime_error", "unhandled_rejection", "console_error"}
+FRONTEND_TELEMETRY_EVENTS_REL = Path(".cache") / "reports" / "cockpit_frontend_telemetry.v1.jsonl"
+FRONTEND_TELEMETRY_SUMMARY_REL = Path(".cache") / "reports" / "cockpit_frontend_telemetry_summary.v1.json"
+
+
+def _sanitize_frontend_telemetry_text(value: Any, *, limit: int = 400, preserve_newlines: bool = False) -> str:
+    text = _sanitize_text(str(value or ""))
+    text = re.sub(
+        r"(?i)\b(secret|token|password|api_key|access_key|private_key|credential)\b\s*[:=]\s*\S+",
+        r"\1=<redacted>",
+        text,
+    )
+    if preserve_newlines:
+        lines = [line.strip() for line in text.replace("\r", "\n").splitlines()]
+        text = "\n".join(line for line in lines if line)
+    else:
+        text = " ".join(text.split())
+    return _short_str(text, limit=limit)
+
+
+def _safe_nonnegative_int(value: Any) -> int:
+    try:
+        return max(int(value), 0)
+    except Exception:
+        return 0
+
+
+def _workspace_rel(ws_root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(ws_root.resolve()).as_posix()
+    except Exception:
+        return path.as_posix()
+
+
+def _record_frontend_telemetry(ws_root: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    event_type = str(payload.get("event_type") or "").strip().lower()
+    if event_type not in FRONTEND_TELEMETRY_ALLOWED_TYPES:
+        raise ValueError("EVENT_TYPE_INVALID")
+
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    message = _sanitize_frontend_telemetry_text(payload.get("message"), limit=500)
+    if not message:
+        raise ValueError("MESSAGE_REQUIRED")
+
+    source = _sanitize_frontend_telemetry_text(payload.get("source"), limit=240)
+    href = _sanitize_frontend_telemetry_text(payload.get("href"), limit=400)
+    stack = _sanitize_frontend_telemetry_text(payload.get("stack"), limit=1800, preserve_newlines=True)
+    user_agent = _sanitize_frontend_telemetry_text(payload.get("user_agent"), limit=240)
+    line = _safe_nonnegative_int(payload.get("line"))
+    column = _safe_nonnegative_int(payload.get("column"))
+
+    record = {
+        "version": "v1",
+        "ts": now,
+        "event_type": event_type,
+        "message": message,
+        "source": source,
+        "href": href,
+        "line": line,
+        "column": column,
+    }
+    if stack:
+        record["stack"] = stack
+    if user_agent:
+        record["user_agent"] = user_agent
+
+    events_path = ws_root / FRONTEND_TELEMETRY_EVENTS_REL
+    summary_path = ws_root / FRONTEND_TELEMETRY_SUMMARY_REL
+    events_path.parent.mkdir(parents=True, exist_ok=True)
+    with events_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
+
+    previous_summary: dict[str, Any] = {}
+    if summary_path.exists():
+        try:
+            raw_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            if isinstance(raw_summary, dict):
+                previous_summary = raw_summary
+        except Exception:
+            previous_summary = {}
+
+    summary = {
+        "version": "v1",
+        "status": "WARN",
+        "generated_at": now,
+        "events_path": FRONTEND_TELEMETRY_EVENTS_REL.as_posix(),
+        "total_events": int(previous_summary.get("total_events") or 0) + 1,
+        "runtime_error_count": int(previous_summary.get("runtime_error_count") or 0),
+        "console_error_count": int(previous_summary.get("console_error_count") or 0),
+        "unhandled_rejection_count": int(previous_summary.get("unhandled_rejection_count") or 0),
+        "last_event_at": now,
+        "last_event_type": event_type,
+        "last_message": message,
+        "last_source": source,
+        "last_href": href,
+    }
+    if event_type == "runtime_error":
+        summary["runtime_error_count"] += 1
+    elif event_type == "console_error":
+        summary["console_error_count"] += 1
+    elif event_type == "unhandled_rejection":
+        summary["unhandled_rejection_count"] += 1
+
+    _atomic_write_text(summary_path, _json_dumps_pretty(summary))
+    return {
+        "events_path": _workspace_rel(ws_root, events_path),
+        "summary_path": _workspace_rel(ws_root, summary_path),
+        "event_type": event_type,
+    }
 
 
 class CockpitHandler(BaseHTTPRequestHandler):
@@ -422,6 +534,32 @@ class CockpitHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if parsed.path == "/api/frontend_telemetry":
+            try:
+                with self.server.frontend_telemetry_lock:
+                    saved = _record_frontend_telemetry(ws_root, payload)
+            except ValueError as exc:
+                self._send_json(400, {"status": "FAIL", "error": str(exc)})
+                return
+            except Exception as exc:
+                self._send_json(
+                    500,
+                    {"status": "FAIL", "error": "FRONTEND_TELEMETRY_WRITE_FAIL", "detail": _short_str(exc)},
+                )
+                return
+
+            evidence_paths = [str(saved["events_path"]), str(saved["summary_path"])]
+            self._send_json(
+                200,
+                {
+                    "status": "OK",
+                    "accepted": True,
+                    "event_type": saved["event_type"],
+                    "evidence_paths": evidence_paths,
+                },
+            )
+            return
+
         self._send_json(404, {"status": "FAIL", "error": "NOT_FOUND"})
 
     def log_message(self, fmt: str, *args: Any) -> None:
@@ -433,6 +571,7 @@ class CockpitServer(ThreadingHTTPServer):
         self.op_jobs: dict[str, dict[str, Any]] = {}
         self.op_job_procs: dict[str, subprocess.Popen[str]] = {}
         self.op_jobs_lock = threading.Lock()
+        self.frontend_telemetry_lock = threading.Lock()
         super().__init__(*args, **kwargs)
 
     def _cancel_op_jobs(self) -> None:

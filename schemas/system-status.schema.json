@@ -1544,6 +1544,43 @@
             },
             "last_note_id": {
               "type": "string"
+            },
+            "frontend_telemetry_status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "IDLE",
+                "FAIL",
+                "MISSING"
+              ],
+              "type": "string"
+            },
+            "last_frontend_telemetry_summary_path": {
+              "type": "string"
+            },
+            "last_frontend_telemetry_events_path": {
+              "type": "string"
+            },
+            "frontend_runtime_error_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "frontend_console_error_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "frontend_unhandled_rejection_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "last_frontend_event_type": {
+              "type": "string"
+            },
+            "last_frontend_event_at": {
+              "type": "string"
+            },
+            "last_frontend_event_message": {
+              "type": "string"
             }
           },
           "required": [

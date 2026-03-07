@@ -1600,6 +1600,7 @@ const endpoints = {
   file: "/api/file",
   report: "/api/report",
   chat: "/api/chat",
+  frontendTelemetry: "/api/frontend_telemetry",
   settingsSet: "/api/settings/set_override",
   extensionToggle: "/api/extensions/toggle",
 };
@@ -1876,6 +1877,9 @@ let northStarFindingsUiAttached = false;
 let northStarFindingsControlsAttached = false;
 let northStarMechanismsControlsAttached = false;
 let northStarSubjectPlanControlsAttached = false;
+const FRONTEND_TELEMETRY_TTL_MS = 15000;
+const FRONTEND_TELEMETRY_SEEN = new Map();
+let FRONTEND_TELEMETRY_INSTALLED = false;
 
 function unwrap(payload) {
   return payload && payload.data ? payload.data : payload;
@@ -1904,6 +1908,149 @@ async function fetchJson(url) {
     throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}${hint}`);
   }
   return data;
+}
+
+function sanitizeFrontendTelemetryText(value, limit = 400) {
+  const raw = String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  return raw.length > limit ? raw.slice(0, Math.max(0, limit - 3)) + "..." : raw;
+}
+
+function sanitizeFrontendTelemetryStack(value, limit = 1800) {
+  const raw = String(value == null ? "" : value)
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+  if (!raw) return "";
+  return raw.length > limit ? raw.slice(0, Math.max(0, limit - 3)) + "..." : raw;
+}
+
+function normalizeFrontendTelemetryArg(value) {
+  if (value instanceof Error) return value.stack || value.message || String(value);
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return String(value);
+  }
+}
+
+function pruneFrontendTelemetrySeen(now = Date.now()) {
+  for (const [key, expiresAt] of FRONTEND_TELEMETRY_SEEN.entries()) {
+    if (expiresAt <= now) FRONTEND_TELEMETRY_SEEN.delete(key);
+  }
+}
+
+function sendFrontendTelemetry(payload = {}) {
+  if (!endpoints.frontendTelemetry) return;
+  const eventType = sanitizeFrontendTelemetryText(payload.event_type || "", 64).toLowerCase();
+  const message = sanitizeFrontendTelemetryText(payload.message || "", 500);
+  if (!eventType || !message) return;
+
+  const bodyPayload = {
+    event_type: eventType,
+    message,
+    source: sanitizeFrontendTelemetryText(payload.source || "", 240),
+    stack: sanitizeFrontendTelemetryStack(payload.stack || "", 1800),
+    href: sanitizeFrontendTelemetryText(payload.href || window.location.href || "", 400),
+    user_agent: sanitizeFrontendTelemetryText(payload.user_agent || navigator.userAgent || "", 240),
+    line: Number.isFinite(Number(payload.line)) ? Math.max(0, Number(payload.line)) : 0,
+    column: Number.isFinite(Number(payload.column)) ? Math.max(0, Number(payload.column)) : 0,
+  };
+
+  const dedupeKey = [
+    bodyPayload.event_type,
+    bodyPayload.message,
+    bodyPayload.source,
+    String(bodyPayload.line),
+    String(bodyPayload.column),
+  ].join("|");
+  const now = Date.now();
+  pruneFrontendTelemetrySeen(now);
+  if (FRONTEND_TELEMETRY_SEEN.has(dedupeKey)) return;
+  FRONTEND_TELEMETRY_SEEN.set(dedupeKey, now + FRONTEND_TELEMETRY_TTL_MS);
+
+  const body = JSON.stringify(bodyPayload);
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json" });
+      if (navigator.sendBeacon(endpoints.frontendTelemetry, blob)) return;
+    }
+  } catch (_) {
+    // Fall through to fetch.
+  }
+
+  fetch(endpoints.frontendTelemetry, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function installFrontendTelemetry() {
+  if (FRONTEND_TELEMETRY_INSTALLED) return;
+  FRONTEND_TELEMETRY_INSTALLED = true;
+
+  window.addEventListener(
+    "error",
+    (event) => {
+      const err = event && event.error instanceof Error ? event.error : null;
+      sendFrontendTelemetry({
+        event_type: "runtime_error",
+        message: event?.message || err?.message || "window.error",
+        stack: err?.stack || "",
+        source: event?.filename || "",
+        line: event?.lineno || 0,
+        column: event?.colno || 0,
+      });
+    },
+    true
+  );
+
+  window.addEventListener(
+    "unhandledrejection",
+    (event) => {
+      const reason = event?.reason;
+      const message =
+        (reason && typeof reason === "object" && "message" in reason && reason.message) ||
+        normalizeFrontendTelemetryArg(reason) ||
+        "unhandledrejection";
+      const stack =
+        reason && typeof reason === "object" && "stack" in reason ? String(reason.stack || "") : "";
+      sendFrontendTelemetry({
+        event_type: "unhandled_rejection",
+        message,
+        stack,
+      });
+    },
+    true
+  );
+
+  const originalConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    try {
+      const rendered = args.map((item) => normalizeFrontendTelemetryArg(item)).filter(Boolean);
+      let stack = "";
+      for (const item of args) {
+        if (item instanceof Error && item.stack) {
+          stack = String(item.stack);
+          break;
+        }
+      }
+      sendFrontendTelemetry({
+        event_type: "console_error",
+        message: rendered.join(" "),
+        stack,
+      });
+    } catch (_) {
+      // Preserve original console behavior.
+    }
+    originalConsoleError(...args);
+  };
 }
 
 async function fetchNorthStarCriteriaPacks() {
@@ -15295,6 +15442,7 @@ if (nsMechanismsFilters && typeof nsMechanismsFilters === "object") {
     ...nsMechanismsFilters,
   };
 }
+installFrontendTelemetry();
 setupLanguageSelector();
 setupThemeSelector();
 applyTheme(state.theme);
