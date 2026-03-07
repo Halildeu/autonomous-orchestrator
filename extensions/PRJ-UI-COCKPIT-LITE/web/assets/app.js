@@ -167,6 +167,7 @@ const I18N = {
     "nav.command_composer": "Command Composer",
     "nav.evidence": "Evidence",
     "h.system_status": "System Status",
+    "h.error_observability": "Error Observability",
     "h.multi_repo_status": "Managed Repositories",
     "h.work_intake": "Work Intake",
     "h.decisions": "Decisions",
@@ -564,6 +565,10 @@ const I18N = {
     "overview.next.decision_pending": "Decision pending: open Decisions tab.",
     "overview.next.no_intake": "No intake items. Check sources.",
     "overview.next.no_blockers": "No immediate blockers. Consider auto-loop or new intake.",
+    "overview.errors.none": "No active error signal.",
+    "overview.errors.summary": "signals={total} • active={active} • acked={acked} • build={build} • runner={runner} • browser={browser}",
+    "overview.errors.latest": "Latest: {source} • report={report}",
+    "overview.errors.frontend": "Frontend: {status} • runtime={runtime} • console={console} • unhandled={unhandled}",
     "north_star.all_lenses": "All lenses",
     "north_star.lens_details_hint": "Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.",
     "north_star.select_lens_hint": "Select a lens to explore findings.",
@@ -859,6 +864,7 @@ const I18N = {
     "nav.command_composer": "Komut Oluşturucu",
     "nav.evidence": "Kanıt",
     "h.system_status": "Sistem Durumu",
+    "h.error_observability": "Hata Gözlemi",
     "h.multi_repo_status": "Yönetilen Reposu",
     "h.work_intake": "İş Alımı",
     "h.decisions": "Kararlar",
@@ -1267,6 +1273,10 @@ const I18N = {
     "overview.next.decision_pending": "Bekleyen karar: Kararlar sekmesini açın.",
     "overview.next.no_intake": "İş alımı öğesi yok. Kaynakları kontrol edin.",
     "overview.next.no_blockers": "Acil engel yok. Oto döngü veya yeni intake düşünebilirsiniz.",
+    "overview.errors.none": "Aktif hata sinyali yok.",
+    "overview.errors.summary": "sinyal={total} • aktif={active} • onaylı={acked} • build={build} • runner={runner} • browser={browser}",
+    "overview.errors.latest": "Son: {source} • rapor={report}",
+    "overview.errors.frontend": "Frontend: {status} • runtime={runtime} • console={console} • unhandled={unhandled}",
     "north_star.all_lenses": "Tüm lensler",
     "north_star.lens_details_hint": "Detayları görmek için bir lensi genişletin. Aşağıdaki “Lens Bulguları” ile lensler arasında bulguları (eşleşme + kanıt işaretçileri) keşfedin.",
     "north_star.select_lens_hint": "Bulgu keşfi için bir lens seçin.",
@@ -1600,6 +1610,7 @@ const endpoints = {
   file: "/api/file",
   report: "/api/report",
   chat: "/api/chat",
+  frontendTelemetry: "/api/frontend_telemetry",
   settingsSet: "/api/settings/set_override",
   extensionToggle: "/api/extensions/toggle",
 };
@@ -1876,6 +1887,9 @@ let northStarFindingsUiAttached = false;
 let northStarFindingsControlsAttached = false;
 let northStarMechanismsControlsAttached = false;
 let northStarSubjectPlanControlsAttached = false;
+const FRONTEND_TELEMETRY_TTL_MS = 15000;
+const FRONTEND_TELEMETRY_SEEN = new Map();
+let FRONTEND_TELEMETRY_INSTALLED = false;
 
 function unwrap(payload) {
   return payload && payload.data ? payload.data : payload;
@@ -1904,6 +1918,149 @@ async function fetchJson(url) {
     throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}${hint}`);
   }
   return data;
+}
+
+function sanitizeFrontendTelemetryText(value, limit = 400) {
+  const raw = String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  return raw.length > limit ? raw.slice(0, Math.max(0, limit - 3)) + "..." : raw;
+}
+
+function sanitizeFrontendTelemetryStack(value, limit = 1800) {
+  const raw = String(value == null ? "" : value)
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+  if (!raw) return "";
+  return raw.length > limit ? raw.slice(0, Math.max(0, limit - 3)) + "..." : raw;
+}
+
+function normalizeFrontendTelemetryArg(value) {
+  if (value instanceof Error) return value.stack || value.message || String(value);
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return String(value);
+  }
+}
+
+function pruneFrontendTelemetrySeen(now = Date.now()) {
+  for (const [key, expiresAt] of FRONTEND_TELEMETRY_SEEN.entries()) {
+    if (expiresAt <= now) FRONTEND_TELEMETRY_SEEN.delete(key);
+  }
+}
+
+function sendFrontendTelemetry(payload = {}) {
+  if (!endpoints.frontendTelemetry) return;
+  const eventType = sanitizeFrontendTelemetryText(payload.event_type || "", 64).toLowerCase();
+  const message = sanitizeFrontendTelemetryText(payload.message || "", 500);
+  if (!eventType || !message) return;
+
+  const bodyPayload = {
+    event_type: eventType,
+    message,
+    source: sanitizeFrontendTelemetryText(payload.source || "", 240),
+    stack: sanitizeFrontendTelemetryStack(payload.stack || "", 1800),
+    href: sanitizeFrontendTelemetryText(payload.href || window.location.href || "", 400),
+    user_agent: sanitizeFrontendTelemetryText(payload.user_agent || navigator.userAgent || "", 240),
+    line: Number.isFinite(Number(payload.line)) ? Math.max(0, Number(payload.line)) : 0,
+    column: Number.isFinite(Number(payload.column)) ? Math.max(0, Number(payload.column)) : 0,
+  };
+
+  const dedupeKey = [
+    bodyPayload.event_type,
+    bodyPayload.message,
+    bodyPayload.source,
+    String(bodyPayload.line),
+    String(bodyPayload.column),
+  ].join("|");
+  const now = Date.now();
+  pruneFrontendTelemetrySeen(now);
+  if (FRONTEND_TELEMETRY_SEEN.has(dedupeKey)) return;
+  FRONTEND_TELEMETRY_SEEN.set(dedupeKey, now + FRONTEND_TELEMETRY_TTL_MS);
+
+  const body = JSON.stringify(bodyPayload);
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json" });
+      if (navigator.sendBeacon(endpoints.frontendTelemetry, blob)) return;
+    }
+  } catch (_) {
+    // Fall through to fetch.
+  }
+
+  fetch(endpoints.frontendTelemetry, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function installFrontendTelemetry() {
+  if (FRONTEND_TELEMETRY_INSTALLED) return;
+  FRONTEND_TELEMETRY_INSTALLED = true;
+
+  window.addEventListener(
+    "error",
+    (event) => {
+      const err = event && event.error instanceof Error ? event.error : null;
+      sendFrontendTelemetry({
+        event_type: "runtime_error",
+        message: event?.message || err?.message || "window.error",
+        stack: err?.stack || "",
+        source: event?.filename || "",
+        line: event?.lineno || 0,
+        column: event?.colno || 0,
+      });
+    },
+    true
+  );
+
+  window.addEventListener(
+    "unhandledrejection",
+    (event) => {
+      const reason = event?.reason;
+      const message =
+        (reason && typeof reason === "object" && "message" in reason && reason.message) ||
+        normalizeFrontendTelemetryArg(reason) ||
+        "unhandledrejection";
+      const stack =
+        reason && typeof reason === "object" && "stack" in reason ? String(reason.stack || "") : "";
+      sendFrontendTelemetry({
+        event_type: "unhandled_rejection",
+        message,
+        stack,
+      });
+    },
+    true
+  );
+
+  const originalConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    try {
+      const rendered = args.map((item) => normalizeFrontendTelemetryArg(item)).filter(Boolean);
+      let stack = "";
+      for (const item of args) {
+        if (item instanceof Error && item.stack) {
+          stack = String(item.stack);
+          break;
+        }
+      }
+      sendFrontendTelemetry({
+        event_type: "console_error",
+        message: rendered.join(" "),
+        stack,
+      });
+    } catch (_) {
+      // Preserve original console behavior.
+    }
+    originalConsoleError(...args);
+  };
 }
 
 async function fetchNorthStarCriteriaPacks() {
@@ -9620,6 +9777,66 @@ function renderOverview() {
   const lockState = summary.lock_state || "unknown";
   $("#lock-summary").textContent = `lock_state=${lockState}`;
 
+  const errorSummary =
+    snapshotData && typeof snapshotData.error_observability_summary === "object"
+      ? snapshotData.error_observability_summary
+      : {};
+  const errorSection =
+    statusData &&
+    statusData.sections &&
+    typeof statusData.sections === "object" &&
+    statusData.sections.error_observability &&
+    typeof statusData.sections.error_observability === "object"
+      ? statusData.sections.error_observability
+      : {};
+  const frontendSummary =
+    snapshotData && typeof snapshotData.cockpit_frontend_telemetry_summary === "object"
+      ? snapshotData.cockpit_frontend_telemetry_summary
+      : {};
+  const cockpitSection =
+    statusData &&
+    statusData.sections &&
+    typeof statusData.sections === "object" &&
+    statusData.sections.cockpit_lite &&
+    typeof statusData.sections.cockpit_lite === "object"
+      ? statusData.sections.cockpit_lite
+      : {};
+
+  const errorStatus = String(errorSummary.status || errorSection.status || "IDLE").toUpperCase();
+  setBadge($("#error-observability-pill"), errorStatus);
+  $("#error-observability-summary").textContent = t("overview.errors.summary", {
+    total: String(toSafeInt(errorSummary.items_total ?? errorSection.items_total, 0)),
+    active: String(toSafeInt(errorSummary.active_items_total ?? errorSection.active_items_total, 0)),
+    acked: String(toSafeInt(errorSummary.acked_items_total ?? errorSection.acked_items_total, 0)),
+    build: String(toSafeInt(errorSummary.build_count ?? errorSection.build_count, 0)),
+    runner: String(toSafeInt(errorSummary.runner_count ?? errorSection.runner_count, 0)),
+    browser: String(toSafeInt(errorSummary.browser_count ?? errorSection.browser_count, 0)),
+  });
+  const latestSourceType = String(errorSummary.latest_source_type || errorSection.latest_source_type || "").trim();
+  const latestSourceName = String(errorSection.latest_source_name || "").trim();
+  const latestSource = latestSourceName ? `${latestSourceType}/${latestSourceName}` : latestSourceType;
+  const latestReport = String(errorSummary.latest_report_path || errorSection.latest_report_path || "").trim();
+  $("#error-observability-latest").textContent =
+    latestSource || latestReport
+      ? t("overview.errors.latest", {
+          source: latestSource || "-",
+          report: latestReport || "-",
+        })
+      : t("overview.errors.none");
+
+  const frontendStatus = String(frontendSummary.status || cockpitSection.frontend_telemetry_status || "IDLE").toUpperCase();
+  $("#error-observability-frontend").textContent = t("overview.errors.frontend", {
+    status: frontendStatus,
+    runtime: String(toSafeInt(frontendSummary.runtime_error_count ?? cockpitSection.frontend_runtime_error_count, 0)),
+    console: String(toSafeInt(frontendSummary.console_error_count ?? cockpitSection.frontend_console_error_count, 0)),
+    unhandled: String(
+      toSafeInt(
+        frontendSummary.unhandled_rejection_count ?? cockpitSection.frontend_unhandled_rejection_count,
+        0
+      )
+    ),
+  });
+
   const next = [];
   if (decisionPending > 0) next.push(t("overview.next.decision_pending"));
   if (intakeTotal === 0) next.push(t("overview.next.no_intake"));
@@ -15295,6 +15512,7 @@ if (nsMechanismsFilters && typeof nsMechanismsFilters === "object") {
     ...nsMechanismsFilters,
   };
 }
+installFrontendTelemetry();
 setupLanguageSelector();
 setupThemeSelector();
 applyTheme(state.theme);

@@ -227,6 +227,53 @@ def cmd_ui_snapshot(args: argparse.Namespace) -> int:
     payload = run_ui_snapshot_bundle(workspace_root=ws, out=out or None)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+def cmd_error_observability(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    out = str(args.out) if args.out else ""
+
+    from src.ops.error_observability_report import run_error_observability
+
+    payload = run_error_observability(workspace_root=ws, out=out or None)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_error_observability_ack(args: argparse.Namespace) -> int:
+    root = repo_root()
+    workspace_arg = str(args.workspace_root).strip()
+    if not workspace_arg:
+        warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
+        return 2
+
+    ws = Path(workspace_arg)
+    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+    if not ws.exists() or not ws.is_dir():
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    mode = str(args.mode or "").strip().lower()
+    if mode not in {"show", "clear", "ack-current"}:
+        warn("FAIL error=ACK_MODE_INVALID")
+        return 2
+
+    from src.ops.error_observability_report import run_error_observability_ack
+
+    payload = run_error_observability_ack(workspace_root=ws, mode=mode)
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if payload.get("status") in {"OK", "WARN", "IDLE"} else 2
+
+
 def cmd_cockpit_serve(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -712,6 +759,22 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_ui_bundle.add_argument("--workspace-root", required=True, help="Workspace root path.")
     ap_ui_bundle.add_argument("--out", default=".cache/reports/ui_snapshot_bundle.v1.json", help="Output JSON path.")
     ap_ui_bundle.set_defaults(func=cmd_ui_snapshot)
+    ap_error_obs = parent.add_parser("error-observability", help="Build unified error observability report (read-only).")
+    ap_error_obs.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_error_obs.add_argument("--out", default=".cache/reports/error_observability.v1.json", help="Output JSON path.")
+    ap_error_obs.set_defaults(func=cmd_error_observability)
+    ap_error_obs_ack = parent.add_parser(
+        "error-observability-ack",
+        help="Manage error observability ack/baseline state.",
+    )
+    ap_error_obs_ack.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_error_obs_ack.add_argument(
+        "--mode",
+        required=True,
+        choices=["show", "clear", "ack-current"],
+        help="Ack action mode.",
+    )
+    ap_error_obs_ack.set_defaults(func=cmd_error_observability_ack)
 
     ap_cockpit = parent.add_parser("cockpit-serve", help="Serve cockpit lite UI (local, no network).")
     ap_cockpit.add_argument("--workspace-root", required=True, help="Workspace root path.")

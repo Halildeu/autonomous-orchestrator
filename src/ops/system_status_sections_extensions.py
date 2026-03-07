@@ -275,6 +275,8 @@ def _cockpit_lite_section(workspace_root: Path) -> dict[str, Any]:
     healthcheck_path = workspace_root / healthcheck_rel
     chat_rel = Path(".cache") / "chat_console" / "chat_log.v1.jsonl"
     chat_path = workspace_root / chat_rel
+    frontend_summary_rel = Path(".cache") / "reports" / "cockpit_frontend_telemetry_summary.v1.json"
+    frontend_summary_path = workspace_root / frontend_summary_rel
     notes_root = workspace_root / ".cache" / "notes" / "planner"
     notes_index_path = notes_root / "notes_index.v1.json"
     status = "MISSING"
@@ -283,6 +285,15 @@ def _cockpit_lite_section(workspace_root: Path) -> dict[str, Any]:
     last_chat_log_path = ""
     notes_count = 0
     last_note_id = ""
+    frontend_telemetry_status = "IDLE"
+    last_frontend_telemetry_summary_path = ""
+    last_frontend_telemetry_events_path = ""
+    frontend_runtime_error_count = 0
+    frontend_console_error_count = 0
+    frontend_unhandled_rejection_count = 0
+    last_frontend_event_type = ""
+    last_frontend_event_at = ""
+    last_frontend_event_message = ""
     if healthcheck_path.exists():
         try:
             obj = _load_json(healthcheck_path)
@@ -318,6 +329,35 @@ def _cockpit_lite_section(workspace_root: Path) -> dict[str, Any]:
         if note_files:
             last_note_id = note_files[-1].name.replace(".v1.json", "")
 
+    if frontend_summary_path.exists():
+        last_frontend_telemetry_summary_path = str(frontend_summary_rel)
+        try:
+            frontend_summary = _load_json(frontend_summary_path)
+        except Exception:
+            frontend_telemetry_status = "WARN"
+        else:
+            if isinstance(frontend_summary, dict):
+                raw_status = str(frontend_summary.get("status") or "").strip().upper()
+                if raw_status in {"OK", "WARN", "IDLE", "FAIL", "MISSING"}:
+                    frontend_telemetry_status = raw_status
+                else:
+                    frontend_telemetry_status = "WARN"
+                events_path = frontend_summary.get("events_path")
+                if isinstance(events_path, str) and events_path:
+                    last_frontend_telemetry_events_path = str(events_path)
+                if isinstance(frontend_summary.get("runtime_error_count"), int):
+                    frontend_runtime_error_count = int(frontend_summary.get("runtime_error_count") or 0)
+                if isinstance(frontend_summary.get("console_error_count"), int):
+                    frontend_console_error_count = int(frontend_summary.get("console_error_count") or 0)
+                if isinstance(frontend_summary.get("unhandled_rejection_count"), int):
+                    frontend_unhandled_rejection_count = int(frontend_summary.get("unhandled_rejection_count") or 0)
+                if isinstance(frontend_summary.get("last_event_type"), str):
+                    last_frontend_event_type = str(frontend_summary.get("last_event_type") or "")
+                if isinstance(frontend_summary.get("last_event_at"), str):
+                    last_frontend_event_at = str(frontend_summary.get("last_event_at") or "")
+                if isinstance(frontend_summary.get("last_message"), str):
+                    last_frontend_event_message = str(frontend_summary.get("last_message") or "")
+
     return {
         "status": status,
         "port": port,
@@ -326,6 +366,15 @@ def _cockpit_lite_section(workspace_root: Path) -> dict[str, Any]:
         "last_chat_log_path": last_chat_log_path,
         "notes_count": notes_count,
         "last_note_id": last_note_id,
+        "frontend_telemetry_status": frontend_telemetry_status,
+        "last_frontend_telemetry_summary_path": last_frontend_telemetry_summary_path,
+        "last_frontend_telemetry_events_path": last_frontend_telemetry_events_path,
+        "frontend_runtime_error_count": frontend_runtime_error_count,
+        "frontend_console_error_count": frontend_console_error_count,
+        "frontend_unhandled_rejection_count": frontend_unhandled_rejection_count,
+        "last_frontend_event_type": last_frontend_event_type,
+        "last_frontend_event_at": last_frontend_event_at,
+        "last_frontend_event_message": last_frontend_event_message,
     }
 
 

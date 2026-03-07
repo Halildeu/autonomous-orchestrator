@@ -37,6 +37,7 @@ from .system_status_sections import (
     _harvest_status,
     _integrity_status,
     _layer_boundary_section,
+    _module_delivery_section,
     _pack_advisor_status,
     _pack_index_status,
     _pack_selection_trace,
@@ -59,6 +60,12 @@ from .system_status_sections_intake import _doer_loop_section
 from .system_status_sections_catalog import _catalog_status, _iso_core_status
 from .managed_repo_standards import build_managed_repo_standards_summary
 from .drift_scoreboard import build_drift_scoreboard, build_drift_scoreboard_summary
+from .error_observability_report import (
+    DEFAULT_ERROR_OBSERVABILITY_REPORT,
+    build_error_observability_report,
+    project_error_observability_section,
+    write_error_observability_report,
+)
 
 
 def _now_iso8601() -> str:
@@ -275,6 +282,7 @@ def build_system_status(
     auto_loop_section = _auto_loop_section(workspace_root)
     airunner_auto_run_section = _airunner_auto_run_section(workspace_root)
     deploy_section = _deploy_section(workspace_root)
+    module_delivery_section = _module_delivery_section(workspace_root)
     decisions_section = _decisions_section(workspace_root)
     context_router_section = build_context_router_section(workspace_root)
     managed_repo_standards = build_managed_repo_standards_summary(
@@ -296,6 +304,18 @@ def build_system_status(
     )
     read_status, read_fails, read_warns = _readiness_status(workspace_root)
     act_status, act_count, act_top = _actions_status(workspace_root, policy.max_actions)
+    error_observability_report = build_error_observability_report(workspace_root=workspace_root)
+    error_observability_report_path = DEFAULT_ERROR_OBSERVABILITY_REPORT.as_posix()
+    if not dry_run:
+        error_observability_report_path = write_error_observability_report(
+            workspace_root=workspace_root,
+            report=error_observability_report,
+            out_path=workspace_root / DEFAULT_ERROR_OBSERVABILITY_REPORT,
+        )
+    error_observability_section = project_error_observability_section(
+        error_observability_report,
+        report_path=error_observability_report_path,
+    )
     projects_section = _projects_section(
         core_root,
         workspace_root,
@@ -414,6 +434,8 @@ def build_system_status(
             "extensions": extensions_section,
             "cockpit_lite": cockpit_lite_section,
             "network_live": network_live_section,
+            **({"module_delivery": module_delivery_section} if isinstance(module_delivery_section, dict) else {}),
+            "error_observability": error_observability_section,
             "airunner": airunner_section,
             "airunner_proof": airunner_proof_section,
             "pm_suite": pm_suite_section,
@@ -714,6 +736,128 @@ def _render_md(report: dict[str, Any]) -> str:
         report_path = drift_scoreboard.get("report_path")
         if isinstance(report_path, str) and report_path:
             lines.append(f"Scoreboard: {report_path}")
+        lines.append("")
+
+    module_delivery = sections.get("module_delivery") if isinstance(sections, dict) else {}
+    if isinstance(module_delivery, dict) and module_delivery:
+        _section_title("Module delivery")
+        lines.append(f"Status: {module_delivery.get('status', '')}")
+        lines.append(
+            "Lanes: "
+            + f"total={module_delivery.get('lanes_total', 0)} "
+            + f"ok={module_delivery.get('lanes_ok', 0)} "
+            + f"fail={module_delivery.get('lanes_fail', 0)} "
+            + f"warn={module_delivery.get('lanes_warn', 0)} "
+            + f"timeout={module_delivery.get('timed_out_count', 0)} "
+            + f"invalid={module_delivery.get('invalid_report_count', 0)}"
+        )
+        latest_finished_at = module_delivery.get("latest_finished_at")
+        if isinstance(latest_finished_at, str) and latest_finished_at:
+            lines.append(f"Latest run: {latest_finished_at}")
+        report_dir = module_delivery.get("report_dir")
+        if isinstance(report_dir, str) and report_dir:
+            lines.append(f"Report dir: {report_dir}")
+        failed_lane = module_delivery.get("last_failed_lane")
+        if isinstance(failed_lane, str) and failed_lane:
+            lines.append(
+                f"Last failed lane: {failed_lane} rc={module_delivery.get('last_failed_return_code', 0)}"
+            )
+        failed_report = module_delivery.get("last_failed_report_path")
+        if isinstance(failed_report, str) and failed_report:
+            lines.append(f"Last failed report: {failed_report}")
+        failed_stdout = module_delivery.get("last_failed_stdout_preview")
+        if isinstance(failed_stdout, str) and failed_stdout:
+            lines.append("Failed stdout preview: " + failed_stdout.replace("\n", " | "))
+        failed_stderr = module_delivery.get("last_failed_stderr_preview")
+        if isinstance(failed_stderr, str) and failed_stderr:
+            lines.append("Failed stderr preview: " + failed_stderr.replace("\n", " | "))
+        md_notes = module_delivery.get("notes")
+        if isinstance(md_notes, list) and md_notes:
+            lines.append("Notes: " + ", ".join(str(x) for x in md_notes))
+        lines.append("")
+
+    error_observability = sections.get("error_observability") if isinstance(sections, dict) else {}
+    if isinstance(error_observability, dict) and error_observability:
+        _section_title("Error observability")
+        lines.append(f"Status: {error_observability.get('status', '')}")
+        lines.append(
+            "Signals: "
+            + f"total={error_observability.get('items_total', 0)} "
+            + f"active={error_observability.get('active_items_total', 0)} "
+            + f"acked={error_observability.get('acked_items_total', 0)} "
+            + f"build={error_observability.get('build_count', 0)} "
+            + f"runner={error_observability.get('runner_count', 0)} "
+            + f"browser={error_observability.get('browser_count', 0)}"
+        )
+        lines.append(
+            "Active by source: "
+            + f"build={error_observability.get('active_build_count', 0)} "
+            + f"runner={error_observability.get('active_runner_count', 0)} "
+            + f"browser={error_observability.get('active_browser_count', 0)}"
+        )
+        report_path = error_observability.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            lines.append(f"Report: {report_path}")
+        ack_state_path = error_observability.get("ack_state_path")
+        if isinstance(ack_state_path, str) and ack_state_path:
+            lines.append(f"Ack state: {ack_state_path}")
+        latest_source_type = error_observability.get("latest_source_type")
+        if isinstance(latest_source_type, str) and latest_source_type:
+            lines.append(
+                "Latest: "
+                + f"{latest_source_type}/{error_observability.get('latest_source_name', '')} "
+                + f"at {error_observability.get('latest_occurred_at', '')}"
+            )
+        latest_message = error_observability.get("latest_message")
+        if isinstance(latest_message, str) and latest_message:
+            lines.append("Latest message: " + latest_message.replace("\n", " | "))
+        latest_report_path = error_observability.get("latest_report_path")
+        if isinstance(latest_report_path, str) and latest_report_path:
+            lines.append(f"Latest source report: {latest_report_path}")
+        eo_notes = error_observability.get("notes")
+        if isinstance(eo_notes, list) and eo_notes:
+            lines.append("Notes: " + ", ".join(str(x) for x in eo_notes))
+        lines.append("")
+
+    cockpit_lite = sections.get("cockpit_lite") if isinstance(sections, dict) else {}
+    if isinstance(cockpit_lite, dict) and cockpit_lite:
+        _section_title("Cockpit Lite")
+        lines.append(f"Status: {cockpit_lite.get('status', '')}")
+        lines.append(f"Port: {cockpit_lite.get('port', 0)}")
+        healthcheck_path = cockpit_lite.get("last_healthcheck_path")
+        if isinstance(healthcheck_path, str) and healthcheck_path:
+            lines.append(f"Healthcheck: {healthcheck_path}")
+        last_request_id = cockpit_lite.get("last_request_id")
+        if isinstance(last_request_id, str) and last_request_id:
+            lines.append(f"Last request id: {last_request_id}")
+        chat_log_path = cockpit_lite.get("last_chat_log_path")
+        if isinstance(chat_log_path, str) and chat_log_path:
+            lines.append(f"Chat log: {chat_log_path}")
+        lines.append(
+            "Frontend telemetry: "
+            + f"status={cockpit_lite.get('frontend_telemetry_status', 'IDLE')} "
+            + f"runtime={cockpit_lite.get('frontend_runtime_error_count', 0)} "
+            + f"console={cockpit_lite.get('frontend_console_error_count', 0)} "
+            + f"unhandled={cockpit_lite.get('frontend_unhandled_rejection_count', 0)}"
+        )
+        frontend_summary_path = cockpit_lite.get("last_frontend_telemetry_summary_path")
+        if isinstance(frontend_summary_path, str) and frontend_summary_path:
+            lines.append(f"Frontend telemetry summary: {frontend_summary_path}")
+        frontend_events_path = cockpit_lite.get("last_frontend_telemetry_events_path")
+        if isinstance(frontend_events_path, str) and frontend_events_path:
+            lines.append(f"Frontend telemetry events: {frontend_events_path}")
+        last_frontend_event_type = cockpit_lite.get("last_frontend_event_type")
+        if isinstance(last_frontend_event_type, str) and last_frontend_event_type:
+            lines.append(
+                f"Last frontend event: {last_frontend_event_type} at {cockpit_lite.get('last_frontend_event_at', '')}"
+            )
+        last_frontend_event_message = cockpit_lite.get("last_frontend_event_message")
+        if isinstance(last_frontend_event_message, str) and last_frontend_event_message:
+            lines.append("Last frontend event message: " + last_frontend_event_message.replace("\n", " | "))
+        lines.append(f"Notes count: {cockpit_lite.get('notes_count', 0)}")
+        last_note_id = cockpit_lite.get("last_note_id")
+        if isinstance(last_note_id, str) and last_note_id:
+            lines.append(f"Last note id: {last_note_id}")
         lines.append("")
 
     extensions = sections.get("extensions") if isinstance(sections, dict) else {}

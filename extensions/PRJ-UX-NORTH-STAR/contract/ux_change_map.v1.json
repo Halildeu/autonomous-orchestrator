@@ -7,6 +7,11 @@
       "path": "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js",
       "ux_theme_id": "accessibility_and_inclusive_design",
       "ux_subtheme_id": "locale_language_and_format_support"
+    },
+    {
+      "path": "extensions/PRJ-UI-COCKPIT-LITE/web/index.html",
+      "ux_theme_id": "accessibility_and_inclusive_design",
+      "ux_subtheme_id": "locale_language_and_format_support"
     }
   ]
 }

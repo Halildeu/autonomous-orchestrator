@@ -69,6 +69,7 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     last_deploy_job_status: str | None = None
     last_deploy_report_path: str | None = None
     deploy_targets_summary: dict[str, Any] | None = None
+    module_delivery_summary: dict[str, Any] | None = None
     airrunner_auto_run_summary: dict[str, Any] | None = None
     network_live_summary: dict[str, Any] | None = None
     github_ops_summary: dict[str, Any] | None = None
@@ -84,6 +85,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     last_chat_log_path: str | None = None
     cockpit_notes_count: int | None = None
     last_note_id: str | None = None
+    cockpit_frontend_telemetry_summary: dict[str, Any] | None = None
+    error_observability_summary: dict[str, Any] | None = None
     system_status_obj: dict[str, Any] | None = None
 
     for key, rel in paths.items():
@@ -207,6 +210,44 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
             cockpit_notes_count = int(cockpit_section.get("notes_count") or 0)
         if isinstance(cockpit_section.get("last_note_id"), str):
             last_note_id = str(cockpit_section.get("last_note_id") or "")
+        frontend_telemetry_status = cockpit_section.get("frontend_telemetry_status")
+        frontend_runtime_error_count = cockpit_section.get("frontend_runtime_error_count")
+        frontend_console_error_count = cockpit_section.get("frontend_console_error_count")
+        frontend_unhandled_rejection_count = cockpit_section.get("frontend_unhandled_rejection_count")
+        if (
+            isinstance(frontend_telemetry_status, str)
+            and isinstance(frontend_runtime_error_count, int)
+            and isinstance(frontend_console_error_count, int)
+            and isinstance(frontend_unhandled_rejection_count, int)
+        ):
+            cockpit_frontend_telemetry_summary = {
+                "status": frontend_telemetry_status,
+                "runtime_error_count": int(frontend_runtime_error_count),
+                "console_error_count": int(frontend_console_error_count),
+                "unhandled_rejection_count": int(frontend_unhandled_rejection_count),
+            }
+            if isinstance(cockpit_section.get("last_frontend_event_type"), str) and cockpit_section.get(
+                "last_frontend_event_type"
+            ):
+                cockpit_frontend_telemetry_summary["last_event_type"] = str(
+                    cockpit_section.get("last_frontend_event_type")
+                )
+            if isinstance(cockpit_section.get("last_frontend_event_at"), str) and cockpit_section.get(
+                "last_frontend_event_at"
+            ):
+                cockpit_frontend_telemetry_summary["last_event_at"] = str(cockpit_section.get("last_frontend_event_at"))
+            if isinstance(cockpit_section.get("last_frontend_telemetry_summary_path"), str) and cockpit_section.get(
+                "last_frontend_telemetry_summary_path"
+            ):
+                cockpit_frontend_telemetry_summary["summary_path"] = str(
+                    cockpit_section.get("last_frontend_telemetry_summary_path")
+                )
+            if isinstance(cockpit_section.get("last_frontend_telemetry_events_path"), str) and cockpit_section.get(
+                "last_frontend_telemetry_events_path"
+            ):
+                cockpit_frontend_telemetry_summary["events_path"] = str(
+                    cockpit_section.get("last_frontend_telemetry_events_path")
+                )
 
         extensions_section = sections.get("extensions") if isinstance(sections.get("extensions"), dict) else {}
         if not last_cockpit_healthcheck_path and isinstance(extensions_section.get("last_cockpit_healthcheck_path"), str):
@@ -323,6 +364,51 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                     "environments_count": int(env_count),
                     "deploy_kinds_count": int(kinds_count),
                 }
+        module_delivery = sections.get("module_delivery") if isinstance(sections.get("module_delivery"), dict) else {}
+        if isinstance(module_delivery, dict):
+            module_delivery_summary = {
+                "status": str(module_delivery.get("status") or ""),
+                "lanes_total": int(module_delivery.get("lanes_total") or 0),
+                "lanes_ok": int(module_delivery.get("lanes_ok") or 0),
+                "lanes_fail": int(module_delivery.get("lanes_fail") or 0),
+                "timed_out_count": int(module_delivery.get("timed_out_count") or 0),
+                "invalid_report_count": int(module_delivery.get("invalid_report_count") or 0),
+            }
+            if isinstance(module_delivery.get("last_failed_lane"), str) and module_delivery.get("last_failed_lane"):
+                module_delivery_summary["last_failed_lane"] = str(module_delivery.get("last_failed_lane"))
+            if (
+                isinstance(module_delivery.get("last_failed_report_path"), str)
+                and module_delivery.get("last_failed_report_path")
+            ):
+                module_delivery_summary["last_failed_report_path"] = str(module_delivery.get("last_failed_report_path"))
+        error_observability = (
+            sections.get("error_observability") if isinstance(sections.get("error_observability"), dict) else {}
+        )
+        if isinstance(error_observability, dict):
+            error_observability_summary = {
+                "status": str(error_observability.get("status") or ""),
+                "items_total": int(error_observability.get("items_total") or 0),
+                "active_items_total": int(error_observability.get("active_items_total") or 0),
+                "acked_items_total": int(error_observability.get("acked_items_total") or 0),
+                "build_count": int(error_observability.get("build_count") or 0),
+                "runner_count": int(error_observability.get("runner_count") or 0),
+                "browser_count": int(error_observability.get("browser_count") or 0),
+                "active_build_count": int(error_observability.get("active_build_count") or 0),
+                "active_runner_count": int(error_observability.get("active_runner_count") or 0),
+                "active_browser_count": int(error_observability.get("active_browser_count") or 0),
+            }
+            if isinstance(error_observability.get("latest_source_type"), str) and error_observability.get(
+                "latest_source_type"
+            ):
+                error_observability_summary["latest_source_type"] = str(error_observability.get("latest_source_type"))
+            if isinstance(error_observability.get("latest_report_path"), str) and error_observability.get(
+                "latest_report_path"
+            ):
+                error_observability_summary["latest_report_path"] = str(error_observability.get("latest_report_path"))
+            if isinstance(error_observability.get("report_path"), str) and error_observability.get("report_path"):
+                error_observability_summary["report_path"] = str(error_observability.get("report_path"))
+            if isinstance(error_observability.get("ack_state_path"), str) and error_observability.get("ack_state_path"):
+                error_observability_summary["ack_state_path"] = str(error_observability.get("ack_state_path"))
         network_live = sections.get("network_live") if isinstance(sections.get("network_live"), dict) else {}
         if isinstance(network_live, dict):
             enabled = network_live.get("enabled")
@@ -568,6 +654,10 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["network_live_summary"] = network_live_summary
     if isinstance(github_ops_summary, dict):
         payload["github_ops_summary"] = github_ops_summary
+    if isinstance(module_delivery_summary, dict):
+        payload["module_delivery_summary"] = module_delivery_summary
+    if isinstance(error_observability_summary, dict):
+        payload["error_observability_summary"] = error_observability_summary
     if isinstance(deploy_targets_summary, dict):
         payload["deploy_targets_summary"] = deploy_targets_summary
     if isinstance(last_deploy_job_id, str):
@@ -607,6 +697,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["cockpit_notes_count"] = cockpit_notes_count
     if isinstance(last_note_id, str) and last_note_id:
         payload["last_note_id"] = last_note_id
+    if isinstance(cockpit_frontend_telemetry_summary, dict):
+        payload["cockpit_frontend_telemetry_summary"] = cockpit_frontend_telemetry_summary
 
     out_path = out_path or (workspace_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)

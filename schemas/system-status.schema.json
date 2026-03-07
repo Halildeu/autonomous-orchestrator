@@ -1544,6 +1544,43 @@
             },
             "last_note_id": {
               "type": "string"
+            },
+            "frontend_telemetry_status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "IDLE",
+                "FAIL",
+                "MISSING"
+              ],
+              "type": "string"
+            },
+            "last_frontend_telemetry_summary_path": {
+              "type": "string"
+            },
+            "last_frontend_telemetry_events_path": {
+              "type": "string"
+            },
+            "frontend_runtime_error_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "frontend_console_error_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "frontend_unhandled_rejection_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "last_frontend_event_type": {
+              "type": "string"
+            },
+            "last_frontend_event_at": {
+              "type": "string"
+            },
+            "last_frontend_event_message": {
+              "type": "string"
             }
           },
           "required": [
@@ -2290,6 +2327,188 @@
             "clean_count",
             "missing_in_report_count",
             "repos",
+            "notes"
+          ],
+          "type": "object"
+        },
+        "module_delivery": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "report_dir": {
+              "type": "string"
+            },
+            "lanes_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lanes_ok": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lanes_fail": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lanes_warn": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "timed_out_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "invalid_report_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "latest_finished_at": {
+              "type": "string"
+            },
+            "last_failed_lane": {
+              "type": "string"
+            },
+            "last_failed_report_path": {
+              "type": "string"
+            },
+            "last_failed_return_code": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "last_failed_stdout_preview": {
+              "type": "string"
+            },
+            "last_failed_stderr_preview": {
+              "type": "string"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "report_dir",
+            "lanes_total",
+            "lanes_ok",
+            "lanes_fail",
+            "lanes_warn",
+            "timed_out_count",
+            "invalid_report_count",
+            "latest_finished_at",
+            "last_failed_lane",
+            "last_failed_report_path",
+            "last_failed_return_code",
+            "last_failed_stdout_preview",
+            "last_failed_stderr_preview",
+            "notes"
+          ],
+          "type": "object"
+        },
+        "error_observability": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "report_path": {
+              "type": "string"
+            },
+            "items_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "active_items_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "acked_items_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "build_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "runner_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "browser_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "active_build_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "active_runner_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "active_browser_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "ack_state_path": {
+              "type": "string"
+            },
+            "latest_source_type": {
+              "type": "string"
+            },
+            "latest_source_name": {
+              "type": "string"
+            },
+            "latest_occurred_at": {
+              "type": "string"
+            },
+            "latest_message": {
+              "type": "string"
+            },
+            "latest_report_path": {
+              "type": "string"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "report_path",
+            "items_total",
+            "active_items_total",
+            "acked_items_total",
+            "build_count",
+            "runner_count",
+            "browser_count",
+            "active_build_count",
+            "active_runner_count",
+            "active_browser_count",
+            "ack_state_path",
+            "latest_source_type",
+            "latest_source_name",
+            "latest_occurred_at",
+            "latest_message",
+            "latest_report_path",
             "notes"
           ],
           "type": "object"
