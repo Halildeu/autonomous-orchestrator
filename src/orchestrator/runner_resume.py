@@ -7,6 +7,7 @@ from typing import Any
 
 from src.evidence.writer import EvidenceWriter
 from src.orchestrator import autonomy, budget_runtime, dlq, quota, runner_config
+from src.orchestrator.failure_preview import failure_preview_from_exception
 from src.orchestrator.runner_utils import print_error
 from src.orchestrator.workflow_exec import BudgetTracker, execute_mod_b_only
 from src.tools.gateway import PolicyViolation
@@ -330,6 +331,7 @@ def handle_resume(*, args: Any, workspace: Path, out_dir: Path) -> None:
             updated["governor_mode_used"] = governor_mode_used
             updated["governor_quarantine_hit"] = None
             updated["governor_concurrency_limit_hit"] = False
+            updated.update(failure_preview_from_exception(e))
             if isinstance(e, PolicyViolation):
                 updated["error_code"] = "POLICY_VIOLATION"
                 updated["policy_violation_code"] = e.error_code

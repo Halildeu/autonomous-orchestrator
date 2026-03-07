@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -25,6 +26,21 @@ def _sha256_concat_files(paths: list[Path]) -> str:
             for chunk in iter(lambda: f.read(64 * 1024), b""):
                 h.update(chunk)
     return h.hexdigest()
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _append_text(path: Path, text: str) -> None:
+    normalized = text if text.endswith("\n") else (text + "\n")
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(normalized)
+
+
+def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def _git_commit_and_dirty(workspace: Path) -> tuple[str, bool]:
@@ -96,9 +112,20 @@ class EvidenceWriter:
         save_json(self.run_dir / "nodes" / node_id / "output.json", data)
 
     def write_node_log(self, node_id: str, text: str) -> None:
-        p = self.run_dir / "nodes" / node_id / "logs.txt"
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text if text.endswith("\n") else (text + "\n"), encoding="utf-8")
+        node_dir = self.run_dir / "nodes" / node_id
+        node_dir.mkdir(parents=True, exist_ok=True)
+        _append_text(node_dir / "logs.txt", text)
+        _append_jsonl(
+            node_dir / "events.v1.jsonl",
+            {
+                "version": "v1",
+                "event_type": "NODE_LOG",
+                "ts": _now_iso(),
+                "run_id": self.run_id,
+                "node_id": node_id,
+                "message": str(text).rstrip("\n"),
+            },
+        )
 
     def write_provenance(self, *, workspace: Path, summary: dict[str, Any]) -> None:
         commit, dirty = _git_commit_and_dirty(workspace)

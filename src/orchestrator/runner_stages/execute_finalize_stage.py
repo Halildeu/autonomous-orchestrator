@@ -6,6 +6,7 @@ import time
 from src.evidence.writer import EvidenceWriter
 from src.orchestrator import autonomy, budget_runtime, dlq, quota
 from src.orchestrator.executor_adapters import resolve_executor_port
+from src.orchestrator.failure_preview import failure_preview_from_exception
 from src.orchestrator.observability.otel_bridge import attach_trace_meta
 from src.orchestrator.runner_stages.context import ExecutionContext, StageContext
 from src.tools.gateway import PolicyViolation
@@ -184,6 +185,7 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
             "policy_violation_code": e.error_code if isinstance(e, PolicyViolation) else None,
             "error": str(e),
         }
+        summary.update(failure_preview_from_exception(e))
 
     if stage_ctx.replay_of is not None:
         summary["replay_of"] = stage_ctx.replay_of

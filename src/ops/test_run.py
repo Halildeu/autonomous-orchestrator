@@ -262,7 +262,33 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not openai_provider_ok:
         failures.append("openai_provider_contract")
 
-    # 9) system-status airunner idle overall contract (idle+disabled must not force WARN).
+    # 9) evidence writer append/event contract.
+    writer_contract_cmd = [sys.executable, "-m", "src.evidence.writer_contract_test"]
+    writer_contract_proc = subprocess.run(writer_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
+    writer_contract_ok = writer_contract_proc.returncode == 0
+    writer_contract_detail = (
+        _tail_line(writer_contract_proc.stdout)
+        or _tail_line(writer_contract_proc.stderr)
+        or f"rc={writer_contract_proc.returncode}"
+    )
+    tests.append(_format_test_result("writer_contract", writer_contract_ok, writer_contract_detail))
+    if not writer_contract_ok:
+        failures.append("writer_contract")
+
+    # 10) orchestrator failure preview extraction contract.
+    failure_preview_cmd = [sys.executable, "-m", "src.orchestrator.failure_preview_contract_test"]
+    failure_preview_proc = subprocess.run(failure_preview_cmd, cwd=repo_root(), text=True, capture_output=True)
+    failure_preview_ok = failure_preview_proc.returncode == 0
+    failure_preview_detail = (
+        _tail_line(failure_preview_proc.stdout)
+        or _tail_line(failure_preview_proc.stderr)
+        or f"rc={failure_preview_proc.returncode}"
+    )
+    tests.append(_format_test_result("failure_preview_contract", failure_preview_ok, failure_preview_detail))
+    if not failure_preview_ok:
+        failures.append("failure_preview_contract")
+
+    # 11) system-status airunner idle overall contract (idle+disabled must not force WARN).
     airunner_idle_cmd = [sys.executable, "-m", "src.ops.system_status_airunner_idle_overall_contract_test"]
     airunner_idle_proc = subprocess.run(airunner_idle_cmd, cwd=repo_root(), text=True, capture_output=True)
     airunner_idle_ok = airunner_idle_proc.returncode == 0
@@ -275,7 +301,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not airunner_idle_ok:
         failures.append("system_status_airunner_idle_overall_contract")
 
-    # 10) derived artifact missing action reconcile contract (stale -> resolved, missing -> reopened).
+    # 12) derived artifact missing action reconcile contract (stale -> resolved, missing -> reopened).
     artifact_reconcile_cmd = [sys.executable, "-m", "src.roadmap.artifact_missing_action_reconcile_contract_test"]
     artifact_reconcile_proc = subprocess.run(artifact_reconcile_cmd, cwd=repo_root(), text=True, capture_output=True)
     artifact_reconcile_ok = artifact_reconcile_proc.returncode == 0
@@ -288,7 +314,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not artifact_reconcile_ok:
         failures.append("artifact_missing_action_reconcile_contract")
 
-    # 11) roadmap change proposal replace_milestone_steps contract.
+    # 13) roadmap change proposal replace_milestone_steps contract.
     change_steps_cmd = [sys.executable, "-m", "src.roadmap.change_proposals_replace_steps_contract_test"]
     change_steps_proc = subprocess.run(change_steps_cmd, cwd=repo_root(), text=True, capture_output=True)
     change_steps_ok = change_steps_proc.returncode == 0
@@ -301,7 +327,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not change_steps_ok:
         failures.append("change_proposals_replace_steps_contract")
 
-    # 10) runner_execute behavior freeze contract (RB-001 baseline lock).
+    # 14) runner_execute behavior freeze contract (RB-001 baseline lock).
     contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_execute_behavior_freeze_contract_test"]
     contract_proc = subprocess.run(contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     contract_ok = contract_proc.returncode == 0
@@ -310,7 +336,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not contract_ok:
         failures.append("runner_execute_behavior_freeze_contract")
 
-    # 11) stage-level runner contracts (modular freeze lock, per-stage visibility).
+    # 15) stage-level runner contracts (modular freeze lock, per-stage visibility).
     stage_modules: list[tuple[str, str]] = [
         ("validate", "src.orchestrator.runner_stage_validate_contract_test"),
         ("governor", "src.orchestrator.runner_stage_governor_contract_test"),
@@ -332,7 +358,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         if not stage_ok:
             failures.append(test_name)
 
-    # 12) stage-level runner contract suite aggregate.
+    # 16) stage-level runner contract suite aggregate.
     stage_contract_cmd = [sys.executable, "-m", "src.orchestrator.runner_stage_contract_suite_test"]
     stage_contract_proc = subprocess.run(stage_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     stage_contract_ok = stage_contract_proc.returncode == 0
@@ -343,7 +369,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not stage_contract_ok:
         failures.append("runner_stage_contract_suite")
 
-    # 13) reaper critical-pin contract (ws_customer_default critical cache paths survive unless explicit override).
+    # 17) reaper critical-pin contract (ws_customer_default critical cache paths survive unless explicit override).
     reaper_contract_cmd = [sys.executable, "-m", "src.ops.reaper_critical_pin_contract_test"]
     reaper_contract_proc = subprocess.run(reaper_contract_cmd, cwd=repo_root(), text=True, capture_output=True)
     reaper_contract_ok = reaper_contract_proc.returncode == 0
@@ -356,7 +382,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not reaper_contract_ok:
         failures.append("reaper_critical_pin_contract")
 
-    # 14) reaper cleanup guard contract (pre-snapshot + post-validate mandatory gate on delete mode).
+    # 18) reaper cleanup guard contract (pre-snapshot + post-validate mandatory gate on delete mode).
     reaper_guard_cmd = [sys.executable, "-m", "src.ops.reaper_cleanup_guard_contract_test"]
     reaper_guard_proc = subprocess.run(reaper_guard_cmd, cwd=repo_root(), text=True, capture_output=True)
     reaper_guard_ok = reaper_guard_proc.returncode == 0
