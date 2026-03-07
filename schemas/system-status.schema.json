@@ -2294,6 +2294,90 @@
           ],
           "type": "object"
         },
+        "module_delivery": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "report_dir": {
+              "type": "string"
+            },
+            "lanes_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lanes_ok": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lanes_fail": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lanes_warn": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "timed_out_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "invalid_report_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "latest_finished_at": {
+              "type": "string"
+            },
+            "last_failed_lane": {
+              "type": "string"
+            },
+            "last_failed_report_path": {
+              "type": "string"
+            },
+            "last_failed_return_code": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "last_failed_stdout_preview": {
+              "type": "string"
+            },
+            "last_failed_stderr_preview": {
+              "type": "string"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "report_dir",
+            "lanes_total",
+            "lanes_ok",
+            "lanes_fail",
+            "lanes_warn",
+            "timed_out_count",
+            "invalid_report_count",
+            "latest_finished_at",
+            "last_failed_lane",
+            "last_failed_report_path",
+            "last_failed_return_code",
+            "last_failed_stdout_preview",
+            "last_failed_stderr_preview",
+            "notes"
+          ],
+          "type": "object"
+        },
         "drift_scoreboard": {
           "additionalProperties": false,
           "properties": {

@@ -69,6 +69,7 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     last_deploy_job_status: str | None = None
     last_deploy_report_path: str | None = None
     deploy_targets_summary: dict[str, Any] | None = None
+    module_delivery_summary: dict[str, Any] | None = None
     airrunner_auto_run_summary: dict[str, Any] | None = None
     network_live_summary: dict[str, Any] | None = None
     github_ops_summary: dict[str, Any] | None = None
@@ -323,6 +324,23 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                     "environments_count": int(env_count),
                     "deploy_kinds_count": int(kinds_count),
                 }
+        module_delivery = sections.get("module_delivery") if isinstance(sections.get("module_delivery"), dict) else {}
+        if isinstance(module_delivery, dict):
+            module_delivery_summary = {
+                "status": str(module_delivery.get("status") or ""),
+                "lanes_total": int(module_delivery.get("lanes_total") or 0),
+                "lanes_ok": int(module_delivery.get("lanes_ok") or 0),
+                "lanes_fail": int(module_delivery.get("lanes_fail") or 0),
+                "timed_out_count": int(module_delivery.get("timed_out_count") or 0),
+                "invalid_report_count": int(module_delivery.get("invalid_report_count") or 0),
+            }
+            if isinstance(module_delivery.get("last_failed_lane"), str) and module_delivery.get("last_failed_lane"):
+                module_delivery_summary["last_failed_lane"] = str(module_delivery.get("last_failed_lane"))
+            if (
+                isinstance(module_delivery.get("last_failed_report_path"), str)
+                and module_delivery.get("last_failed_report_path")
+            ):
+                module_delivery_summary["last_failed_report_path"] = str(module_delivery.get("last_failed_report_path"))
         network_live = sections.get("network_live") if isinstance(sections.get("network_live"), dict) else {}
         if isinstance(network_live, dict):
             enabled = network_live.get("enabled")
@@ -568,6 +586,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["network_live_summary"] = network_live_summary
     if isinstance(github_ops_summary, dict):
         payload["github_ops_summary"] = github_ops_summary
+    if isinstance(module_delivery_summary, dict):
+        payload["module_delivery_summary"] = module_delivery_summary
     if isinstance(deploy_targets_summary, dict):
         payload["deploy_targets_summary"] = deploy_targets_summary
     if isinstance(last_deploy_job_id, str):

@@ -37,6 +37,7 @@ from .system_status_sections import (
     _harvest_status,
     _integrity_status,
     _layer_boundary_section,
+    _module_delivery_section,
     _pack_advisor_status,
     _pack_index_status,
     _pack_selection_trace,
@@ -275,6 +276,7 @@ def build_system_status(
     auto_loop_section = _auto_loop_section(workspace_root)
     airunner_auto_run_section = _airunner_auto_run_section(workspace_root)
     deploy_section = _deploy_section(workspace_root)
+    module_delivery_section = _module_delivery_section(workspace_root)
     decisions_section = _decisions_section(workspace_root)
     context_router_section = build_context_router_section(workspace_root)
     managed_repo_standards = build_managed_repo_standards_summary(
@@ -414,6 +416,7 @@ def build_system_status(
             "extensions": extensions_section,
             "cockpit_lite": cockpit_lite_section,
             "network_live": network_live_section,
+            **({"module_delivery": module_delivery_section} if isinstance(module_delivery_section, dict) else {}),
             "airunner": airunner_section,
             "airunner_proof": airunner_proof_section,
             "pm_suite": pm_suite_section,
@@ -714,6 +717,44 @@ def _render_md(report: dict[str, Any]) -> str:
         report_path = drift_scoreboard.get("report_path")
         if isinstance(report_path, str) and report_path:
             lines.append(f"Scoreboard: {report_path}")
+        lines.append("")
+
+    module_delivery = sections.get("module_delivery") if isinstance(sections, dict) else {}
+    if isinstance(module_delivery, dict) and module_delivery:
+        _section_title("Module delivery")
+        lines.append(f"Status: {module_delivery.get('status', '')}")
+        lines.append(
+            "Lanes: "
+            + f"total={module_delivery.get('lanes_total', 0)} "
+            + f"ok={module_delivery.get('lanes_ok', 0)} "
+            + f"fail={module_delivery.get('lanes_fail', 0)} "
+            + f"warn={module_delivery.get('lanes_warn', 0)} "
+            + f"timeout={module_delivery.get('timed_out_count', 0)} "
+            + f"invalid={module_delivery.get('invalid_report_count', 0)}"
+        )
+        latest_finished_at = module_delivery.get("latest_finished_at")
+        if isinstance(latest_finished_at, str) and latest_finished_at:
+            lines.append(f"Latest run: {latest_finished_at}")
+        report_dir = module_delivery.get("report_dir")
+        if isinstance(report_dir, str) and report_dir:
+            lines.append(f"Report dir: {report_dir}")
+        failed_lane = module_delivery.get("last_failed_lane")
+        if isinstance(failed_lane, str) and failed_lane:
+            lines.append(
+                f"Last failed lane: {failed_lane} rc={module_delivery.get('last_failed_return_code', 0)}"
+            )
+        failed_report = module_delivery.get("last_failed_report_path")
+        if isinstance(failed_report, str) and failed_report:
+            lines.append(f"Last failed report: {failed_report}")
+        failed_stdout = module_delivery.get("last_failed_stdout_preview")
+        if isinstance(failed_stdout, str) and failed_stdout:
+            lines.append("Failed stdout preview: " + failed_stdout.replace("\n", " | "))
+        failed_stderr = module_delivery.get("last_failed_stderr_preview")
+        if isinstance(failed_stderr, str) and failed_stderr:
+            lines.append("Failed stderr preview: " + failed_stderr.replace("\n", " | "))
+        md_notes = module_delivery.get("notes")
+        if isinstance(md_notes, list) and md_notes:
+            lines.append("Notes: " + ", ".join(str(x) for x in md_notes))
         lines.append("")
 
     extensions = sections.get("extensions") if isinstance(sections, dict) else {}
