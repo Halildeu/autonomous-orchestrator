@@ -2415,6 +2415,75 @@
           ],
           "type": "object"
         },
+        "error_observability": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "OK",
+                "WARN",
+                "FAIL",
+                "IDLE"
+              ],
+              "type": "string"
+            },
+            "report_path": {
+              "type": "string"
+            },
+            "items_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "build_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "runner_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "browser_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "latest_source_type": {
+              "type": "string"
+            },
+            "latest_source_name": {
+              "type": "string"
+            },
+            "latest_occurred_at": {
+              "type": "string"
+            },
+            "latest_message": {
+              "type": "string"
+            },
+            "latest_report_path": {
+              "type": "string"
+            },
+            "notes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "status",
+            "report_path",
+            "items_total",
+            "build_count",
+            "runner_count",
+            "browser_count",
+            "latest_source_type",
+            "latest_source_name",
+            "latest_occurred_at",
+            "latest_message",
+            "latest_report_path",
+            "notes"
+          ],
+          "type": "object"
+        },
         "drift_scoreboard": {
           "additionalProperties": false,
           "properties": {

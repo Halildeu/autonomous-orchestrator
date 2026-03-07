@@ -451,6 +451,44 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not cockpit_surface_ok:
         failures.append("system_status_cockpit_frontend_telemetry_surface_contract")
 
+    # 22) unified error observability report contract.
+    error_observability_cmd = [sys.executable, "-m", "src.ops.error_observability_report_contract_test"]
+    error_observability_proc = subprocess.run(error_observability_cmd, cwd=repo_root(), text=True, capture_output=True)
+    error_observability_ok = error_observability_proc.returncode == 0
+    error_observability_detail = (
+        _tail_line(error_observability_proc.stdout)
+        or _tail_line(error_observability_proc.stderr)
+        or f"rc={error_observability_proc.returncode}"
+    )
+    tests.append(
+        _format_test_result(
+            "error_observability_report_contract",
+            error_observability_ok,
+            error_observability_detail,
+        )
+    )
+    if not error_observability_ok:
+        failures.append("error_observability_report_contract")
+
+    # 23) system-status unified error observability surface contract.
+    error_surface_cmd = [sys.executable, "-m", "src.ops.system_status_error_observability_surface_contract_test"]
+    error_surface_proc = subprocess.run(error_surface_cmd, cwd=repo_root(), text=True, capture_output=True)
+    error_surface_ok = error_surface_proc.returncode == 0
+    error_surface_detail = (
+        _tail_line(error_surface_proc.stdout)
+        or _tail_line(error_surface_proc.stderr)
+        or f"rc={error_surface_proc.returncode}"
+    )
+    tests.append(
+        _format_test_result(
+            "system_status_error_observability_surface_contract",
+            error_surface_ok,
+            error_surface_detail,
+        )
+    )
+    if not error_surface_ok:
+        failures.append("system_status_error_observability_surface_contract")
+
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"
 

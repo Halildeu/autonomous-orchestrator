@@ -60,6 +60,12 @@ from .system_status_sections_intake import _doer_loop_section
 from .system_status_sections_catalog import _catalog_status, _iso_core_status
 from .managed_repo_standards import build_managed_repo_standards_summary
 from .drift_scoreboard import build_drift_scoreboard, build_drift_scoreboard_summary
+from .error_observability_report import (
+    DEFAULT_ERROR_OBSERVABILITY_REPORT,
+    build_error_observability_report,
+    project_error_observability_section,
+    write_error_observability_report,
+)
 
 
 def _now_iso8601() -> str:
@@ -298,6 +304,18 @@ def build_system_status(
     )
     read_status, read_fails, read_warns = _readiness_status(workspace_root)
     act_status, act_count, act_top = _actions_status(workspace_root, policy.max_actions)
+    error_observability_report = build_error_observability_report(workspace_root=workspace_root)
+    error_observability_report_path = DEFAULT_ERROR_OBSERVABILITY_REPORT.as_posix()
+    if not dry_run:
+        error_observability_report_path = write_error_observability_report(
+            workspace_root=workspace_root,
+            report=error_observability_report,
+            out_path=workspace_root / DEFAULT_ERROR_OBSERVABILITY_REPORT,
+        )
+    error_observability_section = project_error_observability_section(
+        error_observability_report,
+        report_path=error_observability_report_path,
+    )
     projects_section = _projects_section(
         core_root,
         workspace_root,
@@ -417,6 +435,7 @@ def build_system_status(
             "cockpit_lite": cockpit_lite_section,
             "network_live": network_live_section,
             **({"module_delivery": module_delivery_section} if isinstance(module_delivery_section, dict) else {}),
+            "error_observability": error_observability_section,
             "airunner": airunner_section,
             "airunner_proof": airunner_proof_section,
             "pm_suite": pm_suite_section,
@@ -755,6 +774,38 @@ def _render_md(report: dict[str, Any]) -> str:
         md_notes = module_delivery.get("notes")
         if isinstance(md_notes, list) and md_notes:
             lines.append("Notes: " + ", ".join(str(x) for x in md_notes))
+        lines.append("")
+
+    error_observability = sections.get("error_observability") if isinstance(sections, dict) else {}
+    if isinstance(error_observability, dict) and error_observability:
+        _section_title("Error observability")
+        lines.append(f"Status: {error_observability.get('status', '')}")
+        lines.append(
+            "Signals: "
+            + f"total={error_observability.get('items_total', 0)} "
+            + f"build={error_observability.get('build_count', 0)} "
+            + f"runner={error_observability.get('runner_count', 0)} "
+            + f"browser={error_observability.get('browser_count', 0)}"
+        )
+        report_path = error_observability.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            lines.append(f"Report: {report_path}")
+        latest_source_type = error_observability.get("latest_source_type")
+        if isinstance(latest_source_type, str) and latest_source_type:
+            lines.append(
+                "Latest: "
+                + f"{latest_source_type}/{error_observability.get('latest_source_name', '')} "
+                + f"at {error_observability.get('latest_occurred_at', '')}"
+            )
+        latest_message = error_observability.get("latest_message")
+        if isinstance(latest_message, str) and latest_message:
+            lines.append("Latest message: " + latest_message.replace("\n", " | "))
+        latest_report_path = error_observability.get("latest_report_path")
+        if isinstance(latest_report_path, str) and latest_report_path:
+            lines.append(f"Latest source report: {latest_report_path}")
+        eo_notes = error_observability.get("notes")
+        if isinstance(eo_notes, list) and eo_notes:
+            lines.append("Notes: " + ", ".join(str(x) for x in eo_notes))
         lines.append("")
 
     cockpit_lite = sections.get("cockpit_lite") if isinstance(sections, dict) else {}

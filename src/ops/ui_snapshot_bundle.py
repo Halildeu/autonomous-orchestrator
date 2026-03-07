@@ -86,6 +86,7 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
     cockpit_notes_count: int | None = None
     last_note_id: str | None = None
     cockpit_frontend_telemetry_summary: dict[str, Any] | None = None
+    error_observability_summary: dict[str, Any] | None = None
     system_status_obj: dict[str, Any] | None = None
 
     for key, rel in paths.items():
@@ -380,6 +381,27 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                 and module_delivery.get("last_failed_report_path")
             ):
                 module_delivery_summary["last_failed_report_path"] = str(module_delivery.get("last_failed_report_path"))
+        error_observability = (
+            sections.get("error_observability") if isinstance(sections.get("error_observability"), dict) else {}
+        )
+        if isinstance(error_observability, dict):
+            error_observability_summary = {
+                "status": str(error_observability.get("status") or ""),
+                "items_total": int(error_observability.get("items_total") or 0),
+                "build_count": int(error_observability.get("build_count") or 0),
+                "runner_count": int(error_observability.get("runner_count") or 0),
+                "browser_count": int(error_observability.get("browser_count") or 0),
+            }
+            if isinstance(error_observability.get("latest_source_type"), str) and error_observability.get(
+                "latest_source_type"
+            ):
+                error_observability_summary["latest_source_type"] = str(error_observability.get("latest_source_type"))
+            if isinstance(error_observability.get("latest_report_path"), str) and error_observability.get(
+                "latest_report_path"
+            ):
+                error_observability_summary["latest_report_path"] = str(error_observability.get("latest_report_path"))
+            if isinstance(error_observability.get("report_path"), str) and error_observability.get("report_path"):
+                error_observability_summary["report_path"] = str(error_observability.get("report_path"))
         network_live = sections.get("network_live") if isinstance(sections.get("network_live"), dict) else {}
         if isinstance(network_live, dict):
             enabled = network_live.get("enabled")
@@ -627,6 +649,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
         payload["github_ops_summary"] = github_ops_summary
     if isinstance(module_delivery_summary, dict):
         payload["module_delivery_summary"] = module_delivery_summary
+    if isinstance(error_observability_summary, dict):
+        payload["error_observability_summary"] = error_observability_summary
     if isinstance(deploy_targets_summary, dict):
         payload["deploy_targets_summary"] = deploy_targets_summary
     if isinstance(last_deploy_job_id, str):
