@@ -167,6 +167,7 @@ const I18N = {
     "nav.command_composer": "Command Composer",
     "nav.evidence": "Evidence",
     "h.system_status": "System Status",
+    "h.error_observability": "Error Observability",
     "h.multi_repo_status": "Managed Repositories",
     "h.work_intake": "Work Intake",
     "h.decisions": "Decisions",
@@ -564,6 +565,10 @@ const I18N = {
     "overview.next.decision_pending": "Decision pending: open Decisions tab.",
     "overview.next.no_intake": "No intake items. Check sources.",
     "overview.next.no_blockers": "No immediate blockers. Consider auto-loop or new intake.",
+    "overview.errors.none": "No active error signal.",
+    "overview.errors.summary": "signals={total} • build={build} • runner={runner} • browser={browser}",
+    "overview.errors.latest": "Latest: {source} • report={report}",
+    "overview.errors.frontend": "Frontend: {status} • runtime={runtime} • console={console} • unhandled={unhandled}",
     "north_star.all_lenses": "All lenses",
     "north_star.lens_details_hint": "Expand a lens to see its details. Use “Lens Findings” below to explore per-item findings (match + evidence pointers) across lenses.",
     "north_star.select_lens_hint": "Select a lens to explore findings.",
@@ -859,6 +864,7 @@ const I18N = {
     "nav.command_composer": "Komut Oluşturucu",
     "nav.evidence": "Kanıt",
     "h.system_status": "Sistem Durumu",
+    "h.error_observability": "Hata Gözlemi",
     "h.multi_repo_status": "Yönetilen Reposu",
     "h.work_intake": "İş Alımı",
     "h.decisions": "Kararlar",
@@ -1267,6 +1273,10 @@ const I18N = {
     "overview.next.decision_pending": "Bekleyen karar: Kararlar sekmesini açın.",
     "overview.next.no_intake": "İş alımı öğesi yok. Kaynakları kontrol edin.",
     "overview.next.no_blockers": "Acil engel yok. Oto döngü veya yeni intake düşünebilirsiniz.",
+    "overview.errors.none": "Aktif hata sinyali yok.",
+    "overview.errors.summary": "sinyal={total} • build={build} • runner={runner} • browser={browser}",
+    "overview.errors.latest": "Son: {source} • rapor={report}",
+    "overview.errors.frontend": "Frontend: {status} • runtime={runtime} • console={console} • unhandled={unhandled}",
     "north_star.all_lenses": "Tüm lensler",
     "north_star.lens_details_hint": "Detayları görmek için bir lensi genişletin. Aşağıdaki “Lens Bulguları” ile lensler arasında bulguları (eşleşme + kanıt işaretçileri) keşfedin.",
     "north_star.select_lens_hint": "Bulgu keşfi için bir lens seçin.",
@@ -9766,6 +9776,64 @@ function renderOverview() {
 
   const lockState = summary.lock_state || "unknown";
   $("#lock-summary").textContent = `lock_state=${lockState}`;
+
+  const errorSummary =
+    snapshotData && typeof snapshotData.error_observability_summary === "object"
+      ? snapshotData.error_observability_summary
+      : {};
+  const errorSection =
+    statusData &&
+    statusData.sections &&
+    typeof statusData.sections === "object" &&
+    statusData.sections.error_observability &&
+    typeof statusData.sections.error_observability === "object"
+      ? statusData.sections.error_observability
+      : {};
+  const frontendSummary =
+    snapshotData && typeof snapshotData.cockpit_frontend_telemetry_summary === "object"
+      ? snapshotData.cockpit_frontend_telemetry_summary
+      : {};
+  const cockpitSection =
+    statusData &&
+    statusData.sections &&
+    typeof statusData.sections === "object" &&
+    statusData.sections.cockpit_lite &&
+    typeof statusData.sections.cockpit_lite === "object"
+      ? statusData.sections.cockpit_lite
+      : {};
+
+  const errorStatus = String(errorSummary.status || errorSection.status || "IDLE").toUpperCase();
+  setBadge($("#error-observability-pill"), errorStatus);
+  $("#error-observability-summary").textContent = t("overview.errors.summary", {
+    total: String(toSafeInt(errorSummary.items_total ?? errorSection.items_total, 0)),
+    build: String(toSafeInt(errorSummary.build_count ?? errorSection.build_count, 0)),
+    runner: String(toSafeInt(errorSummary.runner_count ?? errorSection.runner_count, 0)),
+    browser: String(toSafeInt(errorSummary.browser_count ?? errorSection.browser_count, 0)),
+  });
+  const latestSourceType = String(errorSummary.latest_source_type || errorSection.latest_source_type || "").trim();
+  const latestSourceName = String(errorSection.latest_source_name || "").trim();
+  const latestSource = latestSourceName ? `${latestSourceType}/${latestSourceName}` : latestSourceType;
+  const latestReport = String(errorSummary.latest_report_path || errorSection.latest_report_path || "").trim();
+  $("#error-observability-latest").textContent =
+    latestSource || latestReport
+      ? t("overview.errors.latest", {
+          source: latestSource || "-",
+          report: latestReport || "-",
+        })
+      : t("overview.errors.none");
+
+  const frontendStatus = String(frontendSummary.status || cockpitSection.frontend_telemetry_status || "IDLE").toUpperCase();
+  $("#error-observability-frontend").textContent = t("overview.errors.frontend", {
+    status: frontendStatus,
+    runtime: String(toSafeInt(frontendSummary.runtime_error_count ?? cockpitSection.frontend_runtime_error_count, 0)),
+    console: String(toSafeInt(frontendSummary.console_error_count ?? cockpitSection.frontend_console_error_count, 0)),
+    unhandled: String(
+      toSafeInt(
+        frontendSummary.unhandled_rejection_count ?? cockpitSection.frontend_unhandled_rejection_count,
+        0
+      )
+    ),
+  });
 
   const next = [];
   if (decisionPending > 0) next.push(t("overview.next.decision_pending"));

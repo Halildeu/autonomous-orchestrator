@@ -451,7 +451,23 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not cockpit_surface_ok:
         failures.append("system_status_cockpit_frontend_telemetry_surface_contract")
 
-    # 22) unified error observability report contract.
+    # 22) Cockpit UI render smoke contract.
+    cockpit_ui_smoke_cmd = [
+        sys.executable,
+        str(repo_root() / "extensions" / "PRJ-UI-COCKPIT-LITE" / "tests" / "ui_render_smoke_contract_test.py"),
+    ]
+    cockpit_ui_smoke_proc = subprocess.run(cockpit_ui_smoke_cmd, cwd=repo_root(), text=True, capture_output=True)
+    cockpit_ui_smoke_ok = cockpit_ui_smoke_proc.returncode == 0
+    cockpit_ui_smoke_detail = (
+        _tail_line(cockpit_ui_smoke_proc.stdout)
+        or _tail_line(cockpit_ui_smoke_proc.stderr)
+        or f"rc={cockpit_ui_smoke_proc.returncode}"
+    )
+    tests.append(_format_test_result("cockpit_ui_render_smoke_contract", cockpit_ui_smoke_ok, cockpit_ui_smoke_detail))
+    if not cockpit_ui_smoke_ok:
+        failures.append("cockpit_ui_render_smoke_contract")
+
+    # 23) unified error observability report contract.
     error_observability_cmd = [sys.executable, "-m", "src.ops.error_observability_report_contract_test"]
     error_observability_proc = subprocess.run(error_observability_cmd, cwd=repo_root(), text=True, capture_output=True)
     error_observability_ok = error_observability_proc.returncode == 0
@@ -470,7 +486,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not error_observability_ok:
         failures.append("error_observability_report_contract")
 
-    # 23) system-status unified error observability surface contract.
+    # 24) system-status unified error observability surface contract.
     error_surface_cmd = [sys.executable, "-m", "src.ops.system_status_error_observability_surface_contract_test"]
     error_surface_proc = subprocess.run(error_surface_cmd, cwd=repo_root(), text=True, capture_output=True)
     error_surface_ok = error_surface_proc.returncode == 0

@@ -16,6 +16,8 @@ def main() -> None:
         'class="topbar"',
         'id="toast-container"',
         'id="action-log"',
+        'id="error-observability-pill"',
+        'id="error-observability-summary"',
         'id="evidence-tree"',
         'id="evidence-viewer"',
         'id="confirm-modal"',
@@ -29,6 +31,8 @@ def main() -> None:
         "setupOps",
         "setupStream",
         "renderTable",
+        "overview.errors.summary",
+        "error-observability-summary",
     ]
     for token in required_js:
         if token not in js:
