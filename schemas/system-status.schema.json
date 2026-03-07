@@ -2434,6 +2434,14 @@
               "minimum": 0,
               "type": "integer"
             },
+            "active_items_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "acked_items_total": {
+              "minimum": 0,
+              "type": "integer"
+            },
             "build_count": {
               "minimum": 0,
               "type": "integer"
@@ -2445,6 +2453,21 @@
             "browser_count": {
               "minimum": 0,
               "type": "integer"
+            },
+            "active_build_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "active_runner_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "active_browser_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "ack_state_path": {
+              "type": "string"
             },
             "latest_source_type": {
               "type": "string"
@@ -2472,9 +2495,15 @@
             "status",
             "report_path",
             "items_total",
+            "active_items_total",
+            "acked_items_total",
             "build_count",
             "runner_count",
             "browser_count",
+            "active_build_count",
+            "active_runner_count",
+            "active_browser_count",
+            "ack_state_path",
             "latest_source_type",
             "latest_source_name",
             "latest_occurred_at",

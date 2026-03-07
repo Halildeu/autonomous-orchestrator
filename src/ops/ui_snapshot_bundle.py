@@ -388,9 +388,14 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
             error_observability_summary = {
                 "status": str(error_observability.get("status") or ""),
                 "items_total": int(error_observability.get("items_total") or 0),
+                "active_items_total": int(error_observability.get("active_items_total") or 0),
+                "acked_items_total": int(error_observability.get("acked_items_total") or 0),
                 "build_count": int(error_observability.get("build_count") or 0),
                 "runner_count": int(error_observability.get("runner_count") or 0),
                 "browser_count": int(error_observability.get("browser_count") or 0),
+                "active_build_count": int(error_observability.get("active_build_count") or 0),
+                "active_runner_count": int(error_observability.get("active_runner_count") or 0),
+                "active_browser_count": int(error_observability.get("active_browser_count") or 0),
             }
             if isinstance(error_observability.get("latest_source_type"), str) and error_observability.get(
                 "latest_source_type"
@@ -402,6 +407,8 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
                 error_observability_summary["latest_report_path"] = str(error_observability.get("latest_report_path"))
             if isinstance(error_observability.get("report_path"), str) and error_observability.get("report_path"):
                 error_observability_summary["report_path"] = str(error_observability.get("report_path"))
+            if isinstance(error_observability.get("ack_state_path"), str) and error_observability.get("ack_state_path"):
+                error_observability_summary["ack_state_path"] = str(error_observability.get("ack_state_path"))
         network_live = sections.get("network_live") if isinstance(sections.get("network_live"), dict) else {}
         if isinstance(network_live, dict):
             enabled = network_live.get("enabled")

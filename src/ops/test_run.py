@@ -486,7 +486,26 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not error_observability_ok:
         failures.append("error_observability_report_contract")
 
-    # 24) system-status unified error observability surface contract.
+    # 24) error observability ack contract.
+    error_ack_cmd = [sys.executable, "-m", "src.ops.error_observability_ack_contract_test"]
+    error_ack_proc = subprocess.run(error_ack_cmd, cwd=repo_root(), text=True, capture_output=True)
+    error_ack_ok = error_ack_proc.returncode == 0
+    error_ack_detail = (
+        _tail_line(error_ack_proc.stdout)
+        or _tail_line(error_ack_proc.stderr)
+        or f"rc={error_ack_proc.returncode}"
+    )
+    tests.append(
+        _format_test_result(
+            "error_observability_ack_contract",
+            error_ack_ok,
+            error_ack_detail,
+        )
+    )
+    if not error_ack_ok:
+        failures.append("error_observability_ack_contract")
+
+    # 25) system-status unified error observability surface contract.
     error_surface_cmd = [sys.executable, "-m", "src.ops.system_status_error_observability_surface_contract_test"]
     error_surface_proc = subprocess.run(error_surface_cmd, cwd=repo_root(), text=True, capture_output=True)
     error_surface_ok = error_surface_proc.returncode == 0

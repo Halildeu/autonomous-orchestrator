@@ -95,6 +95,10 @@ def main() -> None:
         raise SystemExit("system_status_error_observability_surface_contract_test failed: status mismatch")
     if int(surface.get("items_total") or 0) != 2:
         raise SystemExit("system_status_error_observability_surface_contract_test failed: total mismatch")
+    if int(surface.get("active_items_total") or 0) != 2:
+        raise SystemExit("system_status_error_observability_surface_contract_test failed: active total mismatch")
+    if int(surface.get("acked_items_total") or 0) != 0:
+        raise SystemExit("system_status_error_observability_surface_contract_test failed: acked total mismatch")
     if str(surface.get("latest_source_type") or "") != "browser":
         raise SystemExit("system_status_error_observability_surface_contract_test failed: latest source mismatch")
     if str(surface.get("report_path") or "") != ".cache/reports/error_observability.v1.json":
@@ -106,6 +110,8 @@ def main() -> None:
         raise SystemExit("system_status_error_observability_surface_contract_test failed: ui summary missing")
     if int(summary.get("browser_count") or 0) != 1:
         raise SystemExit("system_status_error_observability_surface_contract_test failed: ui browser count mismatch")
+    if int(summary.get("active_items_total") or 0) != 2:
+        raise SystemExit("system_status_error_observability_surface_contract_test failed: ui active total mismatch")
     if str(summary.get("latest_source_type") or "") != "browser":
         raise SystemExit("system_status_error_observability_surface_contract_test failed: ui latest source mismatch")
 

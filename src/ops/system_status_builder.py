@@ -783,13 +783,24 @@ def _render_md(report: dict[str, Any]) -> str:
         lines.append(
             "Signals: "
             + f"total={error_observability.get('items_total', 0)} "
+            + f"active={error_observability.get('active_items_total', 0)} "
+            + f"acked={error_observability.get('acked_items_total', 0)} "
             + f"build={error_observability.get('build_count', 0)} "
             + f"runner={error_observability.get('runner_count', 0)} "
             + f"browser={error_observability.get('browser_count', 0)}"
         )
+        lines.append(
+            "Active by source: "
+            + f"build={error_observability.get('active_build_count', 0)} "
+            + f"runner={error_observability.get('active_runner_count', 0)} "
+            + f"browser={error_observability.get('active_browser_count', 0)}"
+        )
         report_path = error_observability.get("report_path")
         if isinstance(report_path, str) and report_path:
             lines.append(f"Report: {report_path}")
+        ack_state_path = error_observability.get("ack_state_path")
+        if isinstance(ack_state_path, str) and ack_state_path:
+            lines.append(f"Ack state: {ack_state_path}")
         latest_source_type = error_observability.get("latest_source_type")
         if isinstance(latest_source_type, str) and latest_source_type:
             lines.append(

@@ -102,6 +102,12 @@ def main() -> None:
         raise SystemExit("error_observability_report_contract_test failed: runner count mismatch")
     if int(report.get("browser_count") or 0) != 1:
         raise SystemExit("error_observability_report_contract_test failed: browser count mismatch")
+    if int(report.get("active_items_total") or 0) != 3:
+        raise SystemExit("error_observability_report_contract_test failed: active total mismatch")
+    if int(report.get("acked_items_total") or 0) != 0:
+        raise SystemExit("error_observability_report_contract_test failed: acked total mismatch")
+    if str(report.get("ack_state_path") or "") != "":
+        raise SystemExit("error_observability_report_contract_test failed: ack state path mismatch")
     if str(report.get("latest_source_type") or "") != "browser":
         raise SystemExit("error_observability_report_contract_test failed: latest source mismatch")
     if str(report.get("report_path") or "") != ".cache/reports/error_observability.v1.json":

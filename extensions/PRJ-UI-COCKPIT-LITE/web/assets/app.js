@@ -566,7 +566,7 @@ const I18N = {
     "overview.next.no_intake": "No intake items. Check sources.",
     "overview.next.no_blockers": "No immediate blockers. Consider auto-loop or new intake.",
     "overview.errors.none": "No active error signal.",
-    "overview.errors.summary": "signals={total} • build={build} • runner={runner} • browser={browser}",
+    "overview.errors.summary": "signals={total} • active={active} • acked={acked} • build={build} • runner={runner} • browser={browser}",
     "overview.errors.latest": "Latest: {source} • report={report}",
     "overview.errors.frontend": "Frontend: {status} • runtime={runtime} • console={console} • unhandled={unhandled}",
     "north_star.all_lenses": "All lenses",
@@ -1274,7 +1274,7 @@ const I18N = {
     "overview.next.no_intake": "İş alımı öğesi yok. Kaynakları kontrol edin.",
     "overview.next.no_blockers": "Acil engel yok. Oto döngü veya yeni intake düşünebilirsiniz.",
     "overview.errors.none": "Aktif hata sinyali yok.",
-    "overview.errors.summary": "sinyal={total} • build={build} • runner={runner} • browser={browser}",
+    "overview.errors.summary": "sinyal={total} • aktif={active} • onaylı={acked} • build={build} • runner={runner} • browser={browser}",
     "overview.errors.latest": "Son: {source} • rapor={report}",
     "overview.errors.frontend": "Frontend: {status} • runtime={runtime} • console={console} • unhandled={unhandled}",
     "north_star.all_lenses": "Tüm lensler",
@@ -9806,6 +9806,8 @@ function renderOverview() {
   setBadge($("#error-observability-pill"), errorStatus);
   $("#error-observability-summary").textContent = t("overview.errors.summary", {
     total: String(toSafeInt(errorSummary.items_total ?? errorSection.items_total, 0)),
+    active: String(toSafeInt(errorSummary.active_items_total ?? errorSection.active_items_total, 0)),
+    acked: String(toSafeInt(errorSummary.acked_items_total ?? errorSection.acked_items_total, 0)),
     build: String(toSafeInt(errorSummary.build_count ?? errorSection.build_count, 0)),
     runner: String(toSafeInt(errorSummary.runner_count ?? errorSection.runner_count, 0)),
     browser: String(toSafeInt(errorSummary.browser_count ?? errorSection.browser_count, 0)),
