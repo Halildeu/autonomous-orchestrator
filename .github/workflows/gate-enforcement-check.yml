@@ -31,6 +31,24 @@ jobs:
         run: |
           python3 ci/check_standards_lock.py
 
+      - name: Work intake policy modularization contract
+        run: |
+          python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root .
+
+      - name: Coverage visibility (report-only)
+        run: |
+          python3 extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py \
+            --repo-root . \
+            --out-json .cache/reports/coverage_visibility.v1.json \
+            --out-md .cache/reports/coverage_visibility.v1.md
+
+      - name: Observability coverage matrix
+        run: |
+          python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py \
+            --repo-root . \
+            --out-json .cache/reports/observability_coverage_matrix.v1.json \
+            --out-md .cache/reports/observability_coverage_matrix.v1.md
+
       - name: Module delivery lanes contract
         run: |
           python3 ci/check_module_delivery_lanes.py --strict
@@ -155,6 +173,10 @@ jobs:
           path: |
             .cache/ws_customer_default/.cache/reports/enf_ci
             .cache/reports/branch_protection_solo_policy_ci.v1.json
+            .cache/reports/coverage_visibility.v1.json
+            .cache/reports/coverage_visibility.v1.md
+            .cache/reports/observability_coverage_matrix.v1.json
+            .cache/reports/observability_coverage_matrix.v1.md
             .cache/reports/feature_execution_contract_ci.v1.json
             .cache/reports/delivery_session_packet_ci.v1.json
             .cache/reports/delivery_session_guard_ci.v1.json

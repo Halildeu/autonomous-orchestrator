@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+import subprocess
 
 from jsonschema import Draft202012Validator
 
@@ -50,6 +51,22 @@ def main() -> None:
 
     ws = repo_root / ".cache" / "ws_extension_contract"
     ws.mkdir(parents=True, exist_ok=True)
+
+    modularization_script = repo_root / "extensions" / "PRJ-WORK-INTAKE" / "check_policy_work_intake_modularization.py"
+    modularization_run = subprocess.run(
+        [
+            sys.executable,
+            str(modularization_script),
+            "--repo-root",
+            str(repo_root),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    modularization_payload = json.loads(modularization_run.stdout)
+    if modularization_payload.get("status") != "OK":
+        raise SystemExit("extension_contract_test failed: work intake modularization check failed")
 
     extension_id = str(manifest.get("extension_id") or "").strip()
     res = run_extension_run(workspace_root=ws, extension_id=extension_id, mode="report", chat=False)

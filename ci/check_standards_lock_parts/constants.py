@@ -1,22 +1,12 @@
-{
-  "version": "v1",
-  "generated_at": "2026-03-03T00:00:00Z",
-  "operating_contract": "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
-  "standard_sources": {
-    "technical_baseline_aistd": "registry/technical_baseline.aistd.v1.json",
-    "pm_suite_policy": "policies/policy_pm_suite.v1.json",
-    "feature_execution_bridge_policy": "policies/policy_feature_execution_bridge.v1.json",
-    "layer_boundary_policy": "policies/policy_layer_boundary.v1.json",
-    "llm_live_policy": "policies/policy_llm_live.v1.json",
-    "llm_provider_guardrails_policy": "policies/policy_llm_providers_guardrails.v1.json",
-    "kernel_api_guardrails_policy": "policies/policy_kernel_api_guardrails.v1.json",
-    "ui_design_system_policy": "policies/policy_ui_design_system.v1.json",
-    "security_policy": "policies/policy_security.v1.json",
-    "secrets_policy": "policies/policy_secrets.v1.json",
-    "ux_catalog_enforcement_policy": "policies/policy_ux_catalog_enforcement.v1.json",
-    "ux_catalog_lock": "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json"
-  },
-  "required_files": [
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+
+REQUIRED_FILES = (
     "standards.lock",
     ".github/CODEOWNERS",
     ".github/workflows/gate-enforcement-check.yml",
@@ -26,44 +16,44 @@
     "policies/policy_pm_suite.v1.json",
     "policies/policy_feature_execution_bridge.v1.json",
     "policies/policy_ui_design_system.v1.json",
+    "policies/policy_ux_catalog_enforcement.v1.json",
     "registry/technical_baseline.aistd.v1.json",
     "registry/archives/legacy_standards_archive.aistd.v1.json",
     "schemas/policy-pm-suite.schema.v1.json",
     "schemas/policy-feature-execution-bridge.schema.v1.json",
     "schemas/feature-execution-contract.schema.v1.json",
+    "schemas/delivery-session-packet.schema.v1.json",
     "schemas/policy-ui-design-system.schema.v1.json",
+    "schemas/policy-ux-catalog-enforcement.schema.v1.json",
     "schemas/technical-baseline-aistd.schema.v1.json",
     "schemas/legacy-standards-archive-aistd.schema.v1.json",
     "scripts/sync_managed_repo_standards.py",
     "scripts/archive_legacy_standards.py",
     "scripts/ops_technical_baseline_checklist.py",
     "scripts/export_managed_repo_standards_dashboard.py",
-    "scripts/check_branch_protection_solo_policy.py",
     "ci/check_standards_lock.py",
-    "ci/check_module_delivery_lanes.py",
-    "ci/run_module_delivery_lane.py",
-    "ci/module_delivery_lanes.v1.json",
-    "policies/policy_ux_catalog_enforcement.v1.json",
-    "schemas/policy-ux-catalog-enforcement.schema.v1.json",
-    "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json",
-    "extensions/PRJ-UX-NORTH-STAR/contract/ux_change_map.v1.json",
-    "extensions/PRJ-UX-NORTH-STAR/contract/check_ux_catalog_enforcement.py",
-    "extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json",
-    "extensions/PRJ-PM-SUITE/contract/check_feature_execution_contract.py",
-    "extensions/PRJ-PM-SUITE/contract/seed_feature_execution_contract.py",
-    "schemas/delivery-session-packet.schema.v1.json",
-    "extensions/PRJ-PM-SUITE/contract/build_delivery_session_packet.py",
-    "extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py",
     "ci/check_standards_lock_parts/__init__.py",
     "ci/check_standards_lock_parts/constants.py",
     "ci/check_standards_lock_parts/helpers.py",
     "ci/check_standards_lock_parts/policy_checks.py",
     "ci/check_standards_lock_parts/technical_baseline.py",
     "ci/check_standards_lock_parts/lock_checks.py",
+    "ci/check_module_delivery_lanes.py",
+    "ci/run_module_delivery_lane.py",
+    "ci/module_delivery_lanes.v1.json",
+    "scripts/check_branch_protection_solo_policy.py",
     "docs/OPERATIONS/OBSERVABILITY-COVERAGE-MATRIX.v1.json",
     "docs/OPERATIONS/OBSERVABILITY-COVERAGE-MATRIX.v1.md",
     "docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.json",
     "docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.md",
+    "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json",
+    "extensions/PRJ-UX-NORTH-STAR/contract/ux_change_map.v1.json",
+    "extensions/PRJ-UX-NORTH-STAR/contract/check_ux_catalog_enforcement.py",
+    "extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json",
+    "extensions/PRJ-PM-SUITE/contract/check_feature_execution_contract.py",
+    "extensions/PRJ-PM-SUITE/contract/seed_feature_execution_contract.py",
+    "extensions/PRJ-PM-SUITE/contract/build_delivery_session_packet.py",
+    "extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py",
     "extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py",
     "extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py",
     "extensions/PRJ-WORK-INTAKE/build_policy_work_intake_v2.py",
@@ -79,9 +69,49 @@
     "policies/work_intake_fragments/rules/job_status.v1.json",
     "policies/work_intake_fragments/rules/manual_request.v1.json",
     "policies/work_intake_fragments/rules/gap.v1.json",
-    "policies/work_intake_fragments/rules/time_sink.v1.json"
-  ],
-  "required_commands": [
+    "policies/work_intake_fragments/rules/time_sink.v1.json",
+)
+
+REQUIRED_LOCK_KEYS = (
+    "version",
+    "operating_contract",
+    "standard_sources",
+    "required_files",
+    "required_commands",
+    "required_gates",
+    "managed_repo_sync",
+    "module_delivery_contract",
+    "branch_protection",
+    "solo_developer_policy",
+    "pr_gate_mode",
+)
+
+REQUIRED_GATES = (
+    "enforcement-check",
+    "gate-schema",
+    "gate-policy-dry-run",
+    "gate-secrets",
+    "module-delivery-gate",
+    "ux-catalog-gate",
+    "feature-execution-bridge",
+)
+
+REQUIRED_STANDARD_SOURCES = (
+    "technical_baseline_aistd",
+    "pm_suite_policy",
+    "feature_execution_bridge_policy",
+    "layer_boundary_policy",
+    "llm_live_policy",
+    "llm_provider_guardrails_policy",
+    "kernel_api_guardrails_policy",
+    "ui_design_system_policy",
+    "security_policy",
+    "secrets_policy",
+    "ux_catalog_enforcement_policy",
+    "ux_catalog_lock",
+)
+
+REQUIRED_COMMANDS = (
     "python ci/validate_schemas.py",
     "python ci/policy_dry_run.py --fixtures fixtures/envelopes --out sim_report.json",
     "python ci/check_script_budget.py --out .cache/script_budget/report.json",
@@ -97,84 +127,33 @@
     "python3 extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py --repo-root . --packet .cache/reports/delivery_session_packet.v1.json",
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py --repo-root . --out-json .cache/reports/coverage_visibility.v1.json --out-md .cache/reports/coverage_visibility.v1.md",
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py --repo-root . --out-json .cache/reports/observability_coverage_matrix.v1.json --out-md .cache/reports/observability_coverage_matrix.v1.md",
-    "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root ."
-  ],
-  "required_gates": [
-    "enforcement-check",
-    "gate-schema",
-    "gate-policy-dry-run",
-    "gate-secrets",
+    "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root .",
+)
+
+REQUIRED_PRESERVE_PATHS = (
+    "ci/module_delivery_lanes.v1.json",
+    "registry/archives/legacy_standards_archive.aistd.v1.json",
+    "extensions/PRJ-UX-NORTH-STAR/contract/ux_change_map.v1.json",
+    "extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json",
+)
+
+REQUIRED_BRANCH_PROTECTION_CHECKS = (
     "module-delivery-gate",
-    "ux-catalog-gate",
-    "feature-execution-bridge"
-  ],
-  "managed_repo_sync": {
-    "default_mode": "dry-run",
-    "script": "scripts/sync_managed_repo_standards.py",
-    "source_of_truth": "standards.lock",
-    "apply_requires_flag": true,
-    "validation_command_template": "python3 ci/check_standards_lock.py --repo-root <repo_root>",
-    "preserve_existing_paths": [
-      "ci/module_delivery_lanes.v1.json",
-      "registry/archives/legacy_standards_archive.aistd.v1.json",
-      "extensions/PRJ-UX-NORTH-STAR/contract/ux_change_map.v1.json",
-      "extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json"
-    ]
-  },
-  "module_delivery_contract": {
-    "service_scopes": [
-      "backend",
-      "frontend",
-      "database",
-      "api"
-    ],
-    "scope_lane_map": {
-      "backend": "unit",
-      "database": "database",
-      "api": "api",
-      "frontend": "contract",
-      "integration": "integration",
-      "e2e_gate": "e2e"
-    },
-    "delivery_sequence": [
-      "backend",
-      "database",
-      "api",
-      "frontend",
-      "integration",
-      "e2e"
-    ],
-    "required_test_lanes": [
-      "unit",
-      "database",
-      "api",
-      "contract",
-      "integration",
-      "e2e"
-    ],
-    "merge_requires_all_green": true
-  },
-  "branch_protection": {
-    "default_branch": "main",
-    "required_checks": [
-      "module-delivery-gate",
-      "enforcement-check",
-      "validate-schemas",
-      "policy-dry-run",
-      "gitleaks"
-    ],
-    "verification_mode": "live_evidence"
-  },
-  "solo_developer_policy": {
-    "enabled": true,
-    "single_writer_requires_review_count": 0,
-    "single_writer_require_code_owner_reviews": false,
-    "multi_writer_min_review_count": 1,
-    "multi_writer_require_code_owner_reviews": true,
-    "strict_required_status_checks": true,
-    "enforce_admins_required": true
-  },
-  "pr_gate_mode": {
-    "enforcement_check_pull_request": "blocking"
-  }
+    "enforcement-check",
+    "validate-schemas",
+    "policy-dry-run",
+    "gitleaks",
+)
+
+REQUIRED_DELIVERY_SEQUENCE = ("backend", "database", "api", "frontend", "integration", "e2e")
+REQUIRED_SCOPE_LANE_MAP = {
+    "backend": "unit",
+    "database": "database",
+    "api": "api",
+    "frontend": "contract",
+    "integration": "integration",
+    "e2e_gate": "e2e",
 }
+REQUIRED_LANES = ("unit", "database", "api", "contract", "integration", "e2e")
+REQUIRED_BACKEND_LAYERS = ("config", "controller", "dto", "model", "repository", "security", "service")
+REQUIRED_FRONTEND_LAYOUT_EXPORTS = ("PageLayout", "DetailDrawer", "FormDrawer")

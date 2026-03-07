@@ -28,6 +28,7 @@
 - Her sohbet deterministik run_id ile izlenir; run_id raporlarda sabittir.
 - Is state machine tek yerde (work_intake) tutulur; chat state drift olmaz.
 - Per-item lease zorunludur; ayni is ikinci kez baslamaz.
+- Ayni dosya uzerinde conflict arbitration icin tek SSOT: `docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.md`.
 - run_fingerprint (plan_hash + inputs_hash + policy_hash) idempotency referansidir.
 - trace_meta (run_id + work_item_id + evidence_paths) raporlarda zorunludur.
 

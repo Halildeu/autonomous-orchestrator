@@ -30,6 +30,10 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md
 - docs/OPERATIONS/EXTENSIONS.md
 - docs/OPERATIONS/NORTH-STAR-EVAL-LENSES.v1.md
+- docs/OPERATIONS/OBSERVABILITY-COVERAGE-MATRIX.v1.json
+- docs/OPERATIONS/OBSERVABILITY-COVERAGE-MATRIX.v1.md
+- docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.json
+- docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.md
 - docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules tiers demos; vendor-neutral)
 - docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
 
@@ -265,6 +269,18 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/policy_system_status.v1.json
 - policies/policy_work_intake.v1.json
 - policies/policy_work_intake.v2.json
+- policies/work_intake_fragments/manifest.v1.json
+- policies/work_intake_fragments/shared.v1.json
+- policies/work_intake_fragments/rules/doc_nav.v1.json
+- policies/work_intake_fragments/rules/pdca_regression.v1.json
+- policies/work_intake_fragments/rules/script_budget.v1.json
+- policies/work_intake_fragments/rules/integrity.v1.json
+- policies/work_intake_fragments/rules/release.v1.json
+- policies/work_intake_fragments/rules/github_ops.v1.json
+- policies/work_intake_fragments/rules/job_status.v1.json
+- policies/work_intake_fragments/rules/manual_request.v1.json
+- policies/work_intake_fragments/rules/gap.v1.json
+- policies/work_intake_fragments/rules/time_sink.v1.json
 - policies/policy_work_intake_historical_prune.v1.json
 - policies/policy_work_intake_exec.v1.json
 

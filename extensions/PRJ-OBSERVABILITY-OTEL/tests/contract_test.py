@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+import subprocess
 
 from jsonschema import Draft202012Validator
 
@@ -83,10 +84,57 @@ def main() -> None:
     if not any("summary.json" in str(p) for p in evidence_paths):
         raise SystemExit("otel pack contract_test: FAIL (trace_meta evidence_paths missing summary.json)")
 
-    runner_path = repo_root / "src" / "orchestrator" / "runner_execute.py"
-    runner_text = runner_path.read_text(encoding="utf-8")
-    if "attach_trace_meta" not in runner_text:
-        raise SystemExit("otel pack contract_test: FAIL (runner_execute missing trace_meta hook)")
+    runner_paths = [
+        repo_root / "src" / "orchestrator" / "runner_stages" / "execute_finalize_stage.py",
+        repo_root / "src" / "orchestrator" / "runner_stages" / "quota_autonomy_stage.py",
+        repo_root / "src" / "orchestrator" / "runner_stages" / "routing_workflow_stage.py",
+    ]
+    if not all(path.exists() for path in runner_paths):
+        raise SystemExit("otel pack contract_test: FAIL (runner stage files missing)")
+    if not all("attach_trace_meta" in path.read_text(encoding="utf-8") for path in runner_paths):
+        raise SystemExit("otel pack contract_test: FAIL (runner stages missing trace_meta hook)")
+
+    export_script = repo_root / "extensions" / "PRJ-OBSERVABILITY-OTEL" / "export_observability_coverage_matrix.py"
+    export_out_json = repo_root / ".cache" / "reports" / "observability_coverage_matrix.contract.v1.json"
+    export_out_md = repo_root / ".cache" / "reports" / "observability_coverage_matrix.contract.v1.md"
+    subprocess.run(
+        [
+            sys.executable,
+            str(export_script),
+            "--repo-root",
+            str(repo_root),
+            "--out-json",
+            str(export_out_json),
+            "--out-md",
+            str(export_out_md),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if not export_out_json.exists() or not export_out_md.exists():
+        raise SystemExit("otel pack contract_test: FAIL (observability coverage export missing)")
+
+    coverage_script = repo_root / "extensions" / "PRJ-OBSERVABILITY-OTEL" / "coverage_visibility_report.py"
+    coverage_out_json = repo_root / ".cache" / "reports" / "coverage_visibility.contract.v1.json"
+    coverage_out_md = repo_root / ".cache" / "reports" / "coverage_visibility.contract.v1.md"
+    subprocess.run(
+        [
+            sys.executable,
+            str(coverage_script),
+            "--repo-root",
+            str(repo_root),
+            "--out-json",
+            str(coverage_out_json),
+            "--out-md",
+            str(coverage_out_md),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if not coverage_out_json.exists() or not coverage_out_md.exists():
+        raise SystemExit("otel pack contract_test: FAIL (coverage visibility export missing)")
 
     from src.ops.extension_run import run_extension_run
 
