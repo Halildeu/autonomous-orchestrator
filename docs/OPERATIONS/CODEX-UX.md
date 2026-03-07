@@ -16,6 +16,8 @@ Bu doküman, “kullanıcı komut yazmaz” yaklaşımını SSOT olarak tanımla
   - Effective model/config repo template'ten degil, `policy_codex_runtime.v1.json` + CODEX_HOME bootstrap'tan gelir.
 - Session memory:
   - Varsayilan strateji `hybrid`'dir: local session evidence korunur, provider-state/compaction referanslari ayrica tutulur.
+  - OpenAI `Responses` devam zinciri kullaniliyorsa son `response_id` session context'e yazilir ve sonraki canli cagrida `previous_response_id` olarak tekrar kullanilir.
+  - Girdi token tahmini runtime limitini asarsa workspace altinda compaction özeti uretilir; bu artefact session context ve cross-session raporunda gorunur.
 - App automations:
   - Codex app automation tetigi repo icinde dogrudan serbest isletim yapmaz; operator/frontend olarak calisir, repo execution tarafinda `PRJ-AIRUNNER` ve ops komutlari kullanilir.
 - Roadmap “living”dir:

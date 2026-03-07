@@ -33,6 +33,8 @@ modelini ve core_lock/ops/gate/runner zincirini korur.
 - Overlay policy: policies/policy_codex_runtime.v1.json
 - Template `.codex/config.toml` minimal ve geriye donuk tutulur; guncel effective davranis overlay ile kilitlenir.
 - MCP / capability-catalog / automations sozlesmesi fail-closed baslar; policy bunlari `disabled` veya `planned` olarak ifade eder, runtime auto-enable yapmaz.
+- Provider continuation icin `Responses API` zincirinde varsa `previous_response_id` workspace session context'ten okunur ve yeni `response_id` ayni session context'e geri yazilir.
+- `model_auto_compact_token_limit` asildiginda orchestrator workspace altinda deterministic compaction özeti uretir ve session context icindeki `compaction` / `provider_state.summary_ref` alanlarini gunceller.
 
 ## Secrets (.env, no leaks)
 - LLM saglayici anahtarlari .env veya process env icinden okunur (yalnizca var/yok durumu raporlanir).

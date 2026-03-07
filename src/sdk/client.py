@@ -165,7 +165,7 @@ class OrchestratorClient:
             "idempotency_key": str(idempotency_key) if isinstance(idempotency_key, str) and idempotency_key else f"{tenant_id}:{request_id}",
         }
 
-        allowed_context_keys = {"use_openai", "input_path", "output_path"}
+        allowed_context_keys = {"use_openai", "input_path", "output_path", "session_id"}
         ctx_in = context if isinstance(context, dict) else {}
         unknown_ctx = sorted([k for k in ctx_in.keys() if k not in allowed_context_keys])
         if unknown_ctx:
@@ -184,6 +184,8 @@ class OrchestratorClient:
             ctx["input_path"] = ctx_in["input_path"]
         if "output_path" in ctx_in:
             ctx["output_path"] = ctx_in["output_path"]
+        if "session_id" in ctx_in:
+            ctx["session_id"] = ctx_in["session_id"]
         if use_openai or bool(ctx_in.get("use_openai")):
             ctx["use_openai"] = True
 

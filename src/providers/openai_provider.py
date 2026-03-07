@@ -43,7 +43,7 @@ def _extract_first_json_object(text: str) -> dict | None:
 class DeterministicStubProvider(Provider):
     max_bullets: int = 5
 
-    def summarize_markdown_to_json(self, markdown: str) -> dict:
+    def summarize_markdown_to_json(self, markdown: str, *, continuation: dict | None = None) -> dict:
         normalized = markdown.replace("\r\n", "\n").replace("\r", "\n")
         digest = sha256(normalized.encode("utf-8")).hexdigest()
         lines = [ln.strip() for ln in normalized.split("\n")]
@@ -89,10 +89,19 @@ class OpenAIProvider(Provider):
         self._timeout_s = timeout_s
         self._policy_path = policy_path
 
-    def summarize_markdown_to_json(self, markdown: str) -> dict:
+    def summarize_markdown_to_json(self, markdown: str, *, continuation: dict[str, Any] | None = None) -> dict:
         _ = network_check(policy_path=self._policy_path, base_url=self._base_url)
 
         url = f"{self._base_url}/responses"
+        previous_response_id = ""
+        conversation_id = ""
+        if isinstance(continuation, dict):
+            prev = continuation.get("previous_response_id")
+            conv = continuation.get("conversation_id")
+            if isinstance(prev, str) and prev.strip():
+                previous_response_id = prev.strip()
+            if isinstance(conv, str) and conv.strip():
+                conversation_id = conv.strip()
         body: dict[str, Any] = {
             "model": self._model,
             "input": [
@@ -112,6 +121,8 @@ class OpenAIProvider(Provider):
             ],
             "temperature": 0,
         }
+        if previous_response_id:
+            body["previous_response_id"] = previous_response_id
 
         req = urllib.request.Request(
             url=url,
@@ -132,6 +143,11 @@ class OpenAIProvider(Provider):
         payload = json.loads(raw)
         usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else None
         response_id = payload.get("id") if isinstance(payload.get("id"), str) else None
+        payload_conversation_id = payload.get("conversation_id") if isinstance(payload.get("conversation_id"), str) else None
+        if payload_conversation_id is None:
+            conversation = payload.get("conversation")
+            if isinstance(conversation, dict) and isinstance(conversation.get("id"), str):
+                payload_conversation_id = str(conversation.get("id"))
         text = ""
         for item in payload.get("output", []):
             for part in item.get("content", []):
@@ -148,6 +164,15 @@ class OpenAIProvider(Provider):
             obj.setdefault("usage", usage)
         if response_id:
             obj.setdefault("response_id", response_id)
+        if previous_response_id:
+            obj.setdefault("previous_response_id", previous_response_id)
+            obj.setdefault("continuation_used", True)
+        provider_state: dict[str, Any] = {"provider": "openai", "wire_api": "responses"}
+        if payload_conversation_id or conversation_id:
+            provider_state["conversation_id"] = payload_conversation_id or conversation_id
+        if response_id:
+            provider_state["last_response_id"] = response_id
+        obj.setdefault("provider_state", provider_state)
         return obj
 
 

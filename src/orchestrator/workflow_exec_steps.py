@@ -11,6 +11,12 @@ from src.evidence.writer import EvidenceWriter
 from src.orchestrator.workflow_exec_contracts import BudgetSpec, BudgetUsage, NodeResult
 from src.orchestrator.workflow_exec_policy import _load_module_capabilities
 from src.providers.provider import Provider
+from src.session.provider_memory import (
+    maybe_auto_compact_markdown,
+    persist_provider_result,
+    read_provider_session_state,
+    resolve_auto_compact_token_limit,
+)
 from src.tools.gateway import PolicyViolation, ToolGateway, resolve_path_in_workspace
 from src.utils.budget import estimate_tokens
 from src.utils.jsonio import to_canonical_json
@@ -103,6 +109,8 @@ def _exec_mod_a(
     context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
     input_path_raw = context.get("input_path")
     input_path = input_path_raw.strip() if isinstance(input_path_raw, str) and input_path_raw.strip() else "fixtures/sample.md"
+    session_id_raw = context.get("session_id")
+    session_id = session_id_raw.strip() if isinstance(session_id_raw, str) and session_id_raw.strip() else "default"
     use_openai_raw = context.get("use_openai")
     use_openai = bool(use_openai_raw) if isinstance(use_openai_raw, bool) else False
 
@@ -156,14 +164,67 @@ def _exec_mod_a(
     if not isinstance(markdown, str):
         raise RuntimeError("fs_read returned invalid result: missing text.")
     markdown_sha = sha256(markdown.encode("utf-8")).hexdigest()
+    session_state = read_provider_session_state(
+        workspace_root=workspace,
+        session_id=session_id,
+        provider="openai",
+        wire_api="responses",
+    )
+    continuation = session_state.get("continuation") if isinstance(session_state.get("continuation"), dict) else {}
+    compaction_meta = {
+        "applied": False,
+        "input_markdown": markdown,
+        "approx_input_tokens": int(estimate_tokens(markdown)),
+        "threshold_tokens": 0,
+        "summary_ref": "",
+    }
+    if use_openai:
+        compaction_meta = maybe_auto_compact_markdown(
+            workspace_root=workspace,
+            session_id=session_id,
+            markdown=markdown,
+            provider="openai",
+            wire_api="responses",
+            threshold_tokens=resolve_auto_compact_token_limit(workspace_root=workspace),
+        )
+    provider_input_markdown = (
+        str(compaction_meta.get("input_markdown"))
+        if isinstance(compaction_meta.get("input_markdown"), str) and compaction_meta.get("input_markdown")
+        else markdown
+    )
+    if continuation:
+        tool_calls.append(
+            {
+                "tool": "session_provider_state",
+                "status": "OK",
+                "session_id": session_id,
+                "previous_response_id_present": bool(str(continuation.get("previous_response_id") or "").strip()),
+                "context_path": session_state.get("context_path"),
+            }
+        )
+    if bool(compaction_meta.get("applied")):
+        tool_calls.append(
+            {
+                "tool": "session_compaction",
+                "status": "OK",
+                "session_id": session_id,
+                "summary_ref": compaction_meta.get("summary_ref"),
+                "approx_input_tokens": int(compaction_meta.get("approx_input_tokens") or 0),
+                "threshold_tokens": int(compaction_meta.get("threshold_tokens") or 0),
+            }
+        )
 
     node_input = {
         "node_id": node_id,
         "module_id": "MOD_A",
+        "session_id": session_id,
         "use_openai": use_openai,
         "resolved_input_path": str(fs_res.get("resolved_path")),
         "markdown_sha256": markdown_sha,
         "markdown_bytes": len(markdown.encode("utf-8")),
+        "continuation_available": bool(continuation),
+        "compaction_applied": bool(compaction_meta.get("applied")),
+        "approx_input_tokens": int(compaction_meta.get("approx_input_tokens") or 0),
     }
     evidence.write_node_input(node_id, node_input)
 
@@ -241,7 +302,56 @@ def _exec_mod_a(
                     )
                     raise
 
-        summary_obj = provider_to_use.summarize_markdown_to_json(markdown)
+        summary_obj = provider_to_use.summarize_markdown_to_json(provider_input_markdown, continuation=continuation)
+        if isinstance(summary_obj, dict):
+            if continuation:
+                summary_obj.setdefault(
+                    "continuation",
+                    {
+                        "session_id": session_id,
+                        "previous_response_id": str(continuation.get("previous_response_id") or ""),
+                    },
+                )
+            if bool(compaction_meta.get("applied")):
+                summary_obj.setdefault(
+                    "compaction",
+                    {
+                        "session_id": session_id,
+                        "summary_ref": str(compaction_meta.get("summary_ref") or ""),
+                        "approx_input_tokens": int(compaction_meta.get("approx_input_tokens") or 0),
+                        "threshold_tokens": int(compaction_meta.get("threshold_tokens") or 0),
+                    },
+                )
+
+            provider_state_obj = (
+                summary_obj.get("provider_state") if isinstance(summary_obj.get("provider_state"), dict) else {}
+            )
+            persist_res = persist_provider_result(
+                workspace_root=workspace,
+                session_id=session_id,
+                provider="openai",
+                wire_api="responses",
+                response_id=str(
+                    provider_state_obj.get("last_response_id")
+                    or summary_obj.get("response_id")
+                    or ""
+                ).strip(),
+                conversation_id=str(
+                    provider_state_obj.get("conversation_id")
+                    or continuation.get("conversation_id")
+                    or ""
+                ).strip(),
+                summary_ref=str(compaction_meta.get("summary_ref") or provider_state_obj.get("summary_ref") or "").strip(),
+            )
+            if bool(persist_res.get("updated")):
+                tool_calls.append(
+                    {
+                        "tool": "session_provider_state_update",
+                        "status": "OK",
+                        "session_id": session_id,
+                        "path": persist_res.get("path"),
+                    }
+                )
     except PolicyViolation as e:
         output = {
             "node_id": node_id,
@@ -273,7 +383,7 @@ def _exec_mod_a(
         from src.providers.openai_provider import DeterministicStubProvider
 
         stub = DeterministicStubProvider()
-        summary_obj = stub.summarize_markdown_to_json(markdown)
+        summary_obj = stub.summarize_markdown_to_json(markdown, continuation=continuation)
         summary_obj["provider_error"] = str(e)
 
     request_id = envelope.get("request_id")
@@ -296,7 +406,7 @@ def _exec_mod_a(
     evidence.write_node_log(node_id, "MOD_A completed.")
     if budget is not None:
         summary_text = to_canonical_json(summary_obj)
-        budget.consume_tokens(estimate_tokens(markdown) + estimate_tokens(summary_text))
+        budget.consume_tokens(estimate_tokens(provider_input_markdown) + estimate_tokens(summary_text))
     return NodeResult(node_id=node_id, status="COMPLETED", output=output)
 
 
