@@ -11,7 +11,8 @@
       "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
       "policies/policy_feature_execution_bridge.v1.json",
       "standards.lock",
-      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js"
+      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js",
+      "extensions/PRJ-UI-COCKPIT-LITE/web/index.html"
     ],
     "business_goal": "Prevent PM to code drift in the core orchestrator and keep UX or lane decisions machine-readable.",
     "requested_outcome": "Every governed code change must be traceable through a single execution contract before CI lanes or AI coding proceed."
@@ -38,7 +39,8 @@
       "standards.lock",
       "schemas/policy-pm-suite.schema.v1.json",
       "schemas/delivery-session-packet.schema.v1.json",
-      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js"
+      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js",
+      "extensions/PRJ-UI-COCKPIT-LITE/web/index.html"
     ],
     "affected_modules": [
       "PRJ-PM-SUITE",
@@ -54,6 +56,11 @@
     "artifacts": [
       {
         "path_glob": "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js",
+        "ux_theme_id": "accessibility_and_inclusive_design",
+        "ux_subtheme_id": "locale_language_and_format_support"
+      },
+      {
+        "path_glob": "extensions/PRJ-UI-COCKPIT-LITE/web/index.html",
         "ux_theme_id": "accessibility_and_inclusive_design",
         "ux_subtheme_id": "locale_language_and_format_support"
       }
