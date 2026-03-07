@@ -129,12 +129,12 @@
     "CODE_AGENTIC": {
       "providers": {
         "openai": {
-          "pinned_model_id": "gpt-5.2-codex",
-          "preferred_candidate_model_id": "gpt-5.2",
+          "pinned_model_id": "gpt-5.3-codex",
+          "preferred_candidate_model_id": "gpt-5.4",
           "models": [
-            { "model_id": "gpt-5.2-codex", "stage": "verified", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
-            { "model_id": "gpt-5.2", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
-            { "model_id": "gpt-5.2-mini", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
+            { "model_id": "gpt-5.3-codex", "stage": "verified", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "gpt-5.4", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null },
+            { "model_id": "gpt-5.2-codex", "stage": "candidate", "verified_at": null, "probe_status": "unknown", "probe_last_at": null, "probe_latency_ms_p95": null, "probe_error_code": null }
           ]
         },
         "xai": {

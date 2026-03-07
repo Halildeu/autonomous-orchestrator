@@ -156,7 +156,7 @@ def get_provider() -> Provider:
     if not api_key:
         return DeterministicStubProvider()
 
-    model = os.environ.get("OPENAI_MODEL", "gpt-5.2-codex").strip() or "gpt-5.2-codex"
+    model = os.environ.get("OPENAI_MODEL", "gpt-5.3-codex").strip() or "gpt-5.3-codex"
     base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
     try:
         return OpenAIProvider(

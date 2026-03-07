@@ -21,6 +21,8 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 ### SSOT & Navigation (canonical)
 - docs/OPERATIONS/CODEX-UX.md (customer-friendly ops akışı)
 - docs/OPERATIONS/CODEX-CONFIG-CONTRACT.v1.md (Codex config contract)
+- schemas/policy-codex-runtime.schema.v1.json (Codex runtime overlay schema)
+- policies/policy_codex_runtime.v1.json (Codex runtime overlay policy)
 - docs/OPERATIONS/CODING-STANDARDS.md (zorunlu coding standartları ve shared utilities)
 - docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md (multi-repo operasyon kontratı)
 - scripts/sync_managed_repo_standards.py (taşeron repo standart senkronizasyonu)
@@ -69,7 +71,7 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 ### Aktif Agent'lar
 | Agent | Provider | Config | Çalışma Modu |
 |---|---|---|---|
-| **Codex** | OpenAI (gpt-5.2-codex) | `.codex/config.toml` | Sandbox (workspace-write) |
+| **Codex** | OpenAI (gpt-5.3-codex effective runtime overlay) | `.codex/config.toml` | Sandbox (workspace-write) |
 | **Antigravity** | Google DeepMind (Gemini) | `.gemini/settings.json` | IDE (yerel dosya sistemi) |
 
 ### Ortak Kurallar

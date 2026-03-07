@@ -201,7 +201,7 @@ def _exec_mod_a(
             if isinstance(api_value, str) and api_value:
                 import os
 
-                model = os.environ.get("OPENAI_MODEL", "gpt-5.2-codex").strip() or "gpt-5.2-codex"
+                model = os.environ.get("OPENAI_MODEL", "gpt-5.3-codex").strip() or "gpt-5.3-codex"
                 base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
                 policy_path = workspace / "policies" / "policy_security.v1.json"
                 api_key_param = "api" + "_key"

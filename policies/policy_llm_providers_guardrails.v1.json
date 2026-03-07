@@ -30,8 +30,8 @@
     "openai": {
       "enabled": false,
       "expected_env_keys": ["OPENAI_API_KEY"],
-      "allow_models": ["gpt-4o-mini", "gpt-4o", "gpt-5.2-codex", "gpt-5.2", "gpt-5.2-mini"],
-      "default_model": "gpt-5.2-codex"
+      "allow_models": ["gpt-4o-mini", "gpt-4o", "gpt-5.2-mini", "gpt-5.2-codex", "gpt-5.3-codex", "gpt-5.4"],
+      "default_model": "gpt-5.3-codex"
     },
     "qwen": {
       "enabled": false,

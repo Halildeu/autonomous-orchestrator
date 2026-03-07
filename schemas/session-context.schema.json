@@ -25,6 +25,37 @@
     "decision_ttl_seconds_default": { "type": "integer", "minimum": 60, "maximum": 604800, "default": 3600 },
     "expires_at": { "type": "string", "minLength": 1 },
     "paused": { "type": "boolean", "default": false },
+    "memory_strategy": {
+      "type": "string",
+      "enum": ["local_only", "provider_state", "hybrid"],
+      "default": "hybrid"
+    },
+    "provider_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "wire_api", "updated_at"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "conversation_id": { "type": "string", "minLength": 1 },
+        "last_response_id": { "type": "string", "minLength": 1 },
+        "wire_api": { "type": "string", "minLength": 1 },
+        "updated_at": { "type": "string", "minLength": 1 },
+        "summary_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "compaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["idle", "scheduled", "completed"] },
+        "summary_ref": { "type": "string", "minLength": 1 },
+        "last_compacted_at": { "type": "string", "minLength": 1 },
+        "trigger": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "approx_input_tokens": { "type": "integer", "minimum": 0 }
+      }
+    },
     "ephemeral_decisions": {
       "type": "array",
       "items": {

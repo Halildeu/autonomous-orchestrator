@@ -6,7 +6,7 @@ Not:
 - Bu repo içinden `~/.codex/config.toml` dosyanızı **değiştirmeyiz** (güvenlik).
 - Aşağıdaki snippet’i **elle** kopyalayıp kendi ortamınıza uyarlayın.
 
-## Önerilen snippet (copy-paste)
+## Önerilen snippet (minimal template)
 
 ```toml
 # Project docs fallback
@@ -28,9 +28,13 @@ sandbox_mode = "workspace-write"
 network_access = false
 ```
 
+Not:
+- Effective davranis sadece bu snippet'ten gelmez.
+- Program-led bootstrap, `policies/policy_codex_runtime.v1.json` icindeki managed runtime overlay'i `CODEX_HOME/config.toml` uzerine uygular.
+
 ## Notlar / güvenlik rehberi
 
 - Network default kapalı tutun (`network_access = false`). Integration test gerektiğinde ayrı profil açın.
 - Secrets’i config’e yazmayın. Yerelde `.env` kullanıyorsanız `.gitignore` altında olduğundan emin olun.
 - Agent varsayılan workspace root’u `.cache/ws_customer_default` olarak kabul eder; customer workspace verisi core repo’ya yazılmaz.
-
+- Effective config kontrolu ve drift denetimi `CODEX-CONFIG-CONTRACT.v1.md` + `policy_codex_runtime.v1.json` ile yapilir.

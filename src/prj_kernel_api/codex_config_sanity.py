@@ -8,14 +8,7 @@ import tomllib
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from src.prj_kernel_api.codex_home import ensure_codex_home
-
-
-def _find_repo_root(start: Path) -> Path:
-    for p in [start] + list(start.parents):
-        if (p / "pyproject.toml").exists():
-            return p
-    return Path.cwd()
+from src.prj_kernel_api.codex_home import ensure_codex_home, resolve_effective_codex_config
 
 
 def _read_text(path: Path) -> str:
@@ -73,6 +66,11 @@ def _effective_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "project_doc_max_bytes": cfg.get("project_doc_max_bytes"),
         "project_doc_fallback_filenames": cfg.get("project_doc_fallback_filenames"),
         "project_root_markers": cfg.get("project_root_markers"),
+        "model_reasoning_effort": cfg.get("model_reasoning_effort"),
+        "model_reasoning_summary": cfg.get("model_reasoning_summary"),
+        "model_verbosity": cfg.get("model_verbosity"),
+        "model_auto_compact_token_limit": cfg.get("model_auto_compact_token_limit"),
+        "web_search": cfg.get("web_search"),
         "sandbox_workspace_write.network_access": network_access,
     }
 
@@ -92,20 +90,18 @@ def _invariants_ok(actual: Dict[str, Any]) -> bool:
         and actual.get("sandbox_mode") == "workspace-write"
         and actual.get("sandbox_workspace_write.network_access") is False
         and actual.get("project_doc_max_bytes") == 65536
+        and actual.get("model_provider") == "openai"
         and isinstance(actual.get("project_doc_fallback_filenames"), list)
         and "AGENTS.md" in actual.get("project_doc_fallback_filenames")
     )
 
 
 def run(workspace_root: str) -> Dict[str, Any]:
-    repo_root = _find_repo_root(Path(__file__).resolve())
+    resolved = resolve_effective_codex_config(workspace_root)
     env_overrides = ensure_codex_home(workspace_root)
     codex_home = Path(env_overrides.get("CODEX_HOME", ""))
     runtime_path = codex_home / "config.toml"
-
-    repo_template_path = repo_root / "config.toml"
-    if not repo_template_path.exists():
-        repo_template_path = repo_root / ".codex" / "config.toml"
+    repo_template_path = Path(str(resolved.get("template_path") or ""))
 
     repo_exists = repo_template_path.exists()
     runtime_exists = runtime_path.exists()
@@ -117,17 +113,13 @@ def run(workspace_root: str) -> Dict[str, Any]:
 
     repo_cfg: Dict[str, Any] = {}
     runtime_cfg: Dict[str, Any] = {}
-    repo_parse_ok = False
+    repo_parse_ok = repo_exists
     runtime_parse_ok = False
 
     if repo_exists:
         text = _read_text(repo_template_path)
         dup_keys_repo, dup_tables_repo = _scan_duplicates(text)
-        try:
-            repo_cfg = _load_toml(repo_template_path)
-            repo_parse_ok = True
-        except Exception:
-            repo_parse_ok = False
+        repo_cfg = resolved.get("effective_config") if isinstance(resolved.get("effective_config"), dict) else {}
 
     if runtime_exists:
         text = _read_text(runtime_path)
@@ -170,6 +162,9 @@ def run(workspace_root: str) -> Dict[str, Any]:
             f"CODEX_HOME={codex_home}",
             f"template_path={repo_template_path}",
             f"runtime_path={runtime_path}",
+            "overlay_sources=" + ",".join(
+                [str(item) for item in resolved.get("overlay_sources", []) if isinstance(item, str)]
+            ),
         ],
     }
 

@@ -11,9 +11,11 @@ from src.session.context_store import (
     SessionContextError,
     SessionPaths,
     load_context,
+    mark_compaction,
     new_context,
     prune_expired_decisions,
     save_context_atomic,
+    upsert_provider_state,
     upsert_decision,
 )
 
@@ -195,6 +197,73 @@ def cmd_session_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_session_provider_state_set(args: argparse.Namespace) -> int:
+    workspace_root = _resolve_workspace_root(str(args.workspace_root))
+    session_id = str(args.session_id).strip()
+    if not session_id:
+        _print_json({"status": "FAIL", "error_code": "INVALID_ARGS", "message": "session_id is required"})
+        return 2
+
+    sp = SessionPaths(workspace_root=workspace_root, session_id=session_id)
+    ctx_path = sp.context_path
+    if not ctx_path.exists():
+        _print_json({"status": "FAIL", "error_code": "SESSION_NOT_FOUND", "message": "session context not found"})
+        return 2
+
+    try:
+        ctx = load_context(ctx_path)
+        upsert_provider_state(
+            ctx,
+            provider=str(args.provider or "").strip(),
+            wire_api=str(args.wire_api or "").strip() or "responses",
+            conversation_id=str(args.conversation_id or "").strip(),
+            last_response_id=str(args.last_response_id or "").strip(),
+            summary_ref=str(args.summary_ref or "").strip(),
+        )
+        save_context_atomic(ctx_path, ctx)
+    except SessionContextError as e:
+        _print_json({"status": "FAIL", "error_code": e.error_code, "message": e.message})
+        return 2
+
+    _print_json({"status": "OK", "session_id": session_id, "path": str(ctx_path.relative_to(workspace_root))})
+    return 0
+
+
+def cmd_session_compaction_mark(args: argparse.Namespace) -> int:
+    workspace_root = _resolve_workspace_root(str(args.workspace_root))
+    session_id = str(args.session_id).strip()
+    if not session_id:
+        _print_json({"status": "FAIL", "error_code": "INVALID_ARGS", "message": "session_id is required"})
+        return 2
+
+    sp = SessionPaths(workspace_root=workspace_root, session_id=session_id)
+    ctx_path = sp.context_path
+    if not ctx_path.exists():
+        _print_json({"status": "FAIL", "error_code": "SESSION_NOT_FOUND", "message": "session context not found"})
+        return 2
+
+    try:
+        approx_input_tokens = int(args.approx_input_tokens or 0)
+        ctx = load_context(ctx_path)
+        mark_compaction(
+            ctx,
+            summary_ref=str(args.summary_ref or "").strip(),
+            trigger=str(args.trigger or "").strip() or "manual",
+            source=str(args.source or "").strip() or "local",
+            approx_input_tokens=approx_input_tokens,
+        )
+        save_context_atomic(ctx_path, ctx)
+    except SessionContextError as e:
+        _print_json({"status": "FAIL", "error_code": e.error_code, "message": e.message})
+        return 2
+    except ValueError:
+        _print_json({"status": "FAIL", "error_code": "INVALID_ARGS", "message": "approx-input-tokens must be int"})
+        return 2
+
+    _print_json({"status": "OK", "session_id": session_id, "path": str(ctx_path.relative_to(workspace_root))})
+    return 0
+
+
 def register_session_subcommands(subparsers: argparse._SubParsersAction) -> None:
     ap_init = subparsers.add_parser("session-init", help="Create a session context if missing (workspace-scoped).")
     ap_init.add_argument("--workspace-root", required=True)
@@ -215,3 +284,24 @@ def register_session_subcommands(subparsers: argparse._SubParsersAction) -> None
     ap_stat.add_argument("--session-id", default="default")
     ap_stat.add_argument("--chat", default="false", help="true|false (optional)")
     ap_stat.set_defaults(func=cmd_session_status)
+
+    ap_provider = subparsers.add_parser(
+        "session-provider-state-set", help="Persist provider conversation metadata in a session context."
+    )
+    ap_provider.add_argument("--workspace-root", required=True)
+    ap_provider.add_argument("--session-id", default="default")
+    ap_provider.add_argument("--provider", required=True)
+    ap_provider.add_argument("--wire-api", default="responses")
+    ap_provider.add_argument("--conversation-id", default="")
+    ap_provider.add_argument("--last-response-id", default="")
+    ap_provider.add_argument("--summary-ref", default="")
+    ap_provider.set_defaults(func=cmd_session_provider_state_set)
+
+    ap_compact = subparsers.add_parser("session-compaction-mark", help="Record a compaction summary reference.")
+    ap_compact.add_argument("--workspace-root", required=True)
+    ap_compact.add_argument("--session-id", default="default")
+    ap_compact.add_argument("--summary-ref", required=True)
+    ap_compact.add_argument("--trigger", default="manual")
+    ap_compact.add_argument("--source", default="local")
+    ap_compact.add_argument("--approx-input-tokens", default="0")
+    ap_compact.set_defaults(func=cmd_session_compaction_mark)

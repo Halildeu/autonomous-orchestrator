@@ -182,6 +182,8 @@ def new_context(session_id: str, workspace_root: str, ttl_seconds: int) -> dict[
         "decision_ttl_seconds_default": min(3600, int(ttl_seconds)),
         "expires_at": expires_at,
         "paused": False,
+        "memory_strategy": "hybrid",
+        "compaction": {"status": "idle"},
         "ephemeral_decisions": [],
         "hashes": {"session_context_sha256": ""},
     }
@@ -261,6 +263,81 @@ def upsert_decision(
 
     out.sort(key=lambda x: str(x.get("key") or ""))
     context["ephemeral_decisions"] = out
+    context["updated_at"] = now
+    return context
+
+
+def upsert_provider_state(
+    context: dict[str, Any],
+    *,
+    provider: str,
+    wire_api: str,
+    conversation_id: str = "",
+    last_response_id: str = "",
+    summary_ref: str = "",
+) -> dict[str, Any]:
+    if not isinstance(context, dict):
+        raise SessionContextError("SCHEMA_INVALID", "context must be a dict")
+    provider_norm = str(provider or "").strip()
+    wire_api_norm = str(wire_api or "").strip()
+    if not provider_norm:
+        raise SessionContextError("INVALID_ARGS", "provider must be non-empty")
+    if not wire_api_norm:
+        raise SessionContextError("INVALID_ARGS", "wire_api must be non-empty")
+
+    now = _now_iso8601()
+    state = {
+        "provider": provider_norm,
+        "wire_api": wire_api_norm,
+        "updated_at": now,
+    }
+    if str(conversation_id or "").strip():
+        state["conversation_id"] = str(conversation_id).strip()
+    if str(last_response_id or "").strip():
+        state["last_response_id"] = str(last_response_id).strip()
+    if str(summary_ref or "").strip():
+        state["summary_ref"] = str(summary_ref).strip()
+
+    context["provider_state"] = state
+    context["memory_strategy"] = str(context.get("memory_strategy") or "hybrid")
+    context["updated_at"] = now
+    return context
+
+
+def mark_compaction(
+    context: dict[str, Any],
+    *,
+    summary_ref: str,
+    trigger: str,
+    source: str,
+    approx_input_tokens: int = 0,
+) -> dict[str, Any]:
+    if not isinstance(context, dict):
+        raise SessionContextError("SCHEMA_INVALID", "context must be a dict")
+    summary_ref_norm = str(summary_ref or "").strip()
+    trigger_norm = str(trigger or "").strip()
+    source_norm = str(source or "").strip()
+    if not summary_ref_norm:
+        raise SessionContextError("INVALID_ARGS", "summary_ref must be non-empty")
+    if not trigger_norm:
+        raise SessionContextError("INVALID_ARGS", "trigger must be non-empty")
+    if not source_norm:
+        raise SessionContextError("INVALID_ARGS", "source must be non-empty")
+    try:
+        approx_tokens = max(0, int(approx_input_tokens))
+    except Exception as e:
+        raise SessionContextError("INVALID_ARGS", "approx_input_tokens must be integer >= 0") from e
+
+    now = _now_iso8601()
+    context["compaction"] = {
+        "status": "completed",
+        "summary_ref": summary_ref_norm,
+        "last_compacted_at": now,
+        "trigger": trigger_norm,
+        "source": source_norm,
+        "approx_input_tokens": approx_tokens,
+    }
+    context["memory_strategy"] = str(context.get("memory_strategy") or "hybrid")
     context["updated_at"] = now
     return context
 
