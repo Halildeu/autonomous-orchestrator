@@ -16,7 +16,11 @@
     "src/orchestrator/runner_execute.py",
     "src/orchestrator/observability/__init__.py",
     "src/orchestrator/observability/otel_bridge.py",
+    "docs/OPERATIONS/OBSERVABILITY-COVERAGE-MATRIX.v1.json",
+    "docs/OPERATIONS/OBSERVABILITY-COVERAGE-MATRIX.v1.md",
     "extensions/PRJ-OBSERVABILITY-OTEL/extension.manifest.v1.json",
+    "extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py",
+    "extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py",
     "extensions/PRJ-OBSERVABILITY-OTEL/tests/contract_test.py"
   ],
   "compat": {
@@ -69,7 +73,9 @@
   },
   "outputs": {
     "workspace_reports": [
-      ".cache/reports/otel_pack.contract_test.v1.txt"
+      ".cache/reports/otel_pack.contract_test.v1.txt",
+      ".cache/reports/observability_coverage_matrix.v1.json",
+      ".cache/reports/coverage_visibility.v1.json"
     ]
   },
   "policies": [],
