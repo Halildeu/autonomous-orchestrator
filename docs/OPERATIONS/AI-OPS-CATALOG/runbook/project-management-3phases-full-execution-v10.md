@@ -13,6 +13,10 @@ Kritik/WARN filtreleri her çalıştırmada `extension_issue_summary` altında �
 
 ```bash
 ./scripts/onboard_managed_repos.sh "/Users/halilkocoglu/Documents/autonomous-orchestrator,/Users/halilkocoglu/Documents/dev" ${WORKSPACE_ROOT}/.cache/ws_customer_default_multi2
+python3 ./scripts/sync_managed_repo_standards.py \
+  --manifest-path ${WORKSPACE_ROOT}/.cache/ws_customer_default_multi2/.cache/managed_repos.v1.json \
+  --apply \
+  --validate-after-sync
 python3 ./scripts/run_project_management_3phases.py \
   --orchestrator-root /Users/halilkocoglu/Documents/autonomous-orchestrator \
   --managed-repo-root /Users/halilkocoglu/Documents/autonomous-orchestrator \
@@ -29,6 +33,10 @@ python3 ./scripts/run_project_management_3phases.py \
 
 ```bash
 ./scripts/onboard_managed_repos.sh /Users/halilkocoglu/Documents/autonomous-orchestrator
+python3 ./scripts/sync_managed_repo_standards.py \
+  --target-repo-root /Users/halilkocoglu/Documents/autonomous-orchestrator \
+  --apply \
+  --validate-after-sync
 python3 ./scripts/run_project_management_3phases.py \
   --orchestrator-root /Users/halilkocoglu/Documents/autonomous-orchestrator \
   --managed-repo-root /Users/halilkocoglu/Documents/autonomous-orchestrator \
@@ -43,6 +51,10 @@ python3 ./scripts/run_project_management_3phases.py \
 
 ```bash
 ./scripts/onboard_managed_repos.sh --input-file /Users/halilkocoglu/Documents/dev/repos.txt
+python3 ./scripts/sync_managed_repo_standards.py \
+  --manifest-path ${WORKSPACE_ROOT}/.cache/ws_customer_default_multi2/.cache/managed_repos.v1.json \
+  --apply \
+  --validate-after-sync
 python3 ./scripts/run_project_management_3phases.py \
   --orchestrator-root /Users/halilkocoglu/Documents/autonomous-orchestrator \
   --manifest-path ${WORKSPACE_ROOT}/.cache/ws_customer_default_multi2/.cache/managed_repos.v1.json \

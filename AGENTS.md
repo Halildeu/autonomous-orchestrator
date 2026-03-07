@@ -10,7 +10,7 @@ Bu repo "JSON‑first" bir orchestrator iskeleti (WWV) olarak tasarlanır.
 - Agent her cevapta **AUTOPILOT CHAT** formatını kullanır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
 - Fail-closed: şüphede dur, `report_only`/no-side-effect yönünde davran; network default kapalıdır.
 - Secrets asla log'a/evidence'a yazılmaz; token/anahtar basılmaz.
-- Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, `vendor_packs` altı semgrep klasörü, docs/OPERATIONS/, docs/ROADMAP.md, roadmaps/SSOT/roadmap.v1.json, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, `.github` altı `gate-enforcement-check.yml`, .pre-commit-config.yaml, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
+- Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, `vendor_packs` altı semgrep klasörü, docs/OPERATIONS/, docs/ROADMAP.md, roadmaps/SSOT/roadmap.v1.json, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md, `.github` altı `gate-enforcement-check.yml`, `.github` altı `module-delivery-lanes.yml`, `.github/CODEOWNERS`, standards.lock, `scripts/sync_managed_repo_standards.py`, `ci/check_standards_lock.py`, `ci/check_standards_lock_parts/`, `ci/check_module_delivery_lanes.py`, `ci/run_module_delivery_lane.py`, `ci/module_delivery_lanes.v1.json`, `pyproject.toml`, .pre-commit-config.yaml, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
 - Living roadmap değişikliği: açık istenmedikçe sessizce SSOT edit yapmak yok; gerekiyorsa **Change Proposal (CHG)** üret.
 
 ## SSOT Entrypoint Map / Router (AGENTS-only entrypoint)
@@ -21,7 +21,13 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 ### SSOT & Navigation (canonical)
 - docs/OPERATIONS/CODEX-UX.md (customer-friendly ops akışı)
 - docs/OPERATIONS/CODEX-CONFIG-CONTRACT.v1.md (Codex config contract)
+- schemas/policy-codex-runtime.schema.v1.json (Codex runtime overlay schema)
+- policies/policy_codex_runtime.v1.json (Codex runtime overlay policy)
 - docs/OPERATIONS/CODING-STANDARDS.md (zorunlu coding standartları ve shared utilities)
+- docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md (multi-repo operasyon kontratı)
+- scripts/sync_managed_repo_standards.py (taşeron repo standart senkronizasyonu)
+- .github/workflows/module-delivery-lanes.yml (modüler lane CI template + gate)
+- ci/check_module_delivery_lanes.py (lane kontrat check)
 - docs/LAYER-MODEL-LOCK.v1.md (L0/L1/L2/L3 + core_lock protokolü)
 - docs/ROADMAP.md (MIRROR human summary; canonical is `roadmaps/SSOT/roadmap.v1.json` — RM-SSOT-001)
 - `docs/ROADMAP_v2.7_legacy.md` (archive only; do not follow)
@@ -65,7 +71,7 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 ### Aktif Agent'lar
 | Agent | Provider | Config | Çalışma Modu |
 |---|---|---|---|
-| **Codex** | OpenAI (gpt-5.2-codex) | `.codex/config.toml` | Sandbox (workspace-write) |
+| **Codex** | OpenAI (gpt-5.3-codex effective runtime overlay) | `.codex/config.toml` | Sandbox (workspace-write) |
 | **Antigravity** | Google DeepMind (Gemini) | `.gemini/settings.json` | IDE (yerel dosya sistemi) |
 
 ### Ortak Kurallar
@@ -95,8 +101,8 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 
 ### Bootstrap komutu (agent çalıştırır)
 ```
-python -m src.ops.main system-status --workspace-root .
-python -m src.ops.main portfolio-status --workspace-root .
+python -m src.ops.manage system-status --workspace-root .
+python -m src.ops.manage portfolio-status --workspace-root .
 ```
 
 ## Repo conventions

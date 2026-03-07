@@ -61,6 +61,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=".cache/reports/release-evidence/portfolio_lock_bundle.v1.json",
         help="Output bundle JSON path.",
     )
+    parser.add_argument(
+        "--managed-dashboard",
+        default=".cache/reports/release-evidence/managed_repo_standards_dashboard.v1.json",
+        help="Managed repo standards dashboard export path (optional).",
+    )
     return parser.parse_args(argv)
 
 
@@ -80,6 +85,15 @@ def _resolve_snapshots(args: argparse.Namespace) -> list[Path]:
         evidence_dir = (Path.cwd() / evidence_dir).resolve()
     pattern = str(args.glob or "*_post_merge_lock_snapshot.v1.json")
     return sorted({p.resolve() for p in evidence_dir.glob(pattern) if p.is_file()})
+
+
+def _resolve_optional_json_path(raw: str) -> Path:
+    p = Path(str(raw or "").strip())
+    if not p.is_absolute():
+        p = (Path.cwd() / p).resolve()
+    else:
+        p = p.resolve()
+    return p
 
 
 def _repo_row(snapshot_path: Path, payload: dict[str, Any]) -> dict[str, Any]:
@@ -231,6 +245,35 @@ def main(argv: list[str] | None = None) -> int:
         "repos": rows,
         "errors": load_errors,
     }
+
+    managed_dashboard_path = _resolve_optional_json_path(str(args.managed_dashboard or ""))
+    managed_dashboard_summary: dict[str, Any] = {
+        "path": str(managed_dashboard_path),
+        "status": "MISSING",
+    }
+    if managed_dashboard_path.exists():
+        try:
+            managed_obj = _load_json(managed_dashboard_path)
+            managed_dashboard_summary = {
+                "path": str(managed_dashboard_path),
+                "status": _safe_status(managed_obj.get("status")),
+                "kind": str(managed_obj.get("kind") or ""),
+                "generated_at": str(managed_obj.get("generated_at") or ""),
+                "summary": managed_obj.get("summary") if isinstance(managed_obj.get("summary"), dict) else {},
+            }
+            if _safe_status(managed_obj.get("status")) in {"FAIL", "WARN"} and status == "OK":
+                status = "WARN"
+                bundle["status"] = status
+        except Exception as exc:
+            managed_dashboard_summary = {
+                "path": str(managed_dashboard_path),
+                "status": "WARN",
+                "error": str(exc),
+            }
+            if status == "OK":
+                status = "WARN"
+                bundle["status"] = status
+    bundle["managed_repo_standards_dashboard"] = managed_dashboard_summary
 
     out_path = Path(str(args.out).strip() or ".cache/reports/release-evidence/portfolio_lock_bundle.v1.json")
     if not out_path.is_absolute():

@@ -6,18 +6,38 @@ from pathlib import Path
 from typing import Any
 
 
-REQUIRED_LANES = ("unit", "contract", "integration", "e2e")
+REQUIRED_LANES = ("unit", "database", "api", "contract", "integration", "e2e")
+REQUIRED_EXECUTION_SEQUENCE = ("backend", "database", "api", "frontend", "integration", "e2e")
+REQUIRED_SCOPE_LANE_MAP = {
+    "backend": "unit",
+    "database": "database",
+    "api": "api",
+    "frontend": "contract",
+    "integration": "integration",
+    "e2e_gate": "e2e",
+}
 WORKFLOW_SENTINELS = (
     "module-delivery-contract-check",
     "module-lane-unit",
+    "module-lane-database",
+    "module-lane-api",
     "module-lane-contract",
     "module-lane-integration",
     "module-lane-e2e",
     "module-delivery-gate",
     "python3 ci/run_module_delivery_lane.py --lane unit",
+    "python3 ci/run_module_delivery_lane.py --lane database",
+    "python3 ci/run_module_delivery_lane.py --lane api",
     "python3 ci/run_module_delivery_lane.py --lane contract",
     "python3 ci/run_module_delivery_lane.py --lane integration",
     "python3 ci/run_module_delivery_lane.py --lane e2e",
+)
+WORKFLOW_SEQUENCE_SENTINELS = (
+    "module-lane-database:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+    "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database]",
+    "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-api]",
+    "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-contract]",
+    "module-lane-e2e:\n    runs-on: ubuntu-latest\n    needs: [module-lane-integration]",
 )
 PLACEHOLDER_TOKENS = (
     "TODO",
@@ -107,6 +127,38 @@ def main(argv: list[str] | None = None) -> int:
             "merge_requires_all_green must be true in lane config.",
         )
 
+    scope_lane_map = config_obj.get("scope_lane_map")
+    if not isinstance(scope_lane_map, dict):
+        return _fail("SCOPE_LANE_MAP_INVALID", "scope_lane_map must be an object.")
+    invalid_scope_map: dict[str, Any] = {}
+    for scope, expected_lane in REQUIRED_SCOPE_LANE_MAP.items():
+        actual_lane = scope_lane_map.get(scope)
+        if actual_lane != expected_lane:
+            invalid_scope_map[scope] = {"expected": expected_lane, "actual": actual_lane}
+    if invalid_scope_map:
+        return _fail(
+            "SCOPE_LANE_MAP_MISMATCH",
+            "scope_lane_map must map backend/database/api/frontend/integration/e2e_gate to required lane ids.",
+            details={"mismatches": invalid_scope_map},
+        )
+
+    execution_sequence = config_obj.get("execution_sequence")
+    if not isinstance(execution_sequence, list) or not execution_sequence:
+        return _fail(
+            "EXECUTION_SEQUENCE_INVALID",
+            "execution_sequence must be a non-empty list.",
+        )
+    sequence_normalized = [str(item) for item in execution_sequence]
+    if sequence_normalized != list(REQUIRED_EXECUTION_SEQUENCE):
+        return _fail(
+            "EXECUTION_SEQUENCE_MISMATCH",
+            "execution_sequence must match the required delivery order.",
+            details={
+                "expected_sequence": list(REQUIRED_EXECUTION_SEQUENCE),
+                "actual_sequence": sequence_normalized,
+            },
+        )
+
     lanes = config_obj.get("lanes")
     if not isinstance(lanes, dict):
         return _fail("LANES_SECTION_INVALID", "lanes section must be an object.")
@@ -153,12 +205,20 @@ def main(argv: list[str] | None = None) -> int:
             "module delivery workflow does not include required jobs/commands.",
             details={"missing_markers": missing_sentinels},
         )
+    missing_sequence_markers = [item for item in WORKFLOW_SEQUENCE_SENTINELS if item not in workflow_text]
+    if missing_sequence_markers:
+        return _fail(
+            "LANE_WORKFLOW_SEQUENCE_INVALID",
+            "module delivery workflow must enforce backend->database->api->frontend->integration->e2e order.",
+            details={"missing_markers": missing_sequence_markers},
+        )
 
     print(
         json.dumps(
             {
                 "status": "OK",
                 "checked_lanes": list(REQUIRED_LANES),
+                "checked_sequence": list(REQUIRED_EXECUTION_SEQUENCE),
                 "config_path": str(config_path),
                 "workflow_path": str(workflow_path),
                 "strict": bool(args.strict),

@@ -39,6 +39,10 @@ def main() -> None:
         _fail("CODEX_HOME_CONFIG_MISSING", "CODEX_HOME config.toml missing.")
 
     cfg = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    if cfg.get("model") != "gpt-5.3-codex":
+        _fail("CODEX_HOME_INVALID", "model mismatch.")
+    if cfg.get("review_model") != "gpt-5.4":
+        _fail("CODEX_HOME_INVALID", "review_model mismatch.")
     if cfg.get("approval_policy") != "never":
         _fail("CODEX_HOME_INVALID", "approval_policy mismatch.")
     if cfg.get("sandbox_mode") != "workspace-write":
@@ -50,6 +54,10 @@ def main() -> None:
 
     if cfg.get("project_doc_max_bytes") != 65536:
         _fail("CODEX_HOME_INVALID", "project_doc_max_bytes mismatch.")
+    if cfg.get("model_auto_compact_token_limit") != 24000:
+        _fail("CODEX_HOME_INVALID", "model_auto_compact_token_limit mismatch.")
+    if cfg.get("model_reasoning_effort") != "medium":
+        _fail("CODEX_HOME_INVALID", "model_reasoning_effort mismatch.")
 
     fallback = cfg.get("project_doc_fallback_filenames")
     if not isinstance(fallback, list) or "AGENTS.md" not in fallback:

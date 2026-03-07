@@ -1,0 +1,110 @@
+{
+  "version": "v1",
+  "kind": "feature-execution-contract",
+  "status": "ACTIVE",
+  "feature_id": "core_feature_execution_bridge_rollout",
+  "title": "Core Feature Execution Bridge Rollout",
+  "summary": "Lock project-management-to-code execution governance for core control-plane changes.",
+  "source_context": {
+    "source_type": "manual",
+    "source_refs": [
+      "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+      "policies/policy_feature_execution_bridge.v1.json",
+      "standards.lock",
+      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js"
+    ],
+    "business_goal": "Prevent PM to code drift in the core orchestrator and keep UX or lane decisions machine-readable.",
+    "requested_outcome": "Every governed code change must be traceable through a single execution contract before CI lanes or AI coding proceed."
+  },
+  "delivery_scope": {
+    "repo_root": ".",
+    "service_scopes": [
+      "backend",
+      "database",
+      "api",
+      "frontend"
+    ],
+    "change_path_globs": [
+      "extensions/PRJ-PM-SUITE/**/*",
+      "policies/policy_pm_suite.v1.json",
+      "policies/policy_feature_execution_bridge.v1.json",
+      "schemas/feature-execution-contract.schema.v1.json",
+      "schemas/policy-feature-execution-bridge.schema.v1.json",
+      "scripts/ops_technical_baseline_checklist.py",
+      "scripts/sync_managed_repo_standards.py",
+      "ci/check_standards_lock.py",
+      ".github/workflows/gate-enforcement-check.yml",
+      ".github/workflows/module-delivery-lanes.yml",
+      "standards.lock",
+      "schemas/policy-pm-suite.schema.v1.json",
+      "schemas/delivery-session-packet.schema.v1.json",
+      "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js"
+    ],
+    "affected_modules": [
+      "PRJ-PM-SUITE",
+      "PRJ-UI-COCKPIT-LITE",
+      "PRJ-UX-NORTH-STAR",
+      "managed_repo_sync",
+      "standards_lock"
+    ]
+  },
+  "ux_contract": {
+    "mode": "REQUIRED",
+    "rationale": "This rollout also changes Cockpit Lite control-surface behavior, so the touched frontend path must stay bound to a locked UX theme and subtheme.",
+    "artifacts": [
+      {
+        "path_glob": "extensions/PRJ-UI-COCKPIT-LITE/web/assets/app.js",
+        "ux_theme_id": "accessibility_and_inclusive_design",
+        "ux_subtheme_id": "locale_language_and_format_support"
+      }
+    ]
+  },
+  "technical_contract": {
+    "baseline_profile_id": "erp-fullstack-java21-react18",
+    "api_version_prefix": "/api/v1",
+    "design_system_policy": "policies/policy_ui_design_system.v1.json",
+    "db_migration_required": false
+  },
+  "lane_plan": {
+    "execution_sequence": [
+      "backend",
+      "database",
+      "api",
+      "frontend",
+      "integration",
+      "e2e"
+    ],
+    "required_lanes": [
+      "unit",
+      "database",
+      "api",
+      "contract",
+      "integration",
+      "e2e"
+    ],
+    "notes": [
+      "Core governance work must remain aligned with the managed-repo lane sequence.",
+      "Delivery session packet must be rebuilt before scope or write-path expansion."
+    ]
+  },
+  "definition_of_done": {
+    "acceptance_criteria": [
+      "Execution bridge policy, schema, checker, and seed script exist and are validated by core CI.",
+      "PM-SUITE is no longer skeleton-only for execution governance.",
+      "Managed repo sync validates the feature execution bridge after standards rollout.",
+      "Delivery session packet builder and guard are wired into core CI and managed repo sync."
+    ],
+    "evidence_paths": [
+      ".cache/reports/feature_execution_contract_check.v1.json",
+      ".cache/reports/managed_repo_standards_sync/report.v1.json",
+      ".cache/reports/portfolio_status.v1.json",
+      ".cache/reports/delivery_session_packet.v1.json",
+      ".cache/reports/delivery_session_guard.v1.json"
+    ]
+  },
+  "notes": [
+    "governance_bootstrap",
+    "update_for_next_control_plane_feature_if_scope_changes",
+    "delivery_session_compiler_rollout"
+  ]
+}

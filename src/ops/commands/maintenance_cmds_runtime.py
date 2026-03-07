@@ -168,8 +168,16 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
     detail = parse_reaper_bool(str(args.detail))
 
     from src.ops.work_intake_from_sources import run_work_intake_build
+    from src.ops.work_intake_historical_prune import run_work_intake_historical_prune
     from src.ops.system_status_report import run_system_status
     from src.ops.roadmap_cli import cmd_portfolio_status
+
+    historical_prune = run_work_intake_historical_prune(
+        workspace_root=ws,
+        core_root=root,
+        dry_run=False,
+        trigger="work-intake-check",
+    )
 
     build_res = run_work_intake_build(workspace_root=ws)
     work_intake_path = build_res.get("work_intake_path") if isinstance(build_res, dict) else None
@@ -232,6 +240,17 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
         "portfolio_status_path": portfolio_rel,
         "notes": [f"mode={mode}", "PROGRAM_LED=true"],
     }
+    if isinstance(historical_prune, dict):
+        payload["historical_prune_status"] = str(historical_prune.get("status") or "UNKNOWN")
+        report_path = historical_prune.get("report_path")
+        if isinstance(report_path, str) and report_path:
+            payload["historical_prune_report_path"] = report_path
+        archived_count = historical_prune.get("archived_count")
+        if isinstance(archived_count, int):
+            payload["historical_prune_archived_count"] = int(archived_count)
+        candidate_count = historical_prune.get("candidates_count")
+        if isinstance(candidate_count, int):
+            payload["historical_prune_candidates_count"] = int(candidate_count)
 
     if chat:
         print("PREVIEW:")
@@ -239,10 +258,23 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
         print(f"workspace_root={payload.get('workspace_root')}")
         print("RESULT:")
         print(f"status={status} items={len(items)} next_intake_focus={next_intake_focus}")
+        if isinstance(historical_prune, dict):
+            print(
+                "historical_prune_status={status} archived={archived} candidates={candidates}".format(
+                    status=historical_prune.get("status"),
+                    archived=historical_prune.get("archived_count", 0),
+                    candidates=historical_prune.get("candidates_count", 0),
+                )
+            )
         if error_code:
             print(f"error_code={error_code}")
         print("EVIDENCE:")
-        for p in [work_intake_path, payload.get("system_status_path"), portfolio_rel]:
+        for p in [
+            payload.get("historical_prune_report_path"),
+            work_intake_path,
+            payload.get("system_status_path"),
+            portfolio_rel,
+        ]:
             if p:
                 print(str(p))
         print("ACTIONS:")
@@ -266,6 +298,57 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
 
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0 if status in {"OK", "WARN", "IDLE"} else 2
+
+
+def cmd_work_intake_historical_prune(args: argparse.Namespace) -> int:
+    root = repo_root()
+    ws = _resolve_workspace(str(getattr(args, "workspace_root", "") or ""))
+    if ws is None:
+        warn("FAIL error=WORKSPACE_ROOT_INVALID")
+        return 2
+
+    try:
+        dry_run = parse_reaper_bool(str(getattr(args, "dry_run", "false")))
+    except ValueError:
+        warn("FAIL error=INVALID_DRY_RUN")
+        return 2
+
+    chat = parse_reaper_bool(str(getattr(args, "chat", "false")))
+
+    from src.ops.work_intake_historical_prune import run_work_intake_historical_prune
+
+    payload = run_work_intake_historical_prune(
+        workspace_root=ws,
+        core_root=root,
+        dry_run=bool(dry_run),
+        trigger="manual",
+    )
+    status = str(payload.get("status") or "WARN") if isinstance(payload, dict) else "WARN"
+
+    if chat and isinstance(payload, dict):
+        print("PREVIEW:")
+        print("PROGRAM-LED: work-intake-historical-prune (workspace-only)")
+        print(f"workspace_root={payload.get('workspace_root')}")
+        print("RESULT:")
+        print(
+            "status={status} archived={archived} candidates={candidates}".format(
+                status=payload.get("status"),
+                archived=payload.get("archived_count", 0),
+                candidates=payload.get("candidates_count", 0),
+            )
+        )
+        print("EVIDENCE:")
+        for p in [payload.get("jobs_index_path"), payload.get("report_path")]:
+            if p:
+                print(str(p))
+        print("ACTIONS:")
+        print("work-intake-check")
+        print("system-status")
+        print("NEXT:")
+        print("Devam et / Durumu göster / Duraklat")
+
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0 if status in {"OK", "IDLE", "WOULD_WRITE"} else 2
 
 
 def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:

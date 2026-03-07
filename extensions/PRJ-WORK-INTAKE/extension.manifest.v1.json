@@ -4,8 +4,12 @@
     "docs/OPERATIONS/EXTENSIONS.md",
     "docs/OPERATIONS/SSOT-MAP.md",
     "policies/policy_work_intake.v2.json",
+    "policies/work_intake_fragments/manifest.v1.json",
+    "policies/work_intake_fragments/shared.v1.json",
     "policies/policy_work_intake_exec.v1.json",
     "schemas/work-intake.schema.v1.json",
+    "extensions/PRJ-WORK-INTAKE/build_policy_work_intake_v2.py",
+    "extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py",
     "src/ops/work_intake_exec_ticket.py",
     "src/ops/work_intake_from_sources.py"
   ],
@@ -69,7 +73,8 @@
     "workspace_reports": [
       ".cache/index/work_intake.v1.json",
       ".cache/reports/work_intake_exec_ticket.v1.json",
-      ".cache/reports/work_intake_summary.v1.md"
+      ".cache/reports/work_intake_summary.v1.md",
+      ".cache/reports/work_intake_modularization_check.v1.json"
     ]
   },
   "owner": "CORE",

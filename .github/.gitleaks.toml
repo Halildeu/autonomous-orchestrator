@@ -1,0 +1,16 @@
+title = "autonomous-orchestrator gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow deterministic nonce sample and cockpit local-storage keys."
+paths = [
+  '''src/prj_kernel_api/llm_allowlist_probe\.py$''',
+  '''extensions/PRJ-UI-COCKPIT-LITE/web/assets/app\.js$''',
+]
+regexes = [
+  '''dGhlIHNhbXBsZSBub25jZQ==''',
+  '''cockpit_lang\.v1''',
+  '''cockpit_claim_owner_tag\.v1''',
+]

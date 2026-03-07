@@ -1,0 +1,60 @@
+{
+  "version": "v1",
+  "kind": "same-file-conflict-arbitration",
+  "status": "ACTIVE",
+  "scope": "core_and_workspace_agents",
+  "current_mechanisms": {
+    "work_item_claims": {
+      "path": ".cache/index/work_item_claims.v1.json",
+      "scope": "work_item",
+      "status": "ACTIVE"
+    },
+    "execution_leases": {
+      "path": ".cache/index/work_item_leases.v1.json",
+      "scope": "work_item",
+      "status": "ACTIVE"
+    },
+    "governor_lock": {
+      "path": ".cache/governor_lock",
+      "scope": "run_level",
+      "status": "ACTIVE"
+    }
+  },
+  "file_level_arbitration": {
+    "engine_enforced": false,
+    "status": "DOCUMENTED_SAFE_DEFAULT",
+    "safe_default_rules": [
+      {
+        "id": "single_writer_per_file",
+        "rule": "Ayni dosya icin ayni anda yalnizca tek aktif writer kabul edilir.",
+        "second_writer_action": "BLOCK"
+      },
+      {
+        "id": "lease_precedence",
+        "rule": "Acik handoff yoksa aktif claim/lease sahibi yazma onceligini korur.",
+        "second_writer_action": "BLOCK_AND_ESCALATE"
+      },
+      {
+        "id": "stale_cleanup",
+        "rule": "Suresi gecmis claim/lease ancak stale evidence ile temizlenebilir.",
+        "second_writer_action": "REVALIDATE_BEFORE_WRITE"
+      },
+      {
+        "id": "handoff_required",
+        "rule": "Ayni dosyada yazim devri owner_tag, owner_session ve evidence_paths ile kayda alinmadan tamamlanmis sayilmaz.",
+        "second_writer_action": "REQUIRE_HANDOFF_EVIDENCE"
+      }
+    ]
+  },
+  "residual_gap": {
+    "status": "OPEN",
+    "summary": "File-level arbitration su an dogrudan engine tarafinda enforce edilmiyor; fail-closed davranis dokuman ve mevcut lease/claim mekanizmalari ile korunuyor."
+  },
+  "evidence_expectations": [
+    "owner_tag",
+    "owner_session",
+    "work_item_id",
+    "expires_at",
+    "evidence_paths"
+  ]
+}

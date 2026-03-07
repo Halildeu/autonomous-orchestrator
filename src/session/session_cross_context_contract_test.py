@@ -21,9 +21,11 @@ def main() -> None:
     from src.session.context_store import (
         SessionPaths,
         load_context,
+        mark_compaction,
         new_context,
         prune_expired_decisions,
         save_context_atomic,
+        upsert_provider_state,
         upsert_decision,
     )
     from src.session.cross_session_context import build_cross_session_context
@@ -36,6 +38,21 @@ def main() -> None:
         save_context_atomic(p1, a)
         a = load_context(p1)
         upsert_decision(a, key="theme", value="alpha", source="agent", decision_ttl_seconds=60)
+        upsert_provider_state(
+            a,
+            provider="openai",
+            wire_api="responses",
+            conversation_id="conv-alpha",
+            last_response_id="resp-alpha",
+            summary_ref=".cache/reports/session_compaction_alpha.v1.md",
+        )
+        mark_compaction(
+            a,
+            summary_ref=".cache/reports/session_compaction_alpha.v1.md",
+            trigger="auto_compact",
+            source="provider",
+            approx_input_tokens=24001,
+        )
         save_context_atomic(p1, a)
 
         # Expire decision deterministically by waiting a small amount and pruning against future timestamp.
@@ -73,6 +90,12 @@ def main() -> None:
             raise SystemExit("session_cross_context_contract_test failed: shared decision count")
         if str(shared[0].get("value")) != "alpha":
             raise SystemExit("session_cross_context_contract_test failed: expected non-expired session value")
+        provider_states = rep.get("provider_states") if isinstance(rep.get("provider_states"), list) else []
+        if len(provider_states) != 1:
+            raise SystemExit("session_cross_context_contract_test failed: provider state count")
+        compactions = rep.get("compactions") if isinstance(rep.get("compactions"), list) else []
+        if len(compactions) != 1:
+            raise SystemExit("session_cross_context_contract_test failed: compaction count")
 
     print(json.dumps({"status": "OK"}, ensure_ascii=False, sort_keys=True))
 

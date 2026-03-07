@@ -80,6 +80,7 @@ def _cmd_run_shortcut(argv: list[str]) -> int:
     )
     ap.add_argument("--output-path")
     ap.add_argument("--input-path")
+    ap.add_argument("--session-id", default="default")
     ap.add_argument("--use-openai", type=_parse_bool, default=False)
     ap.add_argument("--force-new-run", type=_parse_bool, default=False)
     ap.add_argument("--idempotency-key")
@@ -129,6 +130,8 @@ def _cmd_run_shortcut(argv: list[str]) -> int:
         context["input_path"] = str(args.input_path)
     if args.output_path:
         context["output_path"] = str(args.output_path)
+    if args.session_id:
+        context["session_id"] = str(args.session_id)
     if bool(args.use_openai):
         context["use_openai"] = True
     if context:

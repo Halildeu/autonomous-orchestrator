@@ -849,3 +849,14 @@ def register_context_subcommands(parent: argparse._SubParsersAction[argparse.Arg
     from src.ops.north_star_theme_suggestions import cmd_north_star_theme_suggestion_apply
 
     ap_ns_apply.set_defaults(func=cmd_north_star_theme_suggestion_apply)
+
+    ap_ns_ux = parent.add_parser(
+        "north-star-ux-build",
+        help="Build UX outputs from North Star subject catalog (ux-catalog, ux-blueprint, ux-interaction-matrix).",
+    )
+    ap_ns_ux.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_ns_ux.add_argument("--subject-id", required=True, help="Subject id (e.g., ui_kutuphane_sistemi).")
+    ap_ns_ux.add_argument("--out-dir", default=".cache/index/ux", help="Output directory under workspace.")
+    from src.ops.north_star_ux_build import cmd_north_star_ux_build
+
+    ap_ns_ux.set_defaults(func=cmd_north_star_ux_build)

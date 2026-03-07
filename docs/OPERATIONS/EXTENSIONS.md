@@ -90,10 +90,10 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 
 <a id="ext-PRJ-PM-SUITE"></a>
 ### PRJ-PM-SUITE
-- Purpose: professional project management schemas + cockpit summary (skeleton).
-- Single gate: pm-suite-check (planned).
-- Outputs: .cache/reports/pm_suite_status.v1.json
-- Policies: policies/policy_pm_suite.v1.json
+- Purpose: professional project management schemas + feature execution contract bridge for code generation.
+- Single gate: feature execution contract check (embedded in enforcement/module-delivery).
+- Outputs: .cache/reports/pm_suite_status.v1.json, .cache/reports/feature_execution_contract_check.v1.json
+- Policies: policies/policy_pm_suite.v1.json, policies/policy_feature_execution_bridge.v1.json
 
 <a id="ext-PRJ-CONTEXT-ORCHESTRATION"></a>
 ### PRJ-CONTEXT-ORCHESTRATION
@@ -152,6 +152,13 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 - Single gate: search-check.
 - Outputs: .cache/ws_customer_default/.cache/reports/search_adapter_contract.v1.json
 - Policies: none (phase-1).
+
+<a id="ext-PRJ-UX-NORTH-STAR"></a>
+### PRJ-UX-NORTH-STAR
+- Purpose: North Star subject katalogundan UX output artefact'lari uretmek (catalog/blueprint/interaction matrix).
+- Single gate: none (ops entrypoint: north-star-ux-build).
+- Outputs: .cache/index/ux/*.ux_catalog.v1.json, .cache/index/ux/*.ux_blueprint.v1.json, .cache/index/ux/*.ux_interaction_matrix.v1.json
+- Policies: policies/policy_north_star_subject_plan.v1.json, policies/policy_north_star_eval_lenses.v1.json
 
 <a id="ext-PRJ-ENFORCEMENT-PACK"></a>
 ### PRJ-ENFORCEMENT-PACK

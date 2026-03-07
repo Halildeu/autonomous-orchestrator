@@ -155,7 +155,10 @@ def _codex_env_check(*, repo_root: Path, strict: bool) -> Tuple[str, str | None,
         )
 
     try:
-        expected_cfg = _load_toml(expected_path)
+        from src.prj_kernel_api.codex_home import resolve_effective_codex_config
+
+        resolved = resolve_effective_codex_config(repo_root)
+        expected_cfg = resolved.get("effective_config") if isinstance(resolved.get("effective_config"), dict) else {}
     except Exception:
         return (
             "FAIL",

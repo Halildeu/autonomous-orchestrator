@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-VALID_LANES = ("unit", "contract", "integration", "e2e")
+VALID_LANES = ("unit", "database", "api", "contract", "integration", "e2e")
 
 
 def _now_iso_utc() -> str:

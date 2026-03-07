@@ -656,38 +656,63 @@ def _write_core_unlock_compliance(
     }
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report_path
-def _core_integrity_section(core_root: Path, workspace_root: Path) -> dict[str, Any]:
+def _core_integrity_section(
+    core_root: Path,
+    workspace_root: Path,
+    *,
+    dirty_mode: str = "fail",
+) -> dict[str, Any]:
+    mode = str(dirty_mode or "fail").strip().lower()
+    if mode not in {"fail", "warn"}:
+        mode = "fail"
+    lines = _git_status_lines(core_root)
     report, report_path = _find_core_dirty_report(core_root, workspace_root)
+    report_notes: list[str] = []
     if report_path is not None:
-        dirty_lines = [str(x) for x in report if isinstance(x, str) and str(x).strip()]
         rel = report_path.relative_to(core_root).as_posix()
-        status = "OK" if not dirty_lines else "FAIL"
+        report_notes.append(f"report_path={rel}")
+
+    # Live git state always has precedence over stale evidence snapshots.
+    if lines is not None:
+        if lines:
+            status = "FAIL" if mode == "fail" else "WARN"
+            notes = report_notes + ["git_dirty_live"]
+            if mode == "warn":
+                notes.append("core_integrity_dirty_mode=warn")
+            return {
+                "status": status,
+                "git_clean": False,
+                "dirty_files_count": len(lines),
+                "notes": notes,
+            }
+        return {
+            "status": "OK",
+            "git_clean": True,
+            "dirty_files_count": 0,
+            "notes": report_notes,
+        }
+
+    if report_path is not None and isinstance(report, list):
+        dirty_lines = [str(x) for x in report if isinstance(x, str) and str(x).strip()]
+        if not dirty_lines:
+            status = "OK"
+        else:
+            status = "FAIL" if mode == "fail" else "WARN"
+        notes = report_notes + ["git_unavailable"]
+        if dirty_lines and mode == "warn":
+            notes.append("core_integrity_dirty_mode=warn")
         return {
             "status": status,
             "git_clean": not dirty_lines,
             "dirty_files_count": len(dirty_lines),
-            "notes": [f"report_path={rel}"],
+            "notes": notes,
         }
-    lines = _git_status_lines(core_root)
-    if lines is None:
-        return {
-            "status": "WARN",
-            "git_clean": False,
-            "dirty_files_count": 0,
-            "notes": ["git_unavailable"],
-        }
-    if lines:
-        return {
-            "status": "FAIL",
-            "git_clean": False,
-            "dirty_files_count": len(lines),
-            "notes": ["git_dirty"],
-        }
+
     return {
-        "status": "OK",
-        "git_clean": True,
+        "status": "WARN",
+        "git_clean": False,
         "dirty_files_count": 0,
-        "notes": [],
+        "notes": ["git_unavailable"],
     }
 def _core_lock_section(core_root: Path, workspace_root: Path) -> dict[str, Any]:
     policy_path = workspace_root / "policies" / "policy_core_immutability.v1.json"

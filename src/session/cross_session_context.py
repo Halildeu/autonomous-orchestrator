@@ -64,6 +64,8 @@ def build_cross_session_context(*, workspace_root: Path, session_name_filter: st
     decisions_total = 0
     decisions_by_session: dict[str, int] = {}
     decision_rows: list[dict[str, Any]] = []
+    provider_rows: list[dict[str, Any]] = []
+    compaction_rows: list[dict[str, Any]] = []
 
     if sessions_root.exists():
         for session_dir in sorted([p for p in sessions_root.iterdir() if p.is_dir()], key=lambda p: p.as_posix()):
@@ -96,6 +98,36 @@ def build_cross_session_context(*, workspace_root: Path, session_name_filter: st
                     pass
 
             decisions = ctx.get("ephemeral_decisions") if isinstance(ctx.get("ephemeral_decisions"), list) else []
+            provider_state = ctx.get("provider_state") if isinstance(ctx.get("provider_state"), dict) else {}
+            if isinstance(provider_state.get("provider"), str) and str(provider_state.get("provider")).strip():
+                provider_rows.append(
+                    {
+                        "session_id": session_id,
+                        "provider": str(provider_state.get("provider") or ""),
+                        "conversation_id": str(provider_state.get("conversation_id") or ""),
+                        "last_response_id": str(provider_state.get("last_response_id") or ""),
+                        "wire_api": str(provider_state.get("wire_api") or ""),
+                        "updated_at": str(provider_state.get("updated_at") or ""),
+                        "summary_ref": str(provider_state.get("summary_ref") or ""),
+                    }
+                )
+            compaction = ctx.get("compaction") if isinstance(ctx.get("compaction"), dict) else {}
+            if isinstance(compaction.get("status"), str) and str(compaction.get("status")).strip() not in {"", "idle"}:
+                try:
+                    approx_input_tokens = int(compaction.get("approx_input_tokens") or 0)
+                except Exception:
+                    approx_input_tokens = 0
+                compaction_rows.append(
+                    {
+                        "session_id": session_id,
+                        "status": str(compaction.get("status") or ""),
+                        "summary_ref": str(compaction.get("summary_ref") or ""),
+                        "last_compacted_at": str(compaction.get("last_compacted_at") or ""),
+                        "trigger": str(compaction.get("trigger") or ""),
+                        "source": str(compaction.get("source") or ""),
+                        "approx_input_tokens": approx_input_tokens,
+                    }
+                )
             loaded_sessions += 1
             decisions_by_session[session_id] = 0
 
@@ -135,6 +167,9 @@ def build_cross_session_context(*, workspace_root: Path, session_name_filter: st
         "shared_keys_total": len(shared_decisions),
         "decisions_by_session": {k: int(v) for k, v in sorted(decisions_by_session.items())},
         "shared_decisions": shared_decisions,
+        "provider_state_sessions": len(provider_rows),
+        "provider_states": sorted(provider_rows, key=lambda item: (str(item.get("provider") or ""), str(item.get("session_id") or ""))),
+        "compactions": sorted(compaction_rows, key=lambda item: (str(item.get("session_id") or ""), str(item.get("last_compacted_at") or ""))),
         "notes": ["PROGRAM_LED=true", "SESSION_SCOPED=true"],
     }
 

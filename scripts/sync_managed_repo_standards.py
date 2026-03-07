@@ -140,11 +140,142 @@ def _run_standards_validation(source_root: Path, target_root: Path) -> dict[str,
         except Exception:
             parsed = {}
 
+    feature_bridge = {"status": "SKIPPED", "reason": "FEATURE_BRIDGE_CHECKER_MISSING"}
+    feature_checker = (target_root / "extensions/PRJ-PM-SUITE/contract/check_feature_execution_contract.py").resolve()
+    if feature_checker.exists():
+        feature_out = (target_root / ".cache/reports/feature_execution_contract_sync_validation.v1.json").resolve()
+        feature_proc = subprocess.run(
+            [
+                "python3",
+                str(feature_checker),
+                "--repo-root",
+                str(target_root),
+                "--changed-files",
+                "README.md",
+                "--out",
+                str(feature_out),
+            ],
+            cwd=source_root,
+            text=True,
+            capture_output=True,
+        )
+        feature_stdout_lines = [ln.strip() for ln in (feature_proc.stdout or "").splitlines() if ln.strip()]
+        feature_payload: dict[str, Any] = {}
+        if feature_stdout_lines:
+            try:
+                candidate = json.loads(feature_stdout_lines[-1])
+                if isinstance(candidate, dict):
+                    feature_payload = candidate
+            except Exception:
+                feature_payload = {}
+        feature_bridge = {
+            "status": "OK"
+            if feature_proc.returncode == 0 and feature_payload.get("status") in {"OK", "WARN"}
+            else "FAIL",
+            "returncode": feature_proc.returncode,
+            "payload": feature_payload,
+            "stderr_preview": (feature_proc.stderr or "").strip().splitlines()[:10],
+            "report_path": str(feature_out),
+        }
+
+    delivery_session_packet = {"status": "SKIPPED", "reason": "DELIVERY_SESSION_BUILDER_MISSING"}
+    packet_out = (target_root / ".cache/reports/delivery_session_packet_sync_validation.v1.json").resolve()
+    packet_builder = (target_root / "extensions/PRJ-PM-SUITE/contract/build_delivery_session_packet.py").resolve()
+    if packet_builder.exists():
+        packet_proc = subprocess.run(
+            [
+                "python3",
+                str(packet_builder),
+                "--repo-root",
+                str(target_root),
+                "--out",
+                str(packet_out),
+            ],
+            cwd=source_root,
+            text=True,
+            capture_output=True,
+        )
+        packet_stdout_lines = [ln.strip() for ln in (packet_proc.stdout or "").splitlines() if ln.strip()]
+        packet_payload: dict[str, Any] = {}
+        if packet_stdout_lines:
+            try:
+                candidate = json.loads(packet_stdout_lines[-1])
+                if isinstance(candidate, dict):
+                    packet_payload = candidate
+            except Exception:
+                packet_payload = {}
+        delivery_session_packet = {
+            "status": "OK"
+            if packet_proc.returncode == 0 and packet_payload.get("status") == "OK"
+            else "FAIL",
+            "returncode": packet_proc.returncode,
+            "payload": packet_payload,
+            "stderr_preview": (packet_proc.stderr or "").strip().splitlines()[:10],
+            "report_path": str(packet_out),
+        }
+
+    delivery_session_guard = {"status": "SKIPPED", "reason": "DELIVERY_SESSION_GUARD_MISSING"}
+    guard_checker = (target_root / "extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py").resolve()
+    if guard_checker.exists():
+        if delivery_session_packet.get("status") != "OK":
+            delivery_session_guard = {
+                "status": "FAIL",
+                "reason": "DELIVERY_SESSION_PACKET_BUILD_FAILED",
+                "packet_status": delivery_session_packet.get("status"),
+            }
+        else:
+            guard_out = (target_root / ".cache/reports/delivery_session_guard_sync_validation.v1.json").resolve()
+            guard_proc = subprocess.run(
+                [
+                    "python3",
+                    str(guard_checker),
+                    "--repo-root",
+                    str(target_root),
+                    "--packet",
+                    str(packet_out),
+                    "--changed-files",
+                    "README.md",
+                    "--out",
+                    str(guard_out),
+                ],
+                cwd=source_root,
+                text=True,
+                capture_output=True,
+            )
+            guard_stdout_lines = [ln.strip() for ln in (guard_proc.stdout or "").splitlines() if ln.strip()]
+            guard_payload: dict[str, Any] = {}
+            if guard_stdout_lines:
+                try:
+                    candidate = json.loads(guard_stdout_lines[-1])
+                    if isinstance(candidate, dict):
+                        guard_payload = candidate
+                except Exception:
+                    guard_payload = {}
+            delivery_session_guard = {
+                "status": "OK"
+                if guard_proc.returncode == 0 and guard_payload.get("status") == "OK"
+                else "FAIL",
+                "returncode": guard_proc.returncode,
+                "payload": guard_payload,
+                "stderr_preview": (guard_proc.stderr or "").strip().splitlines()[:10],
+                "report_path": str(guard_out),
+            }
+
+    overall_ok = (
+        proc.returncode == 0
+        and parsed.get("status") == "OK"
+        and feature_bridge.get("status") in {"OK", "SKIPPED"}
+        and delivery_session_packet.get("status") in {"OK", "SKIPPED"}
+        and delivery_session_guard.get("status") in {"OK", "SKIPPED"}
+    )
     return {
-        "status": "OK" if proc.returncode == 0 and parsed.get("status") == "OK" else "FAIL",
+        "status": "OK" if overall_ok else "FAIL",
         "returncode": proc.returncode,
         "payload": parsed,
         "stderr_preview": (proc.stderr or "").strip().splitlines()[:10],
+        "feature_execution_bridge": feature_bridge,
+        "delivery_session_packet": delivery_session_packet,
+        "delivery_session_guard": delivery_session_guard,
     }
 
 

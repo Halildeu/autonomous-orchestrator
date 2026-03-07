@@ -84,6 +84,11 @@
           "type": "string",
           "minLength": 1
         },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
         "pr_repo": {
           "type": "string",
           "minLength": 1

@@ -236,7 +236,33 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not session_context_pack_ok:
         failures.append("session_context_pack_e2e_contract")
 
-    # 7) system-status airunner idle overall contract (idle+disabled must not force WARN).
+    # 7) provider memory continuation + compaction contract.
+    provider_memory_cmd = [sys.executable, "-m", "src.session.provider_memory_contract_test"]
+    provider_memory_proc = subprocess.run(provider_memory_cmd, cwd=repo_root(), text=True, capture_output=True)
+    provider_memory_ok = provider_memory_proc.returncode == 0
+    provider_memory_detail = (
+        _tail_line(provider_memory_proc.stdout)
+        or _tail_line(provider_memory_proc.stderr)
+        or f"rc={provider_memory_proc.returncode}"
+    )
+    tests.append(_format_test_result("provider_memory_contract", provider_memory_ok, provider_memory_detail))
+    if not provider_memory_ok:
+        failures.append("provider_memory_contract")
+
+    # 8) OpenAI provider continuation request contract.
+    openai_provider_cmd = [sys.executable, "-m", "src.providers.openai_provider_contract_test"]
+    openai_provider_proc = subprocess.run(openai_provider_cmd, cwd=repo_root(), text=True, capture_output=True)
+    openai_provider_ok = openai_provider_proc.returncode == 0
+    openai_provider_detail = (
+        _tail_line(openai_provider_proc.stdout)
+        or _tail_line(openai_provider_proc.stderr)
+        or f"rc={openai_provider_proc.returncode}"
+    )
+    tests.append(_format_test_result("openai_provider_contract", openai_provider_ok, openai_provider_detail))
+    if not openai_provider_ok:
+        failures.append("openai_provider_contract")
+
+    # 9) system-status airunner idle overall contract (idle+disabled must not force WARN).
     airunner_idle_cmd = [sys.executable, "-m", "src.ops.system_status_airunner_idle_overall_contract_test"]
     airunner_idle_proc = subprocess.run(airunner_idle_cmd, cwd=repo_root(), text=True, capture_output=True)
     airunner_idle_ok = airunner_idle_proc.returncode == 0
@@ -249,7 +275,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not airunner_idle_ok:
         failures.append("system_status_airunner_idle_overall_contract")
 
-    # 8) derived artifact missing action reconcile contract (stale -> resolved, missing -> reopened).
+    # 10) derived artifact missing action reconcile contract (stale -> resolved, missing -> reopened).
     artifact_reconcile_cmd = [sys.executable, "-m", "src.roadmap.artifact_missing_action_reconcile_contract_test"]
     artifact_reconcile_proc = subprocess.run(artifact_reconcile_cmd, cwd=repo_root(), text=True, capture_output=True)
     artifact_reconcile_ok = artifact_reconcile_proc.returncode == 0
@@ -262,7 +288,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     if not artifact_reconcile_ok:
         failures.append("artifact_missing_action_reconcile_contract")
 
-    # 9) roadmap change proposal replace_milestone_steps contract.
+    # 11) roadmap change proposal replace_milestone_steps contract.
     change_steps_cmd = [sys.executable, "-m", "src.roadmap.change_proposals_replace_steps_contract_test"]
     change_steps_proc = subprocess.run(change_steps_cmd, cwd=repo_root(), text=True, capture_output=True)
     change_steps_ok = change_steps_proc.returncode == 0
@@ -342,6 +368,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     tests.append(_format_test_result("reaper_cleanup_guard_contract", reaper_guard_ok, reaper_guard_detail))
     if not reaper_guard_ok:
         failures.append("reaper_cleanup_guard_contract")
+
     tests.sort(key=lambda item: item.get("name") or "")
     status = "OK" if not failures else "WARN"
 

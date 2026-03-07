@@ -31,6 +31,7 @@ from src.ops.commands.maintenance_cmds_runtime import (
     cmd_decision_seed as _cmd_decision_seed_runtime,
     cmd_work_intake_check as _cmd_work_intake_check_runtime,
     cmd_work_intake_exec_ticket as _cmd_work_intake_exec_ticket_runtime,
+    cmd_work_intake_historical_prune as _cmd_work_intake_historical_prune_runtime,
 )
 from src.ops.commands.maintenance_cmds_planner import register_planner_and_intake_subcommands
 from src.ops.commands.intake_link_report_cmds import cmd_intake_link_report
@@ -449,6 +450,9 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
 def cmd_work_intake_exec_ticket(args: argparse.Namespace) -> int:
     return int(_cmd_work_intake_exec_ticket_runtime(args))
 
+def cmd_work_intake_historical_prune(args: argparse.Namespace) -> int:
+    return int(_cmd_work_intake_historical_prune_runtime(args))
+
 def cmd_auto_loop(args: argparse.Namespace) -> int:
     return int(_cmd_auto_loop_runtime(args))
 
@@ -592,6 +596,33 @@ def cmd_repo_hygiene(args: argparse.Namespace) -> int:
     )
     print(json.dumps(res, ensure_ascii=False, sort_keys=True))
     return 0 if res.get("status") in {"OK", "WARN"} else 2
+
+
+def cmd_model_catalog_freshness(args: argparse.Namespace) -> int:
+    root = repo_root()
+    mode = str(args.mode).strip().lower() if args.mode else "report"
+    if mode not in {"report", "strict"}:
+        warn("FAIL error=INVALID_MODE")
+        return 2
+
+    out_arg = str(args.out).strip() if args.out else ".cache/reports/model_catalog_freshness.v1.json"
+    out_path = Path(out_arg)
+    if not out_path.is_absolute():
+        out_path = (root / out_path).resolve()
+    else:
+        out_path = out_path.resolve()
+
+    from src.ops.model_catalog_freshness import run_model_catalog_freshness
+
+    res = run_model_catalog_freshness(repo_root=root, out_path=out_path)
+    print(json.dumps(res, ensure_ascii=False, sort_keys=True))
+    if res.get("status") != "OK":
+        return 2
+    if mode == "strict" and res.get("overall_status") != "SYNCED":
+        return 2
+    return 0
+
+
 def cmd_airunner_time_sinks_prune(args: argparse.Namespace) -> int:
     root = repo_root()
     workspace_arg = str(args.workspace_root).strip()
@@ -744,6 +775,15 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_intake_exec.add_argument("--chat", default="false", help="true|false (default: false).")
     ap_intake_exec.set_defaults(func=cmd_work_intake_exec_ticket)
 
+    ap_intake_prune = parent.add_parser(
+        "work-intake-historical-prune",
+        help="Prune superseded historical job records (workspace-only).",
+    )
+    ap_intake_prune.add_argument("--workspace-root", required=True, help="Workspace root path.")
+    ap_intake_prune.add_argument("--dry-run", default="false", help="true|false (default: false).")
+    ap_intake_prune.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap_intake_prune.set_defaults(func=cmd_work_intake_historical_prune)
+
     ap_auto_loop = parent.add_parser(
         "auto-loop",
         help="Run decision inbox -> bulk apply -> doer loop (program-led, no-wait).",
@@ -826,6 +866,14 @@ def register_maintenance_subcommands(parent: argparse._SubParsersAction[argparse
     ap_hygiene.add_argument("--layout", default="docs/OPERATIONS/repo-layout.v1.json")
     ap_hygiene.add_argument("--out", default=".cache/repo_hygiene/report.json")
     ap_hygiene.set_defaults(func=cmd_repo_hygiene)
+
+    ap_model_catalog = parent.add_parser(
+        "model-catalog-freshness",
+        help="Compare llm provider map vs guardrails model catalog and write freshness report.",
+    )
+    ap_model_catalog.add_argument("--mode", default="report", help="report|strict (default: report).")
+    ap_model_catalog.add_argument("--out", default=".cache/reports/model_catalog_freshness.v1.json")
+    ap_model_catalog.set_defaults(func=cmd_model_catalog_freshness)
 
     ap_doc = parent.add_parser("doc-graph", help="Doc graph scan (workspace report, warn-only by default).")
     ap_doc.add_argument("--workspace-root", required=True, help="Workspace root path.")

@@ -16,7 +16,7 @@ def cmd_openai_ping(args: argparse.Namespace) -> int:
     # Inputs
     model = str(args.model).strip() if args.model else ""
     if not model:
-        model = "gpt-5.2-codex"
+        model = "gpt-5.3-codex"
 
     try:
         timeout_ms = int(args.timeout_ms)
@@ -417,7 +417,7 @@ def cmd_github_pr_test(args: argparse.Namespace) -> int:
 
 def register_integration_subcommands(parent: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     ap_ping = parent.add_parser("openai-ping", help="Integration-only OpenAI API ping (policy + secrets enforced).")
-    ap_ping.add_argument("--model", default=None, help="OpenAI model id (default: gpt-5.2-codex).")
+    ap_ping.add_argument("--model", default=None, help="OpenAI model id (default: gpt-5.3-codex).")
     ap_ping.add_argument("--timeout-ms", default="5000", help="HTTP timeout in milliseconds (default: 5000).")
     ap_ping.set_defaults(func=cmd_openai_ping)
 
