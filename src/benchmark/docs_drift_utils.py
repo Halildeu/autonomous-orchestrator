@@ -7,12 +7,15 @@ from typing import Any
 
 
 DOCS_DRIFT_DEFAULT_VIEW_ALLOWLIST = [
+    ".gemini/**/*.md",
     "docs/ARCHITECTURE/**/*.md",
     "docs/DECISIONS/**/*.md",
     "docs/OPERATIONS/**/*.md",
+    "extensions/**/README.md",
     "fixtures/**/*.md",
     "modules/**/README.md",
     "roadmaps/PROJECTS/**/*.md",
+    "tenant/**/*.md",
     "templates/**/*.md",
 ]
 

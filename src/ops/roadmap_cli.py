@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from src.ops.commands.common import resolve_workspace_root_arg
 from src.ops.roadmap_cli_helpers import (
     _extract_milestone_preview,
     _load_json,
@@ -153,7 +154,14 @@ def cmd_roadmap_apply(args: argparse.Namespace) -> int:
 def cmd_roadmap_status(args: argparse.Namespace) -> int:
     root = repo_root()
     roadmap_path = _resolve_under_root(root, Path(str(args.roadmap)))
-    workspace_root = _resolve_under_root(root, Path(str(getattr(args, "workspace_root", ".") or ".")))
+    workspace_root = resolve_workspace_root_arg(
+        root,
+        str(getattr(args, "workspace_root", ".") or "."),
+        prefer_customer_workspace=True,
+    )
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
     from src.roadmap.orchestrator import status as roadmap_status
 
     payload = roadmap_status(roadmap_path=roadmap_path, workspace_root=workspace_root)
@@ -219,7 +227,10 @@ def cmd_roadmap_status(args: argparse.Namespace) -> int:
 def cmd_project_status(args: argparse.Namespace) -> int:
     root = repo_root()
     roadmap_path = _resolve_under_root(root, Path(str(args.roadmap)))
-    workspace_root = _resolve_under_root(root, Path(str(args.workspace_root)))
+    workspace_root = resolve_workspace_root_arg(root, str(args.workspace_root), prefer_customer_workspace=True)
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
     mode = str(getattr(args, "mode", "autopilot_chat") or "autopilot_chat").strip()
 
     try:
@@ -343,7 +354,10 @@ def cmd_project_status(args: argparse.Namespace) -> int:
 
 def cmd_portfolio_status(args: argparse.Namespace) -> int:
     root = repo_root()
-    workspace_root = _resolve_under_root(root, Path(str(args.workspace_root)))
+    workspace_root = resolve_workspace_root_arg(root, str(args.workspace_root), prefer_customer_workspace=True)
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
     mode = str(getattr(args, "mode", "autopilot_chat") or "autopilot_chat").strip()
 
     registry_entries, registry_path, registry_status = _read_extension_registry(workspace_root)
@@ -532,7 +546,14 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
 def cmd_roadmap_follow(args: argparse.Namespace) -> int:
     root = repo_root()
     roadmap_path = _resolve_under_root(root, Path(str(args.roadmap)))
-    workspace_root = _resolve_under_root(root, Path(str(getattr(args, "workspace_root", ".") or ".")))
+    workspace_root = resolve_workspace_root_arg(
+        root,
+        str(getattr(args, "workspace_root", ".") or "."),
+        prefer_customer_workspace=True,
+    )
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
 
     until = str(getattr(args, "until", "") or "").strip() or None
     max_steps = int(getattr(args, "max_steps", 1) or 1)
@@ -551,7 +572,14 @@ def cmd_roadmap_follow(args: argparse.Namespace) -> int:
 def cmd_roadmap_finish(args: argparse.Namespace) -> int:
     root = repo_root()
     roadmap_path = _resolve_under_root(root, Path(str(args.roadmap)))
-    workspace_root = _resolve_under_root(root, Path(str(getattr(args, "workspace_root", ".") or ".")))
+    workspace_root = resolve_workspace_root_arg(
+        root,
+        str(getattr(args, "workspace_root", ".") or "."),
+        prefer_customer_workspace=True,
+    )
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
 
     max_minutes = int(getattr(args, "max_minutes", 120) or 120)
     sleep_seconds = int(getattr(args, "sleep_seconds", 120) or 120)
@@ -655,7 +683,14 @@ def cmd_roadmap_finish(args: argparse.Namespace) -> int:
 
 def cmd_roadmap_pause(args: argparse.Namespace) -> int:
     root = repo_root()
-    workspace_root = _resolve_under_root(root, Path(str(getattr(args, "workspace_root", ".") or ".")))
+    workspace_root = resolve_workspace_root_arg(
+        root,
+        str(getattr(args, "workspace_root", ".") or "."),
+        prefer_customer_workspace=True,
+    )
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
     reason = str(getattr(args, "reason", "") or "").strip() or "paused"
     from src.roadmap.orchestrator import pause as roadmap_pause
 
@@ -666,7 +701,14 @@ def cmd_roadmap_pause(args: argparse.Namespace) -> int:
 
 def cmd_roadmap_resume(args: argparse.Namespace) -> int:
     root = repo_root()
-    workspace_root = _resolve_under_root(root, Path(str(getattr(args, "workspace_root", ".") or ".")))
+    workspace_root = resolve_workspace_root_arg(
+        root,
+        str(getattr(args, "workspace_root", ".") or "."),
+        prefer_customer_workspace=True,
+    )
+    if workspace_root is None:
+        warn("ERROR: workspace root not found")
+        return 2
     from src.roadmap.orchestrator import resume as roadmap_resume
 
     payload = roadmap_resume(workspace_root=workspace_root)

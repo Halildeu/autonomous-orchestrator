@@ -41,12 +41,15 @@
   "docs_drift_mapping": {
     "include_extension_manifest_refs": true,
     "view_doc_allowlist_globs": [
+      ".gemini/**/*.md",
       "docs/ARCHITECTURE/**/*.md",
       "docs/DECISIONS/**/*.md",
       "docs/OPERATIONS/**/*.md",
+      "extensions/**/README.md",
       "fixtures/**/*.md",
       "modules/**/README.md",
       "roadmaps/PROJECTS/**/*.md",
+      "tenant/**/*.md",
       "templates/**/*.md"
     ],
     "exclude_legacy_redirect_stubs": true,

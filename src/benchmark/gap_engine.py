@@ -201,6 +201,69 @@ def build_gap_register(
     }
 
 
+def apply_gap_closeout(
+    *,
+    gap_register: dict[str, Any],
+    work_intake: dict[str, Any] | None,
+    evidence_pointer: str | None = None,
+) -> dict[str, Any]:
+    gaps = gap_register.get("gaps") if isinstance(gap_register, dict) else None
+    items = work_intake.get("items") if isinstance(work_intake, dict) else None
+    if not isinstance(gaps, list) or not isinstance(items, list):
+        return gap_register
+
+    closed_gaps: dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("source_type") or "") != "GAP":
+            continue
+        if str(item.get("status") or "") != "DONE":
+            continue
+        gap_id = str(item.get("source_ref") or "").strip()
+        if not gap_id:
+            continue
+        closed_reason = str(item.get("closed_reason") or "").strip() or "DONE"
+        closed_gaps[gap_id] = closed_reason
+
+    if not closed_gaps:
+        return gap_register
+
+    updated_gaps: list[dict[str, Any]] = []
+    changed = False
+    for gap in gaps:
+        if not isinstance(gap, dict):
+            continue
+        gap_id = str(gap.get("id") or "").strip()
+        closed_reason = closed_gaps.get(gap_id)
+        if not closed_reason:
+            updated_gaps.append(dict(gap))
+            continue
+        changed = True
+        updated_gap = dict(gap)
+        updated_gap["status"] = "closed"
+        close_note = f"Closed via work_intake: {closed_reason}."
+        existing_note = str(gap.get("notes") or "").strip()
+        if existing_note and existing_note != "Assessment not yet completed." and close_note not in existing_note:
+            updated_gap["notes"] = f"{existing_note} {close_note}".strip()
+        else:
+            updated_gap["notes"] = close_note
+        evidence = gap.get("evidence_pointers") if isinstance(gap.get("evidence_pointers"), list) else []
+        evidence_paths = [str(p).strip() for p in evidence if isinstance(p, str) and str(p).strip()]
+        if evidence_pointer and evidence_pointer not in evidence_paths:
+            evidence_paths.append(evidence_pointer)
+        if evidence_paths:
+            updated_gap["evidence_pointers"] = sorted(set(evidence_paths))
+        updated_gaps.append(updated_gap)
+
+    if not changed:
+        return gap_register
+
+    payload = dict(gap_register)
+    payload["gaps"] = updated_gaps
+    return payload
+
+
 def build_gap_summary_md(*, gap_register: dict[str, Any]) -> str:
     gaps = gap_register.get("gaps") if isinstance(gap_register, dict) else None
     total = len(gaps) if isinstance(gaps, list) else 0

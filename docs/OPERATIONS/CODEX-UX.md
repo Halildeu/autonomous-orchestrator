@@ -8,6 +8,7 @@ Bu doküman, “kullanıcı komut yazmaz” yaklaşımını SSOT olarak tanımla
 - Agent (Codex) işlemleri repo içindeki ops komutlarıyla yürütür ve sonucu standart formatta raporlar.
 - Varsayılan workspace root: `.cache/ws_customer_default`
   - Yoksa agent önce `workspace-bootstrap` çalıştırır.
+  - User-facing ops çağrılarında repo root `.` verilirse program canonical customer workspace'e normalize eder.
 - Fail-closed:
   - Network default kapalıdır.
   - Side-effect’ler dry-run ve policy/gate/governor kontrolleri ile kontrol edilir.

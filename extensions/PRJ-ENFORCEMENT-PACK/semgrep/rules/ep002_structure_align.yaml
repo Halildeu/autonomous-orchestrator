@@ -8,10 +8,11 @@ rules:
         - extensions/prj-github-ops/extension.manifest.v1.json
         - extensions/release-automation/extension.manifest.v1.json
       exclude:
+        - docs/ARCHIVE/**
         - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
     pattern-regex: '"extension_id"\s*:\s*"PRJ-(GITHUB-OPS|RELEASE-AUTOMATION)"'
     metadata:
       enforcement_pack: ENF_V1
       ep_id: "EP-002"
       stage: "v1_real"
-      rationale: "Deterministic structure drift demo: legacy lowercase extension dir contains canonical PRJ-* extension_id."
+      rationale: "Canonical extension manifests must live under extensions/PRJ-*/; legacy lowercase aliases are not allowed in the tracked tree."

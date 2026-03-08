@@ -384,6 +384,20 @@ def _priority_rank(value: str) -> int:
     return {"P0": 0, "P1": 1, "P2": 2, "P3": 3, "P4": 4}.get(value, 9)
 
 
+def _is_historical_done(item: dict[str, Any]) -> bool:
+    status = str(item.get("status") or "").strip().upper()
+    return status in {"DONE", "CLOSED", "APPLIED", "ARCHIVED"}
+
+
+def _count_by_bucket(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {"ROADMAP": 0, "PROJECT": 0, "TICKET": 0, "INCIDENT": 0}
+    for item in items:
+        bucket = item.get("bucket")
+        if bucket in counts:
+            counts[bucket] += 1
+    return counts
+
+
 def _apply_rule(source: dict[str, Any], rule: dict[str, Any]) -> bool:
     when = rule.get("when") if isinstance(rule.get("when"), dict) else {}
     if "critical_nav_gaps_gt" in when:
@@ -623,6 +637,9 @@ def _load_gap_sources(workspace_root: Path, notes: list[str]) -> list[dict[str, 
     for gap in sorted([g for g in gaps if isinstance(g, dict)], key=lambda g: str(g.get("id") or "")):
         gap_id = gap.get("id") if isinstance(gap.get("id"), str) else ""
         if not gap_id:
+            continue
+        gap_status = str(gap.get("status") or "open").strip().lower()
+        if gap_status == "closed":
             continue
         control_id = gap.get("control_id") if isinstance(gap.get("control_id"), str) else ""
         metric_id = gap.get("metric_id") if isinstance(gap.get("metric_id"), str) else ""
@@ -1040,14 +1057,14 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
         )
     )
 
-    counts_by_bucket = {"ROADMAP": 0, "PROJECT": 0, "TICKET": 0, "INCIDENT": 0}
-    for item in items:
-        bucket = item.get("bucket")
-        if bucket in counts_by_bucket:
-            counts_by_bucket[bucket] += 1
+    active_items = [item for item in items if not _is_historical_done(item)]
+    historical_done_items = [item for item in items if _is_historical_done(item)]
+    counts_by_bucket = _count_by_bucket(active_items)
+    total_counts_by_bucket = _count_by_bucket(items)
+    historical_counts_by_bucket = _count_by_bucket(historical_done_items)
 
     top_next_actions = []
-    for item in items[:5]:
+    for item in active_items[:5]:
         summary_item = {
             "intake_id": item.get("intake_id"),
             "bucket": item.get("bucket"),
@@ -1102,7 +1119,11 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
         "items": items,
         "summary": {
             "total_count": len(items),
+            "active_count": len(active_items),
+            "historical_done_count": len(historical_done_items),
             "counts_by_bucket": counts_by_bucket,
+            "total_counts_by_bucket": total_counts_by_bucket,
+            "historical_counts_by_bucket": historical_counts_by_bucket,
             "top_next_actions": top_next_actions,
             "next_intake_focus": next_focus,
         },
@@ -1111,18 +1132,48 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
 
     out_json = workspace_root / ".cache" / "index" / "work_intake.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "work_intake_summary.v1.md"
+    out_compaction = workspace_root / ".cache" / "reports" / "work_intake_compaction.v1.json"
     _ensure_inside_workspace(workspace_root, out_json)
     _ensure_inside_workspace(workspace_root, out_md)
+    _ensure_inside_workspace(workspace_root, out_compaction)
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    out_compaction.parent.mkdir(parents=True, exist_ok=True)
+    out_compaction.write_text(
+        json.dumps(
+            {
+                "version": "v1",
+                "generated_at": generated_at,
+                "workspace_root": str(workspace_root),
+                "status": "OK" if historical_done_items else "IDLE",
+                "active_count": len(active_items),
+                "historical_done_count": len(historical_done_items),
+                "counts_by_bucket": counts_by_bucket,
+                "historical_counts_by_bucket": historical_counts_by_bucket,
+                "next_intake_focus": next_focus,
+                "notes": [
+                    "PROGRAM_LED=true",
+                    "history_preserved_in_items=true",
+                    "summary_uses_active_items_only=true",
+                ],
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     lines = [
         "# Work Intake Summary (v0.2)",
         "",
+        f"Active items: {len(active_items)}",
+        f"Historical done items: {len(historical_done_items)}",
         f"Total items: {len(items)}",
         f"Next focus: {next_focus}",
         "",
-        "Counts by bucket:",
+        "Counts by bucket (active):",
         f"- INCIDENT: {counts_by_bucket.get('INCIDENT', 0)}",
         f"- TICKET: {counts_by_bucket.get('TICKET', 0)}",
         f"- PROJECT: {counts_by_bucket.get('PROJECT', 0)}",
@@ -1140,13 +1191,17 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
 
     rel_json = _rel_to_workspace(out_json, workspace_root) or str(out_json)
     rel_md = _rel_to_workspace(out_md, workspace_root) or str(out_md)
+    rel_compaction = _rel_to_workspace(out_compaction, workspace_root) or str(out_compaction)
 
     return {
         "status": status,
         "work_intake_path": rel_json,
         "summary_path": rel_md,
         "items_count": len(items),
+        "active_items_count": len(active_items),
+        "historical_done_count": len(historical_done_items),
         "counts_by_bucket": counts_by_bucket,
         "top_next_actions": top_next_actions,
         "next_intake_focus": next_focus,
+        "compaction_report_path": rel_compaction,
     }

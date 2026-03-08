@@ -124,13 +124,13 @@ const EXTENSION_DESCRIPTIONS_TR = {
     when: "Yeni istek geldiğinde ve intake yenilemede.",
     output: "İş listesi, amaç ve etiketler.",
   },
-  "prj-github-ops": {
+  "PRJ-GITHUB-OPS": {
     summary: "GitHub operasyonlarını yönetir.",
     value: "Repo içi otomasyonu standartlaştırır.",
     when: "GitHub ops çağrılarında.",
     output: "Job durumları ve sonuçlar.",
   },
-  "release-automation": {
+  "PRJ-RELEASE-AUTOMATION": {
     summary: "Sürümleme ve yayın akışlarını otomatikler.",
     value: "Yayın sürecini hızlandırır, hataları azaltır.",
     when: "Release işleri tetiklendiğinde.",

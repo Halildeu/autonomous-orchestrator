@@ -23,7 +23,7 @@ from src.benchmark.docs_drift_utils import (
     compute_docs_drift_signal,
 )
 from src.benchmark.eval_runner import run_eval
-from src.benchmark.gap_engine import build_gap_register, build_gap_summary_md
+from src.benchmark.gap_engine import apply_gap_closeout, build_gap_register, build_gap_summary_md
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
 from src.benchmark.north_star_matrix_builder import build_north_star_stage_matrices
 from src.benchmark.assessment_runner_runtime import (
@@ -638,7 +638,10 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         core_root / "policies" / "policy_north_star_eval_lenses.v1.json",
         workspace_root / "policies" / "policy_north_star_operability.v1.json",
         core_root / "policies" / "policy_north_star_operability.v1.json",
+        workspace_root / "policies" / "policy_core_immutability.v1.json",
+        core_root / "policies" / "policy_core_immutability.v1.json",
         workspace_root / ".cache" / "policy_overrides" / "policy_north_star_operability.override.v1.json",
+        workspace_root / ".cache" / "policy_overrides" / "policy_core_immutability.override.v1.json",
     ]
     for candidate in policy_candidates:
         if candidate.exists():
@@ -655,6 +658,8 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             input_files.append(seed_path)
 
     input_files.append(workspace_root / ".cache" / "airunner" / "airunner_heartbeat.v1.json")
+    input_files.append(workspace_root / ".cache" / "index" / "context_pack.v1.json")
+    input_files.append(workspace_root / ".cache" / "index" / "work_intake.v1.json")
 
     controls = sorted(controls, key=lambda x: str(x.get("id") or ""))
     metrics = sorted(metrics, key=lambda x: str(x.get("id") or ""))
@@ -957,6 +962,18 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         report_only=report_only,
         previous_gap_register=previous_gap_register,
         cooldown_seconds=86400,
+    )
+    current_work_intake = None
+    current_work_intake_path = workspace_root / ".cache" / "index" / "work_intake.v1.json"
+    if current_work_intake_path.exists():
+        try:
+            current_work_intake = _load_json(current_work_intake_path)
+        except Exception:
+            current_work_intake = None
+    gap_register = apply_gap_closeout(
+        gap_register=gap_register,
+        work_intake=current_work_intake,
+        evidence_pointer=str(Path(".cache") / "index" / "work_intake.v1.json"),
     )
     gap_summary_md = build_gap_summary_md(gap_register=gap_register)
 

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from src.ops.commands.common import repo_root, run_step, warn
+from src.ops.commands.common import repo_root, resolve_workspace_root_arg, run_step, warn
 from src.ops.commands.context_cmds import register_context_subcommands
 from src.ops.commands.maintenance_doc_cmds import (
     cmd_doc_graph,
@@ -190,9 +190,8 @@ def cmd_system_status(args: argparse.Namespace) -> int:
         warn("FAIL error=WORKSPACE_ROOT_REQUIRED")
         return 2
 
-    ws = Path(workspace_arg)
-    ws = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
-    if not ws.exists() or not ws.is_dir():
+    ws = resolve_workspace_root_arg(root, workspace_arg, prefer_customer_workspace=True)
+    if ws is None:
         warn("FAIL error=WORKSPACE_ROOT_INVALID")
         return 2
 

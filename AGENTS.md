@@ -86,9 +86,9 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırasıyla yükler:
 
 ### 1. Durum Bağlamı (en güncel hal)
-- `.cache/reports/system_status.v1.json` — sistem durumu
-- `.cache/reports/portfolio_status.v1.json` — portföy durumu
-- `.cache/roadmap_state.v1.json` — roadmap ilerleme durumu
+- `.cache/ws_customer_default/.cache/reports/system_status.v1.json` — sistem durumu
+- `.cache/ws_customer_default/.cache/reports/portfolio_status.v1.json` — portföy durumu
+- `.cache/ws_customer_default/.cache/roadmap_state.v1.json` — roadmap ilerleme durumu
 
 ### 2. Yapısal Bağlam (SSOT)
 - `AGENTS.md` — canonical instruction + router (bu dosya)
@@ -101,8 +101,8 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 
 ### Bootstrap komutu (agent çalıştırır)
 ```
-python -m src.ops.manage system-status --workspace-root .
-python -m src.ops.manage portfolio-status --workspace-root .
+python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default
+python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default
 ```
 
 ## Repo conventions
