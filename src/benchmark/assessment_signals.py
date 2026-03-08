@@ -21,6 +21,63 @@ def _parse_iso(value: str | None) -> datetime | None:
         return None
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_core_immutability_policy_obj(*, workspace_root: Path) -> dict[str, Any]:
+    core_root = _repo_root()
+    ws_policy = workspace_root / "policies" / "policy_core_immutability.v1.json"
+    core_policy = core_root / "policies" / "policy_core_immutability.v1.json"
+    policy_path = ws_policy if ws_policy.exists() else core_policy
+    obj: dict[str, Any] = {}
+    if policy_path.exists():
+        try:
+            loaded = _load_json(policy_path)
+            if isinstance(loaded, dict):
+                obj = dict(loaded)
+        except Exception:
+            obj = {}
+    override_path = workspace_root / ".cache" / "policy_overrides" / "policy_core_immutability.override.v1.json"
+    if override_path.exists():
+        try:
+            override_obj = _load_json(override_path)
+        except Exception:
+            override_obj = {}
+        if isinstance(override_obj, dict):
+            obj = {**obj, **override_obj}
+    return obj
+
+
+def _core_unlock_scope_widen_count(*, workspace_root: Path) -> int:
+    policy_obj = _load_core_immutability_policy_obj(workspace_root=workspace_root)
+    allowlist = policy_obj.get("ssot_write_allowlist") if isinstance(policy_obj.get("ssot_write_allowlist"), list) else []
+    one_shot = policy_obj.get("one_shot_src_window") if isinstance(policy_obj.get("one_shot_src_window"), dict) else {}
+    one_shot_enabled = bool(one_shot.get("enabled", False))
+    src_policy_entries = [
+        str(item).strip()
+        for item in allowlist
+        if isinstance(item, str) and str(item).strip() and str(item).strip().startswith("src/")
+    ]
+    if src_policy_entries:
+        return len(sorted(set(src_policy_entries)))
+
+    if not one_shot_enabled:
+        return 0
+
+    allow_paths = one_shot.get("allow_paths") if isinstance(one_shot.get("allow_paths"), list) else []
+    widened_paths = []
+    for item in allow_paths:
+        if not isinstance(item, str):
+            continue
+        rel = item.strip()
+        if not rel.startswith("src/"):
+            continue
+        if rel.endswith("/") or "*" in rel or "?" in rel:
+            widened_paths.append(rel)
+    return len(sorted(set(widened_paths)))
+
+
 def _load_pdca_cursor_signal(*, workspace_root: Path) -> dict[str, Any]:
     cursor_path = workspace_root / ".cache" / "index" / "pdca_cursor.v1.json"
     if not cursor_path.exists():
@@ -70,9 +127,7 @@ def _load_integration_coherence_signals(*, workspace_root: Path) -> dict[str, An
         except Exception:
             pack_conflicts = 0
 
-    core_unlock_scope_widen = 1 if (
-        workspace_root / ".cache" / "reports" / "core_unlock_compliance.v1.json"
-    ).exists() else 0
+    core_unlock_scope_widen = _core_unlock_scope_widen_count(workspace_root=workspace_root)
 
     schema_fail_count = 0
     preflight_path = workspace_root / ".cache" / "reports" / "preflight_stamp.v1.json"

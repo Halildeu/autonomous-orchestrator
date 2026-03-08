@@ -87,6 +87,8 @@ def _work_intake_section(workspace_root: Path) -> dict[str, Any] | None:
     counts_by_bucket = summary.get("counts_by_bucket") if isinstance(summary, dict) else None
     top_next_actions_raw = summary.get("top_next_actions") if isinstance(summary, dict) else None
     next_focus = summary.get("next_intake_focus") if isinstance(summary, dict) else None
+    active_count = summary.get("active_count") if isinstance(summary, dict) else None
+    historical_done_count = summary.get("historical_done_count") if isinstance(summary, dict) else None
     by_bucket = summary.get("by_bucket") if isinstance(summary, dict) else None
     top_next = summary.get("top_next") if isinstance(summary, dict) else None
     status = obj.get("status") if isinstance(obj, dict) else None
@@ -104,6 +106,10 @@ def _work_intake_section(workspace_root: Path) -> dict[str, Any] | None:
         "status": status_str,
         "work_intake_path": rel_path,
         "items_count": int(items_count),
+        "active_items_count": int(active_count) if isinstance(active_count, int) and active_count >= 0 else int(items_count),
+        "historical_done_count": int(historical_done_count)
+        if isinstance(historical_done_count, int) and historical_done_count >= 0
+        else 0,
         "counts_by_bucket": counts_by_bucket,
         "top_next_actions": top_next_actions[:5],
         "next_intake_focus": next_focus,

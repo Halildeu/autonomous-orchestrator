@@ -20,6 +20,7 @@
     "orchestrator",
     "packs",
     "policies",
+    "project",
     "registry",
     "roadmaps",
     "schemas",
@@ -39,6 +40,7 @@
     "pyproject.toml",
     "README.md",
     "requirements-dev.txt",
+    "standards.lock",
     "smoke_test.py"
   ],
   "generated_dirs": [

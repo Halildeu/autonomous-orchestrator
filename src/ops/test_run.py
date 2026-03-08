@@ -59,6 +59,10 @@ def _resolve_reports_path(workspace_root: Path, out_arg: str) -> Path | None:
     return candidate
 
 
+def _test_roadmap_state_path(workspace_root: Path) -> Path:
+    return workspace_root / ".cache" / "index" / "roadmap_state.v1.json"
+
+
 def _format_test_result(name: str, passed: bool, details: str | None = None) -> dict[str, Any]:
     payload: dict[str, Any] = {"name": name, "status": "PASS" if passed else "FAIL"}
     if details:
@@ -192,7 +196,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         evidence_paths.append(rel)
 
     # 5) roadmap-state-sync writes a matching state file for roadmap-status
-    state_out = workspace_root / ".cache" / "roadmap_state.v1.json"
+    state_out = _test_roadmap_state_path(workspace_root)
     sync_res = run_roadmap_state_sync(
         workspace_root=workspace_root,
         roadmap_path=seed_out,
@@ -206,7 +210,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
         try:
             from src.roadmap.orchestrator import status as roadmap_status
 
-            roadmap_status(roadmap_path=seed_out, workspace_root=workspace_root)
+            roadmap_status(roadmap_path=seed_out, workspace_root=workspace_root, state_path=state_out)
             status_ok = True
         except Exception as exc:
             status_error = str(exc)

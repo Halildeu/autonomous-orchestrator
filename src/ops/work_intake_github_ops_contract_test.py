@@ -138,16 +138,36 @@ def main() -> None:
     work_intake_path = ws / ".cache" / "index" / "work_intake.v1.json"
     work_intake = json.loads(work_intake_path.read_text(encoding="utf-8"))
     items = [i for i in work_intake.get("items", []) if isinstance(i, dict) and i.get("source_type") == "GITHUB_OPS"]
-    buckets = sorted({str(i.get("bucket")) for i in items})
-    if len(items) != 2 or set(buckets) != {"INCIDENT", "TICKET"}:
+    source_refs = {str(i.get("source_ref") or "") for i in items}
+    buckets = {str(i.get("bucket") or "") for i in items}
+    expected_job_ref = f"github_ops_sig:pr_list|FAIL|OTHER|{job['signature_hash']}"
+    if len(items) != 2:
+        raise SystemExit("work_intake_github_ops_contract_test failed: expected 2 github_ops items on first build")
+    if buckets != {"TICKET"}:
         raise SystemExit("work_intake_github_ops_contract_test failed: bucket mapping invalid")
+    if source_refs != {expected_job_ref, "github_ops:dirty_tree"}:
+        raise SystemExit("work_intake_github_ops_contract_test failed: source refs mismatch")
 
     res2 = run_work_intake_build(workspace_root=ws)
     _ = res2
     work_intake2 = json.loads(work_intake_path.read_text(encoding="utf-8"))
     items2 = [i for i in work_intake2.get("items", []) if isinstance(i, dict) and i.get("source_type") == "GITHUB_OPS"]
-    if len(items2) != 1:
-        raise SystemExit("work_intake_github_ops_contract_test failed: cooldown not applied")
+    buckets2 = {str(i.get("bucket") or "") for i in items2}
+    if len(items2) != 2 or buckets2 != {"TICKET"}:
+        raise SystemExit("work_intake_github_ops_contract_test failed: cooldown output changed unexpectedly")
+    cooldowns_path = ws / ".cache" / "index" / "intake_cooldowns.v1.json"
+    cooldowns = json.loads(cooldowns_path.read_text(encoding="utf-8"))
+    entries = cooldowns.get("entries") if isinstance(cooldowns, dict) else None
+    if not isinstance(entries, dict):
+        raise SystemExit("work_intake_github_ops_contract_test failed: cooldown entries missing")
+    cooldown_key = f"github_ops|pr_list|OTHER|{job['signature_hash']}"
+    entry = entries.get(cooldown_key) if isinstance(entries.get(cooldown_key), dict) else {}
+    if int(entry.get("suppressed_count", 0)) != 1:
+        raise SystemExit("work_intake_github_ops_contract_test failed: cooldown suppression counter mismatch")
+    notes = cooldowns.get("notes") if isinstance(cooldowns, dict) else None
+    notes = [str(n) for n in notes if isinstance(n, str)] if isinstance(notes, list) else []
+    if "github_ops_suppressed=1" not in notes:
+        raise SystemExit("work_intake_github_ops_contract_test failed: cooldown suppression note missing")
 
     print(json.dumps({"status": "OK", "github_ops_items": len(items2)}, ensure_ascii=False, sort_keys=True))
 

@@ -44,6 +44,7 @@ from src.session.cross_session_context import build_cross_session_context
 
 
 CACHE_REL_PATH = Path(".cache") / "index" / "context_pack_cache.v1.json"
+ACTIVE_CONTEXT_PACK_REL_PATH = Path(".cache") / "index" / "context_pack.v1.json"
 
 
 def _load_cache(path: Path) -> dict[str, Any]:
@@ -104,6 +105,14 @@ def _write_summary(*, summary_path: Path, request_id: str, context_pack_id: str,
     ]
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _sync_active_context_pack(*, workspace_root: Path, payload: dict[str, Any]) -> str:
+    active_rel = ACTIVE_CONTEXT_PACK_REL_PATH.as_posix()
+    active_path = workspace_root / ACTIVE_CONTEXT_PACK_REL_PATH
+    active_path.parent.mkdir(parents=True, exist_ok=True)
+    active_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return active_rel
 
 
 def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: str = "summary") -> dict[str, Any]:
@@ -213,11 +222,13 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
         cached_id = entry.get("context_pack_id") if isinstance(entry.get("context_pack_id"), str) else ""
         cached_abs = (workspace_root / cached_rel).resolve() if cached_rel else None
         if isinstance(cached_abs, Path) and cached_abs.exists() and cached_id:
+            try:
+                cached_obj = load_json(cached_abs)
+            except Exception:
+                cached_obj = {}
+            if isinstance(cached_obj, dict):
+                _sync_active_context_pack(workspace_root=workspace_root, payload=cached_obj)
             if mode == "summary":
-                try:
-                    cached_obj = load_json(cached_abs)
-                except Exception:
-                    cached_obj = {}
                 define_obj = cached_obj.get("define") if isinstance(cached_obj, dict) else {}
                 measure_obj = cached_obj.get("measure_raw") if isinstance(cached_obj, dict) else {}
                 eval_obj = cached_obj.get("eval") if isinstance(cached_obj, dict) else {}
@@ -298,6 +309,7 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
     out_rel = str(Path(".cache") / "index" / "context_packs" / f"{pack_id}.v1.json")
     out_path = workspace_root / out_rel
     out_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    _sync_active_context_pack(workspace_root=workspace_root, payload=payload)
 
     if mode == "summary":
         _write_summary(
@@ -352,6 +364,9 @@ def route_context_pack(
         return {"status": "WARN", "error_code": "CONTEXT_PACK_INVALID"}
     if not isinstance(pack, dict):
         return {"status": "WARN", "error_code": "CONTEXT_PACK_INVALID"}
+    ok, _ = _validate_payload(repo_root, "context-pack.schema.v1.json", pack)
+    if ok:
+        _sync_active_context_pack(workspace_root=workspace_root, payload=pack)
 
     request_ref = pack.get("request_ref") if isinstance(pack.get("request_ref"), dict) else {}
     request_id = request_ref.get("request_id") if isinstance(request_ref.get("request_id"), str) else ""

@@ -146,6 +146,12 @@ def main() -> None:
         if not pack_path.exists():
             raise SystemExit("session_context_pack_e2e_contract_test failed: context pack missing")
         pack = json.loads(pack_path.read_text(encoding="utf-8"))
+        active_pack_path = ws / ".cache" / "index" / "context_pack.v1.json"
+        if not active_pack_path.exists():
+            raise SystemExit("session_context_pack_e2e_contract_test failed: active context pack missing")
+        active_pack = json.loads(active_pack_path.read_text(encoding="utf-8"))
+        if str(active_pack.get("context_pack_id") or "") != str(pack.get("context_pack_id") or ""):
+            raise SystemExit("session_context_pack_e2e_contract_test failed: active context pack mismatch")
 
         notes = pack.get("notes") if isinstance(pack.get("notes"), list) else []
         shared_notes = [n for n in notes if isinstance(n, str) and n.startswith("session_shared_keys=")]

@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 
+DEFAULT_CUSTOMER_WORKSPACE_REL = Path(".cache/ws_customer_default")
+
+
 def repo_root() -> Path:
     # src/ops/commands/common.py -> commands -> ops -> src -> repo root
     return Path(__file__).resolve().parents[3]
@@ -15,6 +18,29 @@ def repo_root() -> Path:
 
 def warn(msg: str) -> None:
     print(msg, file=sys.stderr)
+
+
+def resolve_workspace_root_arg(
+    root: Path,
+    workspace_arg: str | Path,
+    *,
+    prefer_customer_workspace: bool = False,
+) -> Path | None:
+    raw = str(workspace_arg or "").strip()
+    if not raw:
+        return None
+
+    ws = Path(raw)
+    candidate = (root / ws).resolve() if not ws.is_absolute() else ws.resolve()
+
+    if prefer_customer_workspace:
+        customer_root = (root / DEFAULT_CUSTOMER_WORKSPACE_REL).resolve()
+        if customer_root.exists() and customer_root.is_dir() and candidate == root.resolve():
+            candidate = customer_root
+
+    if not candidate.exists() or not candidate.is_dir():
+        return None
+    return candidate
 
 
 def load_json_file(path: Path) -> tuple[Any | None, str | None]:

@@ -86,6 +86,21 @@ def _git_diff_paths(root: Path, baseline_ref: str) -> tuple[list[str], str | Non
     return (paths, None)
 
 
+def _git_tracked_paths(root: Path) -> tuple[set[str], str | None]:
+    try:
+        proc = subprocess.run(
+            ["git", "ls-files"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+        )
+    except FileNotFoundError:
+        return (set(), "GIT_NOT_FOUND")
+    if proc.returncode != 0:
+        return (set(), "GIT_LS_FILES_FAILED")
+    return ({ln.strip() for ln in (proc.stdout or "").splitlines() if ln.strip()}, None)
+
+
 def _derive_ep_id(engine_rule_id: str, metadata: dict[str, Any]) -> str:
     for key in ("ep_id", "epId", "ep", "EP"):
         v = metadata.get(key)
@@ -198,6 +213,53 @@ def _run_semgrep(
 
     _write_text(out_json_path, _dump_json(payload))
     return payload, reasons
+
+
+def _ep002_legacy_manifest_overlay(
+    semgrep_payload: dict[str, Any],
+    tracked_paths: set[str],
+) -> dict[str, Any]:
+    legacy_manifest_paths = {
+        "extensions/prj-github-ops/extension.manifest.v1.json": "PRJ-GITHUB-OPS",
+        "extensions/release-automation/extension.manifest.v1.json": "PRJ-RELEASE-AUTOMATION",
+    }
+    retained_results: list[dict[str, Any]] = []
+    for raw in semgrep_payload.get("results", []) if isinstance(semgrep_payload.get("results"), list) else []:
+        if not isinstance(raw, dict):
+            continue
+        extra = raw.get("extra") if isinstance(raw.get("extra"), dict) else {}
+        metadata = extra.get("metadata") if isinstance(extra.get("metadata"), dict) else {}
+        engine_rule_id = str(raw.get("check_id") or "")
+        if _derive_ep_id(engine_rule_id, metadata) == "EP-002":
+            continue
+        retained_results.append(raw)
+
+    for manifest_path, extension_id in legacy_manifest_paths.items():
+        if manifest_path not in tracked_paths:
+            continue
+        retained_results.append(
+            {
+                "check_id": "extensions.PRJ-ENFORCEMENT-PACK.git_index.enf.v1.ep002.structure_align",
+                "path": manifest_path,
+                "start": {"line": 1, "col": 1},
+                "end": {"line": 1, "col": 1},
+                "extra": {
+                    "message": "EP-002 Structure Align: extension folder name should match extension_id casing (expected extensions/<extension_id>/).",
+                    "severity": "WARNING",
+                    "metadata": {
+                        "ep_id": "EP-002",
+                        "stage": "v1_real",
+                        "rationale": "Canonical extension manifests must live under extensions/PRJ-*/; legacy lowercase aliases are not allowed in the tracked tree.",
+                        "extension_id": extension_id,
+                        "source": "git_index",
+                    },
+                },
+            }
+        )
+
+    payload = dict(semgrep_payload)
+    payload["results"] = retained_results
+    return payload
 
 
 def _contract_schema_validator(schema_path: Path) -> Draft202012Validator:
@@ -427,6 +489,10 @@ def run_enforcement_check(
             out_stdout_path=semgrep_stdout_path,
         )
         reasons.extend(semgrep_reasons)
+        tracked_paths, tracked_paths_err = _git_tracked_paths(root)
+        if tracked_paths_err:
+            reasons.append(tracked_paths_err)
+        semgrep_payload = _ep002_legacy_manifest_overlay(semgrep_payload, tracked_paths)
 
     matrix, err = _load_severity_matrix(root, matrix_path, profile_name)
     if err:

@@ -10,7 +10,8 @@
   "enabled": true,
   "evidence_required_when_unlocked": true,
   "notes": [
-    "Temporary narrowing MUST be done via workspace override, not core SSOT."
+    "Temporary narrowing MUST be done via workspace override, not core SSOT.",
+    "src/** yazimi ssot_write_allowlist ile acilmaz; yalniz one_shot_src_window istisnasi ile izin verilir."
   ],
   "one_shot_src_window": {
     "allow_paths": [],
@@ -26,26 +27,24 @@
     "AGENTS.md",
     "docs/LAYER-MODEL-LOCK.v1.md",
     "docs/OPERATIONS/",
+    "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
     "docs/OPERATIONS/SSOT-MAP.md",
     "docs/ROADMAP.md",
+    ".github/workflows/gate-enforcement-check.yml",
+    ".github/workflows/module-delivery-lanes.yml",
+    ".github/CODEOWNERS",
+    ".pre-commit-config.yaml",
     "extensions/",
     "policies/",
     "schemas/",
-    "src/benchmark/",
-    "src/extensions/",
-    "src/learning/",
-    "src/ops/",
-    "src/prj_airunner/",
-    "src/prj_github_ops/",
-    "src/prj_release_automation/",
-    "src/ops/debt_drafter.py",
-    "src/ops/repo_hygiene.py",
-    "src/ops/roadmap_cli.py",
-    "src/ops/system_status_builder.py",
-    "src/ops/work_intake_from_sources.py",
-    "src/ops/work_intake_job_sources.py",
-    "src/prj_airunner/airrunner_jobs.py",
-    "src/prj_airunner/airrunner_tick.py"
+    "standards.lock",
+    "scripts/sync_managed_repo_standards.py",
+    "ci/check_standards_lock.py",
+    "ci/check_standards_lock_parts/",
+    "ci/check_module_delivery_lanes.py",
+    "ci/run_module_delivery_lane.py",
+    "ci/module_delivery_lanes.v1.json",
+    "pyproject.toml"
   ],
   "version": "v1"
 }
