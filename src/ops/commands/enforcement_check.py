@@ -215,6 +215,17 @@ def _run_semgrep(
     return payload, reasons
 
 
+def _resolve_semgrep_targets(root: Path, delta_paths: list[str]) -> list[str]:
+    targets: list[str] = []
+    for raw in delta_paths:
+        rel = str(raw or "").strip()
+        if not rel:
+            continue
+        if (root / rel).exists():
+            targets.append(rel)
+    return sorted(set(targets))
+
+
 def _ep002_legacy_manifest_overlay(
     semgrep_payload: dict[str, Any],
     tracked_paths: set[str],
@@ -481,14 +492,20 @@ def run_enforcement_check(
         _write_text(semgrep_json_path, _dump_json(semgrep_payload))
         _write_text(semgrep_stdout_path, "PRECONDITION_FAIL\n")
     else:
-        semgrep_payload, semgrep_reasons = _run_semgrep(
-            root=root,
-            ruleset=ruleset,
-            targets=sorted(set(delta_paths)) if delta_paths else [],
-            out_json_path=semgrep_json_path,
-            out_stdout_path=semgrep_stdout_path,
-        )
-        reasons.extend(semgrep_reasons)
+        semgrep_targets = _resolve_semgrep_targets(root, delta_paths) if delta_paths else []
+        if delta_paths and not semgrep_targets:
+            semgrep_payload = {"results": [], "errors": []}
+            _write_text(semgrep_json_path, _dump_json(semgrep_payload))
+            _write_text(semgrep_stdout_path, "NO_SCANNABLE_DELTA_TARGETS\n")
+        else:
+            semgrep_payload, semgrep_reasons = _run_semgrep(
+                root=root,
+                ruleset=ruleset,
+                targets=semgrep_targets if delta_paths else [],
+                out_json_path=semgrep_json_path,
+                out_stdout_path=semgrep_stdout_path,
+            )
+            reasons.extend(semgrep_reasons)
         tracked_paths, tracked_paths_err = _git_tracked_paths(root)
         if tracked_paths_err:
             reasons.append(tracked_paths_err)
