@@ -78,6 +78,19 @@ def save_claims(workspace_root: Path, claims: list[dict[str, Any]]) -> None:
     _write_json(_claims_path(workspace_root), payload)
 
 
+def list_claims_by_agent(workspace_root: Path, agent_tag: str) -> list[dict[str, Any]]:
+    """Return active claims owned by a specific agent."""
+    now = datetime.now(timezone.utc)
+    tag = str(agent_tag or "").strip()
+    return [
+        claim
+        for claim in load_claims(workspace_root)
+        if isinstance(claim, dict)
+        and not _claim_is_stale(claim, now)
+        and str(claim.get("agent_tag") or "") == tag
+    ]
+
+
 def acquire_claim(
     *,
     workspace_root: Path,
@@ -86,6 +99,7 @@ def acquire_claim(
     owner_session: str | None = None,
     run_id: str | None = None,
     ttl_seconds: int,
+    agent_tag: str = "",
 ) -> dict[str, Any]:
     ttl = max(1, int(ttl_seconds))
     now = datetime.now(timezone.utc)
@@ -117,6 +131,7 @@ def acquire_claim(
         "claim_id": claim_id,
         "owner_tag": str(owner_tag or ""),
         "owner_session": session,
+        "agent_tag": str(agent_tag or ""),
         "run_id": claim_run_id,
         "acquired_at": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "ttl_seconds": ttl,
@@ -133,6 +148,7 @@ def release_claim(
     workspace_root: Path,
     work_item_id: str,
     owner_tag: str | None = None,
+    agent_tag: str | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
     claims = load_claims(workspace_root)
@@ -143,6 +159,8 @@ def release_claim(
             claims.pop(idx)
             save_claims(workspace_root, claims)
             return {"status": "RELEASED_FORCED", "claim": claim}
+        if agent_tag and str(claim.get("agent_tag") or "") != str(agent_tag or ""):
+            return {"status": "AGENT_MISMATCH", "claim": claim}
         if owner_tag and str(claim.get("owner_tag") or "") != str(owner_tag or ""):
             return {"status": "MISMATCH", "claim": claim}
         claims.pop(idx)

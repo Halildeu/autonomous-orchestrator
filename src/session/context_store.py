@@ -162,7 +162,13 @@ def save_context_atomic(path: Path, obj: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
-def new_context(session_id: str, workspace_root: str, ttl_seconds: int) -> dict[str, Any]:
+def new_context(
+    session_id: str,
+    workspace_root: str,
+    ttl_seconds: int,
+    *,
+    predecessor_session_id: str | None = None,
+) -> dict[str, Any]:
     if not session_id or not isinstance(session_id, str):
         raise SessionContextError("INVALID_ARGS", "session_id must be non-empty")
     if not isinstance(ttl_seconds, int) or ttl_seconds < 60 or ttl_seconds > 604800:
@@ -187,6 +193,8 @@ def new_context(session_id: str, workspace_root: str, ttl_seconds: int) -> dict[
         "ephemeral_decisions": [],
         "hashes": {"session_context_sha256": ""},
     }
+    if predecessor_session_id and isinstance(predecessor_session_id, str) and predecessor_session_id.strip():
+        ctx["predecessor_session_id"] = predecessor_session_id.strip()
     ctx["hashes"]["session_context_sha256"] = compute_context_sha256(ctx)
     return ctx
 

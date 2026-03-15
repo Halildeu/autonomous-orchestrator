@@ -17,6 +17,29 @@ from search_adapter_index import paths
 from search_adapter_semantic import semantic_search
 
 
+def _apply_context_scope(
+    hits: list[dict[str, Any]],
+    context_scope: list[str],
+) -> list[dict[str, Any]]:
+    """Boost hits matching context_scope paths to the top of results."""
+    scope_set = set(context_scope)
+    in_scope: list[dict[str, Any]] = []
+    out_scope: list[dict[str, Any]] = []
+    for hit in hits:
+        path = str(hit.get("path") or "")
+        matched = any(
+            path == s or path.startswith(s + "/") or path.endswith("/" + s) or s in path
+            for s in scope_set
+        )
+        if matched:
+            hit["context_match"] = True
+            in_scope.append(hit)
+        else:
+            hit["context_match"] = False
+            out_scope.append(hit)
+    return in_scope + out_scope
+
+
 def search(
     manager: Any,
     query: str,
@@ -26,6 +49,7 @@ def search(
     pattern_mode: str = "auto",
     limit: int = 80,
     auto_build: bool = True,
+    context_scope: list[str] | None = None,
 ) -> dict[str, Any]:
     q = str(query or "").strip()
     if not q:
@@ -149,6 +173,11 @@ def search(
     if str(rg_stats.get("backend") or "") == "python_fallback":
         engine = "keyword/fts5+python"
 
+    context_scope_applied = False
+    if context_scope:
+        hits = _apply_context_scope(hits, context_scope)
+        context_scope_applied = True
+
     return {
         "status": "OK",
         "scope": scope_norm,
@@ -157,6 +186,7 @@ def search(
         "engine": engine,
         "pattern_mode": rg_mode,
         "hits": hits,
+        "context_scope_applied": context_scope_applied,
         "index": (manager.status(scope_norm) or {}).get("index") or {},
         "stats": {
             "duration_ms": duration_ms,

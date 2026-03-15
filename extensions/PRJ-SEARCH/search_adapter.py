@@ -79,6 +79,7 @@ class KeywordIndexManager:
         pattern_mode: str = "auto",
         limit: int = 80,
         auto_build: bool = True,
+        context_scope: list[str] | None = None,
     ) -> dict[str, Any]:
         return _query.search(
             self,
@@ -88,6 +89,7 @@ class KeywordIndexManager:
             pattern_mode=pattern_mode,
             limit=limit,
             auto_build=auto_build,
+            context_scope=context_scope,
         )
 
     def semantic_index_status(self, scope: str = "ssot") -> dict[str, Any]:

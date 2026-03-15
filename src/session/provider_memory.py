@@ -185,6 +185,14 @@ def maybe_auto_compact_markdown(
     )
     reports_dir = (workspace_root / ".cache" / "reports").resolve()
     reports_dir.mkdir(parents=True, exist_ok=True)
+
+    # Archive original content before compaction for audit/recovery
+    archive_path = reports_dir / f"session_compaction_{_safe_slug(session_id)}.original.v1.md"
+    try:
+        archive_path.write_text(markdown, encoding="utf-8")
+    except Exception:
+        pass  # Non-critical: best-effort archive
+
     summary_path = reports_dir / f"session_compaction_{_safe_slug(session_id)}.v1.md"
     summary_path.write_text(summary_text, encoding="utf-8")
 

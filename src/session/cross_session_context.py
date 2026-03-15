@@ -43,6 +43,17 @@ def _decision_key(item: dict[str, Any]) -> tuple[str, float]:
     return (key, ts)
 
 
+def extract_decision_scope(key: str) -> tuple[str, str]:
+    """Split ``scope.key_name`` into ``(scope, key_name)``.
+
+    Returns ``("", key)`` when no scope prefix is present.
+    """
+    if "." in key:
+        parts = key.split(".", 1)
+        return (parts[0], parts[1])
+    return ("", key)
+
+
 def _is_session_expired(ctx: dict[str, Any], now_iso: str) -> bool:
     exp = _parse_iso8601(str(ctx.get("expires_at") or ""))
     now = _parse_iso8601(now_iso)
@@ -128,6 +139,13 @@ def build_cross_session_context(*, workspace_root: Path, session_name_filter: st
                         "approx_input_tokens": approx_input_tokens,
                     }
                 )
+            # Track predecessor lineage if present
+            predecessor = str(ctx.get("predecessor_session_id") or "").strip()
+            if predecessor and isinstance(provider_state.get("provider"), str):
+                for prow in provider_rows:
+                    if prow.get("session_id") == session_id:
+                        prow["predecessor_session_id"] = predecessor
+
             loaded_sessions += 1
             decisions_by_session[session_id] = 0
 
