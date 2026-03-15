@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/design-lab-layer.schema.v1.json",
+  "title": "Design Lab Layer Catalog",
+  "description": "4-layer design system architecture: foundation → component → recipe → page",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "kind",
+    "status",
+    "layers",
+    "dependency_rules"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["v1"]
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["design-lab-layer-catalog"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ACTIVE", "DRAFT", "ARCHIVED"]
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/layer" }
+    },
+    "dependency_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_imports"],
+      "properties": {
+        "allowed_imports": {
+          "type": "object",
+          "description": "For each layer, which layers it can import from.",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "forbidden_cross_imports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "reason"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layer_id",
+        "order",
+        "display_name",
+        "description",
+        "path_pattern",
+        "export_convention",
+        "items"
+      ],
+      "properties": {
+        "layer_id": {
+          "type": "string",
+          "enum": ["foundation", "component", "recipe", "page"]
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "display_name": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tr", "en"],
+          "properties": {
+            "tr": { "type": "string", "minLength": 1 },
+            "en": { "type": "string", "minLength": 1 }
+          }
+        },
+        "description": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tr", "en"],
+          "properties": {
+            "tr": { "type": "string", "minLength": 1 },
+            "en": { "type": "string", "minLength": 1 }
+          }
+        },
+        "path_pattern": {
+          "type": "string",
+          "description": "Glob pattern for this layer's files in managed repo",
+          "minLength": 1
+        },
+        "export_convention": {
+          "type": "string",
+          "description": "How items in this layer should be exported",
+          "minLength": 1
+        },
+        "ci_checks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/catalog_item" }
+        }
+      }
+    },
+    "catalog_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "name", "status"],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "minLength": 2
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["stable", "beta", "deprecated", "planned"]
+        },
+        "path": {
+          "type": "string"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

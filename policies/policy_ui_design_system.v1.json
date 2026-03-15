@@ -41,5 +41,15 @@
     "query_builder_path": "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts",
     "theme_contract_runtime_path": "web/packages/ui-kit/src/runtime/theme-contract.ts",
     "theme_context_provider_path": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
+  },
+  "design_lab_layers": {
+    "catalog_path": "registry/design_lab_layers.v1.json",
+    "schema_path": "schemas/design-lab-layer.schema.v1.json",
+    "layer_order": ["foundation", "component", "recipe", "page"],
+    "enforcement": {
+      "import_direction": "bottom-up-only",
+      "recipe_no_direct_foundation": true,
+      "page_requires_layout_wrapper": true
+    }
   }
 }

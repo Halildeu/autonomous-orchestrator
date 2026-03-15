@@ -67,6 +67,27 @@ def _manifest_repo_roots(manifest_obj: dict[str, Any]) -> list[str]:
     return roots
 
 
+def _manifest_meta_by_root(manifest_obj: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Build lookup from absolute repo_root -> manifest metadata (repo_slug, domain_profile, etc.)."""
+    repos = manifest_obj.get("repos") if isinstance(manifest_obj, dict) else None
+    if not isinstance(repos, list):
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    for item in repos:
+        if not isinstance(item, dict):
+            continue
+        repo_root = item.get("repo_root")
+        if not isinstance(repo_root, str) or not repo_root.strip():
+            continue
+        abs_root = str(Path(repo_root).expanduser().resolve())
+        result[abs_root] = {
+            "repo_slug": str(item.get("repo_slug") or ""),
+            "domain_profile": str(item.get("domain_profile") or ""),
+            "critical": bool(item.get("critical", False)),
+        }
+    return result
+
+
 def _lane_state_from_result(result: dict[str, Any]) -> tuple[str, str]:
     status = str(result.get("status") or "FAIL")
     files = result.get("files") if isinstance(result.get("files"), list) else []
@@ -116,6 +137,7 @@ def build_managed_repo_standards_summary(
         except Exception:
             manifest_error = True
     manifest_repos = _manifest_repo_roots(manifest_obj)
+    manifest_meta = _manifest_meta_by_root(manifest_obj)
 
     if not isinstance(report_path, Path):
         notes = ["sync_report_missing"]
@@ -204,9 +226,12 @@ def build_managed_repo_standards_summary(
         elif drift_state == "CLEAN":
             clean_count += 1
 
+        meta = manifest_meta.get(repo_root, {})
         repos.append(
             {
                 "repo_root": repo_root,
+                "origin": meta.get("repo_slug", ""),
+                "domain_profile": meta.get("domain_profile", ""),
                 "status": str(item.get("status") or "FAIL"),
                 "drift_state": drift_state,
                 "changed_files": changed_files,

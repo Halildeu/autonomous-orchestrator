@@ -1,0 +1,126 @@
+{
+  "version": "v1",
+  "kind": "design-lab-layer-catalog",
+  "status": "ACTIVE",
+  "layers": [
+    {
+      "layer_id": "foundation",
+      "order": 0,
+      "display_name": { "tr": "Temel", "en": "Foundation" },
+      "description": {
+        "tr": "Design token'lar, renk paleti, tipografi, spacing, grid sistemi. Tüm üst katmanların bağımlılık kökü.",
+        "en": "Design tokens, color palette, typography, spacing, grid system. Dependency root for all upper layers."
+      },
+      "path_pattern": "web/design-tokens/**",
+      "export_convention": "CSS custom properties + JSON theme contract",
+      "ci_checks": [
+        "tokens:build",
+        "theme-contract-consistency"
+      ],
+      "items": [
+        { "item_id": "color-palette", "name": "Color Palette", "status": "stable", "path": "web/design-tokens/figma.tokens.json", "tags": ["color", "brand"] },
+        { "item_id": "typography-scale", "name": "Typography Scale", "status": "stable", "path": "web/design-tokens/figma.tokens.json", "tags": ["typography", "font"] },
+        { "item_id": "spacing-grid", "name": "Spacing & Grid", "status": "stable", "path": "web/design-tokens/figma.tokens.json", "tags": ["spacing", "layout"] },
+        { "item_id": "elevation-shadow", "name": "Elevation & Shadow", "status": "stable", "path": "web/design-tokens/figma.tokens.json", "tags": ["elevation", "depth"] },
+        { "item_id": "border-radius", "name": "Border Radius", "status": "stable", "path": "web/design-tokens/figma.tokens.json", "tags": ["shape"] },
+        { "item_id": "theme-contract", "name": "Theme Contract", "status": "stable", "path": "web/design-tokens/generated/theme-contract.json", "tags": ["theme", "runtime"] }
+      ]
+    },
+    {
+      "layer_id": "component",
+      "order": 1,
+      "display_name": { "tr": "Bileşen", "en": "Component" },
+      "description": {
+        "tr": "Atomik UI bileşenleri. Sadece foundation katmanına bağımlı. Tek başına kullanılabilir.",
+        "en": "Atomic UI components. Only depends on foundation layer. Usable standalone."
+      },
+      "path_pattern": "web/packages/ui-kit/src/components/**",
+      "export_convention": "Named export from 'mfe-ui-kit' barrel",
+      "ci_checks": [
+        "lint:no-antd",
+        "component-export-check"
+      ],
+      "items": [
+        { "item_id": "button", "name": "Button", "status": "stable", "path": "web/packages/ui-kit/src/components/button", "depends_on": ["color-palette", "typography-scale", "spacing-grid"], "tags": ["input", "action"] },
+        { "item_id": "input", "name": "Input", "status": "stable", "path": "web/packages/ui-kit/src/components/input", "depends_on": ["color-palette", "typography-scale", "border-radius"], "tags": ["input", "form"] },
+        { "item_id": "select", "name": "Select", "status": "stable", "path": "web/packages/ui-kit/src/components/select", "depends_on": ["color-palette", "elevation-shadow"], "tags": ["input", "form"] },
+        { "item_id": "table", "name": "Table", "status": "stable", "path": "web/packages/ui-kit/src/components/table", "depends_on": ["typography-scale", "spacing-grid"], "tags": ["data-display"] },
+        { "item_id": "badge", "name": "Badge", "status": "stable", "path": "web/packages/ui-kit/src/components/badge", "depends_on": ["color-palette"], "tags": ["data-display", "status"] },
+        { "item_id": "avatar", "name": "Avatar", "status": "stable", "path": "web/packages/ui-kit/src/components/avatar", "depends_on": ["color-palette", "border-radius"], "tags": ["data-display", "identity"] },
+        { "item_id": "modal", "name": "Modal", "status": "stable", "path": "web/packages/ui-kit/src/components/modal", "depends_on": ["elevation-shadow", "spacing-grid"], "tags": ["overlay", "feedback"] },
+        { "item_id": "drawer", "name": "Drawer", "status": "stable", "path": "web/packages/ui-kit/src/components/drawer", "depends_on": ["elevation-shadow", "spacing-grid"], "tags": ["overlay", "navigation"] },
+        { "item_id": "icon", "name": "Icon", "status": "stable", "path": "web/packages/ui-kit/src/components/icon", "depends_on": ["color-palette"], "tags": ["media", "action"] },
+        { "item_id": "tooltip", "name": "Tooltip", "status": "stable", "path": "web/packages/ui-kit/src/components/tooltip", "depends_on": ["elevation-shadow", "typography-scale"], "tags": ["overlay", "help"] }
+      ]
+    },
+    {
+      "layer_id": "recipe",
+      "order": 2,
+      "display_name": { "tr": "Reçete", "en": "Recipe" },
+      "description": {
+        "tr": "Bileşen kombinasyonları. Component katmanına bağımlı. Tekrar eden UI pattern'leri kapsüller.",
+        "en": "Component compositions. Depends on component layer. Encapsulates recurring UI patterns."
+      },
+      "path_pattern": "web/packages/ui-kit/src/recipes/**",
+      "export_convention": "Named export from 'mfe-ui-kit/recipes' sub-path",
+      "ci_checks": [
+        "recipe-dependency-check",
+        "recipe-no-direct-foundation-import"
+      ],
+      "items": [
+        { "item_id": "entity-grid", "name": "EntityGrid", "status": "stable", "path": "web/packages/ui-kit/src/components/entity-grid", "depends_on": ["table", "input", "button", "badge"], "tags": ["data-display", "crud"] },
+        { "item_id": "form-drawer", "name": "FormDrawer", "status": "stable", "path": "web/packages/ui-kit/src/recipes/form-drawer", "depends_on": ["drawer", "button", "input"], "tags": ["form", "overlay"] },
+        { "item_id": "detail-drawer", "name": "DetailDrawer", "status": "stable", "path": "web/packages/ui-kit/src/recipes/detail-drawer", "depends_on": ["drawer", "badge", "avatar"], "tags": ["data-display", "overlay"] },
+        { "item_id": "search-filter-bar", "name": "SearchFilterBar", "status": "stable", "path": "web/packages/ui-kit/src/recipes/search-filter-bar", "depends_on": ["input", "select", "button"], "tags": ["input", "search"] },
+        { "item_id": "confirmation-modal", "name": "ConfirmationModal", "status": "stable", "path": "web/packages/ui-kit/src/recipes/confirmation-modal", "depends_on": ["modal", "button", "icon"], "tags": ["feedback", "action"] },
+        { "item_id": "stat-card", "name": "StatCard", "status": "beta", "path": "web/packages/ui-kit/src/recipes/stat-card", "depends_on": ["badge", "icon", "tooltip"], "tags": ["data-display", "dashboard"] }
+      ]
+    },
+    {
+      "layer_id": "page",
+      "order": 3,
+      "display_name": { "tr": "Sayfa", "en": "Page" },
+      "description": {
+        "tr": "Tam sayfa layout'ları. Recipe ve component katmanlarını kullanır. Route ile eşleşir.",
+        "en": "Full page layouts. Uses recipe and component layers. Maps to routes."
+      },
+      "path_pattern": "web/apps/mfe-shell/src/pages/**",
+      "export_convention": "Default export, PageLayout wrapper required",
+      "ci_checks": [
+        "page-layout-wrapper-check",
+        "page-no-direct-foundation-import",
+        "designlab:index"
+      ],
+      "items": [
+        { "item_id": "customer-list", "name": "CustomerListPage", "status": "stable", "path": "web/apps/mfe-shell/src/pages/customer/list", "depends_on": ["entity-grid", "search-filter-bar"], "tags": ["crud", "customer"] },
+        { "item_id": "customer-detail", "name": "CustomerDetailPage", "status": "stable", "path": "web/apps/mfe-shell/src/pages/customer/detail", "depends_on": ["detail-drawer", "stat-card"], "tags": ["detail", "customer"] },
+        { "item_id": "order-list", "name": "OrderListPage", "status": "stable", "path": "web/apps/mfe-shell/src/pages/order/list", "depends_on": ["entity-grid", "search-filter-bar", "badge"], "tags": ["crud", "order"] },
+        { "item_id": "dashboard", "name": "DashboardPage", "status": "stable", "path": "web/apps/mfe-shell/src/pages/dashboard", "depends_on": ["stat-card", "entity-grid"], "tags": ["overview", "dashboard"] },
+        { "item_id": "design-lab", "name": "DesignLabPage", "status": "stable", "path": "web/apps/mfe-shell/src/pages/admin/design-lab", "depends_on": [], "tags": ["admin", "catalog"] }
+      ]
+    }
+  ],
+  "dependency_rules": {
+    "allowed_imports": {
+      "foundation": [],
+      "component": ["foundation"],
+      "recipe": ["component", "foundation"],
+      "page": ["recipe", "component", "foundation"]
+    },
+    "forbidden_cross_imports": [
+      { "from": "foundation", "to": "component", "reason": "Foundation atomiktir, üst katmana bağımlı olamaz" },
+      { "from": "foundation", "to": "recipe", "reason": "Foundation atomiktir, üst katmana bağımlı olamaz" },
+      { "from": "foundation", "to": "page", "reason": "Foundation atomiktir, üst katmana bağımlı olamaz" },
+      { "from": "component", "to": "recipe", "reason": "Component recipe'ye bağımlı olamaz, döngüsel bağımlılık" },
+      { "from": "component", "to": "page", "reason": "Component page'e bağımlı olamaz, döngüsel bağımlılık" },
+      { "from": "recipe", "to": "page", "reason": "Recipe page'e bağımlı olamaz, döngüsel bağımlılık" }
+    ]
+  },
+  "notes": [
+    "Katmanlar aşağıdan yukarıya bağımlılık zinciri kurar: foundation → component → recipe → page",
+    "Her katman sadece kendi altındaki katmanlardan import edebilir",
+    "Foundation katmanı hiçbir UI bileşenine bağımlı değildir — sadece design token üretir",
+    "Recipe katmanı doğrudan foundation import edemez, component üzerinden kullanır",
+    "Page katmanı mutlaka PageLayout wrapper kullanmalıdır"
+  ]
+}

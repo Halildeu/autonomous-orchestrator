@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,30 @@ from .drift_scoreboard import (
     write_drift_scoreboard,
 )
 
-def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -> dict[str, Any]:
+def _is_fresh(path: Path, max_age_seconds: int) -> bool:
+    if max_age_seconds <= 0 or not path.exists():
+        return False
+    try:
+        age = time.time() - path.stat().st_mtime
+        return age < max_age_seconds
+    except Exception:
+        return False
+
+
+def _load_cached_result(out_json: Path) -> dict[str, Any]:
+    try:
+        report = json.loads(out_json.read_text(encoding="utf-8"))
+        return {
+            "status": "OK",
+            "overall_status": report.get("overall_status") if isinstance(report, dict) else None,
+            "out_json": str(out_json),
+            "freshness_guard": True,
+        }
+    except Exception:
+        return {"status": "FAIL", "error_code": "CACHE_READ_ERROR", "out_json": str(out_json)}
+
+
+def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool, max_age_seconds: int = 0) -> dict[str, Any]:
     policy = _load_policy(core_root, workspace_root)
     if not policy.enabled:
         return {"status": "OK", "note": "POLICY_DISABLED", "on_fail": policy.on_fail}
@@ -30,6 +54,9 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
     out_md = _resolve_workspace_path(workspace_root, policy.out_md)
     if out_json is None or out_md is None:
         return {"status": "FAIL", "error_code": "OUTPUT_PATH_INVALID", "on_fail": policy.on_fail}
+
+    if not dry_run and max_age_seconds > 0 and _is_fresh(out_json, max_age_seconds):
+        return _load_cached_result(out_json)
 
     report = build_system_status(
         workspace_root=workspace_root,

@@ -154,6 +154,34 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
     pdca_refs = build_pdca_refs(repo_root=repo_root, workspace_root=workspace_root)
     intake_refs = build_intake_refs(repo_root=repo_root, workspace_root=workspace_root)
 
+    # --- Code-proximity signals: hot files, import graph, git diff ---
+    code_signals: dict[str, Any] = {}
+    try:
+        from src.session.context_enrichment import (
+            compute_hot_files,
+            compute_hot_tests,
+            compute_import_graph,
+            compute_neighbors,
+        )
+        hot_files = compute_hot_files(repo_root=repo_root, days=7, top_n=15)
+        hot_tests = compute_hot_tests(repo_root=repo_root, days=7, top_n=10)
+        import_graph = compute_import_graph(repo_root=repo_root, max_files=300)
+
+        hot_paths = [h["path"] for h in hot_files[:10]]
+        neighbors = compute_neighbors(import_graph=import_graph, target_files=hot_paths) if hot_paths else []
+
+        code_signals = {
+            "hot_files": hot_files,
+            "hot_tests": hot_tests,
+            "import_graph_summary": {
+                "total_files_scanned": len(import_graph),
+                "total_edges": sum(len(v) for v in import_graph.values()),
+            },
+            "hot_file_neighbors": neighbors[:20],
+        }
+    except Exception:
+        code_signals = {"hot_files": [], "hot_tests": [], "import_graph_summary": {"total_files_scanned": 0, "total_edges": 0}, "hot_file_neighbors": []}
+
     cross_session_res = build_cross_session_context(workspace_root=workspace_root)
     cross_session_rel = cross_session_res.get("report_path") if isinstance(cross_session_res, dict) else None
     cross_session_hash = ""
@@ -210,7 +238,11 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
         pointer_paths=pointer_paths,
         mode=mode,
         policy=policy,
-        extra_inputs={"session_cross_hash": cross_session_hash},
+        extra_inputs={
+            "session_cross_hash": cross_session_hash,
+            "hot_file_count": str(len(code_signals.get("hot_files", []))),
+            "import_graph_edges": str(code_signals.get("import_graph_summary", {}).get("total_edges", 0)),
+        },
     )
 
     cache_path = workspace_root / CACHE_REL_PATH
@@ -275,6 +307,12 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
     notes.extend([f"tenant_context={n}" for n in tenant_notes])
     shared_keys = cross_session_res.get("shared_keys_total") if isinstance(cross_session_res, dict) else 0
     notes.append(f"session_shared_keys={int(shared_keys or 0)}")
+    hot_count = len(code_signals.get("hot_files", []))
+    graph_files = code_signals.get("import_graph_summary", {}).get("total_files_scanned", 0)
+    if hot_count:
+        notes.append(f"code_signals_hot_files={hot_count}")
+    if graph_files:
+        notes.append(f"code_signals_import_graph_files={graph_files}")
 
     payload = {
         "version": "v1",
@@ -289,6 +327,7 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
         "gap": {k: v for k, v in gap_refs.items() if v},
         "pdca": {k: v for k, v in pdca_refs.items() if v},
         "intake": {k: v for k, v in intake_refs.items() if v},
+        "code_signals": code_signals,
         "routing": routing,
         "guardrails": guardrails,
         "evidence_refs": sort_pointers(pointers),

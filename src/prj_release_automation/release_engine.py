@@ -615,12 +615,21 @@ def run_release_check(
     from src.ops.system_status_report import run_system_status
     from src.ops.roadmap_cli import cmd_portfolio_status
 
-    system_status = run_system_status(workspace_root=workspace_root, core_root=_repo_root(), dry_run=False)
+    system_status = run_system_status(workspace_root=workspace_root, core_root=_repo_root(), dry_run=False, max_age_seconds=30)
+
+    _sys_json_inject: dict | None = None
+    sys_out_path = system_status.get("out_json") if isinstance(system_status, dict) else None
+    if isinstance(sys_out_path, str) and Path(sys_out_path).exists():
+        try:
+            _sys_json_inject = json.loads(Path(sys_out_path).read_text(encoding="utf-8"))
+        except Exception:
+            pass
 
     class _Args:
-        def __init__(self, workspace_root: str, mode: str):
+        def __init__(self, workspace_root: str, mode: str, system_status_json: dict | None = None):
             self.workspace_root = workspace_root
             self.mode = mode
+            self.system_status_json = system_status_json
 
     portfolio_buf = None
     try:
@@ -629,7 +638,7 @@ def run_release_check(
 
         out = StringIO()
         with redirect_stdout(out):
-            cmd_portfolio_status(_Args(str(workspace_root), "json"))
+            cmd_portfolio_status(_Args(str(workspace_root), "json", _sys_json_inject))
         portfolio_buf = out.getvalue()
     except Exception:
         portfolio_buf = None

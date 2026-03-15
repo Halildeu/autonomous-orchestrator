@@ -9,7 +9,7 @@ from typing import Any
 from src.ops.commands.common import repo_root
 from src.ops.doer_loop_lock import owner_tag_from_env
 from src.ops.work_intake_from_sources import _load_autopilot_policy, run_work_intake_build
-from src.ops.work_item_claims import get_active_claim
+from src.ops.work_item_claims import get_active_claim, load_claims
 
 
 def _now_iso() -> str:
@@ -73,6 +73,49 @@ def _manual_request_safe_first(
     return True
 
 
+def _compute_proximity_scores(
+    *, core_root: Path, workspace_root: Path, items: list[dict[str, Any]]
+) -> dict[str, float]:
+    """Compute proximity scores for work items using hot files and import graph."""
+    try:
+        from src.session.context_enrichment import compute_hot_files, compute_import_graph
+        from src.ops.work_intake_proximity import compute_proximity_score
+
+        hot_files = compute_hot_files(repo_root=core_root, days=7, top_n=30)
+        import_graph = compute_import_graph(repo_root=core_root, max_files=300)
+        active_claims = load_claims(workspace_root)
+
+        scores: dict[str, float] = {}
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            iid = str(item.get("intake_id") or "")
+            if not iid:
+                continue
+            result = compute_proximity_score(
+                work_item=item,
+                hot_files=hot_files,
+                import_graph=import_graph,
+                active_claims=active_claims,
+            )
+            scores[iid] = result.get("total_proximity_score", 0.0)
+        return scores
+    except Exception:
+        return {}
+
+
+def _proximity_sort_key(item: dict[str, Any], proximity_scores: dict[str, float]) -> tuple[int, int, float, str]:
+    """Sort key combining priority, severity, proximity (desc), and intake_id."""
+    iid = str(item.get("intake_id") or "")
+    prox = proximity_scores.get(iid, 0.0)
+    return (
+        _priority_rank(str(item.get("priority") or "")),
+        _severity_rank(str(item.get("severity") or "")),
+        -prox,  # Higher proximity = earlier in list
+        iid,
+    )
+
+
 def _safe_first_candidates(*, workspace_root: Path, items: list[dict[str, Any]], limit: int) -> list[str]:
     group1: list[dict[str, Any]] = []
     group2: list[dict[str, Any]] = []
@@ -97,20 +140,11 @@ def _safe_first_candidates(*, workspace_root: Path, items: list[dict[str, Any]],
             source_ref = str(item.get("source_ref") or "")
             if source_ref.startswith("ci/"):
                 group2.append(item)
-    group1.sort(
-        key=lambda x: (
-            _priority_rank(str(x.get("priority") or "")),
-            _severity_rank(str(x.get("severity") or "")),
-            str(x.get("intake_id") or ""),
-        )
+    proximity_scores = _compute_proximity_scores(
+        core_root=repo_root(), workspace_root=workspace_root, items=group1 + group2
     )
-    group2.sort(
-        key=lambda x: (
-            _priority_rank(str(x.get("priority") or "")),
-            _severity_rank(str(x.get("severity") or "")),
-            str(x.get("intake_id") or ""),
-        )
-    )
+    group1.sort(key=lambda x: _proximity_sort_key(x, proximity_scores))
+    group2.sort(key=lambda x: _proximity_sort_key(x, proximity_scores))
     selected = group1[: max(0, int(limit))] + group2[: max(0, int(limit))]
     return [str(x.get("intake_id") or "") for x in selected if str(x.get("intake_id") or "")]
 
@@ -198,13 +232,12 @@ def run_work_intake_autoselect(*, workspace_root: Path, limit: int, mode: str = 
 
             candidates.append(item)
 
-        candidates.sort(
-            key=lambda x: (
-                _priority_rank(str(x.get("priority") or "")),
-                _severity_rank(str(x.get("severity") or "")),
-                str(x.get("intake_id") or ""),
-            )
+        proximity_scores_policy = _compute_proximity_scores(
+            core_root=core_root, workspace_root=workspace_root, items=candidates
         )
+        candidates.sort(key=lambda x: _proximity_sort_key(x, proximity_scores_policy))
+        if proximity_scores_policy:
+            notes.append(f"proximity_scored_items={len(proximity_scores_policy)}")
         if rank_rule.lower().strip() != "priority asc -> severity asc -> intake_id asc":
             notes.append("autoselect_rank_rule_fallback")
 

@@ -14,7 +14,8 @@
     "single_ui_library",
     "design_tokens",
     "page_modularity",
-    "parametric_data"
+    "parametric_data",
+    "design_lab_layers"
   ],
   "properties": {
     "version": {
@@ -147,6 +148,40 @@
         },
         "theme_context_provider_path": {
           "const": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
+        }
+      }
+    },
+    "design_lab_layers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalog_path",
+        "schema_path",
+        "layer_order",
+        "enforcement"
+      ],
+      "properties": {
+        "catalog_path": {
+          "const": "registry/design_lab_layers.v1.json"
+        },
+        "schema_path": {
+          "const": "schemas/design-lab-layer.schema.v1.json"
+        },
+        "layer_order": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["foundation", "component", "recipe", "page"] },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "enforcement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["import_direction", "recipe_no_direct_foundation", "page_requires_layout_wrapper"],
+          "properties": {
+            "import_direction": { "const": "bottom-up-only" },
+            "recipe_no_direct_foundation": { "type": "boolean" },
+            "page_requires_layout_wrapper": { "type": "boolean" }
+          }
         }
       }
     }
