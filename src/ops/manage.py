@@ -55,6 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.commands.enforcement_cmds import register_enforcement_subcommands
     from src.ops.commands.vendor_pack_verify import register_vendor_pack_verify_subcommand
     from src.ops.commands.demo_5min import register_demo_5min_subcommand
+    from src.ops.commands.agent_handoff_cmds import register_agent_handoff_subcommands
+    from src.ops.commands.bootstrap_cmds import register_bootstrap_subcommands
 
     register_status_subcommands(sub)
     register_hygiene_subcommands(sub)
@@ -81,6 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
     register_enforcement_subcommands(sub)
     register_vendor_pack_verify_subcommand(sub)
     register_demo_5min_subcommand(sub)
+    register_agent_handoff_subcommands(sub)
+    register_bootstrap_subcommands(sub)
 
     return parser
 
