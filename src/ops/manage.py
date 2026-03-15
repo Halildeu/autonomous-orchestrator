@@ -57,6 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.commands.demo_5min import register_demo_5min_subcommand
     from src.ops.commands.agent_handoff_cmds import register_agent_handoff_subcommands
     from src.ops.commands.bootstrap_cmds import register_bootstrap_subcommands
+    from src.ops.commands.domain_profile_cmds import register_domain_profile_subcommands
 
     register_status_subcommands(sub)
     register_hygiene_subcommands(sub)
@@ -85,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_demo_5min_subcommand(sub)
     register_agent_handoff_subcommands(sub)
     register_bootstrap_subcommands(sub)
+    register_domain_profile_subcommands(sub)
 
     return parser
 

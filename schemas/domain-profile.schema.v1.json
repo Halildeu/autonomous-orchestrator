@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/domain-profile.schema.v1.json",
+  "title": "Domain Profile",
+  "description": "Defines a managed repo domain profile with scopes, lanes, and tech stack.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "kind",
+    "profile_id",
+    "display_name",
+    "description",
+    "service_scopes",
+    "active_lanes",
+    "execution_sequence",
+    "tech_stack",
+    "write_roots",
+    "bootstrap_tiers"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["v1"]
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["domain-profile"]
+    },
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "minLength": 2,
+      "maxLength": 64
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "service_scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["backend", "database", "api", "frontend"]
+      }
+    },
+    "active_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["unit", "database", "api", "contract", "integration", "e2e"]
+      }
+    },
+    "execution_sequence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["backend", "database", "api", "frontend", "integration", "e2e"]
+      }
+    },
+    "tech_stack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "type": "object",
+          "properties": {
+            "language": { "type": "string" },
+            "framework": { "type": "string" }
+          }
+        },
+        "frontend": {
+          "type": "object",
+          "properties": {
+            "language": { "type": "string" },
+            "framework": { "type": "string" },
+            "platform": {
+              "type": "string",
+              "enum": ["web", "mobile-react-native", "mobile-flutter", "pwa"]
+            }
+          }
+        },
+        "database": {
+          "type": "object",
+          "properties": {
+            "engine": { "type": "string" },
+            "migration_tool": { "type": "string" }
+          }
+        },
+        "api": {
+          "type": "object",
+          "properties": {
+            "protocol": { "type": "string" },
+            "version_prefix": { "type": "string" }
+          }
+        }
+      }
+    },
+    "write_roots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "bootstrap_tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier1_status", "tier2_structural"],
+      "properties": {
+        "tier1_status": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tier2_structural": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tier3_project": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "merge_requires_all_green": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

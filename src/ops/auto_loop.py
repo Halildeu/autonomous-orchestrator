@@ -438,7 +438,7 @@ def _work_intake_check_payload(*, workspace_root: Path, mode: str) -> dict[str, 
     top_next_actions = summary.get("top_next_actions") if isinstance(summary.get("top_next_actions"), list) else []
     next_intake_focus = summary.get("next_intake_focus") if isinstance(summary.get("next_intake_focus"), str) else "NONE"
 
-    sys_result = run_system_status(workspace_root=workspace_root, core_root=_repo_root(), dry_run=False)
+    sys_result = run_system_status(workspace_root=workspace_root, core_root=_repo_root(), dry_run=False, max_age_seconds=30)
     sys_out = sys_result.get("out_json") if isinstance(sys_result, dict) else None
     sys_rel = None
     if isinstance(sys_out, str):

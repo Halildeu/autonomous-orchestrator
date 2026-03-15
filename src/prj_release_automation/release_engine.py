@@ -615,7 +615,7 @@ def run_release_check(
     from src.ops.system_status_report import run_system_status
     from src.ops.roadmap_cli import cmd_portfolio_status
 
-    system_status = run_system_status(workspace_root=workspace_root, core_root=_repo_root(), dry_run=False)
+    system_status = run_system_status(workspace_root=workspace_root, core_root=_repo_root(), dry_run=False, max_age_seconds=30)
 
     class _Args:
         def __init__(self, workspace_root: str, mode: str):

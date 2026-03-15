@@ -35,6 +35,7 @@ NETWORK_ENABLED="${NETWORK_ENABLED:-true}"
 LIVE_GATE_ENABLED="${LIVE_GATE_ENABLED:-true}"
 LIVE_GATE_REQUIRE_ENV_KEY="${LIVE_GATE_REQUIRE_ENV_KEY:-false}"
 MANAGED_REPO_CRITICAL="${MANAGED_REPO_CRITICAL:-true}"
+MANAGED_REPO_DOMAIN_PROFILE="${MANAGED_REPO_DOMAIN_PROFILE:-fullstack}"
 SYNC_STANDARDS_ONBOARD="${SYNC_STANDARDS_ONBOARD:-false}"
 SYNC_STANDARDS_VALIDATE="${SYNC_STANDARDS_VALIDATE:-true}"
 POSITIONALS=()
@@ -283,7 +284,7 @@ binding_path.parent.mkdir(parents=True, exist_ok=True)
 binding_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
-  python3 - "$REPO_ABS" "$WORKSPACE_ROOT" "$REPO_SLUG" "$REPO_HASH" "$MANAGED_REPO_CRITICAL" >> "$RECORD_FILE" <<'PY'
+  python3 - "$REPO_ABS" "$WORKSPACE_ROOT" "$REPO_SLUG" "$REPO_HASH" "$MANAGED_REPO_CRITICAL" "$MANAGED_REPO_DOMAIN_PROFILE" >> "$RECORD_FILE" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -293,6 +294,7 @@ workspace_root = Path(sys.argv[2]).resolve()
 repo_slug = sys.argv[3]
 repo_hash = sys.argv[4]
 managed_repo_critical = str(sys.argv[5]).strip().lower() in {"1", "true", "yes", "y", "on"}
+domain_profile = str(sys.argv[6]).strip() if len(sys.argv) > 6 else "fullstack"
 
 payload = {
     "repo_root": str(repo_root),
@@ -300,6 +302,7 @@ payload = {
     "repo_slug": repo_slug,
     "repo_id": repo_hash,
     "critical": managed_repo_critical,
+    "domain_profile": domain_profile,
 }
 print(json.dumps(payload, ensure_ascii=False))
 PY
@@ -366,4 +369,22 @@ if to_bool "$SYNC_STANDARDS_ONBOARD"; then
     SYNC_ARGS+=(--validate-after-sync)
   fi
   python3 "${SYNC_ARGS[@]}"
+
+  # GAP-1/GAP-4: Generate AGENTS.md for managed repos from template
+  AGENTS_SCRIPT="${SCRIPT_DIR}/generate_managed_repo_agents_md.py"
+  if [ -f "$AGENTS_SCRIPT" ]; then
+    echo "AGENTS.md generation: managed repolara AGENTS.md oluşturuluyor..."
+    python3 "$AGENTS_SCRIPT" \
+      --manifest-path "${WORKSPACE_PREFIX}/.cache/managed_repos.v1.json" \
+      --apply
+  fi
+
+  # GAP-3: Initialize context bootstrap for managed repos
+  BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/init_managed_repo_context_bootstrap.py"
+  if [ -f "$BOOTSTRAP_SCRIPT" ]; then
+    echo "Context bootstrap init: managed repolarda bootstrap yapısı oluşturuluyor..."
+    python3 "$BOOTSTRAP_SCRIPT" \
+      --manifest-path "${WORKSPACE_PREFIX}/.cache/managed_repos.v1.json" \
+      --apply
+  fi
 fi

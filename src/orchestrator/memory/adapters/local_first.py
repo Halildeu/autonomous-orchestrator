@@ -130,6 +130,123 @@ class LocalFirstMemoryPort:
             k = 1
         return scored[:k]
 
+    # ---------------------------------------------------------------
+    # Code-aware secondary index
+    # ---------------------------------------------------------------
+
+    def _code_index_path(self) -> Path:
+        return self.workspace / ".cache" / "memoryport" / "code_index.v1.json"
+
+    def _load_code_index(self) -> dict[str, dict[str, Any]]:
+        path = self._code_index_path()
+        if not path.exists():
+            return {}
+        try:
+            obj = _load_json(path)
+            records = obj.get("records") if isinstance(obj, dict) else None
+            return records if isinstance(records, dict) else {}
+        except Exception:
+            return {}
+
+    def _save_code_index(self, records: dict[str, dict[str, Any]]) -> None:
+        payload = {
+            "version": "v1",
+            "adapter_id": self.adapter_id,
+            "kind": "code_aware_secondary_index",
+            "records": records,
+        }
+        _save_json(self._code_index_path(), payload)
+
+    def upsert_code_symbol(
+        self,
+        *,
+        file_path: str,
+        symbol: str,
+        symbol_type: str = "function",
+        domain: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Index a code symbol (class, function, export) for retrieval."""
+        meta = metadata if isinstance(metadata, dict) else {}
+        rid = sha256(f"{file_path}:{symbol}".encode("utf-8")).hexdigest()
+        text = f"{symbol} {symbol_type} {file_path} {domain}"
+
+        record = {
+            "record_id": rid,
+            "file_path": str(file_path),
+            "symbol": str(symbol),
+            "symbol_type": str(symbol_type),
+            "domain": str(domain),
+            "vector": _embed(text),
+            "metadata": meta,
+        }
+
+        records = self._load_code_index()
+        records[rid] = record
+        self._save_code_index(records)
+        return rid
+
+    def query_code_symbols(
+        self,
+        *,
+        query: str,
+        top_k: int = 10,
+        domain_filter: str | None = None,
+        symbol_type_filter: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Query the code-aware secondary index."""
+        qv = _embed(query)
+        records = self._load_code_index()
+
+        scored: list[tuple[float, dict[str, Any]]] = []
+        for rid, raw in records.items():
+            if not isinstance(raw, dict):
+                continue
+            if domain_filter and str(raw.get("domain") or "") != domain_filter:
+                continue
+            if symbol_type_filter and str(raw.get("symbol_type") or "") != symbol_type_filter:
+                continue
+
+            vec = raw.get("vector")
+            if not isinstance(vec, list):
+                continue
+            v = [float(x) for x in vec]
+            score = _dot(qv, v)
+            scored.append((score, {
+                "record_id": str(rid),
+                "file_path": str(raw.get("file_path") or ""),
+                "symbol": str(raw.get("symbol") or ""),
+                "symbol_type": str(raw.get("symbol_type") or ""),
+                "domain": str(raw.get("domain") or ""),
+                "score": round(score, 4),
+                "metadata": raw.get("metadata") or {},
+            }))
+
+        scored.sort(key=lambda r: -r[0])
+        k = max(1, int(top_k))
+        return [item for _, item in scored[:k]]
+
+    def index_from_code_aware_index(self, *, repo_root: Path) -> int:
+        """Bulk-index symbols from the code-aware index into the secondary index."""
+        try:
+            from src.session.code_aware_index import build_code_index
+            index = build_code_index(repo_root=repo_root, max_files=500)
+        except Exception:
+            return 0
+
+        count = 0
+        for entry in index.get("entries", []):
+            if not isinstance(entry, dict):
+                continue
+            fp = str(entry.get("path") or "")
+            domain = str(entry.get("domain") or "")
+            for sym in entry.get("symbols", []):
+                self.upsert_code_symbol(
+                    file_path=fp, symbol=sym, symbol_type="symbol", domain=domain,
+                )
+                count += 1
+        return count
+
     def delete(self, *, namespace: str, record_ids: list[str]) -> int:
         ns = str(namespace or "").strip() or "default"
         records = self._load_records(ns)

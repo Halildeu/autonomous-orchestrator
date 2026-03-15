@@ -1,0 +1,125 @@
+{
+  "version": "v1",
+  "kind": "domain-profiles-registry",
+  "default_profile": "fullstack",
+  "profiles": {
+    "fullstack": {
+      "version": "v1",
+      "kind": "domain-profile",
+      "profile_id": "fullstack",
+      "display_name": "Fullstack (Java + React)",
+      "description": "Tam yığın ERP profili: backend, database, api, frontend lane'lerin tümü aktif.",
+      "service_scopes": ["backend", "database", "api", "frontend"],
+      "active_lanes": ["unit", "database", "api", "contract", "integration", "e2e"],
+      "execution_sequence": ["backend", "database", "api", "frontend", "integration", "e2e"],
+      "tech_stack": {
+        "backend": { "language": "java", "framework": "spring-boot" },
+        "frontend": { "language": "typescript", "framework": "react", "platform": "web" },
+        "database": { "engine": "postgresql", "migration_tool": "flyway" },
+        "api": { "protocol": "rest", "version_prefix": "/api/v1" }
+      },
+      "write_roots": ["backend/**", "web/**", "database/**", "scripts/**"],
+      "bootstrap_tiers": {
+        "tier1_status": [
+          ".cache/ws_customer_default/.cache/reports/system_status.v1.json",
+          ".cache/ws_customer_default/.cache/reports/portfolio_status.v1.json"
+        ],
+        "tier2_structural": ["AGENTS.md", "docs/OPERATIONS/CODEX-UX.md", "docs/LAYER-MODEL-LOCK.v1.md"],
+        "tier3_project": ["roadmaps/SSOT/roadmap.v1.json"]
+      },
+      "merge_requires_all_green": true,
+      "notes": ["Varsayılan profil. Tüm lane'ler sıralı çalışır."]
+    },
+    "backend-api": {
+      "version": "v1",
+      "kind": "domain-profile",
+      "profile_id": "backend-api",
+      "display_name": "Backend + API Service",
+      "description": "Backend microservice profili: unit, database, api lane'leri aktif. Frontend lane'i devre dışı.",
+      "service_scopes": ["backend", "database", "api"],
+      "active_lanes": ["unit", "database", "api", "integration", "e2e"],
+      "execution_sequence": ["backend", "database", "api", "integration", "e2e"],
+      "tech_stack": {
+        "backend": { "language": "java", "framework": "spring-boot" },
+        "database": { "engine": "postgresql", "migration_tool": "flyway" },
+        "api": { "protocol": "rest", "version_prefix": "/api/v1" }
+      },
+      "write_roots": ["backend/**", "database/**", "scripts/**"],
+      "bootstrap_tiers": {
+        "tier1_status": [
+          ".cache/ws_customer_default/.cache/reports/system_status.v1.json"
+        ],
+        "tier2_structural": ["AGENTS.md", "standards.lock"]
+      },
+      "merge_requires_all_green": true,
+      "notes": ["Frontend lane'i çalışmaz. API contract doğrulaması zorunlu."]
+    },
+    "frontend-web": {
+      "version": "v1",
+      "kind": "domain-profile",
+      "profile_id": "frontend-web",
+      "display_name": "Frontend Web (React)",
+      "description": "Web frontend profili: contract (React/TypeScript) lane'i aktif. Backend lane'i devre dışı.",
+      "service_scopes": ["frontend"],
+      "active_lanes": ["contract", "integration", "e2e"],
+      "execution_sequence": ["frontend", "integration", "e2e"],
+      "tech_stack": {
+        "frontend": { "language": "typescript", "framework": "react", "platform": "web" }
+      },
+      "write_roots": ["web/**", "scripts/**"],
+      "bootstrap_tiers": {
+        "tier1_status": [
+          ".cache/ws_customer_default/.cache/reports/system_status.v1.json"
+        ],
+        "tier2_structural": ["AGENTS.md", "standards.lock"]
+      },
+      "merge_requires_all_green": true,
+      "notes": ["Backend/database lane'leri çalışmaz. UX catalog enforcement zorunlu."]
+    },
+    "frontend-mobile": {
+      "version": "v1",
+      "kind": "domain-profile",
+      "profile_id": "frontend-mobile",
+      "display_name": "Frontend Mobile (React Native)",
+      "description": "Mobile frontend profili: React Native ile mobil uygulama geliştirme.",
+      "service_scopes": ["frontend"],
+      "active_lanes": ["contract", "integration", "e2e"],
+      "execution_sequence": ["frontend", "integration", "e2e"],
+      "tech_stack": {
+        "frontend": { "language": "typescript", "framework": "react-native", "platform": "mobile-react-native" }
+      },
+      "write_roots": ["mobile/**", "scripts/**"],
+      "bootstrap_tiers": {
+        "tier1_status": [
+          ".cache/ws_customer_default/.cache/reports/system_status.v1.json"
+        ],
+        "tier2_structural": ["AGENTS.md", "standards.lock"]
+      },
+      "merge_requires_all_green": true,
+      "notes": ["Web lane'leri çalışmaz. Mobile-specific test runner kullanılır."]
+    },
+    "api-gateway": {
+      "version": "v1",
+      "kind": "domain-profile",
+      "profile_id": "api-gateway",
+      "display_name": "API Gateway / BFF",
+      "description": "API gateway veya BFF (Backend-for-Frontend) profili. API contract doğrulaması odaklı.",
+      "service_scopes": ["api", "backend"],
+      "active_lanes": ["unit", "api", "integration", "e2e"],
+      "execution_sequence": ["backend", "api", "integration", "e2e"],
+      "tech_stack": {
+        "backend": { "language": "java", "framework": "spring-cloud-gateway" },
+        "api": { "protocol": "rest", "version_prefix": "/api/v1" }
+      },
+      "write_roots": ["backend/**", "scripts/**"],
+      "bootstrap_tiers": {
+        "tier1_status": [
+          ".cache/ws_customer_default/.cache/reports/system_status.v1.json"
+        ],
+        "tier2_structural": ["AGENTS.md", "standards.lock"]
+      },
+      "merge_requires_all_green": true,
+      "notes": ["Database ve frontend lane'leri çalışmaz. API contract testi zorunlu."]
+    }
+  }
+}

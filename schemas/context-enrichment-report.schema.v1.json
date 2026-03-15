@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/context-enrichment-report.schema.v1.json",
+  "title": "Context Enrichment Report",
+  "description": "Hot files, import graph summary, file ownership signals for agent context.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kind", "generated_at", "repo_root", "hot_files", "import_graph_summary", "status"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "kind": { "type": "string", "enum": ["context-enrichment-report"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "repo_root": { "type": "string", "minLength": 1 },
+    "config": {
+      "type": "object",
+      "properties": {
+        "days": { "type": "integer", "minimum": 1 },
+        "top_n": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "hot_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "change_count"],
+        "properties": {
+          "path": { "type": "string" },
+          "change_count": { "type": "integer", "minimum": 1 },
+          "exists": { "type": "boolean" }
+        }
+      }
+    },
+    "hot_tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "change_count"],
+        "properties": {
+          "path": { "type": "string" },
+          "change_count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "import_graph_summary": {
+      "type": "object",
+      "required": ["total_files_scanned", "total_edges"],
+      "properties": {
+        "total_files_scanned": { "type": "integer", "minimum": 0 },
+        "total_edges": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "hot_file_neighbors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "file_ownership": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "dominant_author"],
+        "properties": {
+          "path": { "type": "string" },
+          "dominant_author": { "type": "string" },
+          "total_authors": { "type": "integer" },
+          "authors": { "type": "array" }
+        }
+      }
+    },
+    "status": { "type": "string", "enum": ["OK", "FAIL"] }
+  }
+}
