@@ -396,23 +396,32 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
         "policy_paths": [],
         "notes": ["pm_suite_missing"],
     }
-    sys_path = workspace_root / ".cache" / "reports" / "system_status.v1.json"
-    if sys_path.exists():
-        try:
-            obj = _load_json(sys_path)
-        except Exception:
+    # Accept pre-built system_status report from upstream to avoid redundant file read
+    injected_sys = getattr(args, "system_status_json", None)
+    if isinstance(injected_sys, dict):
+        obj = injected_sys
+    else:
+        sys_path = workspace_root / ".cache" / "reports" / "system_status.v1.json"
+        obj = {}
+        if sys_path.exists():
+            try:
+                obj = _load_json(sys_path)
+            except Exception:
+                obj = {}
+        if not isinstance(obj, dict):
             obj = {}
-        if isinstance(obj, dict):
-            sections = obj.get("sections") if isinstance(obj.get("sections"), dict) else {}
-            bench = sections.get("benchmark") if isinstance(sections, dict) else None
-            if isinstance(bench, dict) and isinstance(bench.get("status"), str):
-                bench_status = bench.get("status")
-            pm_suite = sections.get("pm_suite") if isinstance(sections, dict) else None
-            if isinstance(pm_suite, dict):
-                pm_suite_summary = pm_suite
-            managed_repo_standards = sections.get("managed_repo_standards") if isinstance(sections, dict) else None
-            if isinstance(managed_repo_standards, dict):
-                managed_repo_standards_summary = managed_repo_standards
+
+    if isinstance(obj, dict):
+        sections = obj.get("sections") if isinstance(obj.get("sections"), dict) else {}
+        bench = sections.get("benchmark") if isinstance(sections, dict) else None
+        if isinstance(bench, dict) and isinstance(bench.get("status"), str):
+            bench_status = bench.get("status")
+        pm_suite = sections.get("pm_suite") if isinstance(sections, dict) else None
+        if isinstance(pm_suite, dict):
+            pm_suite_summary = pm_suite
+        managed_repo_standards = sections.get("managed_repo_standards") if isinstance(sections, dict) else None
+        if isinstance(managed_repo_standards, dict):
+            managed_repo_standards_summary = managed_repo_standards
 
     if not isinstance(managed_repo_standards_summary, dict):
         managed_repo_standards_summary = build_managed_repo_standards_summary(

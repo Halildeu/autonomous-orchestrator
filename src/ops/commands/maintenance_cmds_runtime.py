@@ -207,9 +207,19 @@ def cmd_work_intake_check(args: argparse.Namespace) -> int:
         except Exception:
             sys_rel = None
 
+    _sys_json_inject: dict | None = None
+    if isinstance(sys_out, str) and Path(sys_out).exists():
+        try:
+            _sys_json_inject = json.loads(Path(sys_out).read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
     portfolio_buf = StringIO()
     with redirect_stdout(portfolio_buf), redirect_stderr(portfolio_buf):
-        cmd_portfolio_status(argparse.Namespace(workspace_root=str(ws), mode="json"))
+        cmd_portfolio_status(argparse.Namespace(
+            workspace_root=str(ws), mode="json",
+            system_status_json=_sys_json_inject,
+        ))
     portfolio_report = ws / ".cache" / "reports" / "portfolio_status.v1.json"
     portfolio_rel = ".cache/reports/portfolio_status.v1.json" if portfolio_report.exists() else ""
 
