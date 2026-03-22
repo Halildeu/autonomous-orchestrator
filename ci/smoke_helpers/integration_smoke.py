@@ -14,6 +14,7 @@ from jsonschema import Draft202012Validator
 from ci.smoke_helpers.utils import prepare_workspace, print_timer, run_ci_smoke, run_cmd, write_completeness_state
 from ci.smoke_helpers.integration_smoke_steps import (
     _smoke_bootstrap_m3_5,
+    _smoke_context_health,
     _smoke_json_idempotency_guard,
     _smoke_m10_2_benchmark,
     _smoke_py_budget_report,
@@ -296,6 +297,7 @@ def run_smoke_sequence(
     _smoke_spec_core(repo_root)
     _smoke_m10_2_benchmark(repo_root)
     _smoke_py_budget_report(repo_root)
+    _smoke_context_health(repo_root)
     if smoke_level != "fast" and not launcher_mode:
         t_drift = time.monotonic()
         _smoke_roadmap_drift(repo_root)

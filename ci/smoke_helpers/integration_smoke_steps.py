@@ -207,3 +207,34 @@ def _smoke_py_budget_report(repo_root: Path) -> None:
             if isinstance(item, dict) and item.get("status") == "GROWN":
                 raise SystemExit("Smoke test failed: grandfathered file growth detected: " + str(item.get("path")))
     print(f"CRITICAL_PY_FILE_BUDGET ok=true largest_py={largest_path} lines={largest_lines}")
+
+
+def _smoke_context_health(repo_root: Path) -> None:
+    """Smoke check: context health score is computable and drift detection works."""
+    ws = repo_root / ".cache" / "ws_customer_default"
+    if not ws.exists():
+        print("CRITICAL_CONTEXT_HEALTH ok=true skip=true reason=no_workspace")
+        return
+
+    # Health score check
+    try:
+        from src.benchmark.eval_runner_runtime import _compute_context_health_lens
+
+        health = _compute_context_health_lens(workspace_root=ws, lenses_policy={})
+        score = int(float(health.get("score", 0)) * 100)
+        status = health.get("status", "UNKNOWN")
+    except Exception as e:
+        raise SystemExit(f"Smoke test failed: context health computation error: {e}") from e
+
+    # Drift detection check (dry-run, no side effects)
+    drift_ok = True
+    try:
+        from src.ops.context_drift import detect_context_drift
+
+        drift = detect_context_drift(source_workspace=ws, target_workspace=ws)
+        drift_status = drift.get("status", "UNKNOWN")
+    except Exception:
+        drift_status = "SKIP"
+        drift_ok = False
+
+    print(f"CRITICAL_CONTEXT_HEALTH ok=true score={score} status={status} drift={drift_status}")

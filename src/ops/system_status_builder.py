@@ -32,6 +32,7 @@ from .system_status_sections import (
     _core_lock_section,
     _doc_graph_section,
     _doer_section,
+    _execution_target_governance_section,
     _extensions_section,
     _formats_status,
     _harvest_status,
@@ -55,6 +56,8 @@ from .system_status_sections import (
     _decisions_section,
     _work_intake_exec_section,
     _work_intake_section,
+    _provider_capability_section,
+    _role_handoff_section,
 )
 from .system_status_sections_intake import _doer_loop_section
 from .system_status_sections_catalog import _catalog_status, _iso_core_status
@@ -271,6 +274,10 @@ def build_system_status(
     selected_pack_ids, selection_trace_path, selection_notes = _pack_selection_trace(workspace_root)
     fmt_status, format_ids = _formats_status(workspace_root)
     sess_status, sess_details = _session_status(workspace_root)
+    execution_target_governance = _execution_target_governance_section(
+        workspace_root,
+        allow_write=not dry_run,
+    )
     qual_status, qual_summary = _quality_status(workspace_root)
     integrity_section = _integrity_status(workspace_root)
     bench = _benchmark_status(workspace_root)
@@ -402,6 +409,9 @@ def build_system_status(
     if isinstance(pm_suite_section, dict):
         pm_status = str(pm_suite_section.get("status") or "WARN")
         section_statuses.append("WARN" if pm_status == "IDLE" else pm_status)
+    if isinstance(execution_target_governance, dict):
+        etg_status = str(execution_target_governance.get("status") or "WARN")
+        section_statuses.append("WARN" if etg_status == "IDLE" else etg_status)
     if isinstance(release_section, dict):
         rel_status = str(release_section.get("status") or "WARN")
         section_statuses.append("WARN" if rel_status == "IDLE" else rel_status)
@@ -470,6 +480,9 @@ def build_system_status(
                 "expires_at": str(sess_details.get("expires_at", "")),
                 "session_context_hash": str(sess_details.get("session_context_hash", "")),
             },
+            "execution_target_governance": execution_target_governance,
+            "provider_capability": _provider_capability_section(workspace_root),
+            "role_handoff": _role_handoff_section(workspace_root),
             "quality_gate": {
                 "status": qual_status,
                 "report_path": str(Path(".cache") / "index" / "quality_gate_report.v1.json"),
@@ -590,6 +603,35 @@ def build_system_status(
         report["sections"]["context_router"] = context_router_section
     if isinstance(layer_boundary, dict):
         report["sections"]["layer_boundary"] = layer_boundary
+
+    # Context health + drift sections (self-healing triad)
+    try:
+        from src.benchmark.eval_runner_runtime import _compute_context_health_lens
+
+        ctx_health = _compute_context_health_lens(workspace_root=workspace_root, lenses_policy={})
+        report["sections"]["context_health"] = {
+            "status": ctx_health.get("status", "UNKNOWN"),
+            "score": int(float(ctx_health.get("score", 0)) * 100),
+            "components": ctx_health.get("components", {}),
+            "reasons": ctx_health.get("reasons", []),
+        }
+    except Exception:
+        report["sections"]["context_health"] = {"status": "SKIP", "score": 0}
+
+    drift_report_path = workspace_root / ".cache" / "reports" / "context_drift_report.v1.json"
+    if drift_report_path.exists():
+        try:
+            import json as _json
+
+            drift_data = _json.loads(drift_report_path.read_text(encoding="utf-8"))
+            report["sections"]["context_drift"] = {
+                "status": drift_data.get("status", "UNKNOWN"),
+                "drift_score": drift_data.get("drift_score", 0),
+                "total_drifted": drift_data.get("total_drifted", 0),
+            }
+        except Exception:
+            pass
+
     return report
 
 
@@ -684,6 +726,39 @@ def _render_md(report: dict[str, Any]) -> str:
     if isinstance(notes, list) and notes:
         lines.append("Notes: " + ", ".join(str(x) for x in notes))
     lines.append("")
+
+    execution_target_governance = sections.get("execution_target_governance") if isinstance(sections, dict) else {}
+    if isinstance(execution_target_governance, dict) and execution_target_governance:
+        _section_title("Execution target governance")
+        lines.append(f"Status: {execution_target_governance.get('status', '')}")
+        lines.append(
+            "Registries: "
+            + f"repos={execution_target_governance.get('repo_count', 0)} "
+            + f"targets={execution_target_governance.get('target_count', 0)} "
+            + f"launch_profiles={execution_target_governance.get('launch_profile_count', 0)} "
+            + f"version_targets={execution_target_governance.get('version_target_count', 0)}"
+        )
+        lines.append(
+            "AI entry pack: "
+            + f"status={execution_target_governance.get('ai_entry_pack', {}).get('status', '')} "
+            + f"valid={execution_target_governance.get('ai_entry_pack', {}).get('valid', False)} "
+            + f"auto_refreshed={execution_target_governance.get('ai_entry_pack', {}).get('auto_refreshed', False)}"
+        )
+        lines.append(
+            "File write arbitration: "
+            + f"active={execution_target_governance.get('file_write_arbitration', {}).get('active_lease_count', 0)} "
+            + f"stale={execution_target_governance.get('file_write_arbitration', {}).get('stale_lease_count', 0)}"
+        )
+        resolution_report = execution_target_governance.get("last_resolution_report_path")
+        if isinstance(resolution_report, str) and resolution_report:
+            lines.append(f"Resolution report: {resolution_report}")
+        guard_report = execution_target_governance.get("last_guard_report_path")
+        if isinstance(guard_report, str) and guard_report:
+            lines.append(f"Guard report: {guard_report}")
+        notes = execution_target_governance.get("notes")
+        if isinstance(notes, list) and notes:
+            lines.append("Notes: " + ", ".join(str(x) for x in notes))
+        lines.append("")
 
     managed_repo_standards = sections.get("managed_repo_standards") if isinstance(sections, dict) else {}
     if isinstance(managed_repo_standards, dict) and managed_repo_standards:
