@@ -73,6 +73,14 @@ Not (Hard Cutover v2):
 9. Solo developer policy: write yetkili collaborator sayisi `<=1` ise `required_approving_review_count=0` ve `require_code_owner_reviews=false` zorunludur; `>1` oldugunda minimum `1` review ve code-owner review zorunludur.
 10. Legacy format yonetimi: Eski markdown/json standart kaynaklari yalnizca archive/snapshot amacli tutulur; normatif teknik kararlar `technical_baseline.aistd.v1.json` uzerinden yorumlanir.
 
+## Context Health & Self-Healing (v0.2)
+11. Context health: Her sync döngüsünde `scripts/check_context_health.py` managed repo workspace'ini kontrol eder; score 0-100, grade A-F üretir.
+12. Context drift detection: Artifact, session ve policy hash'leri orchestrator ile karşılaştırılır; drift tespit edilirse gap üretilir.
+13. Reconciliation: `--sync-context` flag'i ile sync script context artifact'larını push eder, session'ı yeniler, parent decision'larını child'a aktarır.
+14. Parent-child session: Orchestrator session parent, managed repo session child olarak bağlanır; decision inheritance SSOT-first kuralına uyar (parent wins on conflict).
+15. Portfolio health: Tüm managed repo'ların context health score'ları aggregate edilir; portfolio_context_health.v1.json üretilir.
+16. Self-healing döngüsü: Health score drop → GAP-EVAL-LENS-context_health → work_intake ticket → PDCA regression check → otomatik fix at next sync.
+
 ## Değişiklik Yönetimi
 - Bu kontratta değişiklik sessiz yapılmaz; CHG süreci ve gate kanıtı gerekir.
 - Kontrat ve `standards.lock` birlikte güncellenir.

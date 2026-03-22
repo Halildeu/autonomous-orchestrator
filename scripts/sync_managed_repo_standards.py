@@ -851,7 +851,186 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip GitHub live branch protection check (report uses UNVERIFIED).",
     )
+    parser.add_argument(
+        "--sync-context",
+        action="store_true",
+        help="Sync context artifacts (gap register, work intake, session) from orchestrator to target workspaces.",
+    )
     return parser.parse_args(argv)
+
+
+_CONTEXT_PUSH_ARTIFACTS = [
+    ".cache/index/gap_register.v1.json",
+    ".cache/index/work_intake.v1.json",
+    ".cache/reports/system_status.v1.json",
+    ".cache/index/extension_registry.v1.json",
+    ".cache/index/session_cross_context.v1.json",
+]
+
+_CONTEXT_PULL_ARTIFACTS = [
+    ".cache/reports/system_status.v1.json",
+    ".cache/reports/work_intake_exec_ticket.v1.json",
+]
+
+
+def _sync_context_to_targets(
+    *,
+    source_root: Path,
+    targets: list[Path],
+    apply: bool,
+) -> list[dict[str, Any]]:
+    """Sync context artifacts and session state from orchestrator to managed repo workspaces."""
+    results: list[dict[str, Any]] = []
+    source_ws = source_root / ".cache" / "ws_customer_default"
+    if not source_ws.exists():
+        return [{"status": "SKIP", "reason": "source workspace not found", "source": str(source_ws)}]
+
+    for target_root in targets:
+        target_ws = target_root / ".cache" / "ws_customer_default"
+        result: dict[str, Any] = {
+            "target": str(target_root),
+            "target_workspace": str(target_ws),
+            "pushed": [],
+            "pulled": [],
+            "session_sync": "SKIP",
+        }
+
+        if not target_ws.exists():
+            result["status"] = "SKIP"
+            result["reason"] = "target workspace not found"
+            results.append(result)
+            continue
+
+        # PUSH: orchestrator → target (context artifacts)
+        for rel in _CONTEXT_PUSH_ARTIFACTS:
+            src_path = source_ws / rel
+            dst_path = target_ws / rel
+            if not src_path.exists():
+                continue
+            src_mtime = src_path.stat().st_mtime
+            dst_mtime = dst_path.stat().st_mtime if dst_path.exists() else 0
+            if src_mtime <= dst_mtime:
+                continue
+            if apply:
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
+                dst_path.write_bytes(src_path.read_bytes())
+            result["pushed"].append({"path": rel, "action": "applied" if apply else "would_apply"})
+
+        # PULL: target → orchestrator (execution results)
+        if apply:
+            for rel in _CONTEXT_PULL_ARTIFACTS:
+                src_path = target_ws / rel
+                dst_path = source_ws / rel
+                if not src_path.exists():
+                    continue
+                src_mtime = src_path.stat().st_mtime
+                dst_mtime = dst_path.stat().st_mtime if dst_path.exists() else 0
+                if src_mtime <= dst_mtime:
+                    continue
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
+                dst_path.write_bytes(src_path.read_bytes())
+                result["pulled"].append({"path": rel, "action": "applied"})
+
+        # SESSION SYNC: parent-child session linking + decision inheritance
+        try:
+            result["session_sync"] = _sync_session_context(
+                orchestrator_workspace=source_ws,
+                target_workspace=target_ws,
+                apply=apply,
+            )
+        except Exception as e:
+            result["session_sync"] = {"status": "FAIL", "error": str(e)[:200]}
+
+        result["status"] = "OK"
+        results.append(result)
+
+    return results
+
+
+def _sync_session_context(
+    *,
+    orchestrator_workspace: Path,
+    target_workspace: Path,
+    session_id: str = "default",
+    apply: bool = True,
+) -> dict[str, Any]:
+    """Sync parent session decisions to child, create child if missing."""
+    try:
+        from src.session.context_store import (
+            SessionContextError,
+            SessionPaths,
+            inherit_parent_decisions,
+            is_expired,
+            link_to_parent,
+            load_context,
+            new_context,
+            renew_context,
+            save_context_atomic,
+        )
+    except ImportError:
+        return {"status": "SKIP", "reason": "session module not available"}
+
+    parent_sp = SessionPaths(workspace_root=orchestrator_workspace, session_id=session_id)
+    child_sp = SessionPaths(workspace_root=target_workspace, session_id=session_id)
+
+    if not parent_sp.context_path.exists():
+        return {"status": "SKIP", "reason": "parent session not found"}
+
+    try:
+        parent_ctx = load_context(parent_sp.context_path)
+    except SessionContextError as e:
+        return {"status": "FAIL", "reason": f"parent load error: {e.error_code}"}
+
+    now_iso = _now_iso_utc()
+
+    # Load or create child session
+    child_exists = child_sp.context_path.exists()
+    if child_exists:
+        try:
+            child_ctx = load_context(child_sp.context_path)
+        except SessionContextError:
+            child_ctx = new_context(session_id, str(target_workspace), 604800)
+    else:
+        child_ctx = new_context(session_id, str(target_workspace), 604800)
+
+    # Renew if expired
+    if is_expired(child_ctx, now_iso):
+        child_ctx = renew_context(child_ctx, 604800)
+
+    # Link to parent
+    child_ctx = link_to_parent(
+        child_ctx,
+        parent_workspace_root=str(orchestrator_workspace),
+        parent_session_id=session_id,
+    )
+
+    # Inherit parent decisions
+    parent_decisions_before = len(parent_ctx.get("ephemeral_decisions", []))
+    child_decisions_before = len(child_ctx.get("ephemeral_decisions", []))
+    child_ctx = inherit_parent_decisions(child_ctx, parent_context=parent_ctx)
+    child_decisions_after = len(child_ctx.get("ephemeral_decisions", []))
+
+    result: dict[str, Any] = {
+        "status": "OK",
+        "child_existed": child_exists,
+        "parent_decisions": parent_decisions_before,
+        "child_decisions_before": child_decisions_before,
+        "child_decisions_after": child_decisions_after,
+        "inherited": child_decisions_after - child_decisions_before,
+    }
+
+    if apply:
+        try:
+            save_context_atomic(child_sp.context_path, child_ctx)
+            result["applied"] = True
+        except SessionContextError as e:
+            result["status"] = "FAIL"
+            result["save_error"] = e.error_code
+    else:
+        result["applied"] = False
+        result["action"] = "would_apply"
+
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -949,6 +1128,15 @@ def main(argv: list[str] | None = None) -> int:
         for target in targets
     ]
 
+    # Context sync: push orchestrator context artifacts + parent session to target workspaces
+    context_sync_results: list[dict[str, Any]] = []
+    if args.sync_context:
+        context_sync_results = _sync_context_to_targets(
+            source_root=source_root,
+            targets=targets,
+            apply=bool(args.apply),
+        )
+
     failed = [r for r in results if r.get("status") != "OK"]
     changed_total = sum(int(r.get("changed_files") or 0) for r in results if isinstance(r, dict))
 
@@ -976,6 +1164,7 @@ def main(argv: list[str] | None = None) -> int:
         "changed_total": changed_total,
         "failed_count": len(failed),
         "results": results,
+        "context_sync": context_sync_results if context_sync_results else [],
     }
     output_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 

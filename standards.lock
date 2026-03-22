@@ -79,7 +79,12 @@
     "policies/work_intake_fragments/rules/job_status.v1.json",
     "policies/work_intake_fragments/rules/manual_request.v1.json",
     "policies/work_intake_fragments/rules/gap.v1.json",
-    "policies/work_intake_fragments/rules/time_sink.v1.json"
+    "policies/work_intake_fragments/rules/time_sink.v1.json",
+    "schemas/context-drift-report.schema.v1.json",
+    "schemas/handoff-envelope.schema.v1.json",
+    "schemas/closeout-envelope.schema.v1.json",
+    "scripts/check_context_health.py",
+    "docs/OPERATIONS/CONTEXT-HEALTH-RUNBOOK.v1.md"
   ],
   "required_commands": [
     "python ci/validate_schemas.py",
@@ -97,7 +102,8 @@
     "python3 extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py --repo-root . --packet .cache/reports/delivery_session_packet.v1.json",
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py --repo-root . --out-json .cache/reports/coverage_visibility.v1.json --out-md .cache/reports/coverage_visibility.v1.md",
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py --repo-root . --out-json .cache/reports/observability_coverage_matrix.v1.json --out-md .cache/reports/observability_coverage_matrix.v1.md",
-    "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root ."
+    "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root .",
+    "python3 scripts/check_context_health.py --workspace-root .cache/ws_customer_default"
   ],
   "required_gates": [
     "enforcement-check",

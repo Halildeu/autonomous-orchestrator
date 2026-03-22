@@ -90,6 +90,12 @@ def read_provider_session_state(
         if conversation_id:
             continuation["conversation_id"] = conversation_id
     payload["continuation"] = continuation
+
+    # Include compaction summary ref if available (for context reuse)
+    compaction = ctx.get("compaction") if isinstance(ctx.get("compaction"), dict) else {}
+    if compaction.get("status") == "completed" and compaction.get("summary_ref"):
+        payload["compaction_summary_ref"] = str(compaction["summary_ref"])
+
     return payload
 
 

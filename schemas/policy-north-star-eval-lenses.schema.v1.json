@@ -53,7 +53,8 @@
         "ai_ops_fit": { "$ref": "#/$defs/dimension" },
         "github_ops_release": { "$ref": "#/$defs/dimension" },
         "operability": { "$ref": "#/$defs/dimension" },
-        "integration_coherence": { "$ref": "#/$defs/dimension" }
+        "integration_coherence": { "$ref": "#/$defs/dimension" },
+        "context_health": { "$ref": "#/$defs/dimension" }
       }
     },
     "trend_best_practice": {
@@ -85,6 +86,21 @@
         "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
         "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 },
         "required_signals": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    },
+    "context_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_score_ok", "min_score_warn"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 },
+        "components": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "default": []
@@ -140,7 +156,7 @@
   "$defs": {
     "dimension": {
       "type": "string",
-      "enum": ["A", "B", "C", "D", "E", "F"]
+      "enum": ["A", "B", "C", "D", "E", "F", "G"]
     },
     "scored_lens": {
       "type": "object",

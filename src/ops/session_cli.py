@@ -10,10 +10,14 @@ from typing import Any
 from src.session.context_store import (
     SessionContextError,
     SessionPaths,
+    inherit_parent_decisions,
+    is_expired,
+    link_to_parent,
     load_context,
     mark_compaction,
     new_context,
     prune_expired_decisions,
+    renew_context,
     save_context_atomic,
     upsert_provider_state,
     upsert_decision,
@@ -264,6 +268,117 @@ def cmd_session_compaction_mark(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_session_link_parent(args: argparse.Namespace) -> int:
+    """Link a child session to its parent (orchestrator → managed repo)."""
+    ws = _resolve_workspace_root(str(args.workspace_root))
+    parent_ws = str(args.parent_workspace).strip()
+    session_id = str(args.session_id).strip() or "default"
+
+    if not parent_ws:
+        print(json.dumps({"status": "FAIL", "error_code": "MISSING_PARENT_WORKSPACE"}, sort_keys=True))
+        return 2
+
+    sp = SessionPaths(workspace_root=ws, session_id=session_id)
+    if not sp.context_path.exists():
+        try:
+            ctx = new_context(session_id, str(ws), 604800)
+            save_context_atomic(sp.context_path, ctx)
+        except SessionContextError as e:
+            print(json.dumps({"status": "FAIL", "error_code": e.error_code}, sort_keys=True))
+            return 2
+
+    try:
+        ctx = load_context(sp.context_path)
+        now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        if is_expired(ctx, now_iso):
+            ctx = renew_context(ctx, 604800)
+        ctx = link_to_parent(ctx, parent_workspace_root=parent_ws, parent_session_id=session_id)
+
+        # Inherit parent decisions if parent exists
+        parent_sp = SessionPaths(workspace_root=Path(parent_ws), session_id=session_id)
+        inherited = 0
+        if parent_sp.context_path.exists():
+            try:
+                parent_ctx = load_context(parent_sp.context_path)
+                before = len(ctx.get("ephemeral_decisions", []))
+                ctx = inherit_parent_decisions(ctx, parent_context=parent_ctx)
+                inherited = len(ctx.get("ephemeral_decisions", [])) - before
+            except SessionContextError:
+                pass
+
+        save_context_atomic(sp.context_path, ctx)
+        print(json.dumps({
+            "status": "OK",
+            "session_id": session_id,
+            "parent_workspace": parent_ws,
+            "inherited_decisions": inherited,
+        }, sort_keys=True))
+        return 0
+    except SessionContextError as e:
+        print(json.dumps({"status": "FAIL", "error_code": e.error_code}, sort_keys=True))
+        return 2
+
+
+def cmd_session_sync(args: argparse.Namespace) -> int:
+    """Sync decisions between parent and child sessions."""
+    ws = _resolve_workspace_root(str(args.workspace_root))
+    session_id = str(args.session_id).strip() or "default"
+    direction = str(args.direction).strip().lower()
+
+    sp = SessionPaths(workspace_root=ws, session_id=session_id)
+    if not sp.context_path.exists():
+        print(json.dumps({"status": "FAIL", "error_code": "SESSION_NOT_FOUND"}, sort_keys=True))
+        return 2
+
+    try:
+        ctx = load_context(sp.context_path)
+    except SessionContextError as e:
+        print(json.dumps({"status": "FAIL", "error_code": e.error_code}, sort_keys=True))
+        return 2
+
+    parent_ref = ctx.get("parent_session_ref")
+    if not isinstance(parent_ref, dict) or not parent_ref.get("workspace_root"):
+        print(json.dumps({"status": "FAIL", "error_code": "NO_PARENT_LINKED"}, sort_keys=True))
+        return 2
+
+    parent_ws = Path(str(parent_ref["workspace_root"]))
+    parent_session_id = str(parent_ref.get("session_id") or "default")
+    parent_sp = SessionPaths(workspace_root=parent_ws, session_id=parent_session_id)
+
+    if not parent_sp.context_path.exists():
+        print(json.dumps({"status": "FAIL", "error_code": "PARENT_SESSION_NOT_FOUND"}, sort_keys=True))
+        return 2
+
+    try:
+        parent_ctx = load_context(parent_sp.context_path)
+    except SessionContextError as e:
+        print(json.dumps({"status": "FAIL", "error_code": f"PARENT_{e.error_code}"}, sort_keys=True))
+        return 2
+
+    inherited = 0
+    if direction in ("pull", "both"):
+        before = len(ctx.get("ephemeral_decisions", []))
+        ctx = inherit_parent_decisions(ctx, parent_context=parent_ctx)
+        inherited = len(ctx.get("ephemeral_decisions", [])) - before
+        save_context_atomic(sp.context_path, ctx)
+
+    pushed = 0
+    if direction in ("push", "both"):
+        before = len(parent_ctx.get("ephemeral_decisions", []))
+        parent_ctx = inherit_parent_decisions(parent_ctx, parent_context=ctx, overwrite_existing=False)
+        pushed = len(parent_ctx.get("ephemeral_decisions", [])) - before
+        if pushed > 0:
+            save_context_atomic(parent_sp.context_path, parent_ctx)
+
+    print(json.dumps({
+        "status": "OK",
+        "direction": direction,
+        "inherited_from_parent": inherited,
+        "pushed_to_parent": pushed,
+    }, sort_keys=True))
+    return 0
+
+
 def register_session_subcommands(subparsers: argparse._SubParsersAction) -> None:
     ap_init = subparsers.add_parser("session-init", help="Create a session context if missing (workspace-scoped).")
     ap_init.add_argument("--workspace-root", required=True)
@@ -305,3 +420,15 @@ def register_session_subcommands(subparsers: argparse._SubParsersAction) -> None
     ap_compact.add_argument("--source", default="local")
     ap_compact.add_argument("--approx-input-tokens", default="0")
     ap_compact.set_defaults(func=cmd_session_compaction_mark)
+
+    ap_link = subparsers.add_parser("session-link-parent", help="Link child session to parent (orchestrator → managed repo).")
+    ap_link.add_argument("--workspace-root", required=True)
+    ap_link.add_argument("--parent-workspace", required=True, help="Parent (orchestrator) workspace root path.")
+    ap_link.add_argument("--session-id", default="default")
+    ap_link.set_defaults(func=cmd_session_link_parent)
+
+    ap_sync = subparsers.add_parser("session-sync", help="Sync decisions between parent and child sessions.")
+    ap_sync.add_argument("--workspace-root", required=True)
+    ap_sync.add_argument("--session-id", default="default")
+    ap_sync.add_argument("--direction", default="pull", choices=["push", "pull", "both"], help="Sync direction: pull (from parent), push (to parent), both.")
+    ap_sync.set_defaults(func=cmd_session_sync)

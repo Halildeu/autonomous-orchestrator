@@ -70,6 +70,40 @@ class FinishLoopResult:
     actions_after: dict[str, Any]
 
 
+def _try_renew_or_create_session(*, workspace_root: Path) -> None:
+    """Bootstrap or renew the default session context (fail-open)."""
+    from src.session.context_store import (
+        SessionContextError,
+        SessionPaths,
+        is_expired,
+        load_context,
+        new_context,
+        renew_context,
+        save_context_atomic,
+    )
+
+    sp = SessionPaths(workspace_root=workspace_root, session_id="default")
+    ttl = 604800  # 7 days
+    try:
+        if sp.context_path.exists():
+            ctx = load_context(sp.context_path)
+            from datetime import datetime as _dt
+            from datetime import timezone as _tz
+            now_iso = _dt.now(_tz.utc).isoformat().replace("+00:00", "Z")
+            if is_expired(ctx, now_iso):
+                ctx = renew_context(ctx, ttl)
+                save_context_atomic(sp.context_path, ctx)
+        else:
+            ctx = new_context("default", str(workspace_root), ttl)
+            save_context_atomic(sp.context_path, ctx)
+    except (SessionContextError, Exception):
+        try:
+            ctx = new_context("default", str(workspace_root), ttl)
+            save_context_atomic(sp.context_path, ctx)
+        except Exception:
+            pass  # fail-open: session is non-critical for orchestration
+
+
 def run_finish_loop(
     *,
     ctx: FinishLoopContext,
@@ -99,6 +133,9 @@ def run_finish_loop(
 
     roadmap_state = state.roadmap_state
     core_violation_code: str | None = None
+
+    # Session context bootstrap / renewal at finish loop entry
+    _try_renew_or_create_session(workspace_root=ctx.workspace_root)
 
     def _enforce_core_clean(*, phase: str) -> tuple[bool, str | None]:
         nonlocal core_violation_code
@@ -438,6 +475,15 @@ def run_finish_loop(
                     stop_code = "SYSTEM_STATUS_FAIL"
                     logs.append("SYSTEM_STATUS_FAIL\n")
                     break
+
+                # Extension registry refresh (offline, deterministic)
+                try:
+                    from src.ops.extension_registry import run_extension_registry
+                    ext_reg_res = run_extension_registry(workspace_root=ctx.workspace_root, mode="report", chat=False)
+                    iterations[-1]["extension_registry_status"] = str(ext_reg_res.get("status") or "FAIL") if isinstance(ext_reg_res, dict) else "FAIL"
+                except Exception as ext_err:
+                    iterations[-1]["extension_registry_status"] = "FAIL"
+                    logs.append("EXTENSION_REGISTRY_REFRESH_FAILED " + str(ext_err)[:200] + "\n")
 
                 # Debt drafting (suggest-only, workspace-only).
                 if not ctx.smoke_drift_minimal:

@@ -24,11 +24,17 @@
     "ops": [
       "context-pack-build",
       "context-pack-route",
+      "context-health",
+      "context-reconcile",
+      "context-drift",
       "session-set",
-      "session-status"
+      "session-status",
+      "session-link-parent",
+      "session-sync"
     ],
     "ops_single_gate": [
-      "context-router-check"
+      "context-router-check",
+      "context-health-check"
     ]
   },
   "tests_entrypoints": [
@@ -69,13 +75,17 @@
     ]
   },
   "notes": [
-    "ai_ile_yazilim_gelistirirken_baglam_yonetimi"
+    "ai_ile_yazilim_gelistirirken_baglam_yonetimi",
+    "self_healing_context_triad_p0_p1_p6"
   ],
   "origin": "CORE",
   "outputs": {
     "workspace_reports": [
       ".cache/reports/context_orchestration_status.v1.json",
-      ".cache/reports/request_intake_to_exec_trace.v1.json"
+      ".cache/reports/request_intake_to_exec_trace.v1.json",
+      ".cache/reports/context_drift_report.v1.json",
+      ".cache/reports/context_reconciliation_report.v1.json",
+      ".cache/reports/portfolio_context_health.v1.json"
     ]
   },
   "owner": "CORE",
@@ -85,7 +95,7 @@
   "policy_files": [
     "policies/policy_context_orchestration.v1.json"
   ],
-  "semver": "0.1.0",
+  "semver": "0.2.0",
   "ui_surfaces": [
     "system-status",
     "portfolio-status"

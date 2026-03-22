@@ -33,9 +33,9 @@ def _load_artifact_completeness_policy(*, core_root: Path, workspace_root: Path)
         _ArtifactCheck("ops_run_index", ".cache/index/run_index.v1.json", "M6.6", "warn", True),
         _ArtifactCheck("ops_dlq_index", ".cache/index/dlq_index.v1.json", "M6.6", "warn", True),
         _ArtifactCheck("harvest_cursor", ".cache/learning/harvest_cursor.v1.json", "M6.7", "warn", True),
-        _ArtifactCheck("advisor_suggestions", ".cache/learning/advisor_suggestions.v1.json", "M7", "warn", False),
-        _ArtifactCheck("readiness_report", ".cache/ops/autopilot_readiness.v1.json", "M8", "warn", False),
-        _ArtifactCheck("system_status", ".cache/reports/system_status.v1.json", "M8.1", "warn", False),
+        _ArtifactCheck("advisor_suggestions", ".cache/learning/advisor_suggestions.v1.json", "M7", "warn", True),
+        _ArtifactCheck("readiness_report", ".cache/ops/autopilot_readiness.v1.json", "M8", "warn", True),
+        _ArtifactCheck("system_status", ".cache/reports/system_status.v1.json", "M8.1", "warn", True),
     ]
 
     ws_policy = workspace_root / "policies" / "policy_artifact_completeness.v1.json"

@@ -374,16 +374,18 @@ def finish(
             if actions_changed:
                 _atomic_write_json(actions_file, reg_ac)
 
+            _MILESTONE_TOPO = {"M2.5": 1, "M3": 2, "M3.5": 3, "M6.6": 4, "M6.7": 5, "M7": 6, "M8": 7, "M8.1": 8}
             heal_milestones = sorted(
                 {
                     str(item.get("owner_milestone") or "")
                     for item in missing_before
                     if item.get("auto_heal")
-                }
+                },
+                key=lambda m: _MILESTONE_TOPO.get(m, 99),
             )
             if pack_conflict_blocked and heal_milestones:
                 heal_milestones = [m for m in heal_milestones if m not in pack_derived_milestones]
-            heal_milestones = [m for m in heal_milestones if m][:2]
+            heal_milestones = [m for m in heal_milestones if m]
 
             if heal_milestones:
                 try:

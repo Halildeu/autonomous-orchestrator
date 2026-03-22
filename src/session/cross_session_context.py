@@ -8,6 +8,7 @@ from typing import Any
 from src.session.context_store import (
     SessionContextError,
     SessionPaths,
+    is_expired,
     load_context,
     prune_expired_decisions,
     save_context_atomic,
@@ -198,4 +199,94 @@ def build_cross_session_context(*, workspace_root: Path, session_name_filter: st
         "report_path": _rel_to_workspace(out_path, workspace_root),
         "shared_keys_total": len(shared_decisions),
         "sessions_loaded": loaded_sessions,
+    }
+
+
+def build_hierarchical_context(
+    *,
+    parent_workspace_root: Path,
+    child_workspace_roots: list[Path],
+    session_id: str = "default",
+) -> dict[str, Any]:
+    """Aggregate decisions from parent + all child sessions.
+
+    Parent decisions win on key conflict (SSOT-first principle).
+    Output: .cache/index/hierarchical_cross_context.v1.json in parent workspace.
+    """
+    now_iso = _now_iso8601()
+    parent_sp = SessionPaths(workspace_root=parent_workspace_root, session_id=session_id)
+    out_path = parent_workspace_root / ".cache" / "index" / "hierarchical_cross_context.v1.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    all_decisions: dict[str, dict[str, Any]] = {}  # key → decision (parent wins)
+    sources: dict[str, str] = {}  # key → workspace_root origin
+
+    # Load parent decisions first (these take priority)
+    parent_decisions = 0
+    if parent_sp.context_path.exists():
+        try:
+            parent_ctx = load_context(parent_sp.context_path)
+            if not is_expired(parent_ctx, now_iso):
+                prune_expired_decisions(parent_ctx, now_iso)
+                for d in parent_ctx.get("ephemeral_decisions", []):
+                    if isinstance(d, dict) and d.get("key"):
+                        key = str(d["key"])
+                        all_decisions[key] = d
+                        sources[key] = str(parent_workspace_root)
+                        parent_decisions += 1
+        except SessionContextError:
+            pass
+
+    # Load child decisions (parent wins on conflict)
+    child_stats: list[dict[str, Any]] = []
+    for child_ws in child_workspace_roots:
+        child_sp = SessionPaths(workspace_root=child_ws, session_id=session_id)
+        child_count = 0
+        child_inherited = 0
+        if child_sp.context_path.exists():
+            try:
+                child_ctx = load_context(child_sp.context_path)
+                if not is_expired(child_ctx, now_iso):
+                    prune_expired_decisions(child_ctx, now_iso)
+                    for d in child_ctx.get("ephemeral_decisions", []):
+                        if isinstance(d, dict) and d.get("key"):
+                            key = str(d["key"])
+                            child_count += 1
+                            if key not in all_decisions:
+                                all_decisions[key] = d
+                                sources[key] = str(child_ws)
+                                child_inherited += 1
+            except SessionContextError:
+                pass
+        child_stats.append({
+            "workspace_root": str(child_ws),
+            "decisions": child_count,
+            "inherited": child_inherited,
+        })
+
+    merged = sorted(all_decisions.values(), key=lambda x: str(x.get("key") or ""))
+
+    payload = {
+        "version": "v1",
+        "generated_at": now_iso,
+        "parent_workspace_root": str(parent_workspace_root),
+        "child_count": len(child_workspace_roots),
+        "parent_decisions": parent_decisions,
+        "total_merged_keys": len(merged),
+        "merged_decisions": merged,
+        "child_stats": child_stats,
+        "decision_sources": {k: v for k, v in sorted(sources.items())},
+    }
+
+    out_path.write_text(
+        json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "status": "OK",
+        "report_path": str(out_path),
+        "total_merged_keys": len(merged),
+        "parent_decisions": parent_decisions,
+        "child_count": len(child_workspace_roots),
     }

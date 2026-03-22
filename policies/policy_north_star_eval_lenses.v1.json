@@ -12,7 +12,8 @@
     "ai_ops_fit": "C",
     "github_ops_release": "D",
     "operability": "E",
-    "integration_coherence": "F"
+    "integration_coherence": "F",
+    "context_health": "G"
   },
   "trend_best_practice": {
     "dimension": "A",
@@ -71,6 +72,18 @@
       "pack_conflict_count",
       "core_unlock_scope_widen_count",
       "schema_fail_count"
+    ]
+  },
+  "context_health": {
+    "dimension": "G",
+    "min_score_ok": 0.8,
+    "min_score_warn": 0.5,
+    "components": [
+      "session_freshness",
+      "decision_coverage",
+      "standards_compliance",
+      "artifact_completeness",
+      "drift_score"
     ]
   },
   "maturity_tracking": {
@@ -136,7 +149,7 @@
   },
   "notes": [
     "North Star eval lens mekanizmasi aktif.",
-    "Assessment ciktilari 6 boyutlu A-F lens degerlendirmesi uretir.",
+    "Assessment ciktilari 7 boyutlu A-G lens degerlendirmesi uretir.",
     "Maturity tracking ciktilari north_star.maturity schema ile dogrulanir."
   ]
 }
