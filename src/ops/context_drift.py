@@ -53,7 +53,14 @@ def detect_context_drift(
 
     Returns drift report with per-artifact status.
     """
-    paths = artifact_paths if artifact_paths is not None else _CONTEXT_ARTIFACT_PATHS
+    paths = list(artifact_paths) if artifact_paths is not None else list(_CONTEXT_ARTIFACT_PATHS)
+    # Dynamically include extension output artifacts
+    try:
+        from src.ops.extension_context_bridge import collect_extension_output_paths
+        ext_paths = collect_extension_output_paths(source_workspace)
+        paths.extend(p for p in ext_paths if p not in paths)
+    except Exception:
+        pass  # fail-open
     artifacts: list[dict[str, Any]] = []
     drifted = 0
     missing_in_target = 0

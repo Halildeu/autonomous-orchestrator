@@ -307,9 +307,24 @@ def _compute_context_health_lens(*, workspace_root: Path, lenses_policy: dict[st
             pass
     components["drift_score"] = {"score": drift_score, "max": 20}
 
-    # Total score: sum of 5 components (0-100) → normalize to 0.0-1.0
+    # Component 6: Extension Health (0-20) — enabled extensions with present outputs
+    ext_health_score = 20  # Default: no extensions or all healthy
+    try:
+        from src.ops.extension_context_bridge import collect_extension_output_paths
+        ext_output_paths = collect_extension_output_paths(workspace_root)
+        if ext_output_paths:
+            present = sum(1 for p in ext_output_paths if (workspace_root / p).exists())
+            ext_health_score = int((present / len(ext_output_paths)) * 20)
+            missing_ext = len(ext_output_paths) - present
+            if missing_ext > 0:
+                reasons.append(f"missing_{missing_ext}_extension_outputs")
+    except Exception:
+        pass
+    components["extension_health"] = {"score": ext_health_score, "max": 20}
+
+    # Total score: sum of 6 components (0-120) → normalize to 0.0-1.0
     total = sum(c["score"] for c in components.values())
-    normalized = total / 100.0
+    normalized = total / 120.0
 
     status = _lens_status(normalized, min_ok, min_warn)
 
