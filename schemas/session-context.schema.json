@@ -44,6 +44,24 @@
         "summary_ref": { "type": "string", "minLength": 1 }
       }
     },
+    "actor_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "actor", "provider", "model", "updated_at"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["architect", "planner", "implementer", "reviewer", "verifier", "consultant", "assurance_owner", "operator"]
+        },
+        "actor": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "target_id": { "type": "string" },
+        "selection_reason": { "type": "string" },
+        "fallback_used": { "type": "boolean", "default": false },
+        "updated_at": { "type": "string", "minLength": 1 }
+      }
+    },
     "compaction": {
       "type": "object",
       "additionalProperties": false,
@@ -80,6 +98,16 @@
         }
       },
       "default": []
+    },
+    "parent_session_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_root", "session_id", "relationship"],
+      "properties": {
+        "workspace_root": { "type": "string", "minLength": 1 },
+        "session_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "relationship": { "type": "string", "enum": ["parent", "peer"] }
+      }
     },
     "hashes": {
       "type": "object",

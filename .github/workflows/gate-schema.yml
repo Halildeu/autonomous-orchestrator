@@ -181,7 +181,7 @@ jobs:
         with:
           name: repo-hygiene-report
           path: .cache/repo_hygiene/report.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload doc graph report artifact
         if: always()
@@ -189,7 +189,7 @@ jobs:
         with:
           name: doc-graph-report
           path: .cache/reports/doc_graph_report.v1.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Evidence integrity verify (newest run)
         run: |

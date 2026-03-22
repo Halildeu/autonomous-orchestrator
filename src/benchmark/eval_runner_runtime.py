@@ -28,6 +28,7 @@ _DEFAULT_DIMENSION_MAP = {
     "github_ops_release": "D",
     "operability": "E",
     "integration_coherence": "F",
+    "context_health": "G",
 }
 
 _DEFAULT_MATURITY_LEVELS: list[dict[str, Any]] = [
@@ -215,6 +216,111 @@ def _load_policy_north_star_integration_coherence(*, core_root: Path, workspace_
     return merged
 
 
+def _compute_context_health_lens(*, workspace_root: Path, lenses_policy: dict[str, Any]) -> dict[str, Any]:
+    """Compute Eval-G: Context Health lens score from 5 components."""
+    ctx_cfg = lenses_policy.get("context_health") if isinstance(lenses_policy.get("context_health"), dict) else {}
+    min_ok = float(ctx_cfg.get("min_score_ok", 0.8))
+    min_warn = float(ctx_cfg.get("min_score_warn", 0.5))
+
+    components: dict[str, dict[str, Any]] = {}
+    reasons: list[str] = []
+
+    # Component 1: Session Freshness (0-20)
+    session_score = 0
+    try:
+        from src.session.context_store import SessionPaths, is_expired, load_context
+        sp = SessionPaths(workspace_root=workspace_root, session_id="default")
+        if sp.context_path.exists():
+            ctx = load_context(sp.context_path)
+            from datetime import datetime, timezone
+            now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            if not is_expired(ctx, now_iso):
+                session_score = 20
+            else:
+                reasons.append("session_expired")
+                session_score = 0
+        else:
+            reasons.append("session_missing")
+    except Exception:
+        reasons.append("session_check_failed")
+    components["session_freshness"] = {"score": session_score, "max": 20}
+
+    # Component 2: Decision Coverage (0-20)
+    decision_score = 0
+    try:
+        from src.session.context_store import SessionPaths as _SP, load_context as _lc
+        sp = _SP(workspace_root=workspace_root, session_id="default")
+        if sp.context_path.exists():
+            ctx = _lc(sp.context_path)
+            decisions = ctx.get("ephemeral_decisions", [])
+            if isinstance(decisions, list) and len(decisions) > 0:
+                decision_score = min(20, len(decisions) * 4)  # 5+ decisions = full score
+            else:
+                reasons.append("no_decisions")
+    except Exception:
+        pass
+    components["decision_coverage"] = {"score": decision_score, "max": 20}
+
+    # Component 3: Standards Compliance (0-20)
+    standards_score = 0
+    lock_path = workspace_root / "standards.lock"
+    if not lock_path.exists():
+        # Check parent repo
+        try:
+            repo_root = Path(__file__).resolve().parents[2]
+            if (repo_root / "standards.lock").exists():
+                standards_score = 20
+            else:
+                reasons.append("standards_lock_missing")
+        except Exception:
+            reasons.append("standards_lock_check_failed")
+    else:
+        standards_score = 20
+    components["standards_compliance"] = {"score": standards_score, "max": 20}
+
+    # Component 4: Artifact Completeness (0-20)
+    artifact_paths = [
+        ".cache/index/gap_register.v1.json",
+        ".cache/index/work_intake.v1.json",
+        ".cache/reports/system_status.v1.json",
+        ".cache/index/extension_registry.v1.json",
+        ".cache/index/session_cross_context.v1.json",
+    ]
+    present = sum(1 for p in artifact_paths if (workspace_root / p).exists())
+    artifact_score = int((present / len(artifact_paths)) * 20)
+    if present < len(artifact_paths):
+        reasons.append(f"missing_{len(artifact_paths) - present}_artifacts")
+    components["artifact_completeness"] = {"score": artifact_score, "max": 20}
+
+    # Component 5: Drift Score (0-20) — uses cached drift report if available
+    drift_score = 20  # Default: no drift detected
+    drift_report_path = workspace_root / ".cache" / "reports" / "context_drift_report.v1.json"
+    if drift_report_path.exists():
+        try:
+            import json as _json
+            drift_data = _json.loads(drift_report_path.read_text(encoding="utf-8"))
+            drift_score = int(drift_data.get("drift_score", 0)) // 5  # 0-100 → 0-20
+            drift_score = min(20, max(0, drift_score))
+            if drift_data.get("status") != "OK":
+                reasons.append(f"drift_detected_{drift_data.get('total_drifted', 0)}")
+        except Exception:
+            pass
+    components["drift_score"] = {"score": drift_score, "max": 20}
+
+    # Total score: sum of 5 components (0-100) → normalize to 0.0-1.0
+    total = sum(c["score"] for c in components.values())
+    normalized = total / 100.0
+
+    status = _lens_status(normalized, min_ok, min_warn)
+
+    return {
+        "status": status,
+        "score": round(normalized, 4),
+        "components": {k: v for k, v in components.items()},
+        "reasons": reasons,
+    }
+
+
 def _lens_status(score: float, min_ok: float, min_warn: float) -> str:
     if score >= min_ok:
         return "OK"
@@ -280,7 +386,7 @@ def _normalized_dimension_map(lenses_policy: dict[str, Any]) -> dict[str, str]:
     if not isinstance(raw, dict):
         return dict(_DEFAULT_DIMENSION_MAP)
     out = dict(_DEFAULT_DIMENSION_MAP)
-    allowed = {"A", "B", "C", "D", "E", "F"}
+    allowed = {"A", "B", "C", "D", "E", "F", "G"}
     for lens_id in _DEFAULT_DIMENSION_MAP.keys():
         value = raw.get(lens_id)
         if isinstance(value, str) and value in allowed:
@@ -1056,6 +1162,12 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             "airrunner_jobs_index_path": jobs_signal.get("jobs_index_path"),
         },
     )
+    # Eval-G: Context Health lens
+    context_health_result = _compute_context_health_lens(workspace_root=workspace_root, lenses_policy=lenses_policy)
+    context_health_status = str(context_health_result.get("status", "UNKNOWN"))
+    context_health_score = float(context_health_result.get("score", 0.0))
+    context_health_reasons = context_health_result.get("reasons", [])
+
     lens_dimension_map = _normalized_dimension_map(lenses_policy)
     lens_scores_map = {
         "trend_best_practice": {"status": trend_status, "score": round(float(coverage), 4)},
@@ -1064,6 +1176,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "ai_ops_fit": {"status": ai_ops_status, "score": round(float(ai_ops_score), 4)},
         "github_ops_release": {"status": gh_status, "score": round(float(gh_score), 4)},
         "operability": {"status": operability_status, "score": round(float(operability_score), 4)},
+        "context_health": {"status": context_health_status, "score": round(context_health_score, 4)},
     }
     maturity_doc = _build_maturity_document(
         workspace_root=workspace_root,
@@ -1147,6 +1260,14 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 },
                 "reasons": reasons,
                 "findings": operability_findings,
+            },
+            "context_health": {
+                "dimension": lens_dimension_map.get("context_health", "G"),
+                "status": context_health_status,
+                "score": round(context_health_score, 4),
+                "components": context_health_result.get("components", {}),
+                "reasons": context_health_reasons,
+                "notes": [],
             },
         },
         "maturity_tracking": maturity_doc,

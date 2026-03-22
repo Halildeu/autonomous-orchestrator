@@ -193,15 +193,17 @@ def _exec_mod_a(
         else markdown
     )
     if continuation:
-        tool_calls.append(
-            {
-                "tool": "session_provider_state",
-                "status": "OK",
-                "session_id": session_id,
-                "previous_response_id_present": bool(str(continuation.get("previous_response_id") or "").strip()),
-                "context_path": session_state.get("context_path"),
-            }
-        )
+        tool_call_entry: dict[str, Any] = {
+            "tool": "session_provider_state",
+            "status": "OK",
+            "session_id": session_id,
+            "previous_response_id_present": bool(str(continuation.get("previous_response_id") or "").strip()),
+            "context_path": session_state.get("context_path"),
+        }
+        compaction_summary_ref = str(session_state.get("compaction_summary_ref") or "").strip()
+        if compaction_summary_ref:
+            tool_call_entry["compaction_summary_ref"] = compaction_summary_ref
+        tool_calls.append(tool_call_entry)
     if bool(compaction_meta.get("applied")):
         tool_calls.append(
             {

@@ -220,6 +220,15 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
     }
 
     attach_trace_meta(summary, workspace=stage_ctx.workspace, out_dir=stage_ctx.out_dir, run_id=exec_ctx.run_id)
+    _persist_execution_to_session(
+        workspace=stage_ctx.workspace,
+        summary=summary,
+        run_id=exec_ctx.run_id,
+    )
+    _write_intake_trace(
+        workspace=stage_ctx.workspace,
+        summary=summary,
+    )
     evidence.write_summary(summary)
     if summary.get("result_state") == "SUSPENDED":
         resume_path = evidence.run_dir
@@ -246,3 +255,69 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
 
     if summary.get("status") == "FAILED":
         raise SystemExit(1)
+
+
+def _write_intake_trace(*, workspace: "Path", summary: dict) -> None:
+    """Write request intake-to-execution trace (fail-open)."""
+    try:
+        from pathlib import Path as _Path
+
+        from src.ops.intake_trace import write_intake_to_exec_trace
+
+        write_intake_to_exec_trace(
+            workspace_root=_Path(workspace),
+            request_id=str(summary.get("request_id") or ""),
+            routing_result={
+                "bucket": str(summary.get("workflow_id") or ""),
+                "action": str(summary.get("result_state") or ""),
+            },
+            exec_summary=summary,
+        )
+    except Exception:
+        pass  # fail-open
+
+
+def _persist_execution_to_session(*, workspace: "Path", summary: dict, run_id: str) -> None:
+    """Persist execution decision and provider state to session context (fail-open)."""
+    from pathlib import Path as _Path
+
+    try:
+        from src.session.context_store import (
+            SessionContextError,
+            SessionPaths,
+            load_context,
+            save_context_atomic,
+            upsert_decision,
+            upsert_provider_state,
+        )
+    except Exception:
+        return
+
+    sp = SessionPaths(workspace_root=_Path(workspace), session_id="default")
+    if not sp.context_path.exists():
+        return
+
+    try:
+        ctx = load_context(sp.context_path)
+    except SessionContextError:
+        return
+
+    try:
+        upsert_decision(
+            ctx,
+            key=f"exec:{run_id}",
+            value={
+                "intent": str(summary.get("intent") or ""),
+                "workflow_id": str(summary.get("workflow_id") or ""),
+                "result_state": str(summary.get("result_state") or ""),
+            },
+            source="agent",
+        )
+
+        provider = str(summary.get("provider_used") or "").strip()
+        if provider:
+            upsert_provider_state(ctx, provider=provider, wire_api="responses")
+
+        save_context_atomic(sp.context_path, ctx)
+    except Exception:
+        pass  # fail-open

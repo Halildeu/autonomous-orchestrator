@@ -174,7 +174,8 @@
         "integration_coherence": { "$ref": "#/$defs/integration_lens" },
         "ai_ops_fit": { "$ref": "#/$defs/requirements_lens" },
         "github_ops_release": { "$ref": "#/$defs/requirements_lens" },
-        "operability": { "$ref": "#/$defs/operability_lens" }
+        "operability": { "$ref": "#/$defs/operability_lens" },
+        "context_health": { "$ref": "#/$defs/scored_lens" }
       }
     },
     "maturity_tracking": {
@@ -194,7 +195,19 @@
     },
     "dimension": {
       "type": "string",
-      "enum": ["A", "B", "C", "D", "E", "F"]
+      "enum": ["A", "B", "C", "D", "E", "F", "G"]
+    },
+    "scored_lens": {
+      "type": "object",
+      "required": ["status", "score"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "status": { "$ref": "#/$defs/lens_status" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "components": { "type": "object" },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
     },
     "findings": {
       "oneOf": [

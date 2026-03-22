@@ -445,4 +445,48 @@ def route_context_pack(
         }
         context_pack_path.write_text(json.dumps(pack, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
+    # Persist routing decision to session context for cross-session continuity
+    _persist_routing_to_session(
+        workspace_root=workspace_root,
+        context_pack_id=pack.get("context_pack_id", ""),
+        bucket=bucket,
+        action=action,
+    )
+
     return router_result
+
+
+def _persist_routing_to_session(
+    *,
+    workspace_root: Path,
+    context_pack_id: str,
+    bucket: str,
+    action: str,
+) -> None:
+    """Record routing decision in session context (fail-open)."""
+    try:
+        from src.session.context_store import (
+            SessionContextError,
+            SessionPaths,
+            load_context,
+            save_context_atomic,
+            upsert_decision,
+        )
+    except Exception:
+        return
+
+    sp = SessionPaths(workspace_root=workspace_root, session_id="default")
+    if not sp.context_path.exists():
+        return
+
+    try:
+        ctx = load_context(sp.context_path)
+        upsert_decision(
+            ctx,
+            key=f"route:{context_pack_id}",
+            value={"bucket": bucket, "action": action},
+            source="agent",
+        )
+        save_context_atomic(sp.context_path, ctx)
+    except (SessionContextError, Exception):
+        pass  # fail-open

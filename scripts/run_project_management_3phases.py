@@ -1050,6 +1050,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bootstrap-workspace", default="true")
     parser.add_argument("--include-self", default="false")
     parser.add_argument("--command-timeout", default="600")
+    parser.add_argument(
+        "--sync-context",
+        default="false",
+        help="true|false. Sync context artifacts and parent-child sessions after phases complete.",
+    )
     return parser
 
 
@@ -1160,6 +1165,23 @@ def main(argv: list[str] | None = None) -> int:
             if stop_on_fail:
                 break
 
+    # Post-pipeline context sync (parent-child session + artifact push/pull)
+    context_sync_results: list[dict[str, Any]] = []
+    if parse_bool(args.sync_context, default=False):
+        orchestrator_ws = orchestrator_root / ".cache" / "ws_customer_default"
+        for repo_ctx in managed_repos:
+            if repo_ctx.workspace_root and orchestrator_ws.exists():
+                try:
+                    from scripts.sync_managed_repo_standards import _sync_context_to_targets
+                    ctx_res = _sync_context_to_targets(
+                        source_root=orchestrator_root,
+                        targets=[repo_ctx.repo_root],
+                        apply=True,
+                    )
+                    context_sync_results.extend(ctx_res)
+                except Exception as e:
+                    context_sync_results.append({"target": str(repo_ctx.repo_root), "status": "FAIL", "error": str(e)[:200]})
+
     summary = _build_summary(all_results, critical_only=critical_only)
     extension_issue_summary = _build_extension_issue_summary(all_results)
     blocking_reasons = _build_blocking_reasons(all_results)
@@ -1178,6 +1200,7 @@ def main(argv: list[str] | None = None) -> int:
         "smoke_root_cause_aggregation": smoke_root_cause_aggregation,
         "repos": all_results if not critical_only else [entry for entry in all_results if bool(entry.get("critical"))],
         "all_repos": all_results,
+        "context_sync": context_sync_results if context_sync_results else [],
     }
 
     print(json.dumps(report, ensure_ascii=False, indent=2))

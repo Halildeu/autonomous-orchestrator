@@ -394,6 +394,134 @@ def prune_expired_decisions(context: dict[str, Any], now_iso: str) -> dict[str, 
     return context
 
 
+def renew_context(context: dict[str, Any], ttl_seconds: int) -> dict[str, Any]:
+    """Extend session expiry without losing valid decisions or provider state."""
+    if not isinstance(context, dict):
+        raise SessionContextError("SCHEMA_INVALID", "context must be a dict")
+    if not isinstance(ttl_seconds, int) or ttl_seconds < 60 or ttl_seconds > 604800:
+        raise SessionContextError("INVALID_ARGS", "ttl_seconds must be in [60, 604800]")
+
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat().replace("+00:00", "Z")
+    expires_at = (now + timedelta(seconds=int(ttl_seconds))).isoformat().replace("+00:00", "Z")
+
+    context = prune_expired_decisions(context, now_iso)
+    context["updated_at"] = now_iso
+    context["ttl_seconds"] = int(ttl_seconds)
+    context["decision_ttl_seconds_default"] = min(3600, int(ttl_seconds))
+    context["expires_at"] = expires_at
+    if "hashes" not in context or not isinstance(context.get("hashes"), dict):
+        context["hashes"] = {}
+    context["hashes"]["session_context_sha256"] = compute_context_sha256(context)
+    return context
+
+
+def link_to_parent(
+    context: dict[str, Any],
+    *,
+    parent_workspace_root: str,
+    parent_session_id: str = "default",
+) -> dict[str, Any]:
+    """Link session to a parent session (orchestrator → managed repo)."""
+    if not isinstance(context, dict):
+        raise SessionContextError("SCHEMA_INVALID", "context must be a dict")
+    if not parent_workspace_root:
+        raise SessionContextError("INVALID_ARGS", "parent_workspace_root must be non-empty")
+
+    context["parent_session_ref"] = {
+        "workspace_root": str(parent_workspace_root),
+        "session_id": str(parent_session_id or "default"),
+        "relationship": "parent",
+    }
+    context["updated_at"] = _now_iso8601()
+    if "hashes" not in context or not isinstance(context.get("hashes"), dict):
+        context["hashes"] = {}
+    context["hashes"]["session_context_sha256"] = compute_context_sha256(context)
+    return context
+
+
+def inherit_parent_decisions(
+    child_context: dict[str, Any],
+    *,
+    parent_context: dict[str, Any],
+    overwrite_existing: bool = False,
+) -> dict[str, Any]:
+    """Inherit non-expired decisions from parent into child.
+
+    Parent decisions are copied with source='agent'. Child's own decisions
+    are preserved unless overwrite_existing=True.
+    """
+    if not isinstance(child_context, dict) or not isinstance(parent_context, dict):
+        raise SessionContextError("SCHEMA_INVALID", "contexts must be dicts")
+
+    now = _now_iso8601()
+    now_dt = _parse_iso8601(now)
+    if now_dt is None:
+        raise SessionContextError("INVALID_TIME", "failed to resolve current time")
+
+    parent_decisions = parent_context.get("ephemeral_decisions")
+    if not isinstance(parent_decisions, list) or not parent_decisions:
+        return child_context
+
+    child_decisions = child_context.get("ephemeral_decisions")
+    if not isinstance(child_decisions, list):
+        child_decisions = []
+
+    child_keys: set[str] = {str(d.get("key") or "") for d in child_decisions if isinstance(d, dict)}
+
+    child_remaining_ttl = _remaining_session_ttl_seconds(child_context, now_dt)
+
+    inherited = 0
+    for pd in parent_decisions:
+        if not isinstance(pd, dict):
+            continue
+        key = str(pd.get("key") or "").strip()
+        if not key:
+            continue
+
+        # Skip expired parent decisions
+        exp = pd.get("expires_at")
+        if isinstance(exp, str) and exp:
+            exp_dt = _parse_iso8601(exp)
+            if exp_dt is not None and now_dt >= exp_dt:
+                continue
+
+        if key in child_keys and not overwrite_existing:
+            continue
+
+        # Clamp TTL to child's remaining session TTL
+        parent_ttl = pd.get("ttl_seconds", 3600)
+        if not isinstance(parent_ttl, int):
+            parent_ttl = 3600
+        clamped_ttl = min(parent_ttl, max(60, child_remaining_ttl))
+        child_exp = (now_dt + timedelta(seconds=clamped_ttl)).isoformat().replace("+00:00", "Z")
+
+        new_decision = {
+            "key": key,
+            "value": pd.get("value"),
+            "source": "agent",
+            "created_at": now,
+            "ttl_seconds": clamped_ttl,
+            "expires_at": child_exp,
+        }
+
+        if key in child_keys:
+            child_decisions = [d for d in child_decisions if not (isinstance(d, dict) and d.get("key") == key)]
+        child_decisions.append(new_decision)
+        child_keys.add(key)
+        inherited += 1
+
+    if inherited > 0:
+        child_decisions.sort(key=lambda x: str(x.get("key") or ""))
+        child_context["ephemeral_decisions"] = child_decisions
+        child_context["updated_at"] = now
+        if "hashes" not in child_context or not isinstance(child_context.get("hashes"), dict):
+            child_context["hashes"] = {}
+        child_context["hashes"]["session_context_sha256"] = compute_context_sha256(child_context)
+
+    return child_context
+
+
 @dataclass(frozen=True)
 class SessionPaths:
     workspace_root: Path
