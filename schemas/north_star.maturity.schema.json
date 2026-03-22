@@ -73,7 +73,7 @@
       "additionalProperties": false,
       "required": ["dimension", "lens_id", "status", "score"],
       "properties": {
-        "dimension": { "type": "string", "enum": ["A", "B", "C", "D", "E", "F"] },
+        "dimension": { "type": "string", "enum": ["A", "B", "C", "D", "E", "F", "G"] },
         "lens_id": { "type": "string", "minLength": 1 },
         "status": { "type": "string", "enum": ["OK", "WARN", "FAIL", "UNKNOWN"] },
         "score": { "type": "number", "minimum": 0, "maximum": 1 }
