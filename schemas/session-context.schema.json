@@ -94,7 +94,20 @@
           "source": { "type": "string", "enum": ["user_chat", "agent"] },
           "created_at": { "type": "string", "minLength": 1 },
           "ttl_seconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
-          "expires_at": { "type": "string", "minLength": 1 }
+          "expires_at": { "type": "string", "minLength": 1 },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {},
+                "changed_at": { "type": "string", "minLength": 1 },
+                "source": { "type": "string", "enum": ["user_chat", "agent"] }
+              },
+              "required": ["value", "changed_at"]
+            },
+            "maxItems": 10
+          }
         }
       },
       "default": []

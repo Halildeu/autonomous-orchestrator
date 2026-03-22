@@ -1,0 +1,93 @@
+{
+  "version": "v1",
+  "kind": "feature-execution-contract",
+  "status": "DRAFT",
+  "feature_id": "design_lab_ui_library",
+  "title": "Design Lab UI Library",
+  "summary": "Ant Design / Material UI parity ile component-first UI library. Tek UI kit + design token chain + modular sayfa + parametrik veri.",
+  "source_context": {
+    "source_type": "manual",
+    "source_refs": [
+      "policies/policy_ui_design_system.v1.json",
+      "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
+      "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json"
+    ],
+    "business_goal": "Tek UI kit + design token chain + modular sayfa + parametrik veri. Ant Design ve Material UI paritesi ile component-first taxonomy.",
+    "requested_outcome": "Component manifest, design-lab.index.json, variant model, theme/token integration ile production-ready UI library."
+  },
+  "delivery_scope": {
+    "repo_root": "/Users/halilkocoglu/Documents/dev",
+    "service_scopes": [
+      "frontend"
+    ],
+    "change_path_globs": [
+      "web/packages/ui-kit/src/**",
+      "web/packages/ui-kit/src/catalog/**",
+      "web/apps/mfe-shell/src/pages/admin/DesignLabPage.tsx",
+      "web/apps/mfe-shell/src/pages/admin/design-lab.index.json"
+    ],
+    "affected_modules": [
+      "mfe-ui-kit",
+      "mfe-shell"
+    ]
+  },
+  "ux_contract": {
+    "mode": "REQUIRED",
+    "rationale": "Design Lab IS a UI library — UX is the core scope. Every component must be theme/token-bound.",
+    "artifacts": [
+      {
+        "path_glob": "web/packages/ui-kit/src/catalog/**",
+        "ux_theme_id": "component_catalog",
+        "ux_subtheme_id": "design_lab_components"
+      },
+      {
+        "path_glob": "web/apps/mfe-shell/src/pages/admin/DesignLabPage.tsx",
+        "ux_theme_id": "admin_pages",
+        "ux_subtheme_id": "design_lab_page"
+      }
+    ]
+  },
+  "technical_contract": {
+    "baseline_profile_id": "fullstack-java-node-fallback",
+    "api_version_prefix": "/api/v1",
+    "design_system_policy": "policies/policy_ui_design_system.v1.json",
+    "db_migration_required": false
+  },
+  "lane_plan": {
+    "execution_sequence": [
+      "frontend",
+      "contract",
+      "integration"
+    ],
+    "required_lanes": [
+      "contract",
+      "integration"
+    ],
+    "notes": [
+      "Backend/DB scope yok — frontend-only delivery.",
+      "Component manifest build + design-lab index validation zorunlu.",
+      "Ant Design parity matrix her component family icin kontrol edilir."
+    ]
+  },
+  "definition_of_done": {
+    "acceptance_criteria": [
+      "Component manifest (component-manifest.v1.json) olusturuldu ve valid.",
+      "design-lab.index.json guncel ve tum component'leri listeliyor.",
+      "UI kit build basarili (npm run build).",
+      "Contract lane geciyor.",
+      "UX catalog enforcement check geciyor.",
+      "Ant Design parity matrix en az 1 component family icin tamamlandi."
+    ],
+    "evidence_paths": [
+      ".cache/reports/feature_execution_contract_check.v1.json",
+      ".cache/reports/delivery_session_packet.v1.json",
+      ".cache/reports/delivery_session_guard.v1.json",
+      ".cache/reports/ux_catalog_enforcement_ci.v1.json"
+    ]
+  },
+  "notes": [
+    "design_lab_freeze_zones_apply",
+    "single_writer_lease_required_for_DesignLabPage",
+    "recipe_before_custom_ui_blocking_design_rule"
+  ]
+}

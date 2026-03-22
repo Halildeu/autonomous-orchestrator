@@ -238,16 +238,26 @@ def upsert_decision(
                 requested_ttl_seconds=decision_ttl_seconds if decision_ttl_seconds is not None else existing_ttl,
             )
             exp = (now_dt + timedelta(seconds=ttl)).isoformat().replace("+00:00", "Z")
-            out.append(
-                {
-                    "key": key,
-                    "value": value,
-                    "source": source,
-                    "created_at": now,
-                    "ttl_seconds": int(ttl),
-                    "expires_at": exp,
-                }
-            )
+            # Track history: append old value if different (max 10, FIFO)
+            history = list(d.get("history", []) if isinstance(d.get("history"), list) else [])
+            old_val = d.get("value")
+            old_val_json = json.dumps(old_val, sort_keys=True, ensure_ascii=True) if old_val is not None else ""
+            new_val_json = json.dumps(value, sort_keys=True, ensure_ascii=True)
+            if old_val_json and old_val_json != new_val_json:
+                history.append({"value": old_val, "changed_at": now, "source": str(d.get("source") or "agent")})
+                if len(history) > 10:
+                    history = history[-10:]
+            new_decision: dict[str, Any] = {
+                "key": key,
+                "value": value,
+                "source": source,
+                "created_at": now,
+                "ttl_seconds": int(ttl),
+                "expires_at": exp,
+            }
+            if history:
+                new_decision["history"] = history
+            out.append(new_decision)
             replaced = True
         else:
             out.append(d)
