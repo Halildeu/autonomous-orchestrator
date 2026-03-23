@@ -165,6 +165,20 @@ jobs:
           python3 ci/check_standards_lock.py
           python3 ci/check_module_delivery_lanes.py --strict
 
+      - name: AI adapter freshness check (report-only)
+        run: |
+          python3 scripts/check_ai_adapter_freshness.py . || true
+          echo "### AI Adapter Freshness" >> "${GITHUB_STEP_SUMMARY}"
+          python3 scripts/check_ai_adapter_freshness.py . 2>/dev/null | python3 -c "
+          import json,sys
+          try:
+            d=json.load(sys.stdin)
+            print(f'| Status | Issues |', file=sys.stderr)
+            print(f'|--------|--------|', file=sys.stderr)
+            print(f'| {d.get(\"status\",\"?\")} | {len(d.get(\"issues\",[]))} |', file=sys.stderr)
+          except: pass
+          " 2>> "${GITHUB_STEP_SUMMARY}" || true
+
       - name: Context health check (report-only)
         if: steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |
