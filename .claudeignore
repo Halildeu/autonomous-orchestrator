@@ -1,0 +1,20 @@
+# Build/cache artifacts
+.cache/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# Evidence (large, generated)
+evidence/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Worktrees managed separately
+.claude/worktrees/
+
+# Generated reports
+sim_report.json
