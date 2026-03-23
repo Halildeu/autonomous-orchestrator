@@ -282,6 +282,24 @@ def handle_do_get(self, *, repo_root: Path, ws_root: Path, allow_roots: list[Pat
     if parsed.path == "/api/health":
         self._send_json(200, {"status": "OK", "ts": int(time.time())})
         return
+
+    if parsed.path == "/api/context-health":
+        try:
+            import subprocess, json as _cj
+            result = subprocess.run(
+                ["python3", "scripts/check_context_health.py", "--workspace-root", str(ws_root)],
+                capture_output=True, text=True, timeout=10,
+                cwd=str(Path(__file__).resolve().parents[2]),
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                data = _cj.loads(result.stdout.strip())
+                data["ts"] = int(time.time())
+                self._send_json(200, data)
+            else:
+                self._send_json(200, {"status": "ERROR", "score": 0, "grade": "F", "ts": int(time.time()), "error": result.stderr[:200] if result.stderr else "no output"})
+        except Exception as exc:
+            self._send_json(500, {"status": "ERROR", "error": str(exc)[:200]})
+        return
     
     if parsed.path == "/api/search/index":
         qs = parse_qs(parsed.query)
