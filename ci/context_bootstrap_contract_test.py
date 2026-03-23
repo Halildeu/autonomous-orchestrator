@@ -2,8 +2,14 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 from pathlib import Path
+
+# Ensure repo root is on sys.path so `ci.check_context_bootstrap` resolves
+_repo_root = Path(__file__).resolve().parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 from ci.check_context_bootstrap import run_bootstrap_check
 

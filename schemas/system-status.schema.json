@@ -719,23 +719,52 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["lens_id", "status", "score", "coverage"],
+                "required": [
+                  "lens_id",
+                  "status",
+                  "score",
+                  "coverage"
+                ],
                 "properties": {
-                  "lens_id": { "type": "string" },
-                  "status": { "type": "string", "enum": ["OK", "WARN", "FAIL"] },
-                  "score": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "lens_id": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "OK",
+                      "WARN",
+                      "FAIL"
+                    ]
+                  },
+                  "score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
                   "top_gaps": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             },
-            "lens_gaps_count": { "type": "integer", "minimum": 0 },
+            "lens_gaps_count": {
+              "type": "integer",
+              "minimum": 0
+            },
             "lens_gaps_top": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "gap_register_path": {
               "type": "string"
@@ -1669,16 +1698,16 @@
                 "status": {
                   "type": "string"
                 },
-                  "pr_url": {
-                    "type": "string"
-                  },
-                  "pr_number": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "reason": {
-                    "type": "string"
-                  }
+                "pr_url": {
+                  "type": "string"
+                },
+                "pr_number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "reason": {
+                  "type": "string"
+                }
               },
               "required": [
                 "job_id",
@@ -1696,21 +1725,66 @@
                 "by_class": {
                   "additionalProperties": false,
                   "properties": {
-                    "AUTH": { "minimum": 0, "type": "integer" },
-                    "PERMISSION": { "minimum": 0, "type": "integer" },
-                    "VALIDATION": { "minimum": 0, "type": "integer" },
-                    "NOT_FOUND": { "minimum": 0, "type": "integer" },
-                    "CONFLICT": { "minimum": 0, "type": "integer" },
-                    "RATE_LIMIT": { "minimum": 0, "type": "integer" },
-                    "NETWORK": { "minimum": 0, "type": "integer" },
-                    "POLICY_TIME_LIMIT": { "minimum": 0, "type": "integer" },
-                    "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING": { "minimum": 0, "type": "integer" },
-                    "DEMO_PACK_CAPABILITY_INDEX_MISSING": { "minimum": 0, "type": "integer" },
-                    "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON": { "minimum": 0, "type": "integer" },
-                    "DEMO_OTHER_MARKER_2472D115C490": { "minimum": 0, "type": "integer" },
-                    "DEMO_QUALITY_GATE_REPORT_MISSING": { "minimum": 0, "type": "integer" },
-                    "DEMO_SESSION_CONTEXT_HASH_MISMATCH": { "minimum": 0, "type": "integer" },
-                    "OTHER": { "minimum": 0, "type": "integer" }
+                    "AUTH": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "PERMISSION": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "VALIDATION": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "NOT_FOUND": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "CONFLICT": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "RATE_LIMIT": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "NETWORK": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "POLICY_TIME_LIMIT": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "DEMO_PUBLIC_CANDIDATES_POINTER_MISSING": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "DEMO_PACK_CAPABILITY_INDEX_MISSING": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "DEMO_M9_3_APPLY_MUST_WRITE_PACK_SELECTION_TRACE_V1_JSON": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "DEMO_OTHER_MARKER_2472D115C490": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "DEMO_QUALITY_GATE_REPORT_MISSING": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "DEMO_SESSION_CONTEXT_HASH_MISMATCH": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "OTHER": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
                   },
                   "required": [
                     "AUTH",
@@ -2964,7 +3038,7 @@
           "type": "object"
         },
         "work_intake": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "by_bucket": {
               "additionalProperties": false,
@@ -3337,7 +3411,11 @@
           "additionalProperties": false,
           "properties": {
             "lock_state": {
-              "enum": ["MISSING", "LOCKED", "STALE_CLEARED"],
+              "enum": [
+                "MISSING",
+                "LOCKED",
+                "STALE_CLEARED"
+              ],
               "type": "string"
             },
             "lock_path": {
@@ -3353,7 +3431,10 @@
               "type": "string"
             }
           },
-          "required": ["lock_state", "lock_path"],
+          "required": [
+            "lock_state",
+            "lock_path"
+          ],
           "type": "object"
         },
         "auto_loop": {
@@ -3555,6 +3636,21 @@
             "pending_decisions_count",
             "pending_decisions_by_kind"
           ],
+          "type": "object"
+        },
+        "context_drift": {
+          "type": "object"
+        },
+        "context_health": {
+          "type": "object"
+        },
+        "execution_target_governance": {
+          "type": "object"
+        },
+        "provider_capability": {
+          "type": "object"
+        },
+        "role_handoff": {
           "type": "object"
         }
       },
