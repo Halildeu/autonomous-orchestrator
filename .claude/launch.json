@@ -1,0 +1,47 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Cockpit Lite UI",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["extensions/PRJ-UI-COCKPIT-LITE/server.py", "--port", "8787", "--host", "127.0.0.1"],
+      "port": 8787
+    },
+    {
+      "name": "Cockpit Serve (ops.manage)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "src.ops.manage", "cockpit-serve", "--workspace-root", ".cache/ws_customer_default", "--port", "8790", "--host", "127.0.0.1"],
+      "port": 8790
+    },
+    {
+      "name": "MFE Shell (Webpack Dev Server)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/halilkocoglu/Documents/dev/web && npx kill-port 3000 2>/dev/null; cd apps/mfe-shell && AUTH_MODE=permitAll VITE_ENABLE_FAKE_AUTH=true VITE_FAKE_AUTH_ROLE=ADMIN VITE_FAKE_AUTH_PERMISSIONS=THEME_ADMIN npx webpack serve --config webpack.dev.js --no-watch-options-stdin"],
+      "port": 3000
+    },
+    {
+      "name": "Backend Docker Stack",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/halilkocoglu/Documents/dev/backend && bash scripts/run-compose-stack.sh"],
+      "port": 8080
+    },
+    {
+      "name": "Web Full Stack",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/halilkocoglu/Documents/dev/web && npm start"],
+      "port": 3000
+    },
+    {
+      "name": "Backend Java Services",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/halilkocoglu/Documents/dev/backend && bash scripts/run-services.sh"],
+      "port": 8761
+    },
+    {
+      "name": "Full Dev Stack (All-in-One)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/halilkocoglu/Documents/dev/backend && bash dev-start.sh"],
+      "port": 8080
+    }
+  ]
+}

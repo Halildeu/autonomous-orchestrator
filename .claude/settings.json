@@ -1,0 +1,98 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m src.*)",
+      "Bash(python3 -m src.*)",
+      "Bash(python ci/*)",
+      "Bash(python3 ci/*)",
+      "Bash(python -m pytest*)",
+      "Bash(python3 -m pytest*)",
+      "Bash(python scripts/*)",
+      "Bash(python3 scripts/*)",
+      "Bash(pip install*)",
+      "Bash(pip3 install*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(git blame*)",
+      "Bash(git stash*)",
+      "Bash(git checkout*)",
+      "Bash(git switch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git merge*)",
+      "Bash(git rebase*)",
+      "Bash(git remote*)",
+      "Bash(git fetch*)",
+      "Bash(git pull*)",
+      "Bash(git worktree*)",
+      "Bash(git rev-parse*)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh api *)",
+      "Bash(gh run *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(which *)",
+      "Bash(pwd)",
+      "Bash(env)",
+      "Bash(echo *)",
+      "Bash(date*)",
+      "Bash(jq *)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(npm run *)",
+      "Bash(npm install*)",
+      "Bash(npm test*)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(docker ps*)",
+      "Bash(docker logs*)",
+      "Bash(docker compose*)",
+      "Bash(docker-compose*)",
+      "Bash(kill-port *)",
+      "Bash(lsof *)",
+      "Bash(curl *)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)*",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(docker rm*)",
+      "Bash(docker rmi*)"
+    ]
+  },
+  "hooks": {
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import json,pathlib;p=pathlib.Path('.cache/ws_customer_default/.cache/reports/system_status.v1.json');d=json.loads(p.read_text()) if p.exists() else {};print(f'[Context Restore] System: {d.get(\"overall_status\",\"unknown\")}')\" 2>/dev/null || echo '[Context Restore] system_status not available'",
+            "statusMessage": "Restoring context after compaction..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git commit*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ci/validate_schemas.py 2>&1 | tail -3",
+            "statusMessage": "Validating schemas before commit..."
+          }
+        ]
+      }
+    ]
+  }
+}
