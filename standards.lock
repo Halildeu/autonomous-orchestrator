@@ -84,7 +84,11 @@
     "schemas/handoff-envelope.schema.v1.json",
     "schemas/closeout-envelope.schema.v1.json",
     "scripts/check_context_health.py",
-    "docs/OPERATIONS/CONTEXT-HEALTH-RUNBOOK.v1.md"
+    "scripts/check_ai_adapter_freshness.py",
+    "docs/OPERATIONS/CONTEXT-HEALTH-RUNBOOK.v1.md",
+    "CLAUDE.md",
+    ".claudeignore",
+    ".claude/settings.json"
   ],
   "required_commands": [
     "python ci/validate_schemas.py",
@@ -103,7 +107,8 @@
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py --repo-root . --out-json .cache/reports/coverage_visibility.v1.json --out-md .cache/reports/coverage_visibility.v1.md",
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py --repo-root . --out-json .cache/reports/observability_coverage_matrix.v1.json --out-md .cache/reports/observability_coverage_matrix.v1.md",
     "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root .",
-    "python3 scripts/check_context_health.py --workspace-root .cache/ws_customer_default"
+    "python3 scripts/check_context_health.py --workspace-root .cache/ws_customer_default",
+    "python3 scripts/check_ai_adapter_freshness.py ."
   ],
   "required_gates": [
     "enforcement-check",
