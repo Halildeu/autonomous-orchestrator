@@ -44,18 +44,24 @@ def write_json_atomic(path: Path, data: Any, *, indent: int = 2) -> None:
 
 
 def write_text_atomic(path: Path, content: str) -> None:
-    """Write *content* to *path* atomically via tmp-file rename."""
+    """Write *content* to *path* atomically via tmp-file + fsync + rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
+    with tmp.open("w", encoding="utf-8") as f:
+        f.write(content)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
 
 
 def write_bytes_atomic(path: Path, data: bytes) -> None:
-    """Write *data* bytes to *path* atomically via tmp-file rename."""
+    """Write *data* bytes to *path* atomically via tmp-file + fsync + rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_bytes(data)
+    with tmp.open("wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
 
 
