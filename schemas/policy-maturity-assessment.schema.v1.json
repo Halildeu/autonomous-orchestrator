@@ -21,9 +21,12 @@
         "branch_rule": { "type": "string" },
         "execution_rule": { "type": "string" },
         "scoring_rule": { "type": "string" },
-        "conflict_resolution": { "type": "string" }
+        "conflict_resolution": { "type": "string" },
+        "self_reference_rule": { "type": "string" },
+        "l3_strict_rule": { "type": "string" },
+        "evidence_threshold_rule": { "type": "string" }
       },
-      "required": ["branch_rule", "execution_rule", "scoring_rule", "conflict_resolution"],
+      "required": ["branch_rule", "execution_rule", "scoring_rule", "conflict_resolution", "self_reference_rule", "l3_strict_rule", "evidence_threshold_rule"],
       "additionalProperties": false
     },
     "areas": {
