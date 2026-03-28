@@ -32,6 +32,7 @@
         "core_lock": "ON",
         "fail_closed": true
       },
+      "tags": ["bootstrap", "ops", "orientation"],
       "bootstrap_commands": [
         "python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default",
         "python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default"
@@ -76,6 +77,7 @@
         "side_effect_max": "REPORT_ONLY",
         "fail_closed": true
       },
+      "tags": ["incident", "ops", "integrity", "triage"],
       "bootstrap_commands": [
         "python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default",
         "python -m src.ops.manage integrity-verify --workspace-root .cache/ws_customer_default"
@@ -110,6 +112,8 @@
         "core_lock": "ON",
         "fail_closed": true
       },
+      "tags": ["ops", "work-item", "execution"],
+      "task_scope_hints": ["cockpit", "schema", "roadmap", "evidence", "ci", "policy", "extension"],
       "bootstrap_commands": [
         "python -m src.ops.manage work-intake-check --workspace-root .cache/ws_customer_default",
         "python -m src.ops.manage session-status --workspace-root .cache/ws_customer_default"
@@ -147,6 +151,7 @@
         "side_effect_max": "NONE",
         "fail_closed": true
       },
+      "tags": ["review", "audit", "analysis", "ci"],
       "bootstrap_commands": [
         "python -m src.ops.manage context-drift --workspace-root .cache/ws_customer_default"
       ],
@@ -186,6 +191,7 @@
         "core_lock": "ON",
         "fail_closed": true
       },
+      "tags": ["assessment", "maturity", "gap", "pdca", "north-star"],
       "bootstrap_commands": [
         "python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default",
         "python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default",
@@ -225,6 +231,7 @@
         "core_lock": "ON",
         "fail_closed": true
       },
+      "tags": ["planning", "roadmap", "architecture", "strategy"],
       "bootstrap_commands": [
         "python -m src.ops.manage roadmap-status --workspace-root .cache/ws_customer_default --roadmap roadmaps/SSOT/roadmap.v1.json",
         "python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default"

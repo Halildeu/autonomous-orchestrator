@@ -87,6 +87,16 @@
           "description": "Ops commands to run at profile activation to populate context.",
           "items": { "type": "string", "minLength": 1 }
         },
+        "tags": {
+          "type": "array",
+          "description": "Free-form domain/scope labels for this profile (e.g. 'ops', 'ci', 'schema', 'roadmap'). Enables external domain queries without adding new profiles.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "task_scope_hints": {
+          "type": "array",
+          "description": "Scope qualifiers narrowing TASK_EXECUTION context (e.g. 'cockpit', 'schema', 'roadmap', 'evidence', 'ci'). Used by context pack router to select relevant required_files dynamically. Only meaningful on TASK_EXECUTION profile.",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "agent_notes": {
           "type": "string",
           "description": "Behavioral guidance for agents operating in this profile."
