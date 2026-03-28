@@ -24,5 +24,6 @@
     }
   },
   "fallback_on_all_fail": "suspend",
+  "decision_quality_ref": "schemas/decision-quality.schema.v1.json",
   "fail_action": "warn"
 }

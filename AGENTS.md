@@ -100,7 +100,7 @@ Agent çalışmaya başladığında, **Profile Resolution → Bootstrap** sıras
 
 ### 0. Profile Resolution (ÖNCE yap)
 
-`policies/context_profile_registry.v1.json` içindeki 6 profil arasından aktif profili belirle:
+`policies/policy_context_profile_registry.v1.json` içindeki 6 profil arasından aktif profili belirle:
 
 | Profil | Ne zaman aktif? |
 |---|---|

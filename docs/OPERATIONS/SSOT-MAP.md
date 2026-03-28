@@ -214,6 +214,18 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/airunner-tick.schema.v1.json
 - schemas/trace-meta.schema.v1.json
 - schemas/work-intake-exec-ticket.schema.v1.json
+- schemas/context-bootstrap-report.schema.v1.json
+- schemas/context-drift-report.schema.v1.json
+- schemas/context-profile-registry.schema.v1.json — Profile-based context registry contract
+- schemas/active-context-profile.schema.v1.json — Per-workspace active profile artifact
+- schemas/state-machine.schema.v1.json — Work item + run execution state machines (experimental)
+- schemas/decision-quality.schema.v1.json — Multi-dimension decision quality scoring
+- schemas/human-approval-request.schema.v1.json — Human approval workflow contract
+- schemas/risk-scoring.schema.v1.json — Multi-factor composite risk scoring
+- schemas/rule-composition.schema.v1.json — Rule combinator (AND/OR/NOT) contract
+- schemas/policy-context-orchestration.schema.v1.json
+- schemas/policy-decision-boundaries.schema.v1.json
+- schemas/policy-quality-gates.schema.v1.json
 
 ## Policies (SSOT)
 - policies/policy_advisor.v1.json
@@ -283,6 +295,15 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/work_intake_fragments/rules/time_sink.v1.json
 - policies/policy_work_intake_historical_prune.v1.json
 - policies/policy_work_intake_exec.v1.json
+- policies/policy_context_profile_registry.v1.json — 6-profile context loading registry (STARTUP/EMERGENCY/TASK_EXECUTION/REVIEW/ASSESSMENT/PLANNING)
+- policies/policy_context_orchestration.v1.json — Context orchestration + profile registry integration
+- policies/policy_codex_runtime.v1.json — Codex agent runtime overlay
+- policies/policy_maturity_assessment.v1.json — Maturity assessment rubric (L0-L4 scoring)
+- policies/policy_quality_gates.v1.json — AI output quality gates (schema_valid/output_not_empty/consistency/regression)
+- policies/policy_decision_boundaries.v1.json — Decision boundary enforcement (full_auto/human_review/strict_deny)
+- policies/policy_enforcement_pack.v1.json — Enforcement pack guardrails
+- policies/policy_risk_scoring.v1.json — Multi-factor risk threshold policy (low/medium/high/critical → boundary)
+- policies/policy_human_approval_request.v1.json — Human approval workflow (operations, TTL, routing)
 
 ## CAPABILITY Specs (SSOT)
 - capabilities/CAP-PR-PACKAGER.v1.json

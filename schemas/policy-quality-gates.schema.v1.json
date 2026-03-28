@@ -56,6 +56,10 @@
         }
       }
     },
+    "decision_quality_ref": {
+      "type": "string",
+      "description": "Path to decision-quality schema used for decision quality scoring integration."
+    },
     "fallback_on_all_fail": {
       "type": "string",
       "enum": [
