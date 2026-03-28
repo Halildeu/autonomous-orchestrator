@@ -226,6 +226,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-context-orchestration.schema.v1.json
 - schemas/policy-decision-boundaries.schema.v1.json
 - schemas/policy-quality-gates.schema.v1.json
+- schemas/agent-consultation.schema.v1.json — Agent-to-agent async consultation protocol
+- schemas/policy-agent-consultation.schema.v1.json
 
 ## Policies (SSOT)
 - policies/policy_advisor.v1.json
@@ -304,6 +306,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/policy_enforcement_pack.v1.json — Enforcement pack guardrails
 - policies/policy_risk_scoring.v1.json — Multi-factor risk threshold policy (low/medium/high/critical → boundary)
 - policies/policy_human_approval_request.v1.json — Human approval workflow (operations, TTL, routing)
+- policies/policy_agent_consultation.v1.json — Agent-to-agent consultation protocol (TTL, inbox, agents)
 
 ## CAPABILITY Specs (SSOT)
 - capabilities/CAP-PR-PACKAGER.v1.json

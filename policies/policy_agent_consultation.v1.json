@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "enabled": true,
+  "defaults": {
+    "ttl_seconds": 86400,
+    "status_on_expiry": "EXPIRED",
+    "max_open_consultations": 3
+  },
+  "inbox_path": ".cache/consultations/",
+  "archive_path": ".cache/consultations/archive/",
+  "topics": ["architecture", "assessment", "review", "planning", "decision", "maturity", "operations", "other"],
+  "agents": ["claude", "codex"],
+  "protocol": {
+    "check_at_bootstrap": true,
+    "respond_before_task": true,
+    "auto_archive_resolved": true
+  },
+  "fail_action": "warn"
+}

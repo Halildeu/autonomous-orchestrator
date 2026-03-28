@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ao:policy-agent-consultation:v1",
+  "title": "Policy Agent Consultation",
+  "description": "Schema for policy_agent_consultation.v1.json — defines consultation protocol settings, TTL, agents, and inbox routing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "enabled", "defaults", "inbox_path", "archive_path", "topics", "agents", "protocol"],
+  "properties": {
+    "version": { "type": "string", "enum": ["v1"] },
+    "enabled": { "type": "boolean" },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ttl_seconds", "status_on_expiry", "max_open_consultations"],
+      "properties": {
+        "ttl_seconds": { "type": "integer", "minimum": 60 },
+        "status_on_expiry": { "type": "string", "enum": ["EXPIRED"] },
+        "max_open_consultations": { "type": "integer", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "inbox_path": {
+      "type": "string",
+      "description": "Workspace-relative path for active consultations."
+    },
+    "archive_path": {
+      "type": "string",
+      "description": "Workspace-relative path for resolved/expired consultations."
+    },
+    "topics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Allowed consultation topics."
+    },
+    "agents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Registered agent IDs that can participate in consultations."
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_at_bootstrap", "respond_before_task", "auto_archive_resolved"],
+      "properties": {
+        "check_at_bootstrap": {
+          "type": "boolean",
+          "description": "Whether agents should check for pending consultations at bootstrap."
+        },
+        "respond_before_task": {
+          "type": "boolean",
+          "description": "Whether agents should respond to pending consultations before starting their own task."
+        },
+        "auto_archive_resolved": {
+          "type": "boolean",
+          "description": "Whether to auto-move resolved consultations to archive."
+        }
+      }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": ["block", "warn", "log"]
+    }
+  }
+}

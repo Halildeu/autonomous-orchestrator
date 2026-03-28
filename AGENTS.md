@@ -81,6 +81,25 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 - Core_lock, fail-closed, secrets kuralları tüm agent'lar için geçerlidir.
 - Agent çıktıları AUTOPILOT CHAT formatındadır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
 
+### Consultation Protocol (async istişare)
+
+Agent'lar birbirine async soru sorabilir. Git repo transport layer'dır.
+
+**Akış:**
+1. Soran agent `.cache/consultations/CONSULT-{YYYYMMDD}-{NNN}.v1.json` yazar, commit+push eder
+2. Diğer agent bootstrap'ta bu dosyayı görür, `responses[]`'e cevap ekler, commit+push eder
+3. İnsan veya soran agent `resolution` yazar → `status: RESOLVED`
+4. Resolved istişareler `archive/` altına taşınır
+
+**Kurallar:**
+- TTL: 24 saat (varsayılan). Expire olursa `status: EXPIRED`
+- Aynı anda max 3 açık istişare
+- Her response `branch` + `head_sha` içermeli (worktree awareness)
+- İnsan son karar vericisidir (`decided_by: human` override hakkı her zaman geçerli)
+- Response formatı: `agreements[]`, `objections[]`, `additions[]` — yapılandırılmış geri bildirim
+- Schema: `schemas/agent-consultation.schema.v1.json`
+- Policy: `policies/policy_agent_consultation.v1.json`
+
 ### Branch / Worktree Awareness (MUST)
 - Agent her zaman **üzerinde çalıştığı branch/worktree'yi** bilmeli ve raporlamalıdır.
 - Değerlendirme (maturity, drift, status) yapılırken branch adı ve HEAD SHA kaydedilmelidir.
@@ -112,6 +131,13 @@ Agent çalışmaya başladığında, **Profile Resolution → Bootstrap** sıras
 | **STARTUP** | İlk oturum, hiç bağlam yok |
 
 Aktif profil artefaktı: `.cache/index/active_context_profile.v1.json`
+
+### 0.5 Consultation Check (varsa cevapla)
+
+Agent bootstrap'ta `.cache/consultations/` dizinini kontrol eder:
+- `status: OPEN` ve `to_agent` kendi agent_id'sine eşitse → cevap ver
+- `status: RESPONDED` ve kendi başlattığı ise → resolution'ı oku ve uygula
+- Boşsa → devam et
 
 ### 1. Durum Bağlamı (en güncel hal)
 - `.cache/ws_customer_default/.cache/reports/system_status.v1.json` — sistem durumu
