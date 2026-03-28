@@ -81,6 +81,19 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 - Core_lock, fail-closed, secrets kuralları tüm agent'lar için geçerlidir.
 - Agent çıktıları AUTOPILOT CHAT formatındadır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
 
+### Branch / Worktree Awareness (MUST)
+- Agent her zaman **üzerinde çalıştığı branch/worktree'yi** bilmeli ve raporlamalıdır.
+- Değerlendirme (maturity, drift, status) yapılırken branch adı ve HEAD SHA kaydedilmelidir.
+- Worktree'deki commit'ler main'e merge edilmemiş olabilir; agent bunu varsaymamalıdır.
+- Cross-agent karşılaştırma yapılıyorsa her iki agent'ın aynı branch üzerinde çalışması ZORUNLUDUR.
+- Branch bilgisi: `git rev-parse --abbrev-ref HEAD` ve `git rev-parse --short HEAD` ile alınır.
+
+### Maturity Assessment Protocol (MUST)
+- Olgunluk değerlendirmesinde tüm agent'lar `policies/policy_maturity_assessment.v1.json` rubric'ini kullanır.
+- Her alan için `evidence_commands` çalıştırılması ZORUNLUDUR; salt dosya okuma ile skor verilmez.
+- Scoring: L0=0%, L1=25%, L2=50%, L3=75%, L4=100% (bant içi interpolasyon yapılır).
+- İki agent farklı skor verirse, daha fazla evidence_command çalıştıran tercih edilir.
+
 ## Context Bootstrap (her konuşma başında)
 
 Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırasıyla yükler:
