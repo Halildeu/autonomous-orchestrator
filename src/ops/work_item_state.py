@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.status import validate_transition
+
 STATE_OPEN = "OPEN"
 STATE_PLANNED = "PLANNED"
 STATE_IN_PROGRESS = "IN_PROGRESS"
@@ -106,6 +108,8 @@ def update_state(
     if not item_id:
         return {}
     entry = dict(state_map.get(item_id) or {})
+    current_state = entry.get("state")
+    validate_transition(current_state, state)
     entry.update(
         {
             "work_item_id": item_id,

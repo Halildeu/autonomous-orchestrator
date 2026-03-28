@@ -94,3 +94,36 @@ def validate_status(value: str, family: frozenset[str]) -> str:
             f"Invalid status '{value}', expected one of {sorted(family)}"
         )
     return value
+
+
+# ── Transition Validation ───────────────────────────────────────────
+
+# Allowed (from_state, to_state) pairs for the work_item lifecycle machine.
+# Derived from orchestrator/state_machine.v1.json work_item.transitions.
+_WORK_ITEM_ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset({
+    ("OPEN", "PLANNED"),
+    ("OPEN", "NOOP"),
+    ("PLANNED", "IN_PROGRESS"),
+    ("PLANNED", "OPEN"),      # replan
+    ("IN_PROGRESS", "APPLIED"),
+    ("IN_PROGRESS", "OPEN"),  # fail → retry
+    ("APPLIED", "CLOSED"),
+    # Initial write: None → OPEN allowed
+    ("", "OPEN"),
+})
+
+
+def validate_transition(from_state: str | None, to_state: str) -> str:
+    """Validate a work_item lifecycle state transition. Fail-closed.
+
+    ``from_state`` is None or '' for the initial write (new work item).
+    Returns ``to_state`` if valid; raises ``ValueError`` on invalid transition.
+    """
+    norm_from = str(from_state or "").strip().upper()
+    norm_to = str(to_state or "").strip().upper()
+    if (norm_from, norm_to) not in _WORK_ITEM_ALLOWED_TRANSITIONS:
+        raise ValueError(
+            f"Invalid work_item transition: {norm_from!r} → {norm_to!r}. "
+            f"Allowed: {sorted(_WORK_ITEM_ALLOWED_TRANSITIONS)}"
+        )
+    return norm_to
