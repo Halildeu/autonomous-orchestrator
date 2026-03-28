@@ -35,5 +35,6 @@
   "placeholders_fail": 200,
   "strict_fail_on_broken": true,
   "strict_fail_on_critical_nav_gaps": true,
-  "orphan_target": 0
+  "orphan_target": 0,
+  "fail_action": "warn"
 }

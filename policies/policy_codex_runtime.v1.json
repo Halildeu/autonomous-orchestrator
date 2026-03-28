@@ -71,5 +71,6 @@
       "inbox_required": true,
       "workspace_mode": "worktree_or_workspace"
     }
-  }
+  },
+  "fail_action": "warn"
 }

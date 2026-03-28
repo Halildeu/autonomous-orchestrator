@@ -13,5 +13,6 @@
   "notes": [
     "Deterministic PDCA guardrails: quota + cooldown + retention.",
     "Enforcement is report-only unless policy_integrity blocks."
-  ]
+  ],
+  "fail_action": "warn"
 }

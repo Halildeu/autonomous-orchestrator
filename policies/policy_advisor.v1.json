@@ -11,5 +11,9 @@
   "max_suggestions": 50,
   "min_confidence_to_emit": 0.2,
   "on_fail": "warn",
-  "forbid_kinds": ["SECRET_HINT", "TENANT_IDENTITY"]
+  "forbid_kinds": [
+    "SECRET_HINT",
+    "TENANT_IDENTITY"
+  ],
+  "fail_action": "warn"
 }

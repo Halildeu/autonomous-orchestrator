@@ -149,6 +149,15 @@
           "const": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
         }
       }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   }
 }

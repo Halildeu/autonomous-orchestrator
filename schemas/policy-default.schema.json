@@ -4,14 +4,34 @@
   "title": "Policy Default",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "policies"],
+  "required": [
+    "version",
+    "policies"
+  ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
     "policies": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^policies\\/policy_[a-z0-9_]+\\.v[0-9]+\\.json$" },
+      "items": {
+        "type": "string",
+        "pattern": "^policies\\/policy_[a-z0-9_]+\\.v[0-9]+\\.json$"
+      },
       "minItems": 1,
       "uniqueItems": true
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   }
 }

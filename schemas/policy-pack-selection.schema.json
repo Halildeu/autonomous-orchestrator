@@ -14,38 +14,92 @@
     "selection_trace"
   ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "enabled": { "type": "boolean" },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
     "shortlist": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["match_fields", "max_candidates"],
+      "required": [
+        "match_fields",
+        "max_candidates"
+      ],
       "properties": {
         "match_fields": {
           "type": "array",
-          "items": { "type": "string", "enum": ["intent", "artifact_type"] }
+          "items": {
+            "type": "string",
+            "enum": [
+              "intent",
+              "artifact_type"
+            ]
+          }
         },
-        "max_candidates": { "type": "integer", "minimum": 1, "maximum": 1000 }
+        "max_candidates": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
       }
     },
     "tie_break": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "properties": {
-        "mode": { "type": "string", "enum": ["pack_id_lexicographic"] }
+        "mode": {
+          "type": "string",
+          "enum": [
+            "pack_id_lexicographic"
+          ]
+        }
       }
     },
-    "hard_conflict_behavior": { "type": "string", "enum": ["fail"] },
-    "soft_conflict_behavior": { "type": "string", "enum": ["warn"] },
+    "hard_conflict_behavior": {
+      "type": "string",
+      "enum": [
+        "fail"
+      ]
+    },
+    "soft_conflict_behavior": {
+      "type": "string",
+      "enum": [
+        "warn"
+      ]
+    },
     "selection_trace": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "out_path"],
+      "required": [
+        "enabled",
+        "out_path"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "out_path": { "type": "string", "minLength": 1 }
+        "enabled": {
+          "type": "boolean"
+        },
+        "out_path": {
+          "type": "string",
+          "minLength": 1
+        }
       }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   }
 }

@@ -2,7 +2,10 @@
   "version": "v1",
   "enabled": true,
   "shortlist": {
-    "match_fields": ["intent", "artifact_type"],
+    "match_fields": [
+      "intent",
+      "artifact_type"
+    ],
     "max_candidates": 10
   },
   "tie_break": {
@@ -13,5 +16,6 @@
   "selection_trace": {
     "enabled": true,
     "out_path": ".cache/index/pack_selection_trace.v1.json"
-  }
+  },
+  "fail_action": "warn"
 }

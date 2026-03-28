@@ -39,5 +39,6 @@
     "core_unlock_scope_widen_warn": "TICKET:CORE_UNLOCK_DISCIPLINE",
     "schema_fail_fail": "INCIDENT:SCHEMA_FAIL",
     "schema_fail_warn": "TICKET:SCHEMA_HYGIENE"
-  }
+  },
+  "fail_action": "warn"
 }

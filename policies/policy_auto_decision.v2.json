@@ -15,13 +15,19 @@
     "UNKNOWN": "KEEP_SAFE"
   },
   "guards": {
-    "require_env_for_live_github": ["KERNEL_API_GITHUB_LIVE=1", "GITHUB_TOKEN_PRESENT"],
-    "require_env_for_live_deploy": ["KERNEL_API_DEPLOY_LIVE=1"],
+    "require_env_for_live_github": [
+      "KERNEL_API_GITHUB_LIVE=1",
+      "GITHUB_TOKEN_PRESENT"
+    ],
+    "require_env_for_live_deploy": [
+      "KERNEL_API_DEPLOY_LIVE=1"
+    ],
     "core_unlock_allowlist_only": true
   },
   "circuit_breakers": {
     "github_pr_open_network_fail_window_minutes": 60,
     "github_pr_open_network_fail_max": 3,
     "github_pr_open_cooldown_override_mode": "proof_cooldown_zero_if_needed"
-  }
+  },
+  "fail_action": "warn"
 }

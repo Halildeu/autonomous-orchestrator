@@ -12,18 +12,35 @@
     "inputs"
   ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "enabled": { "type": "boolean" },
-    "verify_on_read_required": { "type": "boolean" },
-    "allow_report_only_when_missing_sources": { "type": "boolean" },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "verify_on_read_required": {
+      "type": "boolean"
+    },
+    "allow_report_only_when_missing_sources": {
+      "type": "boolean"
+    },
     "exclude_inputs": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "default": []
     },
     "exclude_paths": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "default": []
     },
     "inputs": {
@@ -38,24 +55,61 @@
         "script_budget"
       ],
       "properties": {
-        "system_status": { "$ref": "#/$defs/input_rule" },
-        "pack_index": { "$ref": "#/$defs/input_rule" },
-        "quality_gate": { "$ref": "#/$defs/input_rule" },
-        "repo_hygiene": { "$ref": "#/$defs/input_rule" },
-        "harvest": { "$ref": "#/$defs/input_rule" },
-        "script_budget": { "$ref": "#/$defs/input_rule" }
+        "system_status": {
+          "$ref": "#/$defs/input_rule"
+        },
+        "pack_index": {
+          "$ref": "#/$defs/input_rule"
+        },
+        "quality_gate": {
+          "$ref": "#/$defs/input_rule"
+        },
+        "repo_hygiene": {
+          "$ref": "#/$defs/input_rule"
+        },
+        "harvest": {
+          "$ref": "#/$defs/input_rule"
+        },
+        "script_budget": {
+          "$ref": "#/$defs/input_rule"
+        }
       }
     },
-    "notes": { "type": "array", "items": { "type": "string" } }
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
+    }
   },
   "$defs": {
     "input_rule": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["required", "on_mismatch"],
+      "required": [
+        "required",
+        "on_mismatch"
+      ],
       "properties": {
-        "required": { "type": "boolean" },
-        "on_mismatch": { "type": "string", "enum": ["FAIL", "WARN"] }
+        "required": {
+          "type": "boolean"
+        },
+        "on_mismatch": {
+          "type": "string",
+          "enum": [
+            "FAIL",
+            "WARN"
+          ]
+        }
       }
     }
   }

@@ -9,5 +9,6 @@
   },
   "inputs": {
     "require_three": true
-  }
+  },
+  "fail_action": "warn"
 }

@@ -18,15 +18,37 @@
     "assessment_protocol": {
       "type": "object",
       "properties": {
-        "branch_rule": { "type": "string" },
-        "execution_rule": { "type": "string" },
-        "scoring_rule": { "type": "string" },
-        "conflict_resolution": { "type": "string" },
-        "self_reference_rule": { "type": "string" },
-        "l3_strict_rule": { "type": "string" },
-        "evidence_threshold_rule": { "type": "string" }
+        "branch_rule": {
+          "type": "string"
+        },
+        "execution_rule": {
+          "type": "string"
+        },
+        "scoring_rule": {
+          "type": "string"
+        },
+        "conflict_resolution": {
+          "type": "string"
+        },
+        "self_reference_rule": {
+          "type": "string"
+        },
+        "l3_strict_rule": {
+          "type": "string"
+        },
+        "evidence_threshold_rule": {
+          "type": "string"
+        }
       },
-      "required": ["branch_rule", "execution_rule", "scoring_rule", "conflict_resolution", "self_reference_rule", "l3_strict_rule", "evidence_threshold_rule"],
+      "required": [
+        "branch_rule",
+        "execution_rule",
+        "scoring_rule",
+        "conflict_resolution",
+        "self_reference_rule",
+        "l3_strict_rule",
+        "evidence_threshold_rule"
+      ],
       "additionalProperties": false
     },
     "areas": {
@@ -56,32 +78,72 @@
           },
           "evidence_commands": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "minItems": 1
           },
           "evidence_files": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "criteria": {
             "type": "object",
             "properties": {
-              "l0_definition": { "type": "string" },
-              "l1_definition": { "type": "string" },
-              "l2_definition": { "type": "string" },
-              "l3_definition": { "type": "string" },
-              "l4_definition": { "type": "string" }
+              "l0_definition": {
+                "type": "string"
+              },
+              "l1_definition": {
+                "type": "string"
+              },
+              "l2_definition": {
+                "type": "string"
+              },
+              "l3_definition": {
+                "type": "string"
+              },
+              "l4_definition": {
+                "type": "string"
+              }
             },
-            "required": ["l0_definition", "l1_definition", "l2_definition", "l3_definition", "l4_definition"],
+            "required": [
+              "l0_definition",
+              "l1_definition",
+              "l2_definition",
+              "l3_definition",
+              "l4_definition"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["area_id", "weight", "evidence_commands", "evidence_files", "criteria"],
+        "required": [
+          "area_id",
+          "weight",
+          "evidence_commands",
+          "evidence_files",
+          "criteria"
+        ],
         "additionalProperties": false
       },
       "minItems": 1
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   },
-  "required": ["version", "description", "assessment_protocol", "areas"],
+  "required": [
+    "version",
+    "description",
+    "assessment_protocol",
+    "areas"
+  ],
   "additionalProperties": true
 }

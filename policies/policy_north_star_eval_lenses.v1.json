@@ -151,5 +151,6 @@
     "North Star eval lens mekanizmasi aktif.",
     "Assessment ciktilari 7 boyutlu A-G lens degerlendirmesi uretir.",
     "Maturity tracking ciktilari north_star.maturity schema ile dogrulanir."
-  ]
+  ],
+  "fail_action": "warn"
 }

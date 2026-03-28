@@ -22,19 +22,29 @@
   "properties": {
     "version": {
       "type": "string",
-      "enum": ["v1"]
+      "enum": [
+        "v1"
+      ]
     },
     "kind": {
       "type": "string",
-      "enum": ["policy-feature-execution-bridge"]
+      "enum": [
+        "policy-feature-execution-bridge"
+      ]
     },
     "status": {
       "type": "string",
-      "enum": ["ACTIVE", "DRAFT"]
+      "enum": [
+        "ACTIVE",
+        "DRAFT"
+      ]
     },
     "enforcement_mode": {
       "type": "string",
-      "enum": ["blocking", "warn"]
+      "enum": [
+        "blocking",
+        "warn"
+      ]
     },
     "contract_path": {
       "type": "string",
@@ -193,6 +203,15 @@
           "minLength": 1
         }
       }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   }
 }

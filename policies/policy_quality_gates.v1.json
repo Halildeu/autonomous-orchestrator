@@ -23,5 +23,6 @@
       "check_against": "fact_history"
     }
   },
-  "fallback_on_all_fail": "suspend"
+  "fallback_on_all_fail": "suspend",
+  "fail_action": "warn"
 }

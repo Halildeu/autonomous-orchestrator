@@ -51,5 +51,6 @@
         "network_policy_change"
       ]
     }
-  }
+  },
+  "fail_action": "warn"
 }

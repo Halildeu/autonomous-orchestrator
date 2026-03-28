@@ -14,7 +14,9 @@
   "properties": {
     "version": {
       "type": "string",
-      "enum": ["v1"]
+      "enum": [
+        "v1"
+      ]
     },
     "limits": {
       "type": "object",
@@ -107,6 +109,15 @@
           }
         }
       }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   }
 }

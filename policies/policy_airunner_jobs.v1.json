@@ -41,5 +41,6 @@
   "intake_mapping": {
     "time_sink_bucket": "TICKET",
     "time_sink_escalate_to_incident_after": 3
-  }
+  },
+  "fail_action": "warn"
 }

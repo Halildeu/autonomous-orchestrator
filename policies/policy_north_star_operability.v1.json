@@ -102,5 +102,6 @@
     "docs_unmapped_md_gt_fail": "PROJECT:DOCS_DRIFT_REFACTOR",
     "intake_new_items_per_day_gt": "TICKET:NOISE_CONTROL",
     "suppressed_per_day_gt": "TICKET:NOISE_CONTROL"
-  }
+  },
+  "fail_action": "warn"
 }

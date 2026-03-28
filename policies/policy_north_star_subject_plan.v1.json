@@ -204,5 +204,6 @@
     "max_steps": 16,
     "max_plan_bytes": 131072,
     "plan_bytes_over_limit_action": "warn"
-  }
+  },
+  "fail_action": "warn"
 }

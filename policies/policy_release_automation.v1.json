@@ -48,5 +48,6 @@
   "notes": [
     "local_first",
     "publish_requires_explicit_flag"
-  ]
+  ],
+  "fail_action": "warn"
 }

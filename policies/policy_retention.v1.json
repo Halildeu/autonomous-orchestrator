@@ -42,5 +42,6 @@
     ".cache/ws_customer_default*/.cache/reports/work_intake_purpose_generate.v0.1.*",
     ".cache/ws_customer_default*/.cache/state/llm_probe_state.v1.json",
     ".cache/ws_customer_default*/policies/policy_llm_providers_guardrails.v1.json"
-  ]
+  ],
+  "fail_action": "warn"
 }

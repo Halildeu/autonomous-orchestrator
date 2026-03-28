@@ -12,5 +12,6 @@
   "notes": [
     "profile_pin_enabled",
     "strict_default_pinned"
-  ]
+  ],
+  "fail_action": "block"
 }
