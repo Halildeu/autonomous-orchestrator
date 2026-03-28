@@ -84,6 +84,18 @@ jobs:
       - name: manual_request_contract_test
         run: python3 ci/manual_request_contract_test.py
 
+  core-ops-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: core_ops_contract_test
+        run: python3 ci/core_ops_contract_test.py
+
   incident-pdca-contracts:
     runs-on: ubuntu-latest
     steps:
@@ -107,6 +119,7 @@ jobs:
       - decision-contracts
       - policy-contracts
       - work-intake-contracts
+      - core-ops-contracts
       - incident-pdca-contracts
     if: always()
     steps:
@@ -118,8 +131,10 @@ jobs:
           echo "policy=${{ needs.policy-contracts.result }}"
           echo "work-intake=${{ needs.work-intake-contracts.result }}"
           echo "incident-pdca=${{ needs.incident-pdca-contracts.result }}"
+          echo "core-ops=${{ needs.core-ops-contracts.result }}"
           test "${{ needs.context-contracts.result }}" = "success"
           test "${{ needs.decision-contracts.result }}" = "success"
           test "${{ needs.policy-contracts.result }}" = "success"
           test "${{ needs.work-intake-contracts.result }}" = "success"
+          test "${{ needs.core-ops-contracts.result }}" = "success"
           test "${{ needs.incident-pdca-contracts.result }}" = "success"
