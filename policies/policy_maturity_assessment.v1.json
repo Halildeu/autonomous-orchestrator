@@ -174,7 +174,9 @@
       "evidence_commands": [
         "python3 ci/ai_config_contract_test.py 2>&1 | tail -5",
         "python3 ci/context_drift_contract_test.py 2>&1 | tail -5",
-        "diff <(grep 'workspace' AGENTS.md) <(grep 'workspace' .gemini/INSTRUCTIONS.md) 2>&1 | head -10"
+        "diff <(grep 'workspace' AGENTS.md) <(grep 'workspace' .gemini/INSTRUCTIONS.md) 2>&1 | head -10",
+        "diff <(grep -E 'ops\\.main|manage\\.py|workspace.root' AGENTS.md) <(grep -E 'ops\\.main|manage\\.py|workspace.root' .gemini/INSTRUCTIONS.md) 2>&1 | head -10",
+        "grep -c 'src.ops.main' .gemini/INSTRUCTIONS.md 2>/dev/null || echo 0"
       ],
       "evidence_files": [
         "AGENTS.md",
@@ -185,8 +187,8 @@
       "criteria": {
         "l0_definition": "Single-agent repo; no shared context",
         "l1_definition": "AGENTS.md exists as shared SSOT; multiple agent configs present",
-        "l2_definition": "Shared ops commands; context bootstrap defined; but instruction drift between agents",
-        "l3_definition": "All agents read same SSOT; instruction drift CI test passes; bootstrap code shared",
+        "l2_definition": "Shared ops commands; context bootstrap defined; but instruction drift between agents (e.g. .gemini/INSTRUCTIONS.md contains stale refs like src.ops.main)",
+        "l3_definition": "ALL of: (a) context_drift_contract_test passes, (b) .gemini/INSTRUCTIONS.md has zero stale refs (src.ops.main=0), (c) bootstrap code shared. ALL conditions required.",
         "l4_definition": "L3 + cross-agent evaluation consistency (maturity rubric); shared context health dashboard"
       }
     },
