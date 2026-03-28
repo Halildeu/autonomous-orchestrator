@@ -57,36 +57,63 @@ def _scan_file(path: Path) -> list[dict[str, str | int]]:
     return violations
 
 
-def main() -> int:
+_DEFAULT_MAX_VIOLATIONS = 348  # Ratchet baseline — reduce this as call sites are migrated
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    parser = argparse.ArgumentParser(description="Check write path compliance in src/")
+    parser.add_argument(
+        "--max-violations",
+        type=int,
+        default=_DEFAULT_MAX_VIOLATIONS,
+        help=f"Maximum allowed violations before gate fails (default: {_DEFAULT_MAX_VIOLATIONS}). "
+             "Set to 0 to block all violations.",
+    )
+    parser.add_argument("--warn-only", action="store_true", help="Never exit 1 (legacy WARN mode)")
+    args = parser.parse_args(argv)
+
     all_violations: list[dict[str, str | int]] = []
 
     for py_file in sorted(SRC_DIR.rglob("*.py")):
         if str(py_file) in ALLOWLIST_FILES:
             continue
-        # Skip test files
         if "_contract_test" in py_file.name or "_test.py" in py_file.name:
             continue
         violations = _scan_file(py_file)
         all_violations.extend(violations)
 
-    status = "OK" if not all_violations else "WARN"
+    count = len(all_violations)
+    exceeded = count > args.max_violations
+    status = "OK" if not exceeded else "FAIL"
+
     report = {
         "status": status,
-        "violations_count": len(all_violations),
+        "violations_count": count,
+        "max_violations": args.max_violations,
+        "gate": "BLOCK" if not args.warn_only else "WARN",
         "violations": all_violations[:50],
-        "note": "WARN mode: reports violations but does not fail the gate. "
-                "Migrate call sites to src.shared.utils incrementally.",
+        "note": (
+            f"Ratchet gate: fail if violations > {args.max_violations}. "
+            "Reduce --max-violations as call sites are migrated to write_json_atomic/write_text_atomic."
+        ),
     }
 
     print(json.dumps(report, indent=2, ensure_ascii=False))
 
-    if all_violations:
+    if exceeded and not args.warn_only:
         print(
-            f"\nWARN: {len(all_violations)} direct write(s) found in src/. "
-            f"Use write_json_atomic/write_text_atomic from src.shared.utils.",
+            f"\nFAIL: {count} direct write(s) found (max allowed: {args.max_violations}). "
+            f"New violations introduced. Migrate to src.shared.utils atomic write helpers.",
             file=sys.stderr,
         )
-    # Exit 0 in WARN mode — gate does not block.
+        return 1
+
+    if count:
+        print(
+            f"\nWARN: {count} direct write(s) found (within ratchet limit of {args.max_violations}).",
+            file=sys.stderr,
+        )
     return 0
 
 
