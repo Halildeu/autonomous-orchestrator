@@ -96,7 +96,22 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 
 ## Context Bootstrap (her konuşma başında)
 
-Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırasıyla yükler:
+Agent çalışmaya başladığında, **Profile Resolution → Bootstrap** sırasını takip eder.
+
+### 0. Profile Resolution (ÖNCE yap)
+
+`policies/context_profile_registry.v1.json` içindeki 6 profil arasından aktif profili belirle:
+
+| Profil | Ne zaman aktif? |
+|---|---|
+| **EMERGENCY** | system_status=FAIL veya integrity violation var |
+| **ASSESSMENT** | Olgunluk/gap/PDCA değerlendirmesi isteniyorsa |
+| **PLANNING** | Roadmap/mimari/strateji planlaması |
+| **REVIEW** | Kod/PR/rapor incelemesi |
+| **TASK_EXECUTION** | Belirli bir ops komutu veya work item (varsayılan) |
+| **STARTUP** | İlk oturum, hiç bağlam yok |
+
+Aktif profil artefaktı: `.cache/index/active_context_profile.v1.json`
 
 ### 1. Durum Bağlamı (en güncel hal)
 - `.cache/ws_customer_default/.cache/reports/system_status.v1.json` — sistem durumu
@@ -108,7 +123,7 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 - `docs/OPERATIONS/CODEX-UX.md` — customer-friendly ops akışı
 - `docs/LAYER-MODEL-LOCK.v1.md` — katman modeli
 
-### 3. Proje Bağlamı (ihtiyaç halinde)
+### 3. Proje Bağlamı (yalnızca ASSESSMENT veya PLANNING profilinde)
 - `roadmaps/PROJECTS/*/project.manifest.v1.json` — proje manifestleri
 - `roadmaps/SSOT/roadmap.v1.json` — canonical roadmap
 
@@ -117,6 +132,8 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default
 python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default
 ```
+
+Profil `required_files` ve `bootstrap_commands` alanları profile-specific ek yüklemeleri tanımlar.
 
 ## Repo conventions
 

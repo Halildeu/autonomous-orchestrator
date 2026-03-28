@@ -44,7 +44,27 @@
         },
         "plan_apply_traceability": {
           "type": "boolean"
+        },
+        "profile_based_context": {
+          "type": "boolean",
+          "description": "Whether profile-based context loading is enabled."
         }
+      }
+    },
+    "profile_registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Profile-based context registry configuration.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "policy_path": { "type": "string" },
+        "schema_path": { "type": "string" },
+        "active_artifact_path": { "type": "string" },
+        "resolution_order": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["auto", "explicit", "default", "fallback"] }
+        },
+        "on_resolution_fail": { "type": "string" }
       }
     },
     "limits": {
