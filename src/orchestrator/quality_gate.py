@@ -12,6 +12,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import load_policy_validated
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 logger = logging.getLogger(__name__)
 
 # ── Gate metrics (in-process Counter for observability) ───────────────
@@ -39,11 +43,14 @@ def _load_quality_gate_policy(workspace_root: Path | None = None) -> dict[str, A
         candidates.append(workspace_root / "policies" / "policy_quality_gates.v1.json")
     repo_root = Path(__file__).resolve().parents[2]
     candidates.append(repo_root / "policies" / "policy_quality_gates.v1.json")
+    schema_path = _REPO_ROOT / "schemas" / "policy-quality-gates.schema.v1.json"
     for p in candidates:
         if p.exists():
             try:
+                if schema_path.exists():
+                    return load_policy_validated(p, schema_path)
                 return json.loads(p.read_text(encoding="utf-8"))
-            except Exception:
+            except (ValueError, Exception):
                 continue
     return {"enabled": False, "gates": {}}
 
