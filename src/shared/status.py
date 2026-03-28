@@ -104,12 +104,17 @@ _WORK_ITEM_ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset({
     ("OPEN", "PLANNED"),
     ("OPEN", "NOOP"),
     ("PLANNED", "IN_PROGRESS"),
-    ("PLANNED", "OPEN"),      # replan
+    ("PLANNED", "OPEN"),        # replan
     ("IN_PROGRESS", "APPLIED"),
-    ("IN_PROGRESS", "OPEN"),  # fail → retry
+    ("IN_PROGRESS", "OPEN"),    # fail → retry
     ("APPLIED", "CLOSED"),
-    # Initial write: None → OPEN allowed
+    # Initial write: new work items may start at any valid lifecycle state
     ("", "OPEN"),
+    ("", "PLANNED"),
+    ("", "IN_PROGRESS"),
+    ("", "APPLIED"),
+    ("", "CLOSED"),
+    ("", "NOOP"),
 })
 
 
