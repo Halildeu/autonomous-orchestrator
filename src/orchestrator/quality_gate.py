@@ -6,9 +6,23 @@ Gates: schema_valid, output_not_empty, consistency_check, regression_check.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import logging
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# ── Gate metrics (in-process Counter for observability) ───────────────
+# Counts per gate_id × action across the process lifetime.
+# Consumed by OTEL export or metrics endpoint when available.
+_gate_counters: Counter[str] = Counter()
+
+
+def get_gate_metrics() -> dict[str, int]:
+    """Return a snapshot of gate counters as {gate_id:action: count}."""
+    return dict(_gate_counters)
 
 
 @dataclass
@@ -125,6 +139,15 @@ def run_quality_gates(
         results.append(_check_consistency(output, gates.get("consistency_check", {}), previous_decisions))
     if gates.get("regression_check", {}).get("enabled", True):
         results.append(_check_regression(output, gates.get("regression_check", {}), previous_decisions))
+
+    # Record gate metrics
+    for r in results:
+        key = f"{r.gate_id}:{r.action}"
+        _gate_counters[key] += 1
+        if not r.passed:
+            logger.warning("quality_gate FAIL gate=%s action=%s reason=%s", r.gate_id, r.action, r.reason)
+        else:
+            logger.debug("quality_gate PASS gate=%s", r.gate_id)
 
     return results
 
