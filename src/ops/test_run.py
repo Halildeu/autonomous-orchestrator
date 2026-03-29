@@ -16,6 +16,7 @@ from src.ops.roadmap_seed import run_roadmap_seed
 from src.ops.roadmap_state_sync import run_roadmap_state_sync
 from src.ops.workspace_find import run_workspace_find
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -551,7 +552,7 @@ def run_test_run(*, workspace_root: Path, out_path: Path | str) -> dict[str, Any
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_resolved, payload)
     return payload
 
 

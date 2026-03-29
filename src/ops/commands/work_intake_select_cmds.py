@@ -9,6 +9,7 @@ from pathlib import Path
 from src.ops.commands.common import repo_root, warn
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
+from src.shared.utils import write_json_atomic
 
 def cmd_work_intake_select(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -140,7 +141,7 @@ def cmd_work_intake_select(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true"],
     }
     selection_path.parent.mkdir(parents=True, exist_ok=True)
-    selection_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(selection_path, payload)
 
     status = "OK"
     error_code = None

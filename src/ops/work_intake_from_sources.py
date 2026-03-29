@@ -26,6 +26,7 @@ from src.ops.work_intake_helpers import (
     _normalize_evidence,
     _suggested_extensions,
 )
+from src.shared.utils import write_json_atomic
 from src.ops.work_intake_remediation import (
     note_is_warning as _note_is_warning,
     seed_source_artifacts as _seed_source_artifacts,
@@ -1137,7 +1138,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
     _ensure_inside_workspace(workspace_root, out_md)
     _ensure_inside_workspace(workspace_root, out_compaction)
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_json, payload)
     out_compaction.parent.mkdir(parents=True, exist_ok=True)
     out_compaction.write_text(
         json.dumps(

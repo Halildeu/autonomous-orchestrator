@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 SMOKE_ROOT_CAUSE_TAXONOMY_VERSION = "v1"
 DEFAULT_SMOKE_ROOT_CAUSE_REPORT = ".cache/reports/smoke_root_cause_report.v1.json"
@@ -300,5 +301,5 @@ def write_smoke_root_cause_report(
 
     payload = dict(report)
     payload["report_path"] = report_path
-    target.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(target, payload)
     return report_path

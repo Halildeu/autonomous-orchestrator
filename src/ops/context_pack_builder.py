@@ -6,6 +6,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from src.shared.utils import write_json_atomic
 from src.ops.context_pack_loaders import (
     build_define_refs,
     build_eval_refs,
@@ -62,7 +63,7 @@ def _load_cache(path: Path) -> dict[str, Any]:
 
 def _save_cache(path: Path, cache_obj: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(cache_obj, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, cache_obj)
 
 
 def _schema_validator(repo_root: Path, schema_name: str) -> Draft202012Validator | None:
@@ -111,7 +112,7 @@ def _sync_active_context_pack(*, workspace_root: Path, payload: dict[str, Any]) 
     active_rel = ACTIVE_CONTEXT_PACK_REL_PATH.as_posix()
     active_path = workspace_root / ACTIVE_CONTEXT_PACK_REL_PATH
     active_path.parent.mkdir(parents=True, exist_ok=True)
-    active_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(active_path, payload)
     return active_rel
 
 
@@ -324,7 +325,7 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
     out_dir.mkdir(parents=True, exist_ok=True)
     out_rel = str(Path(".cache") / "index" / "context_packs" / f"{pack_id}.v1.json")
     out_path = workspace_root / out_rel
-    out_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, payload)
     _sync_active_context_pack(workspace_root=workspace_root, payload=payload)
 
     if mode == "summary":
@@ -445,7 +446,7 @@ def route_context_pack(
 
     out_path = workspace_root / ".cache" / "reports" / "context_pack_router_result.v1.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(router_result, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, router_result)
 
     pack.setdefault("routing", {})
     if isinstance(pack.get("routing"), dict):
@@ -459,7 +460,7 @@ def route_context_pack(
             "kind": "report",
             "label": "context_router_result",
         }
-        context_pack_path.write_text(json.dumps(pack, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(context_pack_path, pack)
 
     # Persist routing decision to session context for cross-session continuity
     _persist_routing_to_session(

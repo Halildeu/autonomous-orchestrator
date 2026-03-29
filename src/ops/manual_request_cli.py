@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -159,9 +160,9 @@ def submit_manual_request(
         return result
 
     manual_dir.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(req, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, req)
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, result)
 
     return result

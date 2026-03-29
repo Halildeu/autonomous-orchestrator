@@ -9,6 +9,7 @@ from typing import Any
 from src.ops.commands.common import repo_root, warn
 from src.ops.workspace_find import run_workspace_find
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -162,7 +163,7 @@ def run_roadmap_resolve(
             "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "TRAVERSAL_BLOCKED=true"],
         }
         out_resolved.parent.mkdir(parents=True, exist_ok=True)
-        out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(out_resolved, payload)
         return payload
 
     try:
@@ -177,7 +178,7 @@ def run_roadmap_resolve(
             "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "TRAVERSAL_BLOCKED=true"],
         }
         out_resolved.parent.mkdir(parents=True, exist_ok=True)
-        out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(out_resolved, payload)
         return payload
 
     matches = find_report.get("matches") if isinstance(find_report, dict) else None
@@ -230,7 +231,7 @@ def run_roadmap_resolve(
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_resolved, payload)
     return payload
 
 

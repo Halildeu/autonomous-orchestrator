@@ -18,6 +18,7 @@ from typing import Any
 
 from src.session.context_store import SessionContextError, SessionPaths, load_context
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -198,7 +199,7 @@ def consolidate_facts(
     }
 
     facts_path.parent.mkdir(parents=True, exist_ok=True)
-    facts_path.write_text(json.dumps(store, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(facts_path, store)
 
     return {
         "status": "OK",

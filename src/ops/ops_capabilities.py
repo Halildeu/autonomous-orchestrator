@@ -8,6 +8,7 @@ from typing import Any
 
 from src.ops.commands.common import repo_root, warn
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -112,7 +113,7 @@ def run_ops_capabilities(*, workspace_root: Path, out_path: Path | str) -> dict[
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_resolved, payload)
 
     try:
         rel = out_resolved.resolve().relative_to(workspace_root.resolve()).as_posix()

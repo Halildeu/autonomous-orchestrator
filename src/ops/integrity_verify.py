@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity, load_previous_snapshot
 
+from src.shared.utils import write_json_atomic
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -69,7 +70,7 @@ def run_integrity_verify(*, workspace_root: Path, mode: str) -> dict[str, Any]:
         schema = _load_json(schema_path)
         Draft202012Validator(schema).validate(snapshot)
 
-    out_json.write_text(json.dumps(snapshot, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_json, snapshot)
     _write_md(out_md, snapshot)
 
     return {

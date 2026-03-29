@@ -9,6 +9,7 @@ from jsonschema import Draft202012Validator
 
 from src.benchmark.integrity_utils import load_policy_integrity
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -38,7 +39,7 @@ def _write_if_missing(path: Path, payload: dict[str, Any]) -> None:
     if path.exists():
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _normalize_tag_list(value: Any) -> list[str]:

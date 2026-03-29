@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -273,8 +274,8 @@ def run_context_pack_triangulate(
     merge_path.parent.mkdir(parents=True, exist_ok=True)
     context_pack_path.parent.mkdir(parents=True, exist_ok=True)
 
-    candidates_path.write_text(json.dumps(candidates_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    merge_path.write_text(json.dumps(merge_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(candidates_path, candidates_payload)
+    write_json_atomic(merge_path, merge_payload)
 
     candidates_rel_path = str(Path(".cache") / "index" / "context_pack_candidates.v1.json")
     merge_rel_path = str(Path(".cache") / "index" / "context_pack_merge.v1.json")

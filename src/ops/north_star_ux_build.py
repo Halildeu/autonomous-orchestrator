@@ -9,6 +9,7 @@ from typing import Any
 
 from src.ops.commands.common import repo_root, warn
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -360,9 +361,9 @@ def run_north_star_ux_build(*, workspace_root: Path, subject_id: str, out_dir: s
     blueprint_path = out_dir_abs / f"{subject_slug}.ux_blueprint.v1.json"
     matrix_path = out_dir_abs / f"{subject_slug}.ux_interaction_matrix.v1.json"
 
-    catalog_path.write_text(json.dumps(ux_catalog, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    blueprint_path.write_text(json.dumps(ux_blueprint, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    matrix_path.write_text(json.dumps(ux_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(catalog_path, ux_catalog)
+    write_json_atomic(blueprint_path, ux_blueprint)
+    write_json_atomic(matrix_path, ux_matrix)
 
     return {
         "status": "OK",

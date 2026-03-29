@@ -29,6 +29,7 @@ from src.ops.roadmap_cli_helpers import (
 )
 from src.ops.portfolio_release import read_release_summary
 from src.ops.managed_repo_standards import build_managed_repo_standards_summary
+from src.shared.utils import write_json_atomic
 from src.ops.drift_scoreboard import (
     build_drift_scoreboard,
     build_drift_scoreboard_summary,
@@ -753,7 +754,7 @@ def cmd_roadmap_change_new(args: argparse.Namespace) -> int:
         "gates": ["python ci/validate_schemas.py", "python -m src.ops.manage smoke --level fast"],
     }
 
-    out_path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, obj)
     out_s = str(out_path.relative_to(root)) if out_path.is_relative_to(root) else str(out_path)
     print(json.dumps({"status": "OK", "out": out_s}, ensure_ascii=False, sort_keys=True))
     return 0
@@ -823,7 +824,7 @@ def cmd_roadmap_change_apply(args: argparse.Namespace) -> int:
         return 2
 
     roadmap_path.parent.mkdir(parents=True, exist_ok=True)
-    roadmap_path.write_text(json.dumps(updated, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(roadmap_path, updated)
 
     env = os.environ.copy()
     env["ORCH_ROADMAP_RUNNER"] = "1"

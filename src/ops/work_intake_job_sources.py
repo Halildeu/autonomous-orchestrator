@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -494,7 +495,7 @@ def _save_cooldowns(workspace_root: Path, cooldowns: dict[str, Any]) -> str:
     cooldowns["workspace_root"] = str(workspace_root)
     path = _cooldown_path(workspace_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(cooldowns, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, cooldowns)
     rel = _rel_to_workspace(path, workspace_root)
     return rel or str(path)
 
@@ -514,7 +515,7 @@ def _update_index_notes(index_path: Path, note: str) -> None:
     notes_set = {str(x) for x in notes if isinstance(x, str)}
     notes_set.add(note)
     obj["notes"] = sorted(notes_set)
-    index_path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(index_path, obj)
 
 
 def _apply_job_status_cooldown(

@@ -126,7 +126,7 @@ jobs:
       - name: Golden task eval
         run: python3 ci/eval_enforcement_golden_tasks.py
       - name: Write path compliance (ratchet block)
-        run: python3 ci/check_write_path_compliance.py --max-violations 348
+        run: python3 ci/check_write_path_compliance.py --max-violations 270
 
   codex-parity-contracts:
     runs-on: ubuntu-latest

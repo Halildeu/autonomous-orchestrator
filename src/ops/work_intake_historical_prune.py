@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 _DEFAULT_POLICY: dict[str, Any] = {
     "version": "v1",
@@ -28,7 +29,7 @@ def _load_json(path: Path) -> Any:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _parse_iso(value: str | None) -> datetime | None:

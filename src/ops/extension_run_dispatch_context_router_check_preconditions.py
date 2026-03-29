@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 _SEED_TS = "2026-01-01T00:00:00Z"
 _SEED_REQ_ID = "REQ-CONTEXT-ROUTER-STRICT-SEED"
@@ -11,7 +12,7 @@ _SEED_REQ_ID = "REQ-CONTEXT-ROUTER-STRICT-SEED"
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def seed_context_router_check_strict_preconditions(workspace_root: Path) -> None:

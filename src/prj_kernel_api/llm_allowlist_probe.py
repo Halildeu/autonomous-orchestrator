@@ -50,7 +50,7 @@ def _bucket_elapsed_ms(elapsed_ms: float) -> int:
 def _write_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(tmp, obj)
     tmp.replace(path)
 
 

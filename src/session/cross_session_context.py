@@ -13,6 +13,7 @@ from src.session.context_store import (
     prune_expired_decisions,
     save_context_atomic,
 )
+from src.shared.utils import write_json_atomic
 
 
 def _now_iso8601() -> str:
@@ -192,7 +193,7 @@ def build_cross_session_context(*, workspace_root: Path, session_name_filter: st
         "notes": ["PROGRAM_LED=true", "SESSION_SCOPED=true"],
     }
 
-    out_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, payload)
 
     return {
         "status": "OK",

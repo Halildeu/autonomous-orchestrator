@@ -20,6 +20,7 @@ from src.benchmark.eval_runner import (
     _safe_load_catalog_items,
     _write_if_missing,
 )
+from src.shared.utils import write_json_atomic
 
 _DEFAULT_DIMENSION_MAP = {
     "trend_best_practice": "A",
@@ -649,7 +650,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             }
 
         eval_path.parent.mkdir(parents=True, exist_ok=True)
-        eval_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(eval_path, payload)
         return {
             "status": "OK",
             "out": str(eval_path),
@@ -1302,7 +1303,7 @@ def run_eval(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         }
 
     eval_path.parent.mkdir(parents=True, exist_ok=True)
-    eval_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(eval_path, payload)
     return {
         "status": "OK",
         "out": str(eval_path),

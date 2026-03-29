@@ -6,6 +6,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 BOOTSTRAP_FILES: list[str] = [
     ".cache/ws_customer_default/.cache/reports/system_status.v1.json",
@@ -130,7 +131,7 @@ def write_agent_context_version(*, workspace_root: Path, record: dict[str, Any])
     workspace_root = workspace_root.resolve()
     out = workspace_root / _OUTPUT_REL
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(record, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out, record)
     return _OUTPUT_REL
 
 

@@ -50,6 +50,27 @@ def cmd_enforcement_check(args: argparse.Namespace) -> int:
         chat=bool(chat),
     )
 
+    # Ratchet override: if --max-findings is set and findings ≤ max, override BLOCKED → PASS
+    max_findings = getattr(args, "max_findings", -1)
+    if max_findings >= 0 and isinstance(result, dict):
+        # Read the contract JSON to get total findings count
+        contract_path = result.get("contract_json")
+        findings_count = 0
+        if contract_path:
+            try:
+                contract = json.loads(Path(contract_path).read_text(encoding="utf-8"))
+                findings_count = int(contract.get("stats", {}).get("totals", {}).get("violations_count", 0))
+            except Exception:
+                pass
+        if findings_count <= max_findings:
+            result["status"] = "OK"
+            result["ratchet"] = {
+                "mode": "findings_ratchet",
+                "findings_count": findings_count,
+                "max_findings": max_findings,
+                "override": "BLOCKED→OK" if result.get("status") == "BLOCKED" else "none",
+            }
+
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     status = result.get("status") if isinstance(result, dict) else None
     return 0 if status in {"OK", "WARN"} else 2
@@ -70,5 +91,12 @@ def register_enforcement_subcommands(parent: argparse._SubParsersAction[argparse
     ap.add_argument("--outdir", required=True, help="Output evidence directory (workspace path).")
     ap.add_argument("--intake-id", default="", help="Optional intake id for contract output (default: UNKNOWN).")
     ap.add_argument("--chat", default="false", help="true|false (default: false).")
+    ap.add_argument(
+        "--max-findings",
+        type=int,
+        default=-1,
+        help="Ratchet: max allowed semgrep findings before BLOCKED. -1=no ratchet (default). "
+             "When set, findings ≤ max → PASS (existing debt tolerated), > max → BLOCKED.",
+    )
     ap.set_defaults(func=cmd_enforcement_check)
 

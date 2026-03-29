@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def build_intake_to_exec_trace(
     *,
@@ -56,7 +57,7 @@ def write_intake_to_exec_trace(
         )
         out_path = workspace_root / ".cache" / "reports" / "request_intake_to_exec_trace.v1.json"
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(trace, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(out_path, trace)
         return out_path
     except Exception:
         return None
