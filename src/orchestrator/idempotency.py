@@ -54,10 +54,18 @@ def load_idempotency_store(store_path: Path) -> tuple[dict[str, str], bool]:
     return (migrated_map, migrated)
 
 
-def save_idempotency_store(store_path: Path, mappings: dict[str, str]) -> None:
-    store_path.parent.mkdir(parents=True, exist_ok=True)
+def save_idempotency_store(store_path: Path, mappings: dict[str, str], *, workspace_root: Path | None = None) -> None:
+    from src.shared.utils import write_json_atomic
+    from src.shared.wal import WALWriter
     payload = {"version": "v1", "mappings": dict(sorted(mappings.items()))}
-    store_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if workspace_root:
+        wal = WALWriter(workspace_root=workspace_root, store_id="idempotency")
+        with wal.transaction(store_path, payload) as txn:
+            write_json_atomic(store_path, payload)
+            txn.commit()
+    else:
+        store_path.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(store_path, payload)
 
 
 def read_result_state(summary_path: Path) -> str | None:

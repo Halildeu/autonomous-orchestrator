@@ -40,9 +40,17 @@ def load_quota_store(store_path: Path) -> dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
-def save_quota_store(store_path: Path, store: dict[str, Any]) -> None:
-    store_path.parent.mkdir(parents=True, exist_ok=True)
-    store_path.write_text(json.dumps(store, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+def save_quota_store(store_path: Path, store: dict[str, Any], *, workspace_root: Path | None = None) -> None:
+    from src.shared.utils import write_json_atomic
+    from src.shared.wal import WALWriter
+    if workspace_root:
+        wal = WALWriter(workspace_root=workspace_root, store_id="quota")
+        with wal.transaction(store_path, store) as txn:
+            write_json_atomic(store_path, store)
+            txn.commit()
+    else:
+        store_path.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(store_path, store)
 
 
 def get_quota_usage(store: dict[str, Any], *, date_key: str, tenant_id: str) -> tuple[int, int]:
