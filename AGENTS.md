@@ -113,6 +113,12 @@ Agent'lar birbirine async soru sorabilir. Git repo transport layer'dır.
 - Scoring: L0=0%, L1=25%, L2=50%, L3=75%, L4=100% (bant içi interpolasyon yapılır).
 - İki agent farklı skor verirse, daha fazla evidence_command çalıştıran tercih edilir.
 
+### Branch-Local vs Canonical Maturity (MUST)
+- **Branch-local maturity**: worktree/branch üzerindeki olgunluk skoru. Değerlendirme branch+HEAD SHA ile etiketlenir.
+- **Canonical repo maturity**: yalnızca main branch üzerindeki skor. PR merge ve CI gate geçişi olmadan canonical skor ARTMAZ.
+- Agent her değerlendirmede hangi seviyeyi raporladığını açıkça belirtmelidir: `scope: branch-local` veya `scope: canonical`.
+- Branch'teki ilerleme gerçektir ama `canonical` olarak sayılması merge gerektirir. En doğru ifade: "branch-local maturity improved, canonical repo maturity not yet promoted."
+
 ## Context Bootstrap (her konuşma başında)
 
 Agent çalışmaya başladığında, **Profile Resolution → Bootstrap** sırasını takip eder.
@@ -134,10 +140,17 @@ Aktif profil artefaktı: `.cache/index/active_context_profile.v1.json`
 
 ### 0.5 Consultation Check (varsa cevapla)
 
-Agent bootstrap'ta `.cache/consultations/` dizinini kontrol eder:
-- `status: OPEN` ve `to_agent` kendi agent_id'sine eşitse → cevap ver
-- `status: RESPONDED` ve kendi başlattığı ise → resolution'ı oku ve uygula
+Agent bootstrap'ta workspace'teki consultation queue'yu kontrol eder:
+- Requests: `.cache/index/consultations/requests/CNS-*.request.v1.json`
+- State: `.cache/index/consultations/state/CNS-*.state.v1.json`
+- Responses: `.cache/reports/consultations/CNS-*.{agent}.response.v1.json`
+
+Davranış:
+- Açık request varsa ve `to_agent` kendi agent_id'sine eşitse → cevap ver (stdout JSON)
+- State `ANSWERED` ise ve kendi başlattığı ise → response'u oku
 - Boşsa → devam et
+
+**Not:** Agent dosya yazmaz. Dispatcher tek yazar. Agent yalnızca structured JSON stdout döner.
 
 ### 1. Durum Bağlamı (en güncel hal)
 - `.cache/ws_customer_default/.cache/reports/system_status.v1.json` — sistem durumu
