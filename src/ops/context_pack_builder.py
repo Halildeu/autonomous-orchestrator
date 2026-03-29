@@ -115,9 +115,21 @@ def _sync_active_context_pack(*, workspace_root: Path, payload: dict[str, Any]) 
     return active_rel
 
 
-def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: str = "summary") -> dict[str, Any]:
+def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: str = "summary", profile_id: str | None = None) -> dict[str, Any]:
     repo_root = find_repo_root(Path(__file__).resolve())
     policy = load_policy(repo_root)
+
+    # ── Profile-based section filtering ──────────────────────────
+    # If profile_id is given, resolve profile and filter sections.
+    _profile_sections: dict[str, list[str]] = {}
+    if profile_id:
+        try:
+            from src.ops.context_profile_resolver import resolve_profile
+            profile_result = resolve_profile(workspace_root, explicit_profile=profile_id)
+            _profile_sections = profile_result.get("sections", {})
+        except Exception:
+            pass  # fallback: no filtering
+    _forbidden = set(_profile_sections.get("forbidden", []))
 
     request_obj, resolved_id, request_path = load_manual_request(workspace_root, request_id)
     if not request_obj or not resolved_id or not request_path:
@@ -147,12 +159,12 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
     attachments = request_obj.get("attachments") if isinstance(request_obj.get("attachments"), list) else []
     request_meta["attachments_count"] = len([a for a in attachments if isinstance(a, dict)])
 
-    define_refs = build_define_refs(repo_root=repo_root, workspace_root=workspace_root)
-    measure_refs = build_measure_refs(repo_root=repo_root, workspace_root=workspace_root)
-    eval_refs = build_eval_refs(repo_root=repo_root, workspace_root=workspace_root)
-    gap_refs = build_gap_refs(repo_root=repo_root, workspace_root=workspace_root)
-    pdca_refs = build_pdca_refs(repo_root=repo_root, workspace_root=workspace_root)
-    intake_refs = build_intake_refs(repo_root=repo_root, workspace_root=workspace_root)
+    define_refs = build_define_refs(repo_root=repo_root, workspace_root=workspace_root) if "define" not in _forbidden else {}
+    measure_refs = build_measure_refs(repo_root=repo_root, workspace_root=workspace_root) if "measure_raw" not in _forbidden else {}
+    eval_refs = build_eval_refs(repo_root=repo_root, workspace_root=workspace_root) if "eval" not in _forbidden else {}
+    gap_refs = build_gap_refs(repo_root=repo_root, workspace_root=workspace_root) if "gap" not in _forbidden else {}
+    pdca_refs = build_pdca_refs(repo_root=repo_root, workspace_root=workspace_root) if "pdca" not in _forbidden else {}
+    intake_refs = build_intake_refs(repo_root=repo_root, workspace_root=workspace_root) if "intake" not in _forbidden else {}
 
     cross_session_res = build_cross_session_context(workspace_root=workspace_root)
     cross_session_rel = cross_session_res.get("report_path") if isinstance(cross_session_res, dict) else None
@@ -269,6 +281,10 @@ def build_context_pack(*, workspace_root: Path, request_id: str | None, mode: st
     guardrails = guardrails_snapshot(workspace_root=workspace_root)
 
     notes = ["PROGRAM_LED=true", "pointer_only=true", f"cache_fingerprint={cache_fingerprint}"]
+    if profile_id:
+        notes.append(f"profile_id={profile_id}")
+        if _forbidden:
+            notes.append(f"profile_forbidden_sections={','.join(sorted(_forbidden))}")
     if redacted_attachments > 0:
         notes.append(f"redacted_attachments={redacted_attachments}")
     tenant_notes = tenant_context_validation_notes(repo_root=repo_root, workspace_root=workspace_root)
