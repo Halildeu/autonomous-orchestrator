@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -201,7 +202,7 @@ def _save_jobs_index(workspace_root: Path, policy: dict[str, Any], index: dict[s
 
     path = _jobs_index_path(workspace_root, policy)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(index), encoding="utf-8")
+    write_text_atomic(path, _dump_json(index))
     return _jobs_index_rel(workspace_root, policy)
 
 
@@ -212,7 +213,7 @@ def _job_report_path(workspace_root: Path, job_id: str) -> Path:
 def _write_job_report(workspace_root: Path, job: dict[str, Any]) -> str:
     path = _job_report_path(workspace_root, str(job.get("job_id") or "unknown"))
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(job), encoding="utf-8")
+    write_text_atomic(path, _dump_json(job))
     return (Path(".cache") / "reports" / "deploy_jobs" / path.name).as_posix()
 
 
@@ -318,7 +319,7 @@ def build_deploy_report(*, workspace_root: Path) -> dict[str, Any]:
 
     report_path = workspace_root / ".cache" / "reports" / "deploy_report.v1.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(report))
     return report
 
 
@@ -519,7 +520,7 @@ def run_deploy_check(*, workspace_root: Path, chat: bool = True) -> dict[str, An
         "notes": ["PROGRAM_LED=true", "LOCAL_DRYRUN=true"],
     }
     plan_path.parent.mkdir(parents=True, exist_ok=True)
-    plan_path.write_text(_dump_json(plan_payload), encoding="utf-8")
+    write_text_atomic(plan_path, _dump_json(plan_payload))
 
     jobs_index, _ = _load_jobs_index(workspace_root, policy)
     jobs = jobs_index.get("jobs") if isinstance(jobs_index.get("jobs"), list) else []

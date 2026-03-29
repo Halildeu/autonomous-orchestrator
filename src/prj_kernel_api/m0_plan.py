@@ -1,6 +1,7 @@
 """Program-led M0 plan discovery/generation (workspace-scoped, deterministic)."""
 
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from pathlib import Path
@@ -82,7 +83,7 @@ def _copy_if_needed(src: Path, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() and _read_text(dest) == _read_text(src):
         return
-    dest.write_text(_read_text(src), encoding="utf-8")
+    write_text_atomic(dest, _read_text(src))
 
 
 def _generate_plan() -> Dict[str, Any]:

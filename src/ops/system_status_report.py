@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -61,8 +62,8 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
 
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(_dump_json(report), encoding="utf-8")
-    out_md.write_text(_render_md(report), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
+    write_text_atomic(out_md, _render_md(report))
     drift_payload = build_drift_scoreboard(
         workspace_root=workspace_root,
         core_root=core_root,

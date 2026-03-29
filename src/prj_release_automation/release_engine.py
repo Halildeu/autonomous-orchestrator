@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -434,7 +435,7 @@ def build_release_plan(
 
     out_path = workspace_root / ".cache" / "reports" / "release_plan.v1.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(payload))
 
     return payload
 
@@ -513,7 +514,7 @@ def prepare_release(
     out_notes = workspace_root / ".cache" / "reports" / "release_notes.v1.md"
     out_manifest.parent.mkdir(parents=True, exist_ok=True)
 
-    out_manifest.write_text(_dump_json(manifest), encoding="utf-8")
+    write_text_atomic(out_manifest, _dump_json(manifest))
 
     notes_lines = [
         "# Release Notes (v1)",
@@ -524,7 +525,7 @@ def prepare_release(
     ]
     if approvals_required:
         notes_lines.append("Manual approvals: " + ", ".join(sorted(set(str(x) for x in approvals_required))))
-    out_notes.write_text("\n".join(notes_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_notes, "\n".join(notes_lines) + "\n")
 
     return manifest
 

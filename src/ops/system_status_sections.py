@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from src.shared.utils import write_json_atomic
 
 from src.ops.system_status_sections_extensions import (
     _airunner_section,
@@ -834,7 +835,7 @@ def _write_core_unlock_compliance(
         },
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
     }
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
     return report_path
 def _core_integrity_section(
     core_root: Path,

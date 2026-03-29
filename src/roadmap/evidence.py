@@ -7,7 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 MANIFEST_NAME = "integrity.manifest.v1.json"
 
@@ -31,7 +31,7 @@ def write_json(path: Path, obj: Any) -> None:
 
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    write_text_atomic(path, text)
 
 
 @dataclass(frozen=True)

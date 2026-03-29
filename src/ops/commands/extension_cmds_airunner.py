@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -415,9 +416,9 @@ def cmd_airunner_active_hours_set(args: argparse.Namespace) -> int:
     if override_path.exists():
         ts = _now_compact()
         backup_path = override_path.parent / f"{override_path.name}.bak.{ts}"
-        backup_path.write_text(override_path.read_text(encoding="utf-8"), encoding="utf-8")
+        write_text_atomic(backup_path, override_path.read_text(encoding="utf-8"))
     override_path.parent.mkdir(parents=True, exist_ok=True)
-    override_path.write_text(_dump_json(policy), encoding="utf-8")
+    write_text_atomic(override_path, _dump_json(policy))
 
     report_path = ws / ".cache" / "reports" / "airunner_active_hours_set.v1.json"
     report_payload = {
@@ -431,7 +432,7 @@ def cmd_airunner_active_hours_set(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true"],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(report_payload), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(report_payload))
 
     if chat:
         print("PREVIEW:")

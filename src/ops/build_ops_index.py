@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -273,9 +274,9 @@ def build_ops_index(*, workspace_root: Path, core_root: Path | None = None, outd
 
     try:
         run_index_path.parent.mkdir(parents=True, exist_ok=True)
-        run_index_path.write_text(_dump_json(run_index), encoding="utf-8")
+        write_text_atomic(run_index_path, _dump_json(run_index))
         dlq_index_path.parent.mkdir(parents=True, exist_ok=True)
-        dlq_index_path.write_text(_dump_json(dlq_index), encoding="utf-8")
+        write_text_atomic(dlq_index_path, _dump_json(dlq_index))
     except Exception as e:
         return {
             "status": "FAIL",

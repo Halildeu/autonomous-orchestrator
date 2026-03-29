@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -68,7 +69,7 @@ def step_create_file(*, workspace: Path, virtual_fs: VirtualFS, path: str, conte
         return {"status": "SKIPPED_DRY_RUN", "side_effects": {"would_write": {"path": rel, "bytes_estimate": len(content.encode('utf-8'))}}}
 
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding="utf-8")
+    write_text_atomic(p, content)
     return {"status": "OK", "side_effects": {"wrote": {"path": rel, "bytes": len(content.encode('utf-8'))}}}
 
 
@@ -121,7 +122,7 @@ def step_create_json_from_template(
         )
 
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding="utf-8")
+    write_text_atomic(p, content)
     return ({"status": "OK", "side_effects": {"wrote": {"path": rel, "bytes": len(content.encode('utf-8'))}}}, old, content)
 
 
@@ -177,7 +178,7 @@ def step_add_ci_gate_script(
         )
 
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding="utf-8")
+    write_text_atomic(p, content)
     return ({"status": "OK", "side_effects": {"wrote": {"path": rel, "bytes": len(content.encode('utf-8'))}}}, old, content)
 
 
@@ -208,7 +209,7 @@ def step_patch_policy_report_inject(
             old,
             new,
         )
-    p.write_text(new, encoding="utf-8")
+    write_text_atomic(p, new)
     return (
         {"status": "OK", "side_effects": {"patched": {"path": rel, "marker": marker}}},
         old,
@@ -243,7 +244,7 @@ def step_patch_file(*, workspace: Path, virtual_fs: VirtualFS, path: str, patche
         virtual_fs.set_text(rel, new_text)
         return {"status": "SKIPPED_DRY_RUN", "side_effects": {"would_patch": {"path": rel, "patches_applied": applied}}}
 
-    p.write_text(new_text, encoding="utf-8")
+    write_text_atomic(p, new_text)
     return {"status": "OK", "side_effects": {"patched": {"path": rel, "patches_applied": applied}}}
 
 

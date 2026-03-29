@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import fnmatch
@@ -346,7 +347,7 @@ def run_promotion_bundle(
         }
 
     out_report.parent.mkdir(parents=True, exist_ok=True)
-    out_report.write_text(report_json, encoding="utf-8")
+    write_text_atomic(out_report, report_json)
 
     files_for_zip = []
     for item in included_sorted:
@@ -416,7 +417,7 @@ def run_promotion_bundle(
             )
 
     out_patch.parent.mkdir(parents=True, exist_ok=True)
-    out_patch.write_text("".join(diff_lines), encoding="utf-8")
+    write_text_atomic(out_patch, "".join(diff_lines))
 
     bundle_sha = _hash_file(out_zip)
     report_sha_final = _hash_file(out_report)
@@ -451,7 +452,7 @@ def run_promotion_bundle(
         summary_lines.append("")
 
     out_patch_md.parent.mkdir(parents=True, exist_ok=True)
-    out_patch_md.write_text("\n".join(summary_lines).rstrip() + "\n", encoding="utf-8")
+    write_text_atomic(out_patch_md, "\n".join(summary_lines).rstrip() + "\n")
 
     return {
         "status": "OK",

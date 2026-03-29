@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import hashlib
@@ -120,7 +121,7 @@ def write_error_observability_ack_state(*, workspace_root: Path, state: dict[str
         "workspace_root": str(workspace_root),
         "ack_entries": [entry for entry in state.get("ack_entries", []) if isinstance(entry, dict)],
     }
-    path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(path, _dump_json(payload))
     return _rel_path(workspace_root, path)
 
 
@@ -448,7 +449,7 @@ def write_error_observability_report(
 ) -> str:
     resolved = out_path or (workspace_root / DEFAULT_ERROR_OBSERVABILITY_REPORT)
     resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(resolved, _dump_json(report))
     return _rel_path(workspace_root, resolved)
 
 

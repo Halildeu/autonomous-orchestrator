@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -20,12 +21,12 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(path, _dump_json(payload))
 
 
 def _write_md(path: Path, lines: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def run_airunner_proof_bundle(*, workspace_root: Path) -> dict[str, Any]:

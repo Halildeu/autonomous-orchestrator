@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import hashlib
 import json
@@ -20,7 +21,7 @@ def _repo_root() -> Path:
 def _write_json_atomic(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(tmp_path, _dump_json(payload))
     tmp_path.replace(path)
 
 

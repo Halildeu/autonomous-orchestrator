@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -51,7 +51,7 @@ def _seed_text_if_missing(
         return
     _ensure_inside_workspace(workspace_root, abs_path)
     abs_path.parent.mkdir(parents=True, exist_ok=True)
-    abs_path.write_text(text, encoding="utf-8")
+    write_text_atomic(abs_path, text)
     notes.append(f"artifact_seeded:{label}")
 
 

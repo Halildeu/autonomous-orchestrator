@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -112,7 +113,7 @@ def apply_debt_incubator(
             if existing != content:
                 return {"status": "FAIL", "error_code": "CONTENT_MISMATCH", "path": str(target)}
             continue
-        target.write_text(content, encoding="utf-8")
+        write_text_atomic(target, content)
 
     if dry_run:
         return {"status": "WOULD_APPLY", "chg_id": chg_id, "incubator_paths": paths}

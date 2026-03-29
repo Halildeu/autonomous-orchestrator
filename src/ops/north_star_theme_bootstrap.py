@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import argparse
 import json
@@ -381,7 +382,7 @@ def run_bootstrap(
     mechanisms["subjects"] = [s for s in mechanisms.get("subjects", []) if s.get("subject_id") != subject_id]
     mechanisms["subjects"].append(subject_entry)
     mechanisms["generated_at"] = now
-    mechanisms_path.write_text(json.dumps(mechanisms, indent=2, ensure_ascii=False))
+    write_json_atomic(mechanisms_path, mechanisms)
 
     # consolidation report
     consolidation_md = reports_dir / "theme_subtheme_consolidation.v0.1.md"

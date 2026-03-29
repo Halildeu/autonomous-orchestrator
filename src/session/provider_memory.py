@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import re
 from hashlib import sha256
@@ -195,12 +196,12 @@ def maybe_auto_compact_markdown(
     # Archive original content before compaction for audit/recovery
     archive_path = reports_dir / f"session_compaction_{_safe_slug(session_id)}.original.v1.md"
     try:
-        archive_path.write_text(markdown, encoding="utf-8")
+        write_text_atomic(archive_path, markdown)
     except Exception:
         pass  # Non-critical: best-effort archive
 
     summary_path = reports_dir / f"session_compaction_{_safe_slug(session_id)}.v1.md"
-    summary_path.write_text(summary_text, encoding="utf-8")
+    write_text_atomic(summary_path, summary_text)
 
     try:
         summary_ref = summary_path.relative_to(workspace_root).as_posix()

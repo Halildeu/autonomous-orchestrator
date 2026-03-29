@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -389,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     md = generate_policy_report_markdown(in_dir=in_dir, root=root)
-    out_path.write_text(md, encoding="utf-8")
+    write_text_atomic(out_path, md)
     return 0
 
 

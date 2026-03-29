@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import json
 from datetime import datetime, timezone
@@ -83,7 +84,7 @@ def run_model_catalog_freshness(
             },
         }
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_json_atomic(out, payload)
         payload["report_path"] = out.relative_to(repo_root).as_posix()
         return payload
 
@@ -102,7 +103,7 @@ def run_model_catalog_freshness(
             },
         }
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_json_atomic(out, payload)
         payload["report_path"] = out.relative_to(repo_root).as_posix()
         return payload
 
@@ -155,7 +156,7 @@ def run_model_catalog_freshness(
     }
 
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(report_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(out, report_payload)
 
     return {
         "status": "OK",

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import argparse
 import fnmatch
@@ -387,7 +388,7 @@ def compute_reaper_report(*, root: Path, dry_run: bool, now: datetime) -> dict[s
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
-    path.write_text(json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(path, report)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from pathlib import Path
@@ -134,7 +135,7 @@ def _write_tick_report(report: dict[str, Any], workspace_root: Path) -> tuple[st
         evidence_paths=evidence_paths,
         workspace_root=workspace_root,
     )
-    out_json.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
 
     md_lines = [
         "AIRUNNER TICK",
@@ -150,7 +151,7 @@ def _write_tick_report(report: dict[str, Any], workspace_root: Path) -> tuple[st
     ]
     for p in report.get("evidence_paths", []):
         md_lines.append(f"- {p}")
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     rel_md = _rel_to_workspace(out_md, workspace_root) or str(out_md)
     return rel_json, rel_md

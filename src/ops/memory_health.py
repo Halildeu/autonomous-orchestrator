@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -113,7 +114,7 @@ def run_memory_healthcheck(*, workspace_root: Path | str) -> dict[str, Any]:
         "status": status,
         "notes": notes,
     }
-    out_json.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(payload))
     md_lines = [
         "# Memory Health",
         f"- generated_at: {payload['generated_at']}",
@@ -126,7 +127,7 @@ def run_memory_healthcheck(*, workspace_root: Path | str) -> dict[str, Any]:
     ]
     if reason:
         md_lines.append(f"- reason: {reason}")
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
     payload["report_path"] = _rel_path(workspace_root, out_json)
     payload["report_md_path"] = _rel_path(workspace_root, out_md)
     return payload
@@ -197,7 +198,7 @@ def run_memory_smoke(*, workspace_root: Path | str) -> dict[str, Any]:
         "notes": notes,
         "smoke": smoke_details,
     }
-    out_json.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(payload))
     md_lines = [
         "# Memory Smoke",
         f"- generated_at: {payload['generated_at']}",
@@ -209,7 +210,7 @@ def run_memory_smoke(*, workspace_root: Path | str) -> dict[str, Any]:
     ]
     if reason:
         md_lines.append(f"- reason: {reason}")
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
     payload["report_path"] = _rel_path(workspace_root, out_json)
     payload["report_md_path"] = _rel_path(workspace_root, out_md)
     return payload

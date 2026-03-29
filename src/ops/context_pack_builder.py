@@ -6,7 +6,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 from src.ops.context_pack_loaders import (
     build_define_refs,
     build_eval_refs,
@@ -105,7 +105,7 @@ def _write_summary(*, summary_path: Path, request_id: str, context_pack_id: str,
         f"- pdca: {sections.get('pdca', 0)} refs",
     ]
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(summary_path, "\n".join(lines) + "\n")
 
 
 def _sync_active_context_pack(*, workspace_root: Path, payload: dict[str, Any]) -> str:

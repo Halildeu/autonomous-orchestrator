@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import re
@@ -218,7 +219,7 @@ def _write_chg_drafts(
             workspace_root=workspace_root,
             matrix_rel=matrix_rel,
         )
-        plan_path.write_text(_dump_json(payload), encoding="utf-8")
+        write_text_atomic(plan_path, _dump_json(payload))
 
         md_lines = [
             f"# {chg_id} Execution Draft",
@@ -243,7 +244,7 @@ def _write_chg_drafts(
         for item in payload.get("evidence_paths", []):
             if isinstance(item, str) and item:
                 md_lines.append(f"- {item}")
-        md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+        write_text_atomic(md_path, "\n".join(md_lines) + "\n")
 
         drafts.append(
             {
@@ -296,8 +297,8 @@ def run_extension_run_bulk_diff(
             "closure_plan": [],
             "chg_drafts": [],
         }
-        out_json.write_text(_dump_json(payload), encoding="utf-8")
-        out_md.write_text("# Extension Run Ops Single Gate Diff Matrix (v1)\n\n- status: IDLE\n", encoding="utf-8")
+        write_text_atomic(out_json, _dump_json(payload))
+        write_text_atomic(out_md, "# Extension Run Ops Single Gate Diff Matrix (v1)\n\n- status: IDLE\n")
         payload["report_path"] = str(out_json.relative_to(workspace_root).as_posix())
         payload["summary_path"] = str(out_md.relative_to(workspace_root).as_posix())
         if chat:
@@ -420,7 +421,7 @@ def run_extension_run_bulk_diff(
     }
     payload["report_path"] = str(out_json.relative_to(workspace_root).as_posix())
     payload["summary_path"] = str(out_md.relative_to(workspace_root).as_posix())
-    out_json.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(payload))
 
     md_lines = [
         "# Extension Run Ops Single Gate Diff Matrix (v1)",
@@ -469,7 +470,7 @@ def run_extension_run_bulk_diff(
     else:
         md_lines.append("- strict WARN/FAIL bulunmadı.")
 
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     if chat:
         print("PREVIEW:")

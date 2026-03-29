@@ -26,7 +26,7 @@ from src.ops.work_intake_helpers import (
     _normalize_evidence,
     _suggested_extensions,
 )
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 from src.ops.work_intake_remediation import (
     note_is_warning as _note_is_warning,
     seed_source_artifacts as _seed_source_artifacts,
@@ -616,7 +616,7 @@ def _ensure_script_budget_report(core_root: Path, workspace_root: Path, notes: l
         notes.append("script_budget_missing")
         return None
     ws_report.parent.mkdir(parents=True, exist_ok=True)
-    ws_report.write_text(core_report.read_text(encoding="utf-8"), encoding="utf-8")
+    write_text_atomic(ws_report, core_report.read_text(encoding="utf-8"))
     return ws_report
 
 
@@ -1188,7 +1188,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
             f"severity={item.get('severity', '')} priority={item.get('priority', '')}"
         )
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(lines) + "\n")
 
     rel_json = _rel_to_workspace(out_json, workspace_root) or str(out_json)
     rel_md = _rel_to_workspace(out_md, workspace_root) or str(out_md)

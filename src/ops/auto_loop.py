@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import hashlib
 import json
@@ -155,7 +156,7 @@ def _write_auto_loop_apply_details(
     out_json = workspace_root / ".cache" / "reports" / "auto_loop_apply_details.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "auto_loop_apply_details.v1.md"
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
 
     md_lines = [
         "# Auto Loop Apply Details",
@@ -165,7 +166,7 @@ def _write_auto_loop_apply_details(
         f"- skipped: {canonical_counts['skipped']}",
         f"- limit_reached: {canonical_counts['limit_reached']}",
     ]
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     report["report_path"] = _rel_path(workspace_root, out_json)
     report["report_md_path"] = _rel_path(workspace_root, out_md)
@@ -260,7 +261,7 @@ def _update_autopilot_apply_override(*, workspace_root: Path, max_apply_per_tick
     payload["defaults"] = defaults
     if not isinstance(payload.get("version"), str):
         payload["version"] = "v1"
-    override_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(override_path, _dump_json(payload))
 
 
 def _update_auto_mode_override(*, workspace_root: Path, max_actions_per_tick: int) -> None:
@@ -279,7 +280,7 @@ def _update_auto_mode_override(*, workspace_root: Path, max_actions_per_tick: in
     payload["limits"] = limits
     if not isinstance(payload.get("version"), str):
         payload["version"] = "v1"
-    override_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(override_path, _dump_json(payload))
 
 
 def _pick_soft_offender(report: dict[str, Any]) -> dict[str, Any] | None:
@@ -313,7 +314,7 @@ def _write_self_heal_scaffold(*, workspace_root: Path, report: dict[str, Any]) -
         "ssot_write_allowlist": [offender_path],
         "notes": ["AUTO_LOOP_SOFT_NARROWING=true"],
     }
-    override_path.write_text(_dump_json(override_payload), encoding="utf-8")
+    write_text_atomic(override_path, _dump_json(override_payload))
 
     plan_dir = workspace_root / ".cache" / "reports" / "chg"
     plan_dir.mkdir(parents=True, exist_ok=True)
@@ -328,7 +329,7 @@ def _write_self_heal_scaffold(*, workspace_root: Path, report: dict[str, Any]) -
         "status": "PLANNED_NO_APPLY",
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
     }
-    plan_path.write_text(_dump_json(plan_payload), encoding="utf-8")
+    write_text_atomic(plan_path, _dump_json(plan_payload))
 
     closeout_path = plan_dir / f"{plan_id}.closeout.json"
     closeout_payload = {
@@ -338,7 +339,7 @@ def _write_self_heal_scaffold(*, workspace_root: Path, report: dict[str, Any]) -
         "status": "NO_APPLY",
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
     }
-    closeout_path.write_text(_dump_json(closeout_payload), encoding="utf-8")
+    write_text_atomic(closeout_path, _dump_json(closeout_payload))
 
     return {
         "soft_offender_path": offender_path,
@@ -539,8 +540,8 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
             "lock_run_id": lock_res.get("run_id"),
             "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
         }
-        out_json.write_text(_dump_json(report), encoding="utf-8")
-        out_md.write_text("# Auto Loop\n- status: IDLE\n- error_code: LOCKED_LOOP\n", encoding="utf-8")
+        write_text_atomic(out_json, _dump_json(report))
+        write_text_atomic(out_md, "# Auto Loop\n- status: IDLE\n- error_code: LOCKED_LOOP\n")
         return {"status": "IDLE", "report_path": _rel_path(workspace_root, out_json)}
     notes = ["PROGRAM_LED=true", "NO_NETWORK=true"]
     auto_loop_override, override_notes = _load_auto_loop_override(workspace_root)
@@ -745,7 +746,7 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
     out_json = workspace_root / ".cache" / "reports" / "auto_loop.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "auto_loop.v1.md"
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
 
     md_lines = [
         "# Auto Loop",
@@ -759,7 +760,7 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         f"- doer_planned: {doer_counts.get('planned', 0)}",
         f"- doer_skipped: {doer_counts.get('skipped', 0)}",
     ]
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     apply_details = _write_auto_loop_apply_details(
         workspace_root=workspace_root,
@@ -799,8 +800,8 @@ def run_auto_loop(*, workspace_root: Path, budget_seconds: int, chat: bool = Fal
         workspace_root=workspace_root,
     )
 
-    out_json.write_text(_dump_json(report), encoding="utf-8")
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     _write_auto_loop_apply_details(
         workspace_root=workspace_root,

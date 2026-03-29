@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import fnmatch
 import json
@@ -655,7 +656,7 @@ def write_doc_graph_report(
     out_md: Path,
 ) -> None:
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
 
     lines: list[str] = []
     lines.append("# Doc Graph Report (v1)")
@@ -728,7 +729,7 @@ def write_doc_graph_report(
     lines.append("")
 
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(lines) + "\n")
 
 
 def run_doc_graph(

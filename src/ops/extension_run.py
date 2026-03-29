@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import contextlib
@@ -553,7 +554,7 @@ def build_extension_run_report(
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
 
-    out_json.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(report))
 
     md_lines = [
         "# Extension Run (v1)",
@@ -579,7 +580,7 @@ def build_extension_run_report(
             value = single_gate_outputs.get(key)
             if isinstance(value, str) and value:
                 md_lines.append(f"- {key}: {value}")
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     report["report_path"] = str(out_json.relative_to(workspace_root))
     report["summary_path"] = str(out_md.relative_to(workspace_root))

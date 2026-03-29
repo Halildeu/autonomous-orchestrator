@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -105,7 +106,7 @@ def _validate_roadmap(core_root: Path, obj: dict[str, Any]) -> tuple[bool, list[
 def _atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
-    tmp.write_text(content, encoding="utf-8")
+    write_text_atomic(tmp, content)
     tmp.replace(path)
 
 

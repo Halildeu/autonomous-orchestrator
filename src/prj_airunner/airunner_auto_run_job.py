@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import re
@@ -190,7 +191,7 @@ def _write_index(workspace_root: Path, index: dict[str, Any]) -> None:
         [j for j in jobs if isinstance(j, dict)], key=lambda j: str(j.get("job_id") or "")
     )
     index["counts"] = _summarize_counts(index["jobs"])
-    path.write_text(_dump_json(index), encoding="utf-8")
+    write_text_atomic(path, _dump_json(index))
 
 
 def _job_summary(job: dict[str, Any]) -> dict[str, Any]:
@@ -247,7 +248,7 @@ def _deadline_from_job(job: dict[str, Any]) -> datetime | None:
 
 def _write_job_state(path: Path, job: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(job), encoding="utf-8")
+    write_text_atomic(path, _dump_json(job))
 
 
 def start_auto_run(
@@ -385,7 +386,7 @@ def _write_poll_report(
     rel_path = Path(".cache") / "reports" / f"airunner_auto_run_poll_{job.get('job_id')}_p{poll_count:03d}.v1.json"
     abs_path = workspace_root / rel_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
-    abs_path.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(abs_path, _dump_json(report))
     return str(rel_path)
 
 
@@ -408,7 +409,7 @@ def _write_closeout(
     rel_path = Path(".cache") / "reports" / "airrunner_full_auto_until_0700_closeout.v1.json"
     abs_path = workspace_root / rel_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
-    abs_path.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(abs_path, _dump_json(report))
     return str(rel_path)
 
 

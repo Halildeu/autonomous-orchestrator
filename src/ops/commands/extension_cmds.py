@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -514,7 +515,7 @@ def cmd_github_ops_override(args: argparse.Namespace) -> int:
         if override_path.exists():
             ts = _now_compact()
             backup_path = override_path.parent / f"{override_path.name}.bak.{ts}"
-            backup_path.write_text(override_path.read_text(encoding="utf-8"), encoding="utf-8")
+            write_text_atomic(backup_path, override_path.read_text(encoding="utf-8"))
         overrides_dir.mkdir(parents=True, exist_ok=True)
         payload = {
             "version": "v1",
@@ -523,13 +524,13 @@ def cmd_github_ops_override(args: argparse.Namespace) -> int:
             "job": {"cooldown_seconds": 0},
             "notes": ["PROGRAM_LED=true", "proof_nonce=v0.7.4", "cooldown_zero=true"],
         }
-        override_path.write_text(_dump_json(payload), encoding="utf-8")
+        write_text_atomic(override_path, _dump_json(payload))
         reason = "OVERRIDE_WRITTEN"
     elif mode == "restore_backup":
         backups = sorted(override_path.parent.glob(f"{override_path.name}.bak.*"))
         if backups:
             backup_path = backups[-1]
-            override_path.write_text(backup_path.read_text(encoding="utf-8"), encoding="utf-8")
+            write_text_atomic(override_path, backup_path.read_text(encoding="utf-8"))
             reason = "BACKUP_RESTORED"
         else:
             if override_path.exists():
@@ -552,7 +553,7 @@ def cmd_github_ops_override(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true"],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(report_payload), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(report_payload))
 
     if chat:
         print("PREVIEW:")
@@ -667,7 +668,7 @@ def cmd_github_ops_proof(args: argparse.Namespace) -> int:
     }
     report_path = ws / ".cache" / "reports" / "github_ops_proof.v1.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(report_payload), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(report_payload))
 
     if chat:
         print("PREVIEW:")

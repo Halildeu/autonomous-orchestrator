@@ -27,7 +27,7 @@ from src.ops.work_item_state import (
     update_state,
 )
 from src.ops.doer_loop_lock import owner_tag_from_env
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -349,7 +349,7 @@ def _write_note(
     if plan_path:
         lines.append(f"Plan: {plan_path}")
     lines.append("")
-    note_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(note_path, "\n".join(lines) + "\n")
     return str(Path(".cache") / "notes" / f"{note_id}.v1.md")
 
 
@@ -1167,7 +1167,7 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         if entry.get("plan_path"):
             line += f" plan={entry.get('plan_path')}"
         md_lines.append(line)
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     if decision_needed > 0:
         try:

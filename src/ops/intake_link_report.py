@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 import json
 from pathlib import Path
@@ -88,7 +89,7 @@ def _normalize_evidence(paths: Iterable[Path | str]) -> list[str]:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _write_md(path: Path, payload: dict[str, Any], matches: list[dict[str, Any]]) -> None:
@@ -113,7 +114,7 @@ def _write_md(path: Path, payload: dict[str, Any], matches: list[dict[str, Any]]
         lines.append("")
         lines.append("No matching intake items found for this REQ.")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def _plan_path_for(req_id: str) -> str:

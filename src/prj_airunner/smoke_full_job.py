@@ -33,14 +33,14 @@ def _repo_root() -> Path:
 def _write_json_atomic(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(tmp_path, _dump_json(payload))
     tmp_path.replace(path)
 
 
 def _write_text_atomic(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(text, encoding="utf-8")
+    write_text_atomic(tmp_path, text)
     tmp_path.replace(path)
 
 
@@ -759,7 +759,7 @@ def main() -> int:
     if str(args.fingerprint or "").strip():
         rc_payload["fingerprint"] = str(args.fingerprint)
     rc_path.parent.mkdir(parents=True, exist_ok=True)
-    rc_path.write_text(_dump_json(rc_payload), encoding="utf-8")
+    write_text_atomic(rc_path, _dump_json(rc_payload))
     _pin_advisor_output(workspace_root=ws_root, rc_path=rc_path)
     return int(proc.returncode)
 

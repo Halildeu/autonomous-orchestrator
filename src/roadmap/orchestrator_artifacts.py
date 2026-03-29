@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -105,7 +106,7 @@ def _ensure_promotion_seed_note(workspace_root: Path) -> tuple[bool, str | None]
             return (False, str(note_path))
         raise ValueError("CONTENT_MISMATCH")
     note_path.parent.mkdir(parents=True, exist_ok=True)
-    note_path.write_text(content, encoding="utf-8")
+    write_text_atomic(note_path, content)
     return (True, str(note_path))
 
 

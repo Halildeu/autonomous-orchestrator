@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -176,7 +177,7 @@ def _write_runtime_state(
     }
     path = _runtime_state_path(workspace_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(path, _dump_json(payload))
     return _rel_to_workspace(path, workspace_root) or str(path)
 
 
@@ -214,7 +215,7 @@ def _write_lock(lock_path: Path, *, lock_id: str, now: datetime, ttl_seconds: in
         "notes": ["PROGRAM_LED=true"],
     }
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(lock_path, _dump_json(payload))
 
 
 def _release_lock(lock_path: Path) -> None:
@@ -262,7 +263,7 @@ def _write_heartbeat(
         "notes": notes,
     }
     heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
-    heartbeat_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(heartbeat_path, _dump_json(payload))
     return _rel_to_workspace(heartbeat_path, workspace_root) or str(heartbeat_path)
 
 

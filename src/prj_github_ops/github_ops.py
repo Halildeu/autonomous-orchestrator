@@ -51,6 +51,7 @@ from .github_ops_support_v2 import (
 )
 from src.prj_github_ops.failure_classifier import classify_github_ops_failure, _signature_hash_from_stderr
 from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_iso
+from src.shared.utils import write_text_atomic
 def _dotenv_env_presence(key_name: str, *, workspace_root: Path) -> bool:
     try:
         present, _source = _resolve_env_presence_from_dotenv(key_name, workspace_root=workspace_root)
@@ -89,7 +90,7 @@ def _gate_details(policy: dict[str, Any], *, workspace_root: Path) -> dict[str, 
 def _write_pr_open_request(workspace_root: Path, job_id: str, request_payload: dict[str, Any]) -> tuple[Path, str]:
     path = _job_store_dir(workspace_root, job_id) / "request.v1.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(request_payload), encoding="utf-8")
+    write_text_atomic(path, _dump_json(request_payload))
     return path, _rel_from_workspace(path, workspace_root)
 def _load_last_pr_open_request(workspace_root: Path, jobs: list[dict[str, Any]]) -> dict[str, Any] | None:
     candidates = [j for j in jobs if isinstance(j, dict) and str(j.get("kind") or "") == "PR_OPEN"]

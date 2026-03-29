@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -213,7 +214,7 @@ def run_preflight_stamp(*, workspace_root: Path, mode: str = "write") -> dict[st
                 sb_status = str(report.get("status") or "FAIL")
                 hard_exceeded = int(report.get("hard_exceeded", hard_exceeded) or 0)
                 soft_exceeded = int(report.get("soft_exceeded", soft_exceeded) or 0)
-                sb_path.write_text(_dump_json(report), encoding="utf-8")
+                write_text_atomic(sb_path, _dump_json(report))
         except Exception:
             sb_status = "FAIL"
 
@@ -240,7 +241,7 @@ def run_preflight_stamp(*, workspace_root: Path, mode: str = "write") -> dict[st
         "notes": notes,
     }
 
-    report_path.write_text(_dump_json(stamp), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(stamp))
     md_path = workspace_root / ".cache" / "reports" / "preflight_stamp.v1.md"
     md_lines = [
         "PREFLIGHT STAMP",
@@ -252,7 +253,7 @@ def run_preflight_stamp(*, workspace_root: Path, mode: str = "write") -> dict[st
         f"hard_exceeded: {hard_exceeded}",
         f"soft_exceeded: {soft_exceeded}",
     ]
-    md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(md_path, "\n".join(md_lines) + "\n")
 
     return {
         "status": "OK" if overall == "PASS" else "WARN",

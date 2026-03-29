@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from pathlib import Path
@@ -140,7 +141,7 @@ def write_subject_plan_summary(
         lines.append(f"- {step.get('step_id', '')}: {step.get('type', '')} -> {', '.join(str(op) for op in ops)}")
 
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(summary_path, "\n".join(lines) + "\n")
     return _rel_path(workspace_root, summary_path)
 
 
