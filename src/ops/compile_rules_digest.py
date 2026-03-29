@@ -22,18 +22,26 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # ── Path → Layer mapping ─────────────────────────────────────────
 
 _LAYER_MAP = [
+    # L0 CORE — canonical SSOT files
+    (re.compile(r"^AGENTS\.md$"), "L0_CORE", False),  # allowlisted in AGENTS.md
+    (re.compile(r"^CLAUDE\.md$"), "L0_CORE", False),
     (re.compile(r"^schemas/"), "L0_CORE", False),
     (re.compile(r"^policies/"), "L0_CORE", False),
     (re.compile(r"^docs/"), "L0_CORE", False),
     (re.compile(r"^orchestrator/"), "L0_CORE", False),
     (re.compile(r"^src/"), "L0_CORE", True),   # CORE_UNLOCK required
     (re.compile(r"^ci/"), "L0_CORE", False),
+    (re.compile(r"^scripts/"), "L0_CORE", False),
     (re.compile(r"^\.github/"), "L0_CORE", False),
+    (re.compile(r"^\.claude/"), "L0_CORE", False),  # rules, settings
+    (re.compile(r"^\.codex/"), "L0_CORE", False),   # codex config
+    (re.compile(r"^roadmaps/"), "L0_CORE", False),
+    # L1 CATALOG
     (re.compile(r"^packs/"), "L1_CATALOG", False),
     (re.compile(r"^extensions/"), "L1_CATALOG", False),
     (re.compile(r"^templates/"), "L1_CATALOG", False),
+    # L2 WORKSPACE
     (re.compile(r"^\.cache/"), "L2_WORKSPACE", False),
-    (re.compile(r"^roadmaps/"), "L0_CORE", False),
 ]
 
 # ── Path → Rules domain mapping ──────────────────────────────────
@@ -43,6 +51,7 @@ _DOMAIN_MAP = [
     (re.compile(r"^src/orchestrator/observability/"), "observability"),
     (re.compile(r"^src/orchestrator/"), "state-machine"),
     (re.compile(r"^src/evidence/"), "evidence"),
+    (re.compile(r"^src/context/"), "context-pack"),
     (re.compile(r"^src/"), "src-ops"),
     (re.compile(r"^schemas/"), "schemas"),
     (re.compile(r"^policies/"), "policies"),
@@ -50,6 +59,13 @@ _DOMAIN_MAP = [
     (re.compile(r"^extensions/"), "extensions"),
     (re.compile(r"^roadmaps/"), "roadmaps"),
     (re.compile(r"^tests/"), "tests"),
+    (re.compile(r"^docs/"), "cross-repo"),
+    (re.compile(r"^scripts/"), "ci"),
+    (re.compile(r"^\.github/"), "ci"),
+    (re.compile(r"^\.claude/"), "context-pack"),
+    (re.compile(r"^\.codex/"), "cross-repo"),
+    (re.compile(r"^AGENTS\.md$"), "cross-repo"),
+    (re.compile(r"^CLAUDE\.md$"), "cross-repo"),
 ]
 
 # ── CODING-STANDARDS shared utilities ─────────────────────────────

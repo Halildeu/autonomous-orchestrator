@@ -38,7 +38,10 @@ _CORE_ALLOWLIST = [
     re.compile(r"^pyproject\.toml$"),
     re.compile(r"^\.pre-commit-config\.yaml$"),
     re.compile(r"^AGENTS\.md$"),
-    re.compile(r"^\.cache/"),  # Workspace writes always allowed
+    re.compile(r"^CLAUDE\.md$"),
+    re.compile(r"^\.claude/"),  # Rules, settings, agents config
+    re.compile(r"^\.codex/"),   # Codex config
+    re.compile(r"^\.cache/"),   # Workspace writes always allowed
 ]
 
 # ── Naming patterns ───────────────────────────────────────────────
