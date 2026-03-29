@@ -1,0 +1,7 @@
+{
+  "task_id": "EVAL-POLICY-EDIT",
+  "description": "Edit an existing policy file",
+  "target_path": "policies/policy_test_golden.v1.json",
+  "expected_authorize": "PASS",
+  "expected_rules": { "layer": "L0_CORE", "domain": "policies" }
+}

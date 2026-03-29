@@ -1,0 +1,7 @@
+{
+  "task_id": "EVAL-SRC-BLOCKED",
+  "description": "Attempt to write to src/ without CORE_UNLOCK — should be BLOCKED",
+  "target_path": "src/ops/test_golden.py",
+  "expected_authorize": "BLOCKED",
+  "expected_rules": { "layer": "L0_CORE", "domain": "src-ops", "core_unlock_required": true }
+}

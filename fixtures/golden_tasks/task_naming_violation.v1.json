@@ -1,0 +1,7 @@
+{
+  "task_id": "EVAL-NAMING-VIOLATION",
+  "description": "Write to schemas/ with wrong naming — should be BLOCKED",
+  "target_path": "schemas/wrong_name.json",
+  "expected_authorize": "BLOCKED",
+  "expected_rules": { "layer": "L0_CORE", "domain": "schemas" }
+}

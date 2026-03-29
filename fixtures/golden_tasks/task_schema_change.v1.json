@@ -1,0 +1,7 @@
+{
+  "task_id": "EVAL-SCHEMA-CHANGE",
+  "description": "Add a new schema file to schemas/",
+  "target_path": "schemas/test-golden.schema.v1.json",
+  "expected_authorize": "PASS",
+  "expected_rules": { "layer": "L0_CORE", "domain": "schemas" }
+}
