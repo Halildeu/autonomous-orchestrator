@@ -16,11 +16,24 @@
     ".gitignore",
     ".env.example"
   ],
-  "catalog_roots": ["schemas", "policies", "registry", "workflows", "orchestrator", "packs", "capabilities"],
+  "catalog_roots": [
+    "schemas",
+    "policies",
+    "registry",
+    "workflows",
+    "orchestrator",
+    "packs",
+    "capabilities"
+  ],
   "workspace_root_required": true,
-  "external_write_allowlist": ["evidence", ".cache/script_budget", ".cache/ws_*"],
+  "external_write_allowlist": [
+    "evidence",
+    ".cache/script_budget",
+    ".cache/ws_*"
+  ],
   "notes": [
     "Core and catalog writes are blocked unless CORE_UNLOCK=1.",
     "Workspace root is the default write target; allowlist is limited to generated outputs."
-  ]
+  ],
+  "fail_action": "block"
 }

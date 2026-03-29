@@ -18,6 +18,9 @@
     "policies/policy_harvest.v1.json",
     "policies/policy_advisor.v1.json"
   ],
-  "integration_flags": ["ORCH_INTEGRATION_MODE"],
-  "on_fail": "warn"
+  "integration_flags": [
+    "ORCH_INTEGRATION_MODE"
+  ],
+  "on_fail": "warn",
+  "fail_action": "warn"
 }

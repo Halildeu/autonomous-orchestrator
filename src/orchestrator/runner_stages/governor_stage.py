@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.orchestrator import dlq, runner_config
+from src.orchestrator.decision_boundary import enforce_decision_boundary
 from src.orchestrator.runner_context import RunContext
 from src.orchestrator.runner_stages.context import StageContext
 from src.orchestrator.runner_utils import print_error
@@ -55,6 +56,30 @@ def governor_stage(*, stage_ctx: StageContext) -> tuple[RunContext, set[str], Pa
         raise SystemExit(1)
 
     run_ctx.ingest_envelope(stage_ctx.envelope)
+
+    # Decision boundary pre-execution check
+    operation = run_ctx.intent or str(stage_ctx.envelope.get("workflow", "unknown"))
+    try:
+        enforce_decision_boundary(
+            operation=operation,
+            workspace_root=stage_ctx.workspace,
+        )
+    except PolicyViolation as e:
+        msg = f"{e.error_code}: {e}"
+        dlq_path = dlq.write_dlq_record(
+            workspace=stage_ctx.workspace,
+            stage="GOVERNOR",
+            error_code="DECISION_BOUNDARY_VIOLATION",
+            message=msg,
+            envelope=stage_ctx.envelope,
+        )
+        print_error(
+            "DECISION_BOUNDARY_BLOCK",
+            "Decision boundary blocked run.",
+            details={"policy_violation_code": e.error_code, "dlq_file": dlq_path.name},
+        )
+        raise SystemExit(1)
+
     if run_ctx.intent and run_ctx.intent in quarantined_intents:
         run_ctx.governor_quarantine_hit = "INTENT"
         e = PolicyViolation("QUARANTINED_INTENT", f"Intent is quarantined: {run_ctx.intent}")

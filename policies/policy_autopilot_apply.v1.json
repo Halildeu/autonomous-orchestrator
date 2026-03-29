@@ -9,8 +9,15 @@
   "auto_select": {
     "enabled": false,
     "max_select": 3,
-    "allow_buckets": ["TICKET"],
-    "allow_source_types": ["MANUAL_REQUEST", "DOC_NAV", "SCRIPT_BUDGET", "JOB_STATUS"],
+    "allow_buckets": [
+      "TICKET"
+    ],
+    "allow_source_types": [
+      "MANUAL_REQUEST",
+      "DOC_NAV",
+      "SCRIPT_BUDGET",
+      "JOB_STATUS"
+    ],
     "require_impact_scope": "doc-only",
     "deny_if_requires_core_change": true,
     "rank_rule": "priority asc -> severity asc -> intake_id asc"
@@ -22,7 +29,10 @@
         "bucket": "TICKET",
         "source_type": "MANUAL_REQUEST",
         "impact_scope": "doc-only",
-        "kind_in": ["note", "doc-fix"]
+        "kind_in": [
+          "note",
+          "doc-fix"
+        ]
       },
       "set": {
         "autopilot_allowed": true,
@@ -46,7 +56,10 @@
       "when": {
         "bucket": "TICKET",
         "source_type": "SCRIPT_BUDGET",
-        "path_prefix_in": ["ci/", "docs/"],
+        "path_prefix_in": [
+          "ci/",
+          "docs/"
+        ],
         "hard_exceeded_eq": 0
       },
       "set": {
@@ -58,7 +71,10 @@
       "id": "job_status_poll_only",
       "when": {
         "source_type": "JOB_STATUS",
-        "job_status_in": ["RUNNING", "QUEUED"]
+        "job_status_in": [
+          "RUNNING",
+          "QUEUED"
+        ]
       },
       "set": {
         "autopilot_allowed": true,
@@ -79,7 +95,12 @@
   ],
   "apply_guards": {
     "require_evidence_paths": true,
-    "deny_buckets": ["INCIDENT"],
-    "deny_when": {"network_required": true}
-  }
+    "deny_buckets": [
+      "INCIDENT"
+    ],
+    "deny_when": {
+      "network_required": true
+    }
+  },
+  "fail_action": "warn"
 }

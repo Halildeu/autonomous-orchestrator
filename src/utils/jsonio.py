@@ -1,8 +1,15 @@
+"""Legacy JSON I/O — delegates to src.shared.utils for atomic writes.
+
+Prefer importing from ``src.shared.utils`` directly for new code.
+"""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
+
+from src.shared.utils import write_json_atomic
 
 
 def load_json(path: Path) -> Any:
@@ -10,12 +17,9 @@ def load_json(path: Path) -> Any:
 
 
 def save_json(path: Path, obj: Any, *, indent: int = 2) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(obj, indent=indent, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    # Delegates to canonical atomic writer (includes fsync).
+    write_json_atomic(path, obj, indent=indent)
 
 
 def to_canonical_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-

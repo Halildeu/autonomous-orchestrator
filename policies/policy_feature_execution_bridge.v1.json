@@ -94,5 +94,6 @@
   },
   "reporting": {
     "out_path": ".cache/reports/feature_execution_contract_check.v1.json"
-  }
+  },
+  "fail_action": "warn"
 }

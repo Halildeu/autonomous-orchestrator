@@ -18,5 +18,6 @@
   ],
   "notes": [
     "per_extension_workspace"
-  ]
+  ],
+  "fail_action": "warn"
 }

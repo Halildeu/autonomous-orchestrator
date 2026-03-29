@@ -43,5 +43,6 @@
       "ux_subtheme_id"
     ],
     "allow_extra_fields": true
-  }
+  },
+  "fail_action": "warn"
 }

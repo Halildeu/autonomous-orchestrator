@@ -7,5 +7,6 @@
   "max_polls_per_call": 1,
   "max_actions_per_tick": 5,
   "auto_decision_mode": "autopilot",
-  "network_default_off": true
+  "network_default_off": true,
+  "fail_action": "warn"
 }

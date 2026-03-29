@@ -50,5 +50,6 @@
     ],
     "require_strict_isolation": true
   },
-  "notes": []
+  "notes": [],
+  "fail_action": "warn"
 }

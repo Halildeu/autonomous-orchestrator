@@ -5,8 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from src.orchestrator.dlq import iso_utc_now
+from src.shared.utils import load_policy_validated
 from src.tools.gateway import PolicyViolation
 from src.utils.jsonio import load_json
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_governor(workspace: Path) -> dict[str, Any]:
@@ -103,11 +106,15 @@ def load_quota_policy(workspace: Path) -> dict[str, Any]:
 
     path = workspace / "policies" / "policy_quota.v1.json"
     if not path.exists():
+        # Fall back to repo-level policy
+        path = _REPO_ROOT / "policies" / "policy_quota.v1.json"
+    if not path.exists():
         return default
 
     try:
-        raw = load_json(path)
-    except Exception:
+        schema_path = _REPO_ROOT / "schemas" / "policy-quota.schema.json"
+        raw = load_policy_validated(path, schema_path) if schema_path.exists() else load_json(path)
+    except (ValueError, Exception):
         return default
 
     if not isinstance(raw, dict):
@@ -162,11 +169,14 @@ def load_autonomy_policy(workspace: Path) -> dict[str, Any]:
 
     path = workspace / "policies" / "policy_autonomy.v1.json"
     if not path.exists():
+        path = _REPO_ROOT / "policies" / "policy_autonomy.v1.json"
+    if not path.exists():
         return default
 
     try:
-        raw = load_json(path)
-    except Exception:
+        schema_path = _REPO_ROOT / "schemas" / "policy-autonomy.schema.json"
+        raw = load_policy_validated(path, schema_path) if schema_path.exists() else load_json(path)
+    except (ValueError, Exception):
         return default
 
     if not isinstance(raw, dict):

@@ -48,13 +48,27 @@
         "integration_coherence"
       ],
       "properties": {
-        "trend_best_practice": { "$ref": "#/$defs/dimension" },
-        "integrity_compat": { "$ref": "#/$defs/dimension" },
-        "ai_ops_fit": { "$ref": "#/$defs/dimension" },
-        "github_ops_release": { "$ref": "#/$defs/dimension" },
-        "operability": { "$ref": "#/$defs/dimension" },
-        "integration_coherence": { "$ref": "#/$defs/dimension" },
-        "context_health": { "$ref": "#/$defs/dimension" }
+        "trend_best_practice": {
+          "$ref": "#/$defs/dimension"
+        },
+        "integrity_compat": {
+          "$ref": "#/$defs/dimension"
+        },
+        "ai_ops_fit": {
+          "$ref": "#/$defs/dimension"
+        },
+        "github_ops_release": {
+          "$ref": "#/$defs/dimension"
+        },
+        "operability": {
+          "$ref": "#/$defs/dimension"
+        },
+        "integration_coherence": {
+          "$ref": "#/$defs/dimension"
+        },
+        "context_health": {
+          "$ref": "#/$defs/dimension"
+        }
       }
     },
     "trend_best_practice": {
@@ -65,15 +79,33 @@
         "min_coverage_warn"
       ],
       "properties": {
-        "dimension": { "$ref": "#/$defs/dimension" },
-        "min_coverage_ok": { "type": "number", "minimum": 0, "maximum": 1 },
-        "min_coverage_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+        "dimension": {
+          "$ref": "#/$defs/dimension"
+        },
+        "min_coverage_ok": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_coverage_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
-    "integrity_compat": { "$ref": "#/$defs/scored_lens" },
-    "ai_ops_fit": { "$ref": "#/$defs/scored_lens_with_fields" },
-    "github_ops_release": { "$ref": "#/$defs/scored_lens_with_fields" },
-    "operability": { "$ref": "#/$defs/scored_lens_with_fields" },
+    "integrity_compat": {
+      "$ref": "#/$defs/scored_lens"
+    },
+    "ai_ops_fit": {
+      "$ref": "#/$defs/scored_lens_with_fields"
+    },
+    "github_ops_release": {
+      "$ref": "#/$defs/scored_lens_with_fields"
+    },
+    "operability": {
+      "$ref": "#/$defs/scored_lens_with_fields"
+    },
     "integration_coherence": {
       "type": "object",
       "additionalProperties": false,
@@ -82,12 +114,25 @@
         "min_score_warn"
       ],
       "properties": {
-        "dimension": { "$ref": "#/$defs/dimension" },
-        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
-        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dimension": {
+          "$ref": "#/$defs/dimension"
+        },
+        "min_score_ok": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_score_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "required_signals": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "default": []
         }
       }
@@ -95,14 +140,30 @@
     "context_health": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["min_score_ok", "min_score_warn"],
+      "required": [
+        "min_score_ok",
+        "min_score_warn"
+      ],
       "properties": {
-        "dimension": { "$ref": "#/$defs/dimension" },
-        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
-        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dimension": {
+          "$ref": "#/$defs/dimension"
+        },
+        "min_score_ok": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_score_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "components": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "default": []
         }
       }
@@ -115,11 +176,18 @@
         "levels"
       ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "output_path": { "type": "string", "minLength": 1 },
+        "enabled": {
+          "type": "boolean"
+        },
+        "output_path": {
+          "type": "string",
+          "minLength": 1
+        },
         "levels": {
           "type": "array",
-          "items": { "$ref": "#/$defs/maturity_level" },
+          "items": {
+            "$ref": "#/$defs/maturity_level"
+          },
           "minItems": 1
         }
       }
@@ -129,15 +197,28 @@
       "items": {
         "type": "string"
       }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   },
   "allOf": [
     {
       "if": {
         "properties": {
-          "mode": { "const": "lenses" }
+          "mode": {
+            "const": "lenses"
+          }
         },
-        "required": ["mode"]
+        "required": [
+          "mode"
+        ]
       },
       "then": {
         "required": [
@@ -156,7 +237,15 @@
   "$defs": {
     "dimension": {
       "type": "string",
-      "enum": ["A", "B", "C", "D", "E", "F", "G"]
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G"
+      ]
     },
     "scored_lens": {
       "type": "object",
@@ -166,9 +255,19 @@
         "min_score_warn"
       ],
       "properties": {
-        "dimension": { "$ref": "#/$defs/dimension" },
-        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
-        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 }
+        "dimension": {
+          "$ref": "#/$defs/dimension"
+        },
+        "min_score_ok": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_score_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
     "scored_lens_with_fields": {
@@ -179,12 +278,25 @@
         "min_score_warn"
       ],
       "properties": {
-        "dimension": { "$ref": "#/$defs/dimension" },
-        "min_score_ok": { "type": "number", "minimum": 0, "maximum": 1 },
-        "min_score_warn": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dimension": {
+          "$ref": "#/$defs/dimension"
+        },
+        "min_score_ok": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_score_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "required_fields": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "default": []
         }
       }
@@ -198,14 +310,33 @@
         "criteria"
       ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "label": { "type": "string", "minLength": 1 },
-        "description": { "type": "string" },
-        "min_score": { "type": "number", "minimum": 0, "maximum": 1 },
-        "max_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "min_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "criteria": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "default": []
         }
       }

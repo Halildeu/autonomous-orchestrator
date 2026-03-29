@@ -1,5 +1,104 @@
 {
+  "$schema": "urn:ao:state-machine:v1",
   "version": "v1",
-  "note": "Placeholder. Extend to real execution state machine later."
+  "description": "Canonical state machine definitions for the autonomous-orchestrator control-plane.",
+  "machines": {
+    "work_item": {
+      "description": "Work item lifecycle from intake through execution to close.",
+      "initial": "OPEN",
+      "terminal": ["CLOSED", "NOOP"],
+      "states": [
+        {
+          "id": "OPEN",
+          "description": "Work item received and validated, awaiting planning."
+        },
+        {
+          "id": "PLANNED",
+          "description": "Execution plan generated, awaiting scheduling."
+        },
+        {
+          "id": "IN_PROGRESS",
+          "description": "Active execution in progress."
+        },
+        {
+          "id": "APPLIED",
+          "description": "Execution completed and output applied to workspace."
+        },
+        {
+          "id": "CLOSED",
+          "description": "Work item closed (manually or by policy after apply)."
+        },
+        {
+          "id": "NOOP",
+          "description": "No action required (idempotent hit, duplicate, or irrelevant)."
+        }
+      ],
+      "transitions": [
+        { "from": "OPEN", "to": "PLANNED", "trigger": "plan", "description": "Execution plan generated." },
+        { "from": "OPEN", "to": "NOOP", "trigger": "skip", "description": "Marked as no-op (duplicate or irrelevant)." },
+        { "from": "PLANNED", "to": "IN_PROGRESS", "trigger": "start", "description": "Execution started." },
+        { "from": "PLANNED", "to": "OPEN", "trigger": "replan", "description": "Plan invalidated, return to open." },
+        { "from": "IN_PROGRESS", "to": "APPLIED", "trigger": "apply", "description": "Output applied to workspace." },
+        { "from": "IN_PROGRESS", "to": "OPEN", "trigger": "fail", "description": "Execution failed, return to open for retry." },
+        { "from": "APPLIED", "to": "CLOSED", "trigger": "close", "description": "Work item closed after review." }
+      ]
+    },
+    "run_execution": {
+      "description": "Orchestrator run lifecycle through the 6-stage pipeline.",
+      "initial": "PENDING",
+      "terminal": ["COMPLETED", "FAILED"],
+      "states": [
+        {
+          "id": "PENDING",
+          "description": "Run created, awaiting governor lock."
+        },
+        {
+          "id": "RUNNING",
+          "description": "Pipeline stages executing."
+        },
+        {
+          "id": "COMPLETED",
+          "description": "All stages finished successfully."
+        },
+        {
+          "id": "FAILED",
+          "description": "Run failed due to error, budget exhaustion, or policy violation."
+        },
+        {
+          "id": "SUSPENDED",
+          "description": "Run paused, awaiting human decision or external input."
+        }
+      ],
+      "transitions": [
+        { "from": "PENDING", "to": "RUNNING", "trigger": "acquire_lock", "description": "Governor lock acquired, pipeline begins." },
+        { "from": "PENDING", "to": "FAILED", "trigger": "reject", "description": "Envelope validation or quarantine check failed." },
+        { "from": "RUNNING", "to": "COMPLETED", "trigger": "finalize", "description": "All pipeline stages finished." },
+        { "from": "RUNNING", "to": "FAILED", "trigger": "error", "description": "Unrecoverable error or policy violation." },
+        { "from": "RUNNING", "to": "SUSPENDED", "trigger": "suspend", "description": "Awaiting human decision (approval node)." },
+        { "from": "SUSPENDED", "to": "RUNNING", "trigger": "resume", "description": "Human decision received, resuming pipeline." },
+        { "from": "SUSPENDED", "to": "FAILED", "trigger": "timeout", "description": "Suspension exceeded TTL." }
+      ]
+    },
+    "node_execution": {
+      "description": "Individual workflow node (step) execution status.",
+      "initial": "PENDING",
+      "terminal": ["COMPLETED", "FAILED", "SKIPPED"],
+      "states": [
+        { "id": "PENDING", "description": "Node not yet started." },
+        { "id": "RUNNING", "description": "Node executing." },
+        { "id": "COMPLETED", "description": "Node finished successfully." },
+        { "id": "FAILED", "description": "Node execution failed." },
+        { "id": "SUSPENDED", "description": "Node awaiting external input." },
+        { "id": "SKIPPED", "description": "Node skipped (precondition not met or disabled)." }
+      ],
+      "transitions": [
+        { "from": "PENDING", "to": "RUNNING", "trigger": "start", "description": "Node execution begins." },
+        { "from": "PENDING", "to": "SKIPPED", "trigger": "skip", "description": "Precondition not met." },
+        { "from": "RUNNING", "to": "COMPLETED", "trigger": "succeed", "description": "Node finished." },
+        { "from": "RUNNING", "to": "FAILED", "trigger": "fail", "description": "Node error." },
+        { "from": "RUNNING", "to": "SUSPENDED", "trigger": "suspend", "description": "Awaiting input." },
+        { "from": "SUSPENDED", "to": "RUNNING", "trigger": "resume", "description": "Input received." }
+      ]
+    }
+  }
 }
-

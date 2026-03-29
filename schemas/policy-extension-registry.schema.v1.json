@@ -13,38 +13,102 @@
     "idle_on_missing_manifests"
   ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "enabled_by_default": { "type": "boolean" },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "enabled_by_default": {
+      "type": "boolean"
+    },
     "layer_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["write_roots_allowlist"],
+      "required": [
+        "write_roots_allowlist"
+      ],
       "properties": {
-        "write_roots_allowlist": { "type": "array", "items": { "type": "string" } },
-        "read_roots_allowlist": { "type": "array", "items": { "type": "string" } },
-        "notes": { "type": "array", "items": { "type": "string" } }
+        "write_roots_allowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "read_roots_allowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "entrypoints": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ops", "kernel_api_actions", "cockpit_sections"],
+      "required": [
+        "ops",
+        "kernel_api_actions",
+        "cockpit_sections"
+      ],
       "properties": {
-        "ops": { "type": "array", "items": { "type": "string" } },
-        "kernel_api_actions": { "type": "array", "items": { "type": "string" } },
-        "cockpit_sections": { "type": "array", "items": { "type": "string" } }
+        "ops": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kernel_api_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cockpit_sections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "determinism": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stable_sort", "content_hash_required", "version_required"],
+      "required": [
+        "stable_sort",
+        "content_hash_required",
+        "version_required"
+      ],
       "properties": {
-        "stable_sort": { "type": "boolean" },
-        "content_hash_required": { "type": "boolean" },
-        "version_required": { "type": "boolean" }
+        "stable_sort": {
+          "type": "boolean"
+        },
+        "content_hash_required": {
+          "type": "boolean"
+        },
+        "version_required": {
+          "type": "boolean"
+        }
       }
     },
-    "idle_on_missing_manifests": { "type": "boolean" }
+    "idle_on_missing_manifests": {
+      "type": "boolean"
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
+    }
   }
 }

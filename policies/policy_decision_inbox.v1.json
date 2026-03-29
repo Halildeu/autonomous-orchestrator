@@ -20,5 +20,6 @@
     "decisions_applied_path": ".cache/index/decisions_applied.v1.jsonl",
     "selection_path": ".cache/index/work_intake_selection.v1.json",
     "policy_overrides_dir": ".cache/policy_overrides"
-  }
+  },
+  "fail_action": "warn"
 }

@@ -1,0 +1,140 @@
+name: gate-contract-tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  context-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: context_drift_contract_test
+        run: python3 ci/context_drift_contract_test.py
+      - name: context_bootstrap_contract_test
+        run: python3 ci/context_bootstrap_contract_test.py
+      - name: context_pack_contract_test
+        run: python3 ci/context_pack_contract_test.py
+      - name: context_reconciler_contract_test
+        run: python3 ci/context_reconciler_contract_test.py
+      - name: compaction_engine_contract_test
+        run: python3 ci/compaction_engine_contract_test.py
+      - name: memory_distiller_contract_test
+        run: python3 ci/memory_distiller_contract_test.py
+      - name: fact_evolution_contract_test
+        run: python3 ci/fact_evolution_contract_test.py
+
+  decision-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: decision_boundary_contract_test
+        run: python3 ci/decision_boundary_contract_test.py
+      - name: quality_gate_contract_test
+        run: python3 ci/quality_gate_contract_test.py
+      - name: extension_context_bridge_contract_test
+        run: python3 ci/extension_context_bridge_contract_test.py
+
+  policy-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: policy_check_deprecation_gate_contract_test
+        run: python3 ci/policy_check_deprecation_gate_contract_test.py
+      - name: policy_report_deprecation_contract_test
+        run: python3 ci/policy_report_deprecation_contract_test.py
+      - name: router_policy_matrix_test
+        run: python3 ci/router_policy_matrix_test.py
+
+  work-intake-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: work_intake_contract_test
+        run: python3 ci/work_intake_contract_test.py
+      - name: work_intake_bucket_refinement_contract_test
+        run: python3 ci/work_intake_bucket_refinement_contract_test.py
+      - name: work_intake_exec_ticket_contract_test
+        run: python3 ci/work_intake_exec_ticket_contract_test.py
+      - name: work_intake_manual_ingest_test
+        run: python3 ci/work_intake_manual_ingest_test.py
+      - name: work_intake_route_precedence_contract_test
+        run: python3 ci/work_intake_route_precedence_contract_test.py
+      - name: manual_request_contract_test
+        run: python3 ci/manual_request_contract_test.py
+
+  core-ops-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: core_ops_contract_test
+        run: python3 ci/core_ops_contract_test.py
+
+  incident-pdca-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: doc_nav_critical_to_incident_test
+        run: python3 ci/doc_nav_critical_to_incident_test.py
+      - name: pdca_regression_to_incident_test
+        run: python3 ci/pdca_regression_to_incident_test.py
+      - name: script_budget_to_project_test
+        run: python3 ci/script_budget_to_project_test.py
+
+  contract-gate:
+    runs-on: ubuntu-latest
+    needs:
+      - context-contracts
+      - decision-contracts
+      - policy-contracts
+      - work-intake-contracts
+      - core-ops-contracts
+      - incident-pdca-contracts
+    if: always()
+    steps:
+      - name: Gate check
+        run: |
+          set -euo pipefail
+          echo "context=${{ needs.context-contracts.result }}"
+          echo "decision=${{ needs.decision-contracts.result }}"
+          echo "policy=${{ needs.policy-contracts.result }}"
+          echo "work-intake=${{ needs.work-intake-contracts.result }}"
+          echo "incident-pdca=${{ needs.incident-pdca-contracts.result }}"
+          echo "core-ops=${{ needs.core-ops-contracts.result }}"
+          test "${{ needs.context-contracts.result }}" = "success"
+          test "${{ needs.decision-contracts.result }}" = "success"
+          test "${{ needs.policy-contracts.result }}" = "success"
+          test "${{ needs.work-intake-contracts.result }}" = "success"
+          test "${{ needs.core-ops-contracts.result }}" = "success"
+          test "${{ needs.incident-pdca-contracts.result }}" = "success"

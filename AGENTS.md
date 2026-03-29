@@ -81,9 +81,76 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 - Core_lock, fail-closed, secrets kuralları tüm agent'lar için geçerlidir.
 - Agent çıktıları AUTOPILOT CHAT formatındadır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
 
+### Consultation Protocol (async istişare)
+
+Agent'lar birbirine async soru sorabilir. Git repo transport layer'dır.
+
+**Akış:**
+1. Soran agent `.cache/consultations/CONSULT-{YYYYMMDD}-{NNN}.v1.json` yazar, commit+push eder
+2. Diğer agent bootstrap'ta bu dosyayı görür, `responses[]`'e cevap ekler, commit+push eder
+3. İnsan veya soran agent `resolution` yazar → `status: RESOLVED`
+4. Resolved istişareler `archive/` altına taşınır
+
+**Kurallar:**
+- TTL: 24 saat (varsayılan). Expire olursa `status: EXPIRED`
+- Aynı anda max 3 açık istişare
+- Her response `branch` + `head_sha` içermeli (worktree awareness)
+- İnsan son karar vericisidir (`decided_by: human` override hakkı her zaman geçerli)
+- Response formatı: `agreements[]`, `objections[]`, `additions[]` — yapılandırılmış geri bildirim
+- Schema: `schemas/agent-consultation.schema.v1.json`
+- Policy: `policies/policy_agent_consultation.v1.json`
+
+### Branch / Worktree Awareness (MUST)
+- Agent her zaman **üzerinde çalıştığı branch/worktree'yi** bilmeli ve raporlamalıdır.
+- Değerlendirme (maturity, drift, status) yapılırken branch adı ve HEAD SHA kaydedilmelidir.
+- Worktree'deki commit'ler main'e merge edilmemiş olabilir; agent bunu varsaymamalıdır.
+- Cross-agent karşılaştırma yapılıyorsa her iki agent'ın aynı branch üzerinde çalışması ZORUNLUDUR.
+- Branch bilgisi: `git rev-parse --abbrev-ref HEAD` ve `git rev-parse --short HEAD` ile alınır.
+
+### Maturity Assessment Protocol (MUST)
+- Olgunluk değerlendirmesinde tüm agent'lar `policies/policy_maturity_assessment.v1.json` rubric'ini kullanır.
+- Her alan için `evidence_commands` çalıştırılması ZORUNLUDUR; salt dosya okuma ile skor verilmez.
+- Scoring: L0=0%, L1=25%, L2=50%, L3=75%, L4=100% (bant içi interpolasyon yapılır).
+- İki agent farklı skor verirse, daha fazla evidence_command çalıştıran tercih edilir.
+
+### Branch-Local vs Canonical Maturity (MUST)
+- **Branch-local maturity**: worktree/branch üzerindeki olgunluk skoru. Değerlendirme branch+HEAD SHA ile etiketlenir.
+- **Canonical repo maturity**: yalnızca main branch üzerindeki skor. PR merge ve CI gate geçişi olmadan canonical skor ARTMAZ.
+- Agent her değerlendirmede hangi seviyeyi raporladığını açıkça belirtmelidir: `scope: branch-local` veya `scope: canonical`.
+- Branch'teki ilerleme gerçektir ama `canonical` olarak sayılması merge gerektirir. En doğru ifade: "branch-local maturity improved, canonical repo maturity not yet promoted."
+
 ## Context Bootstrap (her konuşma başında)
 
-Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırasıyla yükler:
+Agent çalışmaya başladığında, **Profile Resolution → Bootstrap** sırasını takip eder.
+
+### 0. Profile Resolution (ÖNCE yap)
+
+`policies/policy_context_profile_registry.v1.json` içindeki 6 profil arasından aktif profili belirle:
+
+| Profil | Ne zaman aktif? |
+|---|---|
+| **EMERGENCY** | system_status=FAIL veya integrity violation var |
+| **ASSESSMENT** | Olgunluk/gap/PDCA değerlendirmesi isteniyorsa |
+| **PLANNING** | Roadmap/mimari/strateji planlaması |
+| **REVIEW** | Kod/PR/rapor incelemesi |
+| **TASK_EXECUTION** | Belirli bir ops komutu veya work item (varsayılan) |
+| **STARTUP** | İlk oturum, hiç bağlam yok |
+
+Aktif profil artefaktı: `.cache/index/active_context_profile.v1.json`
+
+### 0.5 Consultation Check (varsa cevapla)
+
+Agent bootstrap'ta workspace'teki consultation queue'yu kontrol eder:
+- Requests: `.cache/index/consultations/requests/CNS-*.request.v1.json`
+- State: `.cache/index/consultations/state/CNS-*.state.v1.json`
+- Responses: `.cache/reports/consultations/CNS-*.{agent}.response.v1.json`
+
+Davranış:
+- Açık request varsa ve `to_agent` kendi agent_id'sine eşitse → cevap ver (stdout JSON)
+- State `ANSWERED` ise ve kendi başlattığı ise → response'u oku
+- Boşsa → devam et
+
+**Not:** Agent dosya yazmaz. Dispatcher tek yazar. Agent yalnızca structured JSON stdout döner.
 
 ### 1. Durum Bağlamı (en güncel hal)
 - `.cache/ws_customer_default/.cache/reports/system_status.v1.json` — sistem durumu
@@ -95,7 +162,7 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 - `docs/OPERATIONS/CODEX-UX.md` — customer-friendly ops akışı
 - `docs/LAYER-MODEL-LOCK.v1.md` — katman modeli
 
-### 3. Proje Bağlamı (ihtiyaç halinde)
+### 3. Proje Bağlamı (yalnızca ASSESSMENT veya PLANNING profilinde)
 - `roadmaps/PROJECTS/*/project.manifest.v1.json` — proje manifestleri
 - `roadmaps/SSOT/roadmap.v1.json` — canonical roadmap
 
@@ -104,6 +171,8 @@ Agent çalışmaya başladığında, aşağıdaki bağlam dosyalarını sırası
 python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default
 python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default
 ```
+
+Profil `required_files` ve `bootstrap_commands` alanları profile-specific ek yüklemeleri tanımlar.
 
 ## Repo conventions
 

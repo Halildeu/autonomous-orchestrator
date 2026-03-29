@@ -9,5 +9,6 @@
       "max_runs_per_day": 1000,
       "max_est_tokens_per_day": 10000000
     }
-  }
+  },
+  "fail_action": "warn"
 }

@@ -44,18 +44,24 @@ def write_json_atomic(path: Path, data: Any, *, indent: int = 2) -> None:
 
 
 def write_text_atomic(path: Path, content: str) -> None:
-    """Write *content* to *path* atomically via tmp-file rename."""
+    """Write *content* to *path* atomically via tmp-file + fsync + rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
+    with tmp.open("w", encoding="utf-8") as f:
+        f.write(content)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
 
 
 def write_bytes_atomic(path: Path, data: bytes) -> None:
-    """Write *data* bytes to *path* atomically via tmp-file rename."""
+    """Write *data* bytes to *path* atomically via tmp-file + fsync + rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_bytes(data)
+    with tmp.open("wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
 
 
@@ -114,3 +120,29 @@ def env_str(key: str, default: str = "") -> str:
     if not isinstance(v, str):
         return default
     return v.strip() or default
+
+
+# ── Policy Loading ─────────────────────────────────────────────────────
+
+
+def load_policy_validated(policy_path: Path, schema_path: Path) -> Any:
+    """Load and schema-validate a policy file.
+
+    Raises ValueError on schema violation so callers fail-closed.
+    Returns the parsed policy dict on success.
+    """
+    try:
+        from jsonschema import Draft202012Validator
+    except ImportError as exc:
+        raise RuntimeError("jsonschema is required for load_policy_validated()") from exc
+
+    schema = load_json(schema_path)
+    instance = load_json(policy_path)
+    validator = Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(instance), key=lambda e: e.json_path)
+    if errors:
+        msgs = "; ".join(f"{e.json_path}: {e.message}" for e in errors[:3])
+        raise ValueError(
+            f"Policy {policy_path.name} failed schema validation: {msgs}"
+        )
+    return instance

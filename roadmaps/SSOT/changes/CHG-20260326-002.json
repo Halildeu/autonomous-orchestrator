@@ -1,0 +1,45 @@
+{
+  "change_id": "CHG-20260326-002",
+  "version": "v1",
+  "type": "modify",
+  "risk_level": "medium",
+  "rationale": "State machine consolidation: iki ayri state modelini (work item + execution) tek kontrata topla, transition validation ekle, placeholder state_machine.v1.json'i doldur. Mevcut akislari bloke etme ve resume davranisini degistirme potansiyeli var.",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "gates": [
+    "python3 ci/validate_schemas.py",
+    "python3 -m pytest tests/ -x",
+    "python3 -m src.ops.single_trace_state_machine_contract_test",
+    "python3 -m src.ops.single_trace_fingerprint_idempotency_contract_test",
+    "python3 -m src.orchestrator.runner_stage_contract_suite_test"
+  ],
+  "patches": [
+    {
+      "op": "replace_milestone_steps",
+      "milestone_id": "M0",
+      "steps": [
+        {
+          "type": "note",
+          "text": "State consolidation: transition matrix schema, state_machine.v1.json filled, execution state constants, validate_transition guard, full trajectory contract test."
+        },
+        {
+          "type": "assert_core_paths_exist",
+          "paths": [
+            "schemas/state-machine-work-item.schema.v1.json",
+            "orchestrator/state_machine.v1.json",
+            "src/orchestrator/constants.py"
+          ]
+        },
+        {
+          "type": "assert_core_paths_exist",
+          "paths": [
+            "src/ops/work_item_state.py",
+            "src/orchestrator/runner_execute.py",
+            "src/orchestrator/runner_resume.py"
+          ]
+        }
+      ]
+    }
+  ]
+}

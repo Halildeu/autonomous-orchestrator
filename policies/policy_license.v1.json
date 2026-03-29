@@ -10,6 +10,6 @@
     "GPL-3.0-only"
   ],
   "unknown_behavior": "fail",
-  "version": "v1"
+  "version": "v1",
+  "fail_action": "warn"
 }
-

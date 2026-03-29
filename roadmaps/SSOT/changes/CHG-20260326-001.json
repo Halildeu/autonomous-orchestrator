@@ -1,0 +1,48 @@
+{
+  "change_id": "CHG-20260326-001",
+  "version": "v1",
+  "type": "modify",
+  "risk_level": "medium",
+  "rationale": "P0 crash consistency foundation: atomic write + fsync, file locking, governor stale-lock recovery, state metadata. Stateful dosyalarda silent corruption ve race condition riskini azaltir.",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "gates": [
+    "python3 ci/validate_schemas.py",
+    "python3 -m pytest tests/ -x",
+    "python3 ci/check_script_budget.py",
+    "python3 -m src.evidence.writer_contract_test",
+    "python3 -m src.orchestrator.failure_preview_contract_test",
+    "python3 -m src.orchestrator.runner_stage_contract_suite_test",
+    "python3 ci/quality_gate_contract_test.py"
+  ],
+  "patches": [
+    {
+      "op": "replace_milestone_steps",
+      "milestone_id": "M0",
+      "steps": [
+        {
+          "type": "note",
+          "text": "P0 crash safety foundation: atomic write primitives, file locking, governor stale recovery, state metadata, crash consistency contract."
+        },
+        {
+          "type": "assert_core_paths_exist",
+          "paths": [
+            "src/shared/atomicity.py",
+            "docs/OPERATIONS/CRASH-CONSISTENCY-CONTRACT.v1.md"
+          ]
+        },
+        {
+          "type": "assert_core_paths_exist",
+          "paths": [
+            "src/shared/utils.py",
+            "src/orchestrator/runner_config.py",
+            "src/orchestrator/idempotency.py",
+            "src/evidence/writer.py",
+            "src/evidence/integrity_verify.py"
+          ]
+        }
+      ]
+    }
+  ]
+}

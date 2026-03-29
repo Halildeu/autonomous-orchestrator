@@ -38,7 +38,15 @@
   "audit": {
     "enabled": true,
     "path": ".cache/reports/kernel_api_audit.v1.jsonl",
-    "redact_keys": ["*KEY*", "*TOKEN*", "*SECRET*", "authorization", "api_key", "bearer"],
+    "redact_keys": [
+      "*KEY*",
+      "*TOKEN*",
+      "*SECRET*",
+      "authorization",
+      "api_key",
+      "bearer"
+    ],
     "store_request_preview": true
-  }
+  },
+  "fail_action": "block"
 }

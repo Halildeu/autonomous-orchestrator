@@ -12,5 +12,6 @@
     "gap_summary_md": ".cache/reports/gap_summary.v1.md",
     "maturity_tracking": ".cache/index/north_star_maturity_tracking.v1.json"
   },
-  "max_controls": 2000
+  "max_controls": 2000,
+  "fail_action": "warn"
 }

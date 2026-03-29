@@ -11,19 +11,53 @@
     "github_ops"
   ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "enabled": { "type": "boolean" },
-    "auto_run_on_work_intake_check": { "type": "boolean" },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "auto_run_on_work_intake_check": {
+      "type": "boolean"
+    },
     "github_ops": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "prune_superseded_by_pass", "archive_reason"],
+      "required": [
+        "enabled",
+        "prune_superseded_by_pass",
+        "archive_reason"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "prune_superseded_by_pass": { "type": "boolean" },
-        "archive_reason": { "type": "string", "minLength": 1 }
+        "enabled": {
+          "type": "boolean"
+        },
+        "prune_superseded_by_pass": {
+          "type": "boolean"
+        },
+        "archive_reason": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "notes": { "type": "array", "items": { "type": "string" } }
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
+    }
   }
 }

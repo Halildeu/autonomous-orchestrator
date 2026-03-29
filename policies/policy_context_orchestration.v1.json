@@ -5,7 +5,16 @@
     "session_continuity": true,
     "context_pack_routing": true,
     "memory_assist": true,
-    "plan_apply_traceability": true
+    "plan_apply_traceability": true,
+    "profile_based_context": true
+  },
+  "profile_registry": {
+    "enabled": true,
+    "policy_path": "policies/policy_context_profile_registry.v1.json",
+    "schema_path": "schemas/context-profile-registry.schema.v1.json",
+    "active_artifact_path": ".cache/index/active_context_profile.v1.json",
+    "resolution_order": ["auto", "explicit", "default"],
+    "on_resolution_fail": "fallback_to_default"
   },
   "limits": {
     "max_context_pack_bytes": 65536,
@@ -23,12 +32,14 @@
   "outputs": {
     "workspace_reports": [
       ".cache/reports/context_orchestration_status.v1.json",
-      ".cache/reports/request_intake_to_exec_trace.v1.json"
+      ".cache/reports/request_intake_to_exec_trace.v1.json",
+      ".cache/index/active_context_profile.v1.json"
     ]
   },
   "guardrails": {
     "network_default": false,
     "report_only_on_missing_context": true,
     "fail_closed_on_schema_mismatch": true
-  }
+  },
+  "fail_action": "warn"
 }

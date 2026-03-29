@@ -4,9 +4,29 @@
   "title": "Policy Ethics",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "note"],
+  "required": [
+    "version",
+    "note"
+  ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "note": { "type": "string", "minLength": 1 }
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
+    }
   }
 }

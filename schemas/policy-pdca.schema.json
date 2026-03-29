@@ -4,34 +4,76 @@
   "title": "policy-pdca",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "enabled", "quota", "cooldown", "retention"],
+  "required": [
+    "version",
+    "enabled",
+    "quota",
+    "cooldown",
+    "retention"
+  ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "enabled": { "type": "boolean" },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
     "quota": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_gaps_per_run"],
+      "required": [
+        "max_gaps_per_run"
+      ],
       "properties": {
-        "max_gaps_per_run": { "type": "integer", "minimum": 0 }
+        "max_gaps_per_run": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "cooldown": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["days"],
+      "required": [
+        "days"
+      ],
       "properties": {
-        "days": { "type": "integer", "minimum": 0 }
+        "days": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "retention": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_reports"],
+      "required": [
+        "max_reports"
+      ],
       "properties": {
-        "max_reports": { "type": "integer", "minimum": 0 }
+        "max_reports": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
-    "notes": { "type": "array", "items": { "type": "string" } }
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
+    }
   }
 }

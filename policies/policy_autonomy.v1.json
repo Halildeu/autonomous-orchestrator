@@ -11,5 +11,6 @@
       "success_threshold": 0.8,
       "min_samples": 3
     }
-  }
+  },
+  "fail_action": "block"
 }

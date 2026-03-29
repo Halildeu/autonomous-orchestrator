@@ -26,5 +26,6 @@
     "content_hash_required": true,
     "version_required": true
   },
-  "idle_on_missing_manifests": true
+  "idle_on_missing_manifests": true,
+  "fail_action": "warn"
 }

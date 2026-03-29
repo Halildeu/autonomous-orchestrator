@@ -41,5 +41,6 @@
     "query_builder_path": "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts",
     "theme_contract_runtime_path": "web/packages/ui-kit/src/runtime/theme-contract.ts",
     "theme_context_provider_path": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
-  }
+  },
+  "fail_action": "warn"
 }

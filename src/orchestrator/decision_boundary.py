@@ -9,7 +9,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import load_policy_validated
 from src.tools.gateway import PolicyViolation
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _BOUNDARY_LEVELS = ("full_auto", "human_review", "strict_deny")
 
@@ -22,11 +25,14 @@ def _load_boundary_policy(workspace_root: Path | None = None) -> dict[str, Any]:
     repo_root = Path(__file__).resolve().parents[2]
     candidates.append(repo_root / "policies" / "policy_decision_boundaries.v1.json")
 
+    schema_path = _REPO_ROOT / "schemas" / "policy-decision-boundaries.schema.v1.json"
     for path in candidates:
         if path.exists():
             try:
+                if schema_path.exists():
+                    return load_policy_validated(path, schema_path)
                 return json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
+            except (ValueError, Exception):
                 continue
     return {"version": "v1", "default_mode": "human_review", "boundaries": {}}
 

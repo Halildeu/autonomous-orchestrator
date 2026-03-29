@@ -1,7 +1,12 @@
 {
   "version": "v1",
   "routing": {
-    "buckets": ["INCIDENT", "TICKET", "PROJECT", "ROADMAP"],
+    "buckets": [
+      "INCIDENT",
+      "TICKET",
+      "PROJECT",
+      "ROADMAP"
+    ],
     "default_bucket": "TICKET",
     "rule_engine": {
       "engine": "mini_dsl",
@@ -28,25 +33,49 @@
       {
         "id": "INC_DOC_NAV_GAPS",
         "if": "doc_nav.critical_nav_gaps>0",
-        "when": {"op": "gt", "left": {"var": "doc_nav.critical_nav_gaps"}, "right": 0},
+        "when": {
+          "op": "gt",
+          "left": {
+            "var": "doc_nav.critical_nav_gaps"
+          },
+          "right": 0
+        },
         "then": "INCIDENT"
       },
       {
         "id": "INC_INTEGRITY_FAIL",
         "if": "integrity.status==FAIL",
-        "when": {"op": "eq", "left": {"var": "integrity.status"}, "right": "FAIL"},
+        "when": {
+          "op": "eq",
+          "left": {
+            "var": "integrity.status"
+          },
+          "right": "FAIL"
+        },
         "then": "INCIDENT"
       },
       {
         "id": "INC_SCRIPT_BUDGET_HARD",
         "if": "script_budget.hard_exceeded>0",
-        "when": {"op": "gt", "left": {"var": "script_budget.hard_exceeded"}, "right": 0},
+        "when": {
+          "op": "gt",
+          "left": {
+            "var": "script_budget.hard_exceeded"
+          },
+          "right": 0
+        },
         "then": "INCIDENT"
       },
       {
         "id": "INC_PDCA_REGRESSION",
         "if": "pdca.regression_count>0",
-        "when": {"op": "gt", "left": {"var": "pdca.regression_count"}, "right": 0},
+        "when": {
+          "op": "gt",
+          "left": {
+            "var": "pdca.regression_count"
+          },
+          "right": 0
+        },
         "then": "INCIDENT"
       }
     ],
@@ -54,7 +83,17 @@
       {
         "id": "TICKET_MANUAL_KIND",
         "if": "manual_request.kind in ['support','question','minor_fix']",
-        "when": {"op": "in", "left": {"var": "manual_request.kind"}, "right": ["support", "question", "minor_fix"]},
+        "when": {
+          "op": "in",
+          "left": {
+            "var": "manual_request.kind"
+          },
+          "right": [
+            "support",
+            "question",
+            "minor_fix"
+          ]
+        },
         "then": "TICKET"
       },
       {
@@ -63,8 +102,24 @@
         "when": {
           "op": "and",
           "items": [
-            {"op": "in", "left": {"var": "gap.severity"}, "right": ["LOW"]},
-            {"op": "in", "left": {"var": "gap.effort"}, "right": ["S"]}
+            {
+              "op": "in",
+              "left": {
+                "var": "gap.severity"
+              },
+              "right": [
+                "LOW"
+              ]
+            },
+            {
+              "op": "in",
+              "left": {
+                "var": "gap.effort"
+              },
+              "right": [
+                "S"
+              ]
+            }
           ]
         },
         "then": "TICKET"
@@ -75,8 +130,22 @@
         "when": {
           "op": "and",
           "items": [
-            {"op": "truthy", "value": {"var": "script_budget.soft_only"}},
-            {"op": "starts_with", "left": {"var": "target_path"}, "right": ["docs/", "ci/"]}
+            {
+              "op": "truthy",
+              "value": {
+                "var": "script_budget.soft_only"
+              }
+            },
+            {
+              "op": "starts_with",
+              "left": {
+                "var": "target_path"
+              },
+              "right": [
+                "docs/",
+                "ci/"
+              ]
+            }
           ]
         },
         "then": "TICKET"
@@ -88,15 +157,31 @@
         "if": "manual_request.kind in ['feature','refactor','new_project','context-router']",
         "when": {
           "op": "in",
-          "left": {"var": "manual_request.kind"},
-          "right": ["feature", "refactor", "new_project", "context-router"]
+          "left": {
+            "var": "manual_request.kind"
+          },
+          "right": [
+            "feature",
+            "refactor",
+            "new_project",
+            "context-router"
+          ]
         },
         "then": "PROJECT"
       },
       {
         "id": "PROJECT_GAP_MEDIUM_HIGH",
         "if": "gap.severity in ['MEDIUM','HIGH']",
-        "when": {"op": "in", "left": {"var": "gap.severity"}, "right": ["MEDIUM", "HIGH"]},
+        "when": {
+          "op": "in",
+          "left": {
+            "var": "gap.severity"
+          },
+          "right": [
+            "MEDIUM",
+            "HIGH"
+          ]
+        },
         "then": "PROJECT"
       },
       {
@@ -105,8 +190,22 @@
         "when": {
           "op": "and",
           "items": [
-            {"op": "truthy", "value": {"var": "script_budget.soft_only"}},
-            {"op": "starts_with", "left": {"var": "target_path"}, "right": ["src/ops/", "src/orchestrator/"]}
+            {
+              "op": "truthy",
+              "value": {
+                "var": "script_budget.soft_only"
+              }
+            },
+            {
+              "op": "starts_with",
+              "left": {
+                "var": "target_path"
+              },
+              "right": [
+                "src/ops/",
+                "src/orchestrator/"
+              ]
+            }
           ]
         },
         "then": "PROJECT"
@@ -116,7 +215,16 @@
       {
         "id": "ROADMAP_MANUAL_KIND",
         "if": "manual_request.kind in ['strategy','multi-quarter']",
-        "when": {"op": "in", "left": {"var": "manual_request.kind"}, "right": ["strategy", "multi-quarter"]},
+        "when": {
+          "op": "in",
+          "left": {
+            "var": "manual_request.kind"
+          },
+          "right": [
+            "strategy",
+            "multi-quarter"
+          ]
+        },
         "then": "ROADMAP"
       }
     ]
@@ -124,11 +232,25 @@
   "context_pack": {
     "max_bytes_preview": 4096,
     "pointer_only": true,
-    "include_sections": ["define", "measure_raw", "integrity", "eval", "gap", "pdca", "guardrails", "routing"],
+    "include_sections": [
+      "define",
+      "measure_raw",
+      "integrity",
+      "eval",
+      "gap",
+      "pdca",
+      "guardrails",
+      "routing"
+    ],
     "redaction": {
       "enabled": true,
-      "deny_patterns": ["API_KEY", "PASSWORD", "SECRET"],
+      "deny_patterns": [
+        "API_KEY",
+        "PASSWORD",
+        "SECRET"
+      ],
       "max_preview_chars": 800
     }
-  }
+  },
+  "fail_action": "warn"
 }

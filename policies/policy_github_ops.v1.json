@@ -42,5 +42,6 @@
   },
   "notes": [
     "network_default_off"
-  ]
+  ],
+  "fail_action": "warn"
 }

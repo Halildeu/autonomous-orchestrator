@@ -25,5 +25,6 @@
       "assessment_eval.v1.json",
       "gap_register.v1.json"
     ]
-  }
+  },
+  "fail_action": "warn"
 }

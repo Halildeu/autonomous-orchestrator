@@ -14,28 +14,64 @@
     "on_fail"
   ],
   "properties": {
-    "version": { "type": "string", "enum": ["v1"] },
-    "enabled": { "type": "boolean" },
-    "output_path": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "enum": [
+        "v1"
+      ]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "output_path": {
+      "type": "string",
+      "minLength": 1
+    },
     "required_files": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "minItems": 0,
       "uniqueItems": true
     },
     "required_policies": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "minItems": 0,
       "uniqueItems": true
     },
     "integration_flags": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "minItems": 0,
       "uniqueItems": true
     },
-    "on_fail": { "type": "string", "enum": ["warn", "block"] },
-    "note": { "type": "string" }
+    "on_fail": {
+      "type": "string",
+      "enum": [
+        "warn",
+        "block"
+      ]
+    },
+    "note": {
+      "type": "string"
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
+    }
   }
 }

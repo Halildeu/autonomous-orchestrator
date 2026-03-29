@@ -25,5 +25,6 @@
   "notes": [
     "PROGRAM_LED=true",
     "NO_WAIT=true"
-  ]
+  ],
+  "fail_action": "warn"
 }
