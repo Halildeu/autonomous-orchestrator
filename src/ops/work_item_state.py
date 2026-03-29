@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from src.shared.status import validate_transition
+from src.shared.utils import write_json_atomic
+from src.shared.wal import WALWriter
 
 STATE_OPEN = "OPEN"
 STATE_PLANNED = "PLANNED"
@@ -33,9 +35,15 @@ def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+def _write_json(path: Path, payload: dict[str, Any], *, workspace_root: Path | None = None) -> None:
+    """WAL-guarded atomic write for state files."""
+    if workspace_root:
+        wal = WALWriter(workspace_root=workspace_root, store_id="work_item_state")
+        with wal.transaction(path, payload) as txn:
+            write_json_atomic(path, payload)
+            txn.commit()
+    else:
+        write_json_atomic(path, payload)
 
 
 def _normalize_items(raw: Any) -> dict[str, dict[str, Any]]:
@@ -75,7 +83,7 @@ def save_state_map(workspace_root: Path, state_map: dict[str, dict[str, Any]]) -
         "workspace_root": str(workspace_root),
         "items": items,
     }
-    _write_json(_state_path(workspace_root), payload)
+    _write_json(_state_path(workspace_root), payload, workspace_root=workspace_root)
 
 
 def get_state_entry(workspace_root: Path, work_item_id: str) -> dict[str, Any] | None:
