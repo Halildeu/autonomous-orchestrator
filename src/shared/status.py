@@ -132,3 +132,64 @@ def validate_transition(from_state: str | None, to_state: str) -> str:
             f"Allowed: {sorted(_WORK_ITEM_ALLOWED_TRANSITIONS)}"
         )
     return norm_to
+
+
+# ── Run Execution Transition Validation ───────────────────────────
+
+# Derived from orchestrator/state_machine.v1.json run_execution.transitions.
+_RUN_EXECUTION_ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset({
+    ("PENDING", "RUNNING"),
+    ("PENDING", "FAILED"),
+    ("RUNNING", "COMPLETED"),
+    ("RUNNING", "FAILED"),
+    ("RUNNING", "SUSPENDED"),
+    ("SUSPENDED", "RUNNING"),
+    ("SUSPENDED", "FAILED"),
+    # Initial write
+    ("", "PENDING"),
+})
+
+
+def validate_run_transition(from_state: str | None, to_state: str) -> str:
+    """Validate a run_execution state transition. Fail-closed.
+
+    Returns ``to_state`` if valid; raises ``ValueError`` on invalid transition.
+    """
+    norm_from = str(from_state or "").strip().upper()
+    norm_to = str(to_state or "").strip().upper()
+    if (norm_from, norm_to) not in _RUN_EXECUTION_ALLOWED_TRANSITIONS:
+        raise ValueError(
+            f"Invalid run_execution transition: {norm_from!r} → {norm_to!r}. "
+            f"Allowed: {sorted(_RUN_EXECUTION_ALLOWED_TRANSITIONS)}"
+        )
+    return norm_to
+
+
+# ── Node Execution Transition Validation ──────────────────────────
+
+# Derived from orchestrator/state_machine.v1.json node_execution.transitions.
+_NODE_EXECUTION_ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset({
+    ("PENDING", "RUNNING"),
+    ("PENDING", "SKIPPED"),
+    ("RUNNING", "COMPLETED"),
+    ("RUNNING", "FAILED"),
+    ("RUNNING", "SUSPENDED"),
+    ("SUSPENDED", "RUNNING"),
+    # Initial write
+    ("", "PENDING"),
+})
+
+
+def validate_node_transition(from_state: str | None, to_state: str) -> str:
+    """Validate a node_execution state transition. Fail-closed.
+
+    Returns ``to_state`` if valid; raises ``ValueError`` on invalid transition.
+    """
+    norm_from = str(from_state or "").strip().upper()
+    norm_to = str(to_state or "").strip().upper()
+    if (norm_from, norm_to) not in _NODE_EXECUTION_ALLOWED_TRANSITIONS:
+        raise ValueError(
+            f"Invalid node_execution transition: {norm_from!r} → {norm_to!r}. "
+            f"Allowed: {sorted(_NODE_EXECUTION_ALLOWED_TRANSITIONS)}"
+        )
+    return norm_to
