@@ -1,0 +1,46 @@
+{
+  "change_id": "CHG-20260329-001",
+  "type": "modify",
+  "version": "v1",
+  "risk_level": "low",
+  "rationale": "28 milestones all show 'open' but PR #39 merge (17 commits) delivered partial/complete deliverables for 8 milestones. This CHG syncs milestone status with verified CI evidence.",
+  "target": {
+    "milestone_id": "M0"
+  },
+  "gates": [
+    "python3 ci/validate_schemas.py",
+    "python3 -m src.ops.manage system-status --workspace-root .cache/ws_customer_default"
+  ],
+  "patches": [
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M0",
+      "note": "Status sync: M0 in_progress — Core/Workspace boundary documented (LAYER-MODEL-LOCK), workspace-bootstrap exists, module-delivery-lanes CI active."
+    },
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M0.1",
+      "note": "Status sync: M0.1 done — policy_core_immutability + schema present, project/default workspace root created."
+    },
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M2",
+      "note": "Status sync: M2 in_progress — Decision boundary + quality gates + risk scoring + human approval schema all delivered. Missing: tenant decision-bundle consistency gate."
+    },
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M8.1",
+      "note": "Status sync: M8.1 in_progress — system_status_report.py functional, ops command passing CI, cockpit-serve active. Missing: unified dashboard frontend."
+    },
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M10.1",
+      "note": "Status sync: M10.1 in_progress — maturity_assessment rubric exists, evidence_commands defined, north_star schemas present."
+    },
+    {
+      "op": "append_milestone_note",
+      "milestone_id": "M11.2",
+      "note": "Status sync: M11.2 in_progress — portfolio-status ops command functional and passing CI."
+    }
+  ]
+}
