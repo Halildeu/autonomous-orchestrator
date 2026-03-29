@@ -13,7 +13,7 @@
     "policy_path": "policies/policy_context_profile_registry.v1.json",
     "schema_path": "schemas/context-profile-registry.schema.v1.json",
     "active_artifact_path": ".cache/index/active_context_profile.v1.json",
-    "resolution_order": ["auto", "explicit", "default"],
+    "resolution_order": ["explicit", "auto", "default"],
     "on_resolution_fail": "fallback_to_default"
   },
   "limits": {

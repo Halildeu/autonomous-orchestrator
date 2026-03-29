@@ -1,14 +1,42 @@
 rules:
-  - id: enf.v1.ep003.contract_drift
-    languages: [generic]
-    message: "EP-003 Contract Drift (skeleton): replace placeholder regex with real rule(s)."
+  - id: enf.v1.ep003.custom_json_helper
+    languages: [python]
+    message: "EP-003 Contract Drift: Use src.shared.utils (load_json, write_json_atomic) instead of custom JSON helpers. Custom _load_json/_dump_json/_write_json creates drift from canonical shared utilities."
     severity: WARNING
     paths:
+      include:
+        - src/**
+        - ci/**
       exclude:
-        - extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/**
-    pattern-regex: "ENF_V1_TODO_EP003_CONTRACT_DRIFT"
+        - src/shared/utils.py
+        - src/utils/jsonio.py
+        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - "**/*test*"
+        - "**/*contract*"
+    patterns:
+      - pattern-regex: "def\\s+_(?:load_json|dump_json|write_json|read_json)\\s*\\("
     metadata:
       enforcement_pack: ENF_V1
       ep_id: "EP-003"
-      stage: skeleton
-      rationale: "Detect contract/schema metadata drift or incompatible changes."
+      stage: v1_real
+      rationale: "Detect custom JSON I/O helpers that duplicate src.shared.utils functions, causing contract drift."
+
+  - id: enf.v1.ep003.custom_now_helper
+    languages: [python]
+    message: "EP-003 Contract Drift: Use src.shared.utils.now_iso8601() instead of custom _now_iso/_now_utc helpers."
+    severity: WARNING
+    paths:
+      include:
+        - src/**
+        - ci/**
+      exclude:
+        - src/shared/utils.py
+        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - "**/*test*"
+    patterns:
+      - pattern-regex: "def\\s+_(?:now_iso|now_utc|now_iso_utc|iso_now)\\s*\\("
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-003"
+      stage: v1_real
+      rationale: "Detect custom timestamp helpers that drift from canonical now_iso8601()."
