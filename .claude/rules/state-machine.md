@@ -1,3 +1,6 @@
+---
+globs: orchestrator/state_machine*,src/shared/status.py,src/ops/work_item_state.py
+---
 # State Machine Rules
 
 - State definitions: `orchestrator/state_machine.v1.json` (schema: `schemas/state-machine.schema.v1.json`)

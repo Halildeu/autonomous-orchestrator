@@ -1,3 +1,6 @@
+---
+globs: src/ops/context_pack_*.py,src/context/**
+---
 # Context Pack Rules
 
 - Profile resolution FIRST: check `policies/policy_context_profile_registry.v1.json` before loading any context

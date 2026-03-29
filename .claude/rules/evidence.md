@@ -1,3 +1,6 @@
+---
+globs: src/evidence/**,.cache/**/reports/**
+---
 # Evidence Rules
 
 - Every side-effect (state write, policy decision, approval request) MUST produce an evidence trace

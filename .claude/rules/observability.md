@@ -1,3 +1,6 @@
+---
+globs: src/orchestrator/observability/**,src/shared/logger.py
+---
 # Observability Rules
 
 - Logger: use `src.shared.logger.get_logger(__name__)` — never use `print()` for structured output

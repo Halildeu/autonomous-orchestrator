@@ -58,6 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.commands.agent_handoff_cmds import register_agent_handoff_subcommands
     from src.ops.commands.bootstrap_cmds import register_bootstrap_subcommands
     from src.ops.context_profile_resolver import register_context_profile_check_subcommand
+    from src.ops.compile_rules_digest import register_compile_rules_digest_subcommand
+    from src.ops.write_authorize import register_write_authorize_subcommand
 
     register_status_subcommands(sub)
     register_hygiene_subcommands(sub)
@@ -87,6 +89,8 @@ def build_parser() -> argparse.ArgumentParser:
     register_agent_handoff_subcommands(sub)
     register_bootstrap_subcommands(sub)
     register_context_profile_check_subcommand(sub)
+    register_compile_rules_digest_subcommand(sub)
+    register_write_authorize_subcommand(sub)
 
     return parser
 
