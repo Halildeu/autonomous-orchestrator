@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import json
 from datetime import datetime, timezone
@@ -98,6 +99,6 @@ def write_dlq_record(
         "envelope": minimal,
         "ts": iso_utc_now(),
     }
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(path, record)
     return path
 

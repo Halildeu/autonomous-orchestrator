@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import hashlib
@@ -250,9 +251,9 @@ def _policy_check_generate_report(
             root=root,
             north_star_subject_plan_contract=north_star_subject_plan_contract,
         )
-        report_path.write_text(md, encoding="utf-8")
+        write_text_atomic(report_path, md)
     except Exception:
-        report_path.write_text("# Policy Check Report\n\n(Report generation failed.)\n", encoding="utf-8")
+        write_text_atomic(report_path, "# Policy Check Report\n\n(Report generation failed.)\n")
     return report_path
 
 

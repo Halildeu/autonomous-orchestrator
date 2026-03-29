@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import re
@@ -257,7 +258,7 @@ def run_smoke_full_triage(*, workspace_root: Path, job_id: str, detail: bool = F
             "stdout_path": _rel_from_workspace(stdout_path, workspace_root),
             "rc_path": _rel_from_workspace(rc_path, workspace_root),
         }
-    triage_path.write_text(_dump_json(triage), encoding="utf-8")
+    write_text_atomic(triage_path, _dump_json(triage))
 
     md_lines = [
         "# Smoke Full Triage",
@@ -305,7 +306,7 @@ def run_smoke_full_triage(*, workspace_root: Path, job_id: str, detail: bool = F
         }
         catalog_path_out = workspace_root / catalog_rel
         catalog_path_out.parent.mkdir(parents=True, exist_ok=True)
-        catalog_path_out.write_text(_dump_json(catalog_payload), encoding="utf-8")
+        write_text_atomic(catalog_path_out, _dump_json(catalog_payload))
         (workspace_root / ".cache" / "reports" / "catalog_parse_triage.v1.md").write_text(
             "\n".join(
                 [
@@ -337,7 +338,7 @@ def run_smoke_full_triage(*, workspace_root: Path, job_id: str, detail: bool = F
     }
     advisor_path_out = workspace_root / advisor_rel
     advisor_path_out.parent.mkdir(parents=True, exist_ok=True)
-    advisor_path_out.write_text(_dump_json(advisor_payload), encoding="utf-8")
+    write_text_atomic(advisor_path_out, _dump_json(advisor_payload))
 
     return {
         "status": "OK",

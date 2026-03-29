@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -244,7 +244,7 @@ def run_layer_boundary_check(*, workspace_root: Path, mode: str = "report") -> d
     if notes:
         lines.append("")
         lines.append("Notes: " + ", ".join(sorted(set(notes))))
-    out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(lines) + "\n")
 
     rel_json = _rel_to_workspace(out_json, workspace_root)
     rel_md = _rel_to_workspace(out_md, workspace_root)

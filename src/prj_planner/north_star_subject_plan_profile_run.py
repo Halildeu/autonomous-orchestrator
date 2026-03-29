@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -373,7 +374,7 @@ def run_north_star_subject_plan_profile_run(
                 notes.extend(validation_notes)
                 break
 
-            override_path.write_text(_dump_json(profile_override), encoding="utf-8")
+            write_text_atomic(override_path, _dump_json(profile_override))
 
             requested_out = _safe_str(out).lower()
             if requested_out in {"", "latest"}:
@@ -421,7 +422,7 @@ def run_north_star_subject_plan_profile_run(
             selected_override = _PROFILE_OVERRIDES.get(selected_profile, _PROFILE_OVERRIDES[_DEFAULT_PROFILE])
             valid_override, validation_notes = _validate_scoring_override(selected_override)
             if valid_override:
-                override_path.write_text(_dump_json(selected_override), encoding="utf-8")
+                write_text_atomic(override_path, _dump_json(selected_override))
                 notes.append(f"persist_profile={selected_profile}")
             else:
                 notes.append("persist_profile_failed_contract")
@@ -483,7 +484,7 @@ def run_north_star_subject_plan_profile_run(
     report_obj["subjects"] = subjects
     report_obj["last_subject_id"] = subject_norm
     report_obj["updated_at"] = _now_iso8601()
-    report_path.write_text(_dump_json(report_obj), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(report_obj))
 
     run_statuses = [str(entry.get("status") or "").upper() for entry in run_entries if isinstance(entry, dict)]
     if run_statuses and all(status == "OK" for status in run_statuses):

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -287,7 +288,7 @@ def run_readiness_for_workspace(
         }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(payload, encoding="utf-8")
+    write_text_atomic(out_path, payload)
     return {
         "status": "OK",
         "result_status": report.get("status"),

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -173,7 +174,7 @@ def build_extension_help(*, workspace_root: Path, detail: bool = False) -> dict[
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
 
-    out_json.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(payload))
 
     md_lines = [
         "# Extension Help (v1)",
@@ -197,7 +198,7 @@ def build_extension_help(*, workspace_root: Path, detail: bool = False) -> dict[
         for err in errors[:10]:
             md_lines.append(f"- {err}")
 
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     return {
         "status": status,

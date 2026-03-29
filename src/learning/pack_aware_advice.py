@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -258,7 +259,7 @@ def main() -> None:
         return
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(report))
 
     schema_path = core_root / "schemas" / "pack-advisor-suggestions.schema.json"
     if schema_path.exists():

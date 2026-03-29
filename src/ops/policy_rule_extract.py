@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -210,7 +211,7 @@ def run_policy_rule_extract(
         for match in matches[:10]:
             md_lines.append(f"- {match.get('path')}")
         md_resolved.parent.mkdir(parents=True, exist_ok=True)
-        md_resolved.write_text("\n".join(md_lines), encoding="utf-8")
+        write_text_atomic(md_resolved, "\n".join(md_lines))
 
     try:
         rel = out_resolved.resolve().relative_to(workspace_root.resolve()).as_posix()

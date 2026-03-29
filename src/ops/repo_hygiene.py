@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import fnmatch
@@ -236,7 +237,7 @@ def _write_change_proposal(
     }
 
     out_path = changes_dir / f"{change_id}.json"
-    out_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(payload))
     return out_path
 
 
@@ -318,7 +319,7 @@ def run_repo_hygiene(
 
     if out_path is not None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(_dump_json(report), encoding="utf-8")
+        write_text_atomic(out_path, _dump_json(report))
 
     return report
 

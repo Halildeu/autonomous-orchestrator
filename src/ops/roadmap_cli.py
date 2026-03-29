@@ -468,7 +468,7 @@ def cmd_portfolio_status(args: argparse.Namespace) -> int:
 
     out_path = workspace_root / ".cache" / "reports" / "portfolio_status.v1.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+    write_json_atomic(out_path, report)
 
     final_json = {
         "status": status,

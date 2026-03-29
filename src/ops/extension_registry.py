@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -339,7 +340,7 @@ def build_extension_registry(*, workspace_root: Path, mode: str = "report") -> d
     out_index.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
 
-    out_index.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_index, _dump_json(payload))
 
     md_lines = [
         "# Extension Registry Summary (v1)",
@@ -362,7 +363,7 @@ def build_extension_registry(*, workspace_root: Path, mode: str = "report") -> d
         for err in errors[:10]:
             md_lines.append(f"- {err}")
 
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     return {
         "status": status,

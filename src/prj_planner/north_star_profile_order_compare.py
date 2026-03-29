@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -141,7 +142,7 @@ def run_north_star_profile_order_compare(
     try:
         for index, order in enumerate(orders, start=1):
             override_obj = {"version": "v1", "quality_gate": {"preferred_profile_order": order}}
-            override_path.write_text(_dump_json(override_obj), encoding="utf-8")
+            write_text_atomic(override_path, _dump_json(override_obj))
 
             payload = run_north_star_subject_plan_profile_run(
                 workspace_root=workspace_root,
@@ -213,7 +214,7 @@ def run_north_star_profile_order_compare(
         "notes": notes,
         "errors": errors,
     }
-    report_abs.write_text(_dump_json(report_obj), encoding="utf-8")
+    write_text_atomic(report_abs, _dump_json(report_obj))
 
     status = "OK" if not errors else "WARN"
     return {

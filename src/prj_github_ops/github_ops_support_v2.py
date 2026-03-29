@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -572,7 +573,7 @@ def _save_jobs_index(workspace_root: Path, index: dict[str, Any]) -> str:
 
     path = _jobs_index_path(workspace_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(index), encoding="utf-8")
+    write_text_atomic(path, _dump_json(index))
     rel = Path(".cache") / "github_ops" / path.name
     return rel.as_posix()
 
@@ -584,7 +585,7 @@ def _job_report_path(workspace_root: Path, job_id: str) -> Path:
 def _write_job_report(workspace_root: Path, job: dict[str, Any]) -> str:
     path = _job_report_path(workspace_root, str(job.get("job_id") or "unknown"))
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(job), encoding="utf-8")
+    write_text_atomic(path, _dump_json(job))
     return (Path(".cache") / "reports" / "github_ops_jobs" / path.name).as_posix()
 
 

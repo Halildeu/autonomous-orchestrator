@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -259,7 +260,7 @@ def seed_jobs(
     }
     out_path = _jobs_index_path(workspace_root)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(payload))
 
     seed_audit_rel = Path(".cache") / "reports" / "airunner_seed_audit.v1.json"
     if seeded_ids:
@@ -278,7 +279,7 @@ def seed_jobs(
         }
         audit_path = workspace_root / seed_audit_rel
         audit_path.parent.mkdir(parents=True, exist_ok=True)
-        audit_path.write_text(_dump_json(audit), encoding="utf-8")
+        write_text_atomic(audit_path, _dump_json(audit))
 
     return {
         "status": "OK" if seeded_ids else "IDLE",
@@ -300,7 +301,7 @@ def _job_report_path(workspace_root: Path, job_id: str) -> Path:
 def _write_job_report(workspace_root: Path, payload: dict[str, Any]) -> str:
     path = _job_report_path(workspace_root, str(payload.get("job_id", "unknown")))
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(path, _dump_json(payload))
     return str(Path(".cache") / "reports" / "airunner_jobs" / path.name)
 
 
@@ -380,7 +381,7 @@ def _archive_pruned_jobs(workspace_root: Path, jobs: list[dict[str, Any]]) -> st
         "entries": entries,
         "notes": [],
     }
-    archive_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(archive_path, _dump_json(payload))
     return str(Path(".cache") / "reports" / archive_path.name)
 
 
@@ -1185,6 +1186,6 @@ def update_jobs(
 
     out_path = _jobs_index_path(workspace_root)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(payload))
 
     return payload, notes, run_stats

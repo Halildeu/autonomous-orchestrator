@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import importlib.util
 import json
@@ -214,8 +215,8 @@ def run_search_check(
         }
     )
 
-    out_json.write_text(_dump_json(result), encoding="utf-8")
-    out_md.write_text(_build_markdown(result), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(result))
+    write_text_atomic(out_md, _build_markdown(result))
 
     if chat:
         print("PREVIEW:")

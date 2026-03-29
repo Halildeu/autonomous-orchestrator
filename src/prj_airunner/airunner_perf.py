@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from hashlib import sha256
@@ -56,7 +57,7 @@ def append_perf_event(
     lines.append(json.dumps(sanitized, ensure_ascii=False, sort_keys=True))
     if max_lines and len(lines) > max_lines:
         lines = lines[-max_lines:]
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
     return str(Path(".cache") / "airunner" / "perf_events.v1.jsonl")
 
 

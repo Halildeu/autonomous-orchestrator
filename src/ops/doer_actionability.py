@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -374,7 +375,7 @@ def run_doer_actionability(*, workspace_root: Path, out: str = "auto") -> dict[s
     _ensure_inside_workspace(workspace_root, md_path)
 
     json_path.parent.mkdir(parents=True, exist_ok=True)
-    json_path.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(json_path, _dump_json(report))
 
     md_lines = [
         "DOER ACTIONABILITY",
@@ -409,7 +410,7 @@ def run_doer_actionability(*, workspace_root: Path, out: str = "auto") -> dict[s
         for entry in top_blockers:
             md_lines.append(f"- {entry['reason']}: {entry['count']}")
     md_path.parent.mkdir(parents=True, exist_ok=True)
-    md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(md_path, "\n".join(md_lines) + "\n")
 
     return {
         "status": status,

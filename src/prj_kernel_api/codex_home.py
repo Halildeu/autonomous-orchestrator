@@ -1,6 +1,7 @@
 """Program-led Codex home bootstrap (workspace-scoped, deterministic)."""
 
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import tomllib
@@ -145,7 +146,7 @@ def ensure_codex_home(workspace_root: str) -> Dict[str, str]:
     rendered = str(resolved.get("rendered_toml") or "")
     current = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     if current != rendered:
-        config_path.write_text(rendered, encoding="utf-8")
+        write_text_atomic(config_path, rendered)
 
     env_overrides = {"CODEX_HOME": str(target)}
     overlay_sources = resolved.get("overlay_sources")

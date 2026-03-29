@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from src.shared.utils import write_json_atomic
 
 from jsonschema import Draft202012Validator
 
@@ -293,7 +294,7 @@ def main() -> None:
         return
 
     index_dir.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(json.dumps(index_obj, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(index_path, index_obj)
 
     cursor_obj = {
         "version": "v1",
@@ -301,7 +302,7 @@ def main() -> None:
         "pack_manifest_sha256_map": pack_manifest_sha256_map,
         "last_index_sha256": index_sha,
     }
-    cursor_path.write_text(json.dumps(cursor_obj, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(cursor_path, cursor_obj)
 
     print(
         json.dumps(

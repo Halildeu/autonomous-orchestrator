@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import os
@@ -33,7 +34,7 @@ def _save_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
-    tmp.write_text(payload, encoding="utf-8")
+    write_text_atomic(tmp, payload)
     tmp.replace(path)
 
 

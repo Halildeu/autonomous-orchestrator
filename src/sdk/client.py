@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import json
 import subprocess
@@ -224,7 +225,7 @@ class OrchestratorClient:
         req_dir = self._workspace / ".cache" / "sdk_requests"
         req_dir.mkdir(parents=True, exist_ok=True)
         envelope_path = req_dir / f"{request_id}.json"
-        envelope_path.write_text(json.dumps(envelope, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+        write_json_atomic(envelope_path, envelope)
 
         cmd = [
             sys.executable,

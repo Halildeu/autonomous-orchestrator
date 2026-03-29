@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -207,7 +208,7 @@ def run_heartbeat_checker_pinpoint(
         md_lines.append("")
 
     out_md_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_md_resolved.write_text("\n".join(md_lines), encoding="utf-8")
+    write_text_atomic(out_md_resolved, "\n".join(md_lines))
 
     try:
         rel = out_json_resolved.resolve().relative_to(workspace_root.resolve()).as_posix()

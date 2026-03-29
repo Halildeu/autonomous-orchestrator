@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import hashlib
 import json
@@ -130,7 +131,7 @@ def acquire_doer_loop_lock(
         }
         clear_path = _clear_stale_report_path(workspace_root)
         clear_path.parent.mkdir(parents=True, exist_ok=True)
-        clear_path.write_text(_dump_json(clear_report), encoding="utf-8")
+        write_text_atomic(clear_path, _dump_json(clear_report))
         try:
             lock_path.unlink()
         except Exception:
@@ -152,7 +153,7 @@ def acquire_doer_loop_lock(
         "ttl_seconds": int(ttl_seconds),
     }
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(lock_path, _dump_json(payload))
     return {
         "status": "OK",
         "lock_path": str(Path(".cache") / "doer" / "doer_loop_lock.v1.json"),
@@ -172,7 +173,7 @@ def touch_doer_loop_lock(*, workspace_root: Path, lease_id: str) -> dict[str, An
     if str(lock.get("lease_id") or "") != str(lease_id or ""):
         return {"status": "MISMATCH"}
     lock["heartbeat_at"] = _now_iso()
-    lock_path.write_text(_dump_json(lock), encoding="utf-8")
+    write_text_atomic(lock_path, _dump_json(lock))
     return {"status": "OK", "heartbeat_at": lock.get("heartbeat_at")}
 
 

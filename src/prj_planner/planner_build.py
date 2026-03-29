@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import hashlib
 import json
@@ -252,7 +253,7 @@ def _write_plan_summary(*, workspace_root: Path, plan: dict[str, Any], plan_rel:
         lines.append(f"- {step.get('step_id', '')}: {step.get('type', '')} -> {ops_str}")
 
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(summary_path, "\n".join(lines) + "\n")
     return _rel_path(workspace_root, summary_path)
 
 
@@ -338,8 +339,8 @@ def run_planner_build_plan(*, workspace_root: Path, mode: str = "plan_first", ou
         plan_obj["steps"] = plan_obj["steps"][:-1]
         dumped = _dump_json(plan_obj)
 
-    plan_path.write_text(dumped, encoding="utf-8")
-    latest_path.write_text(dumped, encoding="utf-8")
+    write_text_atomic(plan_path, dumped)
+    write_text_atomic(latest_path, dumped)
     plan_rel = _rel_path(workspace_root, plan_path)
     summary_rel = _write_plan_summary(workspace_root=workspace_root, plan=plan_obj, plan_rel=plan_rel)
 
@@ -463,7 +464,7 @@ def run_planner_apply_selection(
         "notes": ["PROGRAM_LED=true", "source=planner_apply_selection"],
     }
     selection_path.parent.mkdir(parents=True, exist_ok=True)
-    selection_path.write_text(_dump_json(selection_obj), encoding="utf-8")
+    write_text_atomic(selection_path, _dump_json(selection_obj))
 
     final_status = "OK" if selected_ids else "IDLE"
     final_error = None if selected_ids else "NO_SELECTED_IDS"

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from pathlib import Path
@@ -515,7 +516,7 @@ def run_smoke_fast_triage(*, workspace_root: Path, job_id: str, detail: bool = F
             "stdout_path": _rel_from_workspace(stdout_path, workspace_root),
             "rc_path": _rel_from_workspace(rc_path, workspace_root),
         }
-    triage_path.write_text(_dump_json(triage), encoding="utf-8")
+    write_text_atomic(triage_path, _dump_json(triage))
 
     md_lines = [
         "# Smoke Fast Triage",

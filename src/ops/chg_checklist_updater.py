@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -203,9 +204,9 @@ def update_checklist_step(
     notes.append(f"{step_id}_{normalized}=true")
     plan["notes"] = _normalize_paths(notes)
 
-    plan_path.write_text(_dump_json(plan), encoding="utf-8")
+    write_text_atomic(plan_path, _dump_json(plan))
     md_path = plan_path.with_suffix(".md")
-    md_path.write_text(_render_markdown(plan), encoding="utf-8")
+    write_text_atomic(md_path, _render_markdown(plan))
 
     return {
         "status": "OK",

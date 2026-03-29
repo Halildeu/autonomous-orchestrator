@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -309,7 +310,7 @@ def _load_cursor(path: Path) -> dict[str, Any] | None:
 def _write_cursor(path: Path, cursor: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
-    tmp.write_text(_dump_json(cursor), encoding="utf-8")
+    write_text_atomic(tmp, _dump_json(cursor))
     tmp.replace(path)
 
 
@@ -529,7 +530,7 @@ def harvest_to_path(
     try:
         tmp_dir.mkdir(parents=True, exist_ok=True)
         tmp_file = tmp_dir / out_path.name
-        tmp_file.write_text(payload, encoding="utf-8")
+        write_text_atomic(tmp_file, payload)
         ok_scan, findings = sanitize.scan_directory(root=tmp_dir, forbidden_tokens=policy.forbid_patterns)
         if not ok_scan:
             try:

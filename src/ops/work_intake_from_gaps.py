@@ -8,7 +8,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -257,7 +257,7 @@ def _write_md(path: Path, summary: dict[str, Any]) -> None:
             f"- {item.get('intake_id', '')} bucket={item.get('bucket', '')} "
             f"severity={item.get('severity', '')} priority={item.get('priority', '')}"
         )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def run_work_intake_build(*, workspace_root: Path, mode: str = "build") -> dict[str, Any]:
@@ -351,7 +351,7 @@ def run_work_intake_build(*, workspace_root: Path, mode: str = "build") -> dict[
             "generated_at": _now_iso(),
         }
         write_json_atomic(plan_path, plan)
-        plan_md_path.write_text(f"CHG PLAN: {chg_id}\n\nItems: {len(intake_ids)}\n", encoding="utf-8")
+        write_text_atomic(plan_md_path, f"CHG PLAN: {chg_id}\n\nItems: {len(intake_ids)}\n")
         return {"status": "OK", "work_intake_path": str(intake_path), "plan_path": str(plan_path)}
 
     return {

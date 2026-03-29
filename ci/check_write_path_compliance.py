@@ -57,7 +57,7 @@ def _scan_file(path: Path) -> list[dict[str, str | int]]:
     return violations
 
 
-_DEFAULT_MAX_VIOLATIONS = 270  # Ratchet baseline — reduced from 348 after batch migration (79 sites)
+_DEFAULT_MAX_VIOLATIONS = 60  # Ratchet baseline — reduced from 270 after batch migration (211 total sites migrated)
 
 
 def main(argv: list[str] | None = None) -> int:

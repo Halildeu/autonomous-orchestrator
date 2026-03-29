@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import hashlib
 import json
@@ -343,7 +344,7 @@ def write_selection_file(*, workspace_root: Path, selected_ids: list[str], notes
         "notes": sorted(set(notes)),
     }
     selection_path.parent.mkdir(parents=True, exist_ok=True)
-    selection_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(selection_path, _dump_json(payload))
     return str(Path(".cache") / "index" / "work_intake_selection.v1.json")
 
 
@@ -378,7 +379,7 @@ def write_plan_only(
         ],
         "notes": ["PLAN_ONLY=true", "PROGRAM_LED=true"],
     }
-    plan_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(plan_path, _dump_json(payload))
     md_path = plan_path.with_suffix(".plan.md")
     lines = [
         "AUTO MODE DISPATCH PLAN",
@@ -390,7 +391,7 @@ def write_plan_only(
     ]
     for item in payload["items"]:
         lines.append(f"- {item.get('intake_id')} {item.get('bucket')} {item.get('source_type')} {item.get('extension_id')}")
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(md_path, "\n".join(lines) + "\n")
     return str(Path(".cache") / "reports" / "chg" / plan_name)
 
 

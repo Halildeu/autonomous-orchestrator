@@ -26,7 +26,7 @@ from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import apply_gap_closeout, build_gap_register, build_gap_summary_md
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
 from src.benchmark.north_star_matrix_builder import build_north_star_stage_matrices
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 from src.benchmark.assessment_runner_runtime import (
     _draft_gap_chgs,
     _pick_first_existing,
@@ -908,7 +908,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     write_json_atomic(out_catalog, catalog)
     write_json_atomic(out_assessment, assessment)
     write_json_atomic(out_scorecard_json, scorecard)
-    out_scorecard_md.write_text(scorecard_md, encoding="utf-8")
+    write_text_atomic(out_scorecard_md, scorecard_md)
 
     if integrity_result == "FAIL" and not allow_report_only:
         return _fail("INTEGRITY_BLOCKED", "integrity verify failed", {"integrity_ref": integrity_ref})
@@ -987,7 +987,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
             return _fail("BENCHMARK_SCHEMA_INVALID", "gap register schema validation failed", {"error": str(e)[:200]})
 
     write_json_atomic(out_gap_register, gap_register)
-    out_gap_md.write_text(gap_summary_md, encoding="utf-8")
+    write_text_atomic(out_gap_md, gap_summary_md)
 
     stage_matrices = build_north_star_stage_matrices(workspace_root=workspace_root, core_root=core_root)
     reference_matrix = stage_matrices.get("reference") if isinstance(stage_matrices, dict) else {}

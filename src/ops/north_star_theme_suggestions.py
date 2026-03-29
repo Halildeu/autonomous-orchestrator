@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import argparse
 import hashlib
@@ -50,7 +51,7 @@ def _load_json(path: Path, default: dict) -> dict:
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    write_json_atomic(path, data)
 
 
 def _extract_json(text: str) -> Dict[str, Any] | None:

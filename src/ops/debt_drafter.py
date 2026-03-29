@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -259,7 +260,7 @@ def run_debt_drafter(
         if errors:
             return {"status": "FAIL", "error_code": "CHG_INVALID", "errors": errors[:3], "drafted": len(chg_files)}
         out_path = outdir / f"{chg_id}.json"
-        out_path.write_text(_dump_json(chg), encoding="utf-8")
+        write_text_atomic(out_path, _dump_json(chg))
         chg_files.append(out_path.as_posix())
 
     return {

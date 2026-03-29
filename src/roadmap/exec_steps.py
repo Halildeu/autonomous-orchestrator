@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 import difflib
 import fnmatch
@@ -343,7 +344,7 @@ def _write_core_unlock_blocked_report(
         "reason_missing": bool(unlock_requested and not reason_present),
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true"],
     }
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
 
 
 def _handle_create_file_step(
@@ -666,7 +667,7 @@ def _handle_change_proposal_apply_step(
 
     old_text = json.dumps(current_obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     new_text = json.dumps(updated_obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-    rm_abs.write_text(new_text, encoding="utf-8")
+    write_text_atomic(rm_abs, new_text)
 
     rm_rel_for_counter = rm_abs.relative_to(workspace_root).as_posix()
     _get_counter(state.counters_by_milestone, ms_id).touch(rm_rel_for_counter, _count_diff_lines(old_text, new_text))

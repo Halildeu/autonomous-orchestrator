@@ -1,6 +1,7 @@
 """Simple probe runner: marks pinned models as probe_ok in state (no network)."""
 
 from __future__ import annotations
+from src.shared.utils import write_json_atomic
 
 import json
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ def _load_json(path: Path) -> Dict[str, Any]:
 
 def _write_json(path: Path, data: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_json_atomic(path, data)
 
 
 def _resolve_workspace_root(repo_root: Path, workspace_root: str | Path | None) -> Path:

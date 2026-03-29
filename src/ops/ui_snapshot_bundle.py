@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -702,7 +703,7 @@ def build_ui_snapshot_bundle(*, workspace_root: Path, out_path: Path | None = No
 
     out_path = out_path or (workspace_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(payload))
     return payload
 
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import re
@@ -1059,8 +1060,8 @@ def run_north_star_subject_to_plan(
             }
         dumped = _dump_json(plan_obj)
 
-    plan_path.write_text(dumped, encoding="utf-8")
-    latest_path.write_text(dumped, encoding="utf-8")
+    write_text_atomic(plan_path, dumped)
+    write_text_atomic(latest_path, dumped)
     plan_rel = _rel_path(workspace_root, plan_path)
     summary_rel = _write_summary(
         workspace_root=workspace_root,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -170,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(payload, encoding="utf-8")
+        write_text_atomic(out_path, payload)
     except Exception as e:
         print(
             json.dumps(

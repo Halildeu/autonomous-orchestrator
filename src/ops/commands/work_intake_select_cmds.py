@@ -9,7 +9,7 @@ from pathlib import Path
 from src.ops.commands.common import repo_root, warn
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def cmd_work_intake_select(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -70,7 +70,7 @@ def cmd_work_intake_select(args: argparse.Namespace) -> int:
                 except Exception:
                     pass
             backup_path_obj = selection_path.with_name(backup_name)
-            backup_path_obj.write_text(selection_raw, encoding="utf-8")
+            write_text_atomic(backup_path_obj, selection_raw)
             backup_path = str(Path(".cache") / "index" / backup_name)
 
         generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")

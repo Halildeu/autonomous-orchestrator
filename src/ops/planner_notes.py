@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import hashlib
 import json
@@ -76,7 +77,7 @@ def _ensure_inside_workspace(workspace_root: Path, target: Path) -> None:
 def _atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    write_text_atomic(tmp, text)
     tmp.replace(path)
 
 

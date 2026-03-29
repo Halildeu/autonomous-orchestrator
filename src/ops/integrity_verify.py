@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity, load_previous_snapshot
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -42,7 +42,7 @@ def _write_md(path: Path, snapshot: dict[str, Any]) -> None:
                 lines.append(f"- {item}")
     else:
         lines.append("- (none)")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def run_integrity_verify(*, workspace_root: Path, mode: str) -> dict[str, Any]:

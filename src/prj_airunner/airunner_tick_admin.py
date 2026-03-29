@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -76,7 +77,7 @@ def run_airunner_lock_status(*, workspace_root: Path) -> dict[str, Any]:
     }
     report_path = workspace_root / ".cache" / "reports" / "airunner_lock_status.v1.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(payload))
     rel_report = _rel_to_workspace(report_path, workspace_root) or str(report_path)
     return {
         "status": "OK",
@@ -128,7 +129,7 @@ def run_airunner_lock_clear_stale(*, workspace_root: Path, max_age_seconds: int)
     }
     report_path = workspace_root / ".cache" / "reports" / "airunner_lock_clear.v1.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(payload))
     rel_report = _rel_to_workspace(report_path, workspace_root) or str(report_path)
     return {
         "status": status,
@@ -158,7 +159,7 @@ def _load_watchdog_state(workspace_root: Path) -> dict[str, Any]:
 def _write_watchdog_state(workspace_root: Path, state: dict[str, Any]) -> str:
     path = _watchdog_state_path(workspace_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_dump_json(state), encoding="utf-8")
+    write_text_atomic(path, _dump_json(state))
     return _rel_to_workspace(path, workspace_root) or str(path)
 
 

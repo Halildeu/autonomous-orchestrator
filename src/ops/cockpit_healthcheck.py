@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 import importlib.util
 import hashlib
@@ -113,7 +114,7 @@ def run_cockpit_healthcheck(*, workspace_root: Path, port: int, host: str = "127
         "op_check": op_result,
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "LOCAL_ONLY=true"],
     }
-    out_json.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_json_atomic(out_json, payload)
 
     md_lines = [
         "# Cockpit Healthcheck",
@@ -126,7 +127,7 @@ def run_cockpit_healthcheck(*, workspace_root: Path, port: int, host: str = "127
     for key in sorted(checks):
         md_lines.append(f"- {key}: {checks[key].get('ok')}")
     md_lines.append(f"- /api/op system-status: {op_result.get('ok')}")
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     return {
         "status": status,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import re
@@ -22,7 +23,7 @@ def _read_text(path: Path) -> str:
 
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    write_text_atomic(path, content)
 
 
 def _validate_inputs(*, module_id: str, intent: str) -> None:

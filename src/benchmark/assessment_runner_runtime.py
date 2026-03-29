@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -30,7 +30,7 @@ def _write_if_missing_or_same(path: Path, content: str) -> None:
             return
         raise ValueError(f"CHG_CONTENT_MISMATCH:{path}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    write_text_atomic(path, content)
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -178,7 +178,7 @@ def _write_integrity_md(path: Path, snapshot: dict[str, Any]) -> None:
     else:
         lines.append("- (none)")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def _draft_gap_chgs(*, workspace_root: Path, gap_register: dict[str, Any]) -> list[str]:

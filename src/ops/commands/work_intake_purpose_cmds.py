@@ -12,7 +12,7 @@ from src.prj_kernel_api.api_guardrails import load_guardrails_policy
 from src.prj_kernel_api.adapter_llm_actions import maybe_handle_llm_actions
 from src.prj_kernel_api.provider_guardrails import load_guardrails, provider_settings
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 PURPOSE_SCHEMA = "WORK_INTAKE_PURPOSES_V1"
 PURPOSE_VERSION = "v1"
@@ -436,7 +436,7 @@ def cmd_work_intake_purpose_generate(args: argparse.Namespace) -> int:
             md_lines.append(f"- {entry.get('intake_id')}: {entry.get('error')}")
     report_md_path = ws_root / REPORT_REL
     report_md_path.parent.mkdir(parents=True, exist_ok=True)
-    report_md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(report_md_path, "\n".join(md_lines) + "\n")
 
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     return 0

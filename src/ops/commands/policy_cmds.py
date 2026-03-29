@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -55,7 +56,7 @@ def cmd_policy_export(args: argparse.Namespace) -> int:
         out_path = Path(str(args.out))
         out_path = (root / out_path).resolve() if not out_path.is_absolute() else out_path.resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(content, encoding="utf-8")
+        write_text_atomic(out_path, content)
 
     print(content.rstrip("\n"))
     return 0
@@ -229,7 +230,7 @@ def cmd_policy_apply(args: argparse.Namespace) -> int:
         return 2
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(file_path.read_text(encoding="utf-8"), encoding="utf-8")
+    write_text_atomic(target, file_path.read_text(encoding="utf-8"))
 
     rc, _, _ = run_step(
         root,

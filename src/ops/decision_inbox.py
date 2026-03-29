@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import hashlib
@@ -492,11 +493,11 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
     for path in sorted({decision_path, canonical_path}, key=lambda p: p.as_posix()):
         out_path = workspace_root / path
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(_dump_json(payload), encoding="utf-8")
+        write_text_atomic(out_path, _dump_json(payload))
     for path in sorted({decision_md_path, canonical_md_path}, key=lambda p: p.as_posix()):
         out_md_path = workspace_root / path
         out_md_path.parent.mkdir(parents=True, exist_ok=True)
-        out_md_path.write_text("\n".join(out_md_lines) + "\n", encoding="utf-8")
+        write_text_atomic(out_md_path, "\n".join(out_md_lines) + "\n")
 
     status = "OK" if decisions else "IDLE"
     return {
@@ -522,7 +523,7 @@ def run_decision_seed(*, workspace_root: Path, decision_kind: str, target: str) 
     }
     seed_path = _seed_dir(workspace_root) / f"SEED-{seed_id}.v1.json"
     seed_path.parent.mkdir(parents=True, exist_ok=True)
-    seed_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(seed_path, _dump_json(payload))
     return {
         "status": "OK",
         "seed_id": seed_id,
@@ -559,7 +560,7 @@ def _update_selection_file(*, workspace_root: Path, intake_id: str, selection_pa
         "content_hash": _hash_text("\n".join(selected)),
     }
     selection_path.parent.mkdir(parents=True, exist_ok=True)
-    selection_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(selection_path, _dump_json(payload))
 
 
 def _write_policy_override(*, workspace_root: Path, overrides_dir: Path) -> str:
@@ -570,7 +571,7 @@ def _write_policy_override(*, workspace_root: Path, overrides_dir: Path) -> str:
         "network_enabled": True,
         "live_gate": {"enabled": True},
     }
-    override_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(override_path, _dump_json(payload))
     return str(override_path.relative_to(workspace_root))
 
 
@@ -620,7 +621,7 @@ def _write_network_live_override(
         "decision_option_id": option_id,
         "notes": ["PROGRAM_LED=true", "DECISION_APPLY=true"],
     }
-    override_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(override_path, _dump_json(payload))
     return str(override_path.relative_to(workspace_root))
 
 
@@ -865,7 +866,7 @@ def run_decision_apply_bulk(
         payload["error_code"] = "NO_DECISIONS_APPLIED"
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(payload))
     return payload
 
 

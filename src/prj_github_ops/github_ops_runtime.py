@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import src.prj_github_ops.github_ops as _core
 
@@ -436,7 +437,7 @@ def build_github_ops_report(*, workspace_root: Path) -> dict[str, Any]:
         report["jobs"] = sorted(scoped_jobs, key=lambda j: str(j.get("job_id") or ""))
     report_path = workspace_root / ".cache" / "reports" / "github_ops_report.v1.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(_dump_json(report), encoding="utf-8")
+    write_text_atomic(report_path, _dump_json(report))
     return report
 def run_github_ops_check(*, workspace_root: Path, chat: bool = True) -> dict[str, Any]:
     report = build_github_ops_report(workspace_root=workspace_root)

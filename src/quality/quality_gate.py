@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -317,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
     report = evaluate_quality_gate(workspace_root=workspace_root, core_root=core_root)
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(_dump_json(report), encoding="utf-8")
+        write_text_atomic(out_path, _dump_json(report))
     except Exception as e:
         print(
             _dump_json({"status": "FAIL", "error_code": "WRITE_FAILED", "message": str(e)[:300], "out": str(out_path)}).strip()

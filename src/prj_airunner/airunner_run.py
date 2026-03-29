@@ -10,7 +10,7 @@ from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -197,7 +197,7 @@ def run_airunner_baseline(*, workspace_root: Path) -> dict[str, Any]:
 
 def _write_md(path: Path, lines: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def _load_tick_report(workspace_root: Path, index: int) -> dict[str, Any]:
@@ -216,9 +216,9 @@ def _copy_tick_report(workspace_root: Path, index: int) -> None:
     out_json = workspace_root / ".cache" / "reports" / f"airunner_tick_{index}.v1.json"
     out_md = workspace_root / ".cache" / "reports" / f"airunner_tick_{index}.v1.md"
     if base_json.exists():
-        out_json.write_text(base_json.read_text(encoding="utf-8"), encoding="utf-8")
+        write_text_atomic(out_json, base_json.read_text(encoding="utf-8"))
     if base_md.exists():
-        out_md.write_text(base_md.read_text(encoding="utf-8"), encoding="utf-8")
+        write_text_atomic(out_md, base_md.read_text(encoding="utf-8"))
 
 
 def _tick_action_summary(report: dict[str, Any]) -> dict[str, Any]:

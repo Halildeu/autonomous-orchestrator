@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -244,7 +245,7 @@ def main() -> None:
 
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(_dump_json(trace), encoding="utf-8")
+        write_text_atomic(out_path, _dump_json(trace))
 
     if hard_count and policy.hard_conflict_behavior == "fail":
         print(json.dumps({"status": "FAIL", "hard_conflicts": hard_count}, sort_keys=True))

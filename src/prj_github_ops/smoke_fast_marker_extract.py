@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import argparse
 import json
@@ -251,7 +252,7 @@ def run_smoke_fast_marker_extract(
     }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_path, _dump_json(payload))
     return {"status": "OK", "report_path": _rel_from_workspace(out_path, workspace_root)}
 
 

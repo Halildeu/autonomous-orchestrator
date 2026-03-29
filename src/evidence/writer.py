@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import subprocess
@@ -103,7 +104,7 @@ class EvidenceWriter:
     def write_resume_log(self, text: str) -> None:
         p = self.run_dir / "resume.log"
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text if text.endswith("\n") else (text + "\n"), encoding="utf-8")
+        write_text_atomic(p, text if text.endswith("\n") else (text + "\n"))
 
     def write_node_input(self, node_id: str, data: Any) -> None:
         save_json(self.run_dir / "nodes" / node_id / "input.json", data)

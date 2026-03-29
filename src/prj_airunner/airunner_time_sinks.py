@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.shared.utils import write_text_atomic
 
 import json
 import math
@@ -119,7 +120,7 @@ def build_time_sinks_report(workspace_root: Path, *, policy: dict[str, Any]) -> 
     out_json = workspace_root / ".cache" / "reports" / "time_sinks.v1.json"
     out_md = workspace_root / ".cache" / "reports" / "time_sinks.v1.md"
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(_dump_json(payload), encoding="utf-8")
+    write_text_atomic(out_json, _dump_json(payload))
 
     md_lines = [
         "# Time Sinks (v1)",
@@ -133,6 +134,6 @@ def build_time_sinks_report(workspace_root: Path, *, policy: dict[str, Any]) -> 
         md_lines.append(
             f"- {sink.get('event_key')} p50_ms={sink.get('p50_ms')} p95_ms={sink.get('p95_ms')} threshold_ms={sink.get('threshold_ms')} count={sink.get('count')} last_seen={sink.get('last_seen')}"
         )
-    out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    write_text_atomic(out_md, "\n".join(md_lines) + "\n")
 
     return payload
