@@ -92,6 +92,26 @@
             "statusMessage": "Validating schemas before commit..."
           }
         ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/enforcement_pre_write.py",
+            "statusMessage": "Checking write authorization..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/enforcement_pre_write.py",
+            "statusMessage": "Checking write authorization..."
+          }
+        ]
       }
     ]
   }

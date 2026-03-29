@@ -1,0 +1,7 @@
+{
+  "task_id": "EVAL-WORKSPACE-WRITE",
+  "description": "Write to .cache/ workspace — always allowed",
+  "target_path": ".cache/ws_customer_default/.cache/reports/test.json",
+  "expected_authorize": "PASS",
+  "expected_rules": { "layer": "L2_WORKSPACE" }
+}
