@@ -46,6 +46,17 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - src/ops/system_status_report.py
 - src/ops/manage.py (ops entrypoint; project-status/system-status burada)
 - src/ops/roadmap_cli.py (varsa: project-status / navigator wrapper)
+- schemas/context-profile-registry.schema.v1.json (profile-based context registry contract)
+- schemas/active-context-profile.schema.v1.json (per-workspace active profile artifact)
+- schemas/agent-consultation.schema.v1.json (agent-to-agent async consultation)
+- policies/policy_context_profile_registry.v1.json (6 profile SSOT: STARTUP/EMERGENCY/TASK_EXECUTION/REVIEW/ASSESSMENT/PLANNING)
+- policies/policy_agent_consultation.v1.json (consultation protocol: paths, state_machine, single_writer)
+- policies/policy_context_orchestration.v1.json (context orchestration + profile registry ref)
+- policies/policy_maturity_assessment.v1.json (maturity rubric L0-L4 scoring)
+- policies/policy_risk_scoring.v1.json (multi-factor risk thresholds)
+- policies/policy_human_approval_request.v1.json (human approval workflow)
+- policies/policy_quality_gates.v1.json (AI output quality gates)
+- policies/policy_decision_boundaries.v1.json (decision boundary enforcement)
 
 ### Operations SSOT (Kalıcı)
 
@@ -69,10 +80,10 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md dosyasını** tek canonical instruction kaynağı olarak kullanır.
 
 ### Aktif Agent'lar
-| Agent | Provider | Config | Çalışma Modu |
-|---|---|---|---|
-| **Codex** | OpenAI (gpt-5.3-codex effective runtime overlay) | `.codex/config.toml` | Sandbox (workspace-write) |
-| **Antigravity** | Google DeepMind (Gemini) | `.gemini/settings.json` | IDE (yerel dosya sistemi) |
+| Agent | Provider | Config | Çalışma Modu | Durum |
+|---|---|---|---|---|
+| **Codex** | OpenAI (gpt-5.3-codex effective runtime overlay) | `.codex/config.toml` | Sandbox (workspace-write) | Aktif |
+| **Antigravity** | Google DeepMind (Gemini) | `.gemini/settings.json` | IDE (yerel dosya sistemi) | Askıya alındı (kısa vadede kullanılmayacak) |
 
 ### Ortak Kurallar
 - Tüm agent'lar aynı ops komut setini kullanır.
@@ -86,17 +97,19 @@ Bu repo birden fazla agent tarafından yönetilir. Tüm agent'lar **bu AGENTS.md
 Agent'lar birbirine async soru sorabilir. Git repo transport layer'dır.
 
 **Akış:**
-1. Soran agent `.cache/consultations/CONSULT-{YYYYMMDD}-{NNN}.v1.json` yazar, commit+push eder
-2. Diğer agent bootstrap'ta bu dosyayı görür, `responses[]`'e cevap ekler, commit+push eder
-3. İnsan veya soran agent `resolution` yazar → `status: RESOLVED`
-4. Resolved istişareler `archive/` altına taşınır
+1. Soran agent `.cache/index/consultations/requests/CNS-{YYYYMMDD}-{NNN}.request.v1.json` yazar
+2. Dispatcher tick algılar → state dosyası oluşturur → hedef agent CLI'ı çağırır
+3. Agent structured JSON stdout döner → dispatcher response artifact yazar
+4. İnsan veya soran agent `resolution` yazar → state `CLOSED`
 
 **Kurallar:**
-- TTL: 24 saat (varsayılan). Expire olursa `status: EXPIRED`
+- TTL: 24 saat (varsayılan). Expire olursa state `CLOSED` + `last_error: TTL expired`
 - Aynı anda max 3 açık istişare
 - Her response `branch` + `head_sha` içermeli (worktree awareness)
 - İnsan son karar vericisidir (`decided_by: human` override hakkı her zaman geçerli)
 - Response formatı: `agreements[]`, `objections[]`, `additions[]` — yapılandırılmış geri bildirim
+- Tek yazar: dispatcher. Agent'lar dosya yazmaz, yalnızca stdout JSON döner.
+- `to_agent=all` → dispatcher iki bağımsız child job'a böler (race condition önlenir)
 - Schema: `schemas/agent-consultation.schema.v1.json`
 - Policy: `policies/policy_agent_consultation.v1.json`
 

@@ -228,6 +228,36 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/policy-quality-gates.schema.v1.json
 - schemas/agent-consultation.schema.v1.json — Agent-to-agent async consultation protocol
 - schemas/policy-agent-consultation.schema.v1.json
+- schemas/agent-context-version.schema.v1.json
+- schemas/agent-handoff-status.schema.v1.json
+- schemas/closeout-envelope.schema.v1.json
+- schemas/delivery-session-packet.schema.v1.json
+- schemas/feature-execution-contract.schema.v1.json
+- schemas/handoff-envelope.schema.v1.json
+- schemas/maturity-rubric.schema.v1.json — Maturity assessment rubric structure
+- schemas/pm-board.schema.v1.json
+- schemas/pm-project.schema.v1.json
+- schemas/pm-work-item.schema.v1.json
+- schemas/pm-workflow.schema.v1.json
+- schemas/policy-airunner-auto-run.schema.v1.json
+- schemas/policy-codex-runtime.schema.v1.json — Codex runtime overlay schema
+- schemas/policy-compaction.schema.v1.json
+- schemas/policy-context-profile-registry.schema.v1.json — Profile registry policy schema
+- schemas/policy-enforcement-pack.schema.v1.json
+- schemas/policy-feature-execution-bridge.schema.v1.json
+- schemas/policy-human-approval-request.schema.v1.json — Human approval workflow policy schema
+- schemas/policy-maturity-assessment.schema.v1.json — Maturity assessment rubric policy schema
+- schemas/policy-risk-scoring.schema.v1.json — Multi-factor risk scoring policy schema
+- schemas/policy-ux-catalog-enforcement.schema.v1.json
+- schemas/provider-performance.schema.v1.json
+- schemas/schema_llm_class_registry.v1.json
+- schemas/schema_llm_provider_map.v1.json
+- schemas/schema_llm_resolver_rules.v1.json
+- schemas/status-vocabulary.schema.v1.json — Canonical status enum families
+- schemas/ux-blueprint.schema.v1.json
+- schemas/ux-catalog.schema.v1.json
+- schemas/ux-interaction-matrix.schema.v1.json
+- schemas/workspace-facts.schema.v1.json
 
 ## Policies (SSOT)
 - policies/policy_advisor.v1.json
@@ -307,6 +337,11 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - policies/policy_risk_scoring.v1.json — Multi-factor risk threshold policy (low/medium/high/critical → boundary)
 - policies/policy_human_approval_request.v1.json — Human approval workflow (operations, TTL, routing)
 - policies/policy_agent_consultation.v1.json — Agent-to-agent consultation protocol (TTL, inbox, agents)
+- policies/policy_compaction.v1.json
+- policies/policy_feature_execution_bridge.v1.json
+- policies/policy_north_star_subject_plan.v1.json
+- policies/policy_pm_suite.v1.json
+- policies/policy_ux_catalog_enforcement.v1.json
 
 ## CAPABILITY Specs (SSOT)
 - capabilities/CAP-PR-PACKAGER.v1.json
