@@ -52,7 +52,8 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold"
+      "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold",
+      "status": "in_progress"
     },
     {
       "dod": [
@@ -107,7 +108,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Core Lock + Project Boundary"
+      "title": "Core Lock + Project Boundary",
+      "status": "done"
     },
     {
       "constraints": {
@@ -171,7 +173,8 @@
           "type": "create_file"
         }
       ],
-      "title": "ISO Core SSOT (Context/Stakeholder/Scope/Criteria) + aktif gate"
+      "title": "ISO Core SSOT (Context/Stakeholder/Scope/Criteria) + aktif gate",
+      "status": "open"
     },
     {
       "constraints": {
@@ -399,7 +402,8 @@
           "type": "note"
         }
       ],
-      "title": "Tenant Decision Bundle SSOT v0.1 + Consistency Gate"
+      "title": "Tenant Decision Bundle SSOT v0.1 + Consistency Gate",
+      "status": "in_progress"
     },
     {
       "constraints": {
@@ -444,7 +448,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Format & Conversation Contract SSOT"
+      "title": "Format & Conversation Contract SSOT",
+      "status": "open"
     },
     {
       "constraints": {
@@ -478,7 +483,8 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "CAPABILITY spec-core meta contract (ISO refs + evidence + risk)"
+      "title": "CAPABILITY spec-core meta contract (ISO refs + evidence + risk)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -550,7 +556,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Packs Catalog v0.1 + Composite Catalog Builder"
+      "title": "Packs Catalog v0.1 + Composite Catalog Builder",
+      "status": "open"
     },
     {
       "constraints": {
@@ -592,7 +599,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Session RAM (Ephemeral mini-SSOT) v0.1"
+      "title": "Session RAM (Ephemeral mini-SSOT) v0.1",
+      "status": "open"
     },
     {
       "constraints": {
@@ -631,7 +639,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Best Practice & Trend Library (aktif gate) v0.1"
+      "title": "Best Practice & Trend Library (aktif gate) v0.1",
+      "status": "open"
     },
     {
       "constraints": {
@@ -671,7 +680,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Learning Harvest / Public Candidates (sanitized) v0.1"
+      "title": "Learning Harvest / Public Candidates (sanitized) v0.1",
+      "status": "open"
     },
     {
       "constraints": {
@@ -711,7 +721,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Ops Index Layer v0.1"
+      "title": "Ops Index Layer v0.1",
+      "status": "open"
     },
     {
       "constraints": {
@@ -752,7 +763,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Harvest incremental v0.2 (cursor + window)"
+      "title": "Harvest incremental v0.2 (cursor + window)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -789,7 +801,8 @@
           "type": "assert_pointer_target_exists"
         }
       ],
-      "title": "Artifact Pointer v0.1 (local pointer+hash)"
+      "title": "Artifact Pointer v0.1 (local pointer+hash)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -829,7 +842,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Learning Plane v0.1 (Offline Advisor / Suggest-only)"
+      "title": "Learning Plane v0.1 (Offline Advisor / Suggest-only)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -869,7 +883,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Autopilot MVP v0.1 (Insansız PR Loop)"
+      "title": "Autopilot MVP v0.1 (Insansız PR Loop)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -910,7 +925,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "System Status Report v0.1 (Unified Cockpit)"
+      "title": "System Status Report v0.1 (Unified Cockpit)",
+      "status": "in_progress"
     },
     {
       "constraints": {
@@ -951,7 +967,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Promotion Bundle v0.2 (Incubator → Draft)"
+      "title": "Promotion Bundle v0.2 (Incubator → Draft)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -994,7 +1011,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack Manifest SSOT + Validation"
+      "title": "Pack Manifest SSOT + Validation",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1033,7 +1051,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack Index Build (O(delta))"
+      "title": "Pack Index Build (O(delta))",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1068,7 +1087,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack Selection Trace (SSOT)"
+      "title": "Pack Selection Trace (SSOT)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1107,7 +1127,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack-aware Advisor (bounded)"
+      "title": "Pack-aware Advisor (bounded)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1153,7 +1174,8 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "North Star SSOT (standards catalog) v0.1"
+      "title": "North Star SSOT (standards catalog) v0.1",
+      "status": "in_progress"
     },
     {
       "constraints": {
@@ -1200,7 +1222,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Assessment Runner v0.1 (index-first, O(delta))"
+      "title": "Assessment Runner v0.1 (index-first, O(delta))",
+      "status": "in_progress"
     },
     {
       "constraints": {
@@ -1243,7 +1266,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Assessment Eval Lenses v0.1"
+      "title": "Assessment Eval Lenses v0.1",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1287,7 +1311,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Gap Register v0.1 + Closure Mapping"
+      "title": "Gap Register v0.1 + Closure Mapping",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1316,7 +1341,8 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "Cockpit Integration + Recheck Loop (PDCA/PUKO)"
+      "title": "Cockpit Integration + Recheck Loop (PDCA/PUKO)",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1349,7 +1375,8 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "Project manifest SSOT + validation"
+      "title": "Project manifest SSOT + validation",
+      "status": "in_progress"
     },
     {
       "constraints": {
@@ -1388,7 +1415,8 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Portfolio status (single gate) v0.1"
+      "title": "Portfolio status (single gate) v0.1",
+      "status": "in_progress"
     },
     {
       "constraints": {
@@ -1417,7 +1445,8 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "System status projects section"
+      "title": "System status projects section",
+      "status": "open"
     },
     {
       "constraints": {
@@ -1460,7 +1489,8 @@
           "type": "note"
         }
       ],
-      "title": "Router core lane completed (checkpoint)"
+      "title": "Router core lane completed (checkpoint)",
+      "status": "open"
     }
   ],
   "roadmap_id": "RM-SSOT-001",

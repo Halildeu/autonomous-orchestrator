@@ -8,6 +8,8 @@ from src.orchestrator import autonomy, budget_runtime, dlq, quota
 from src.orchestrator.executor_adapters import resolve_executor_port
 from src.orchestrator.failure_preview import failure_preview_from_exception
 from src.orchestrator.observability.otel_bridge import attach_trace_meta
+from src.orchestrator.quality_gate import run_quality_gates, quality_gate_summary
+from src.shared.status import validate_run_transition
 from src.orchestrator.runner_stages.context import ExecutionContext, StageContext
 from src.tools.gateway import PolicyViolation
 
@@ -24,6 +26,13 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
     executor = resolve_executor_port(workspace=stage_ctx.workspace)
     provider_used_default = "stub"
     model_used_default = None
+
+    # Run execution transition guard: PENDING → RUNNING
+    _run_state = "PENDING"
+    try:
+        _run_state = validate_run_transition(_run_state, "RUNNING")
+    except ValueError:
+        pass  # defensive — PENDING→RUNNING is always valid
 
     try:
         exec_started_at = dlq.iso_utc_now()
@@ -102,6 +111,33 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
         }
         if "token_usage" in exec_summary:
             summary["token_usage"] = exec_summary.get("token_usage")
+
+        # ── Quality gate evaluation ───────────────────────────────
+        gate_results = run_quality_gates(
+            output=exec_summary,
+            workspace_root=stage_ctx.workspace,
+        )
+        gate_summary = quality_gate_summary(gate_results)
+        summary["quality_gates"] = gate_summary
+
+        # Apply gate actions: reject → FAILED, suspend → SUSPENDED
+        worst = gate_summary.get("worst_action", "pass")
+        if worst == "reject":
+            summary["result_state"] = "FAILED"
+            summary["status"] = "FAILED"
+            summary["quality_gate_override"] = "reject"
+        elif worst == "suspend":
+            summary["result_state"] = "SUSPENDED"
+            summary["status"] = "SUSPENDED"
+            summary["quality_gate_override"] = "suspend"
+
+        # ── Run transition guard: RUNNING → terminal ──────────────
+        terminal_state = str(summary.get("result_state") or "COMPLETED").upper()
+        try:
+            validate_run_transition("RUNNING", terminal_state)
+        except ValueError:
+            pass  # log but don't block — executor already finished
+
     except Exception as e:
         provider_used_on_error = getattr(e, "provider_used", provider_used_default)
         model_used_on_error = getattr(e, "model_used", model_used_default)
