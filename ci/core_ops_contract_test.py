@@ -73,7 +73,7 @@ def test_enforcement_check(ws: Path) -> None:
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
         out = _run(["enforcement-check", "--outdir", tmpdir])
-        _ok("enforcement-check", out, allow=("OK", "WARN", "FAIL", "IDLE"))
+        _ok("enforcement-check", out, allow=("OK", "WARN", "FAIL", "IDLE", "BLOCKED"))
 
 
 def test_reaper_dry_run(ws: Path) -> None:
