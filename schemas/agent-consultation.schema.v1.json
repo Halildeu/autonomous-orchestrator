@@ -14,8 +14,8 @@
     },
     "consultation_id": {
       "type": "string",
-      "pattern": "^CONSULT-[0-9]{8}-[0-9]{3}$",
-      "description": "Unique consultation ID. Format: CONSULT-YYYYMMDD-NNN."
+      "pattern": "^CNS-[0-9]{8}-[0-9]{3}$",
+      "description": "Unique consultation ID. Format: CNS-YYYYMMDD-NNN."
     },
     "status": {
       "type": "string",
