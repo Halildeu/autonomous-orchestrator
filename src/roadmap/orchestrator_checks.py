@@ -9,6 +9,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -67,7 +68,7 @@ def _run_script_budget_checker(*, core_root: Path) -> tuple[str, dict[str, Any]]
     obj.setdefault("status", status)
     obj = _normalize_script_budget_report(obj)
     try:
-        report_path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(report_path, obj)
     except Exception:
         pass
     return (str(status), obj)

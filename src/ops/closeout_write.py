@@ -9,6 +9,7 @@ from typing import Any, Iterable
 from src.ops.commands.common import repo_root, warn
 from src.ops.trace_meta import build_run_id, build_trace_meta
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -108,7 +109,7 @@ def run_closeout_write(
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_resolved, payload)
 
     return {"status": "OK", "report_path": out_rel, "trace_meta": trace_meta}
 

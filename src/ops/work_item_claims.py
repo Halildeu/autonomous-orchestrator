@@ -6,6 +6,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -36,7 +37,7 @@ def _load_json(path: Path) -> Any:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _claim_is_stale(claim: dict[str, Any], now: datetime) -> bool:

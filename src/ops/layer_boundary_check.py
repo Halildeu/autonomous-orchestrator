@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -218,7 +219,7 @@ def run_layer_boundary_check(*, workspace_root: Path, mode: str = "report") -> d
     out_dir.mkdir(parents=True, exist_ok=True)
     out_json = out_dir / "layer_boundary_report.v1.json"
     out_md = out_dir / "layer_boundary_report.v1.md"
-    out_json.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_json, report)
 
     lines = [
         "# Layer Boundary Report (v1)",

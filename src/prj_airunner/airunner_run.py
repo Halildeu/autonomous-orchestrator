@@ -10,6 +10,7 @@ from src.ops.trace_meta import build_run_id, build_trace_meta, date_bucket_from_
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+from src.shared.utils import write_json_atomic
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -18,7 +19,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _jobs_index_summary(workspace_root: Path, notes: list[str]) -> dict[str, Any]:

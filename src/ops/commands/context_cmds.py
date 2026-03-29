@@ -11,6 +11,7 @@ from typing import Any
 from src.ops.commands.common import repo_root, warn
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -37,7 +38,7 @@ def _write_workspace_json(*, workspace_root: Path, rel_path: Path, payload: dict
     abs_path = (workspace_root / rel_path).resolve()
     abs_path.relative_to(workspace_root.resolve())
     abs_path.parent.mkdir(parents=True, exist_ok=True)
-    abs_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(abs_path, payload)
     return str(rel_path.as_posix())
 
 

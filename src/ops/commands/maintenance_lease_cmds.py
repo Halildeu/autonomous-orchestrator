@@ -12,6 +12,7 @@ from src.ops.reaper import parse_bool as parse_reaper_bool
 from src.ops.trace_meta import build_run_id, date_bucket_from_iso
 from src.ops.work_item_leases import acquire_lease
 
+from src.shared.utils import write_json_atomic
 
 def cmd_work_item_lease_seed(args: argparse.Namespace) -> int:
     root = repo_root()
@@ -115,7 +116,7 @@ def cmd_work_item_lease_seed(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true", "NETWORK=false", "WORKSPACE_ONLY=true"],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
 
     payload = {
         "status": "OK" if lease_status in {"ACQUIRED", "LOCKED"} else "WARN",
@@ -260,7 +261,7 @@ def cmd_doer_loop_lock_seed(args: argparse.Namespace) -> int:
         "ttl_seconds": int(ttl_seconds),
     }
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(lock_path, payload)
 
     clear_report_rel = None
     if stale_cleared:
@@ -297,7 +298,7 @@ def cmd_doer_loop_lock_seed(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true", "NETWORK=false", "WORKSPACE_ONLY=true"],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
 
     result = {
         "status": "OK",
@@ -365,7 +366,7 @@ def cmd_doer_loop_lock_status(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true"],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
 
     status = "OK" if lock_status in {"LOCKED", "STALE", "MISSING"} else "WARN"
     result = {
@@ -480,7 +481,7 @@ def cmd_doer_loop_lock_clear(args: argparse.Namespace) -> int:
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true"],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
 
     status = "OK" if cleared or lock_status in {"MISSING", "STALE", "CLEARED"} else "WARN"
     result = {

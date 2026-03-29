@@ -26,6 +26,7 @@ LLM_LIVE_POLICY_PATH = "policies/policy_llm_live.v1.json"
 LLM_LIVE_POLICY_SCHEMA = "schemas/policy-llm-live.schema.json"
 LLM_BATCH_POLICY_PATH = "policies/policy_llm_batch.v1.json"
 LLM_BATCH_POLICY_SCHEMA = "schemas/policy-llm-batch.schema.json"
+from src.shared.utils import write_json_atomic
 
 _XAI_USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) "
@@ -200,7 +201,7 @@ def _load_json_obj(path: Path) -> dict[str, Any]:
 def _atomic_write_json(path: Path, obj: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(tmp, obj)
     tmp.replace(path)
 
 

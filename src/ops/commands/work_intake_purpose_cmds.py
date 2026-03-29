@@ -12,6 +12,7 @@ from src.prj_kernel_api.api_guardrails import load_guardrails_policy
 from src.prj_kernel_api.adapter_llm_actions import maybe_handle_llm_actions
 from src.prj_kernel_api.provider_guardrails import load_guardrails, provider_settings
 
+from src.shared.utils import write_json_atomic
 
 PURPOSE_SCHEMA = "WORK_INTAKE_PURPOSES_V1"
 PURPOSE_VERSION = "v1"
@@ -36,7 +37,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _short_intake_id(intake_id: str) -> str:

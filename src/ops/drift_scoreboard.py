@@ -7,6 +7,7 @@ from typing import Any
 
 from .managed_repo_standards import build_managed_repo_standards_summary
 
+from src.shared.utils import write_json_atomic
 
 SYNC_REPORT_REL = Path(".cache") / "reports" / "managed_repo_standards_sync" / "report.v1.json"
 SCOREBOARD_REPORT_REL = Path(".cache") / "reports" / "drift_scoreboard.v1.json"
@@ -871,5 +872,5 @@ def build_drift_scoreboard_summary(scoreboard: dict[str, Any]) -> dict[str, Any]
 def write_drift_scoreboard(*, workspace_root: Path, scoreboard: dict[str, Any]) -> str:
     out_path = workspace_root / SCOREBOARD_REPORT_REL
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(scoreboard, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, scoreboard)
     return SCOREBOARD_REPORT_REL.as_posix()

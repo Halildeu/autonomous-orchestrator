@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -33,7 +34,7 @@ def _save_perf_store(workspace_root: Path, store: dict[str, Any]) -> None:
     path = _perf_store_path(workspace_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     store["generated_at"] = _now_iso()
-    path.write_text(json.dumps(store, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, store)
 
 
 def record_provider_call(

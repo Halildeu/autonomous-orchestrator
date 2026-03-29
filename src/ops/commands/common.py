@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 DEFAULT_CUSTOMER_WORKSPACE_REL = Path(".cache/ws_customer_default")
 
@@ -125,4 +126,4 @@ def run_step(root: Path, cmd: list[str], *, stage: str, env: dict[str, str] | No
 
 def write_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, obj)

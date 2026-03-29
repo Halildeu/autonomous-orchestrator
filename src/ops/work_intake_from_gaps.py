@@ -8,6 +8,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -322,7 +323,7 @@ def run_work_intake_build(*, workspace_root: Path, mode: str = "build") -> dict[
 
     intake_path.parent.mkdir(parents=True, exist_ok=True)
     summary_md_path.parent.mkdir(parents=True, exist_ok=True)
-    intake_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(intake_path, payload)
     _write_md(summary_md_path, summary)
 
     if mode == "next":
@@ -349,7 +350,7 @@ def run_work_intake_build(*, workspace_root: Path, mode: str = "build") -> dict[
             "intake_ids": intake_ids,
             "generated_at": _now_iso(),
         }
-        plan_path.write_text(json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_json_atomic(plan_path, plan)
         plan_md_path.write_text(f"CHG PLAN: {chg_id}\n\nItems: {len(intake_ids)}\n", encoding="utf-8")
         return {"status": "OK", "work_intake_path": str(intake_path), "plan_path": str(plan_path)}
 

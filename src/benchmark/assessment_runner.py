@@ -26,6 +26,7 @@ from src.benchmark.eval_runner import run_eval
 from src.benchmark.gap_engine import apply_gap_closeout, build_gap_register, build_gap_summary_md
 from src.benchmark.integrity_utils import build_integrity_snapshot, load_policy_integrity
 from src.benchmark.north_star_matrix_builder import build_north_star_stage_matrices
+from src.shared.utils import write_json_atomic
 from src.benchmark.assessment_runner_runtime import (
     _draft_gap_chgs,
     _pick_first_existing,
@@ -904,9 +905,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         encoding="utf-8",
     )
 
-    out_catalog.write_text(json.dumps(catalog, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    out_assessment.write_text(json.dumps(assessment, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    out_scorecard_json.write_text(json.dumps(scorecard, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_catalog, catalog)
+    write_json_atomic(out_assessment, assessment)
+    write_json_atomic(out_scorecard_json, scorecard)
     out_scorecard_md.write_text(scorecard_md, encoding="utf-8")
 
     if integrity_result == "FAIL" and not allow_report_only:
@@ -985,7 +986,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         except Exception as e:
             return _fail("BENCHMARK_SCHEMA_INVALID", "gap register schema validation failed", {"error": str(e)[:200]})
 
-    out_gap_register.write_text(json.dumps(gap_register, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_gap_register, gap_register)
     out_gap_md.write_text(gap_summary_md, encoding="utf-8")
 
     stage_matrices = build_north_star_stage_matrices(workspace_root=workspace_root, core_root=core_root)
@@ -1013,7 +1014,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
         "outputs_sha256": outputs_sha,
         "generated_at": _now_iso(),
     }
-    out_cursor.write_text(json.dumps(cursor, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_cursor, cursor)
 
     drafted = _draft_gap_chgs(workspace_root=workspace_root, gap_register=gap_register)
 

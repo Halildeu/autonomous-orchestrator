@@ -13,6 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
 
 _CONTEXT_ARTIFACT_PATHS = [
     ".cache/index/gap_register.v1.json",
@@ -323,6 +324,6 @@ def run_full_drift_detection(
     # Write report
     out_path = orchestrator_workspace / ".cache" / "reports" / "context_drift_report.v1.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_path, report)
 
     return report

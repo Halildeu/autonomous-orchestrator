@@ -10,6 +10,7 @@ from typing import Any
 
 from src.orchestrator.memory.memory_port import MemoryQueryResult, MemoryRecord, deterministic_record_id
 
+from src.shared.utils import write_json_atomic
 
 SAFE_NAMESPACE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
@@ -49,7 +50,7 @@ def _load_json(path: Path) -> Any:
 
 def _save_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(path, obj)
 
 
 @dataclass(frozen=True)

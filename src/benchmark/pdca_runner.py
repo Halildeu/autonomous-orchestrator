@@ -7,6 +7,7 @@ from typing import Any
 
 from src.benchmark.integrity_utils import load_policy_integrity
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -316,8 +317,8 @@ def run_pdca(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     regression_path.parent.mkdir(parents=True, exist_ok=True)
     cursor_path.parent.mkdir(parents=True, exist_ok=True)
 
-    report_path.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    regression_path.write_text(json.dumps(regression_index, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    cursor_path.write_text(json.dumps(cursor, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(report_path, report)
+    write_json_atomic(regression_path, regression_index)
+    write_json_atomic(cursor_path, cursor)
 
     return {"status": "OK", "out": str(report_path), "regressions": len(regressions)}

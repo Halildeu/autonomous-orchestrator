@@ -10,6 +10,7 @@ from typing import Any
 
 from src.ops.commands.common import repo_root, warn
 
+from src.shared.utils import write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -104,7 +105,7 @@ def _candidate_from_find_report(workspace_root: Path, report_path: Path) -> tupl
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(tmp_path, payload)
     os.replace(tmp_path, path)
 
 
@@ -187,7 +188,7 @@ def run_operability_heartbeat_reconcile(
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out_resolved, payload)
 
     try:
         out_rel = out_resolved.resolve().relative_to(workspace_root.resolve()).as_posix()
