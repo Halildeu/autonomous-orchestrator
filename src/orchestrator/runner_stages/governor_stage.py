@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import logging
+
 from src.orchestrator import dlq, runner_config
 from src.orchestrator.decision_boundary import enforce_decision_boundary
+from src.orchestrator.rule_evaluator import RuleEvaluator
 from src.orchestrator.runner_context import RunContext
 from src.orchestrator.runner_stages.context import StageContext
 from src.orchestrator.runner_utils import print_error
 from src.tools.gateway import PolicyViolation
+
+_logger = logging.getLogger(__name__)
 
 
 def governor_stage(*, stage_ctx: StageContext) -> tuple[RunContext, set[str], Path, bool]:
@@ -79,6 +84,22 @@ def governor_stage(*, stage_ctx: StageContext) -> tuple[RunContext, set[str], Pa
             details={"policy_violation_code": e.error_code, "dlq_file": dlq_path.name},
         )
         raise SystemExit(1)
+
+    # Policy fail_action enforcement via RuleEvaluator
+    try:
+        evaluator = RuleEvaluator(workspace_root=stage_ctx.workspace)
+        fail_actions = evaluator.evaluate_policy_fail_actions()
+        blocked = [fa for fa in fail_actions if fa["fail_action"] == "block" and not fa.get("enabled", True) is False]
+        warned = [fa for fa in fail_actions if fa["fail_action"] == "warn"]
+        run_ctx.rule_evaluation = {
+            "total_policies": len(fail_actions),
+            "blocked": len(blocked),
+            "warned": len(warned),
+        }
+        if warned:
+            _logger.warning("governor: %d policies have fail_action=warn", len(warned))
+    except Exception as e:
+        _logger.warning("governor: rule evaluation failed (non-blocking): %s", e)
 
     if run_ctx.intent and run_ctx.intent in quarantined_intents:
         run_ctx.governor_quarantine_hit = "INTENT"

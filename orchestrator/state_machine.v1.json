@@ -6,7 +6,7 @@
     "work_item": {
       "description": "Work item lifecycle from intake through execution to close.",
       "initial": "OPEN",
-      "terminal": ["CLOSED", "NOOP"],
+      "terminal": ["APPLIED", "CLOSED", "NOOP"],
       "states": [
         {
           "id": "OPEN",
