@@ -81,6 +81,12 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "default": []
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "in_progress", "done", "blocked"],
+          "default": "open",
+          "description": "Milestone lifecycle status."
         }
       }
     },

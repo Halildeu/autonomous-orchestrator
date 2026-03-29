@@ -80,6 +80,14 @@
         }
       }
     },
+    "risk_scoring_ref": {
+      "type": "string",
+      "description": "Path to risk scoring policy for composite score override integration."
+    },
+    "risk_scoring_note": {
+      "type": "string",
+      "description": "Human-readable note on how risk scoring interacts with autonomy mode."
+    },
     "fail_action": {
       "type": "string",
       "enum": [
