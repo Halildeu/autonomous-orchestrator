@@ -138,9 +138,9 @@ jobs:
       - name: Install deps
         run: pip install -e ".[dev]" --quiet
       - name: Codex config sanity
-        run: python3 src/prj_kernel_api/codex_config_sanity.py
+        run: python3 src/prj_kernel_api/codex_config_sanity.py --workspace-root .cache/ws_customer_default
       - name: Codex home contract
-        run: python3 src/prj_kernel_api/codex_home_contract_test.py
+        run: python3 src/prj_kernel_api/codex_home_contract_test.py --workspace-root .cache/ws_customer_default
 
   contract-gate:
     runs-on: ubuntu-latest
