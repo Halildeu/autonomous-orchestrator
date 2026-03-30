@@ -3,6 +3,12 @@
 Bu doküman, kritik SSOT artefact’ların tek canonical haritasıdır.  
 Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu deterministik hale getirmek.
 
+## Decision Registry (cross-session SSOT)
+- decisions/registry.v1.json — Tüm konu bazlı kararların indeksi
+- decisions/topics/zanzibar-openfga.v1.json — OpenFGA/Zanzibar authorization migration kararları
+- schemas/decision-topic.schema.v1.json — Karar topic'i şeması
+- schemas/decision-registry.schema.v1.json — Registry indeks şeması
+
 ## Roadmaps
 - roadmaps/SSOT/roadmap.v1.json (RM-SSOT-001) — CANONICAL
 - docs/ROADMAP.md — MIRROR (derived/human summary)

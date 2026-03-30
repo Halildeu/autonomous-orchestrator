@@ -116,6 +116,44 @@ def _load_domain_rules(domain: str) -> list[str]:
     return rules
 
 
+def _load_related_decisions(target_path: str) -> list[dict[str, Any]]:
+    """Load active decisions from registry that relate to target_path."""
+    registry_path = _REPO_ROOT / "decisions" / "registry.v1.json"
+    if not registry_path.exists():
+        return []
+    try:
+        registry = load_json(registry_path)
+    except Exception:
+        return []
+
+    related = []
+    for topic_entry in registry.get("topics", []):
+        if topic_entry.get("status") != "ACTIVE":
+            continue
+        topic_path = _REPO_ROOT / topic_entry.get("path", "")
+        if not topic_path.exists():
+            continue
+        try:
+            topic = load_json(topic_path)
+        except Exception:
+            continue
+        # Check if target_path relates to this topic's related_paths or cross_repo_refs
+        paths = topic.get("related_paths", []) + topic.get("cross_repo_refs", [])
+        for p in paths:
+            if target_path in p or p in target_path:
+                decisions = [d for d in topic.get("decisions", []) if d.get("status") == "FINAL"]
+                rejected = topic.get("rejected_alternatives", [])
+                related.append({
+                    "topic_id": topic.get("topic_id"),
+                    "title": topic.get("title"),
+                    "decisions": [d.get("statement", "") for d in decisions],
+                    "rejected": [r.get("alternative", "") for r in rejected],
+                    "constraints": topic.get("constraints", []),
+                })
+                break
+    return related
+
+
 def compile_rules_digest(*, workspace_root: Path, target_path: str, intent: str | None = None) -> dict[str, Any]:
     """Compile a rules digest for a target path."""
     layer, needs_core_unlock = _resolve_layer(target_path)
@@ -159,6 +197,11 @@ def compile_rules_digest(*, workspace_root: Path, target_path: str, intent: str 
 
     if intent:
         digest["intent"] = intent
+
+    # Load related decisions from registry
+    related_decisions = _load_related_decisions(target_path)
+    if related_decisions:
+        digest["related_decisions"] = related_decisions
 
     return digest
 

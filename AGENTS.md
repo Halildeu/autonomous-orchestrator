@@ -64,6 +64,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - "Neredeyiz?" sorusunda tek kapı: **project-status** (yoksa **system-status** fallback).
 - Doc navigation için tek kapı: doc-nav-check (summary default; detail/strict on-demand).
 - Kullanıcıya yönelik arama (keyword/semantic) için ortak kanal: `scripts/codex-search` (altında `ops-search` → `/api/search`); böylece Cockpit ve agent'lar aynı arama hattını kullanır.
+- **Decision Registry (MUST):** Mimari karar gerektiren konuya (auth, DB, UI, altyapı) dokunmadan önce `decisions/registry.v1.json` kontrol et. ACTIVE kararları takip et. Karar değiştirmek istiyorsan **Decision Change Proposal (DCP)** üret — sessizce değiştirme. `rejected_alternatives` listesindeki yaklaşımları tekrar önerme.
 
 ## Multi-Agent (shared context)
 
