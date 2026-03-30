@@ -21,7 +21,7 @@ def _run_pr_open_job(
     from pathlib import Path as _Path
     def _write(payload: dict[str, Any]) -> None:
         _Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
-        _Path(rc_path).write_text(_dump_json(payload), encoding="utf-8")
+        _Pathwrite_json_atomic(rc_path, payload)
     payload: dict[str, Any] = {"rc": 1, "fingerprint": fingerprint}
     try:
         req_obj = _json.loads(_Path(request_path).read_text(encoding="utf-8"))
@@ -229,7 +229,7 @@ def _run_release_create_job(
     from pathlib import Path as _Path
     def _write(payload: dict[str, Any]) -> None:
         _Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
-        _Path(rc_path).write_text(_dump_json(payload), encoding="utf-8")
+        _Pathwrite_json_atomic(rc_path, payload)
     payload: dict[str, Any] = {"rc": 1, "fingerprint": fingerprint, "kind": str(kind or "")}
     ws = _Path(workspace_root)
     manifest_path = ws / ".cache" / "reports" / "release_manifest.v1.json"
