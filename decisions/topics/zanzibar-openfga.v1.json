@@ -1,0 +1,102 @@
+{
+  "version": "v1",
+  "topic_id": "zanzibar-openfga",
+  "title": "OpenFGA Authorization Migration (Zanzibar)",
+  "status": "ACTIVE",
+  "revision": 3,
+  "decided_at": "2026-03-28T00:00:00Z",
+  "decided_by": ["user", "claude", "codex"],
+  "decisions": [
+    {
+      "decision_id": "D-001",
+      "statement": "OpenFGA (Zanzibar ReBAC) kullan — kendi authorization engine yazma",
+      "rationale": "Codex istişaresi: mevcut OSS araçları kullan, SaaS auth build etme. OpenFGA ücretsiz, Apache 2.0, Google Zanzibar paper implementasyonu.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-002",
+      "statement": "Permission-service kaldırılacak — OpenFGA geçişi tamamlanınca archive sonra sil",
+      "rationale": "JWT'ye gömülü permission stale, hardcoded admin mapping, inline check tutarsız.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-003",
+      "statement": "4 katmanlı mimari: Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + PostgreSQL RLS (data) → Frontend JS SDK",
+      "rationale": "Her katman tek sorumluluk. Keycloak sadece identity, OpenFGA sadece authorization, DB katmanı veri sızıntısını önler.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-004",
+      "statement": "Feature flag ile servis servis geç — shadow mode değil",
+      "rationale": "Shadow mode karmaşıklık ekler, feature flag daha basit ve geri alınabilir.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-005",
+      "statement": "SaaS ürün hedefi ERTELENDI — takım + gelir olana kadar",
+      "rationale": "Önce internal ERP'yi migrate et, SaaS sonra düşünülsün.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-006",
+      "statement": "SOC2 ertelendi — enterprise müşteri olana kadar",
+      "rationale": "Compliance maliyeti yüksek, müşteri yokken gereksiz.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-007",
+      "statement": "API tasarımını tenant-aware yap — düşük maliyetli gelecek yatırımı",
+      "rationale": "Sonradan eklemek zor, baştan tenant_id taşımak ucuz.",
+      "status": "FINAL"
+    }
+  ],
+  "constraints": [
+    "Phase 1'den başla (OpenFGA altyapısı), sonra veri katmanı, sonra permission-service geçişi, sonra frontend",
+    "Keycloak = login only — authorization logic Keycloak'a konmaz",
+    "Her authorization check OpenFGA üzerinden — inline permission check yasak",
+    "Data katmanında Hibernate @Filter + PostgreSQL RLS birlikte — developer WHERE clause unutsa bile veri sızmaz"
+  ],
+  "rejected_alternatives": [
+    {
+      "alternative": "Kendi custom permission engine yazma",
+      "reason": "Bakım maliyeti yüksek, wheel reinvention, OSS daha iyi test edilmiş",
+      "tried_count": 2
+    },
+    {
+      "alternative": "Casbin kullanma",
+      "reason": "Zanzibar modeli daha güçlü, OpenFGA daha aktif community",
+      "tried_count": 1
+    },
+    {
+      "alternative": "JWT'ye permission gömme (mevcut sistem)",
+      "reason": "Stale permission, token büyüklüğü, real-time revocation yok",
+      "tried_count": 3
+    },
+    {
+      "alternative": "Shadow mode ile geçiş",
+      "reason": "Karmaşıklık ekliyor, feature flag daha basit",
+      "tried_count": 1
+    },
+    {
+      "alternative": "Hemen SaaS ürün çıkarma",
+      "reason": "Takım yok, gelir yok, önce internal ERP migrate et",
+      "tried_count": 2
+    }
+  ],
+  "related_paths": [
+    "policies/policy_autonomy.v1.json",
+    "policies/policy_decision_boundaries.v1.json"
+  ],
+  "cross_repo_refs": [
+    "dev-repo: src/services/permission-service/",
+    "dev-repo: packages/shared/erp-auth/",
+    "dev-repo: docker-compose.yml (OpenFGA container)"
+  ],
+  "supersedes": null,
+  "superseded_by": null,
+  "change_log": [
+    {"revision": 1, "date": "2026-03-20", "change": "Initial: permission-service yerine OpenFGA kararı"},
+    {"revision": 2, "date": "2026-03-25", "change": "SaaS ertelendi, SOC2 ertelendi"},
+    {"revision": 3, "date": "2026-03-28", "change": "Codex istişaresi: OSS kullan, kendi yazma. 4 katmanlı mimari netleşti."}
+  ]
+}
