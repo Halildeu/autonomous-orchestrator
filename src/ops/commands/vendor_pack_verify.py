@@ -85,7 +85,7 @@ def _parse_mode(mode_str: Any) -> int | None:
 
 def _write_result(outdir: Path, result: dict[str, Any]) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
-    (outdir / "vendor_pack_verify.result.v1.json").write_text(_dump_json(result), encoding="utf-8")
+    write_json_atomic(outdir / "vendor_pack_verify.result.v1.json", result)
 
     lines = [
         "# Vendor Pack Verify (v1)",

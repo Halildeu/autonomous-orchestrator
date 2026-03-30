@@ -242,9 +242,7 @@ def run_work_intake_autoselect(*, workspace_root: Path, limit: int, mode: str = 
         "notes": selection_notes,
     }
     selection_path.parent.mkdir(parents=True, exist_ok=True)
-    selection_path.write_text(
-        json.dumps(selection_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8"
-    )
+    write_json_atomic(selection_path, selection_payload)
 
     status = "OK"
     error_code = None

@@ -85,9 +85,7 @@ def cmd_work_intake_select(args: argparse.Namespace) -> int:
             "notes": ["PROGRAM_LED=true", "CLEARED=true"],
         }
         selection_path.parent.mkdir(parents=True, exist_ok=True)
-        selection_path.write_text(
-            json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8"
-        )
+        write_json_atomic(selection_path, payload)
 
         status = "OK" if cleared_count > 0 else "IDLE"
         error_code = None if cleared_count > 0 else "NO_SELECTED_IDS"

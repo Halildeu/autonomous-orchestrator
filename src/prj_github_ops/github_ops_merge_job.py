@@ -34,7 +34,7 @@ def _run_pr_merge_job_impl(
 
     def _write(payload: dict[str, Any]) -> None:
         _Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
-        _Path(rc_path).write_text(_dump_json(payload), encoding="utf-8")
+        _Pathwrite_json_atomic(rc_path, payload)
 
     payload: dict[str, Any] = {"rc": 1, "fingerprint": fingerprint, "kind": "MERGE"}
     ws = _Path(workspace_root)

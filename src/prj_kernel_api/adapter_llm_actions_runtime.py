@@ -1084,7 +1084,7 @@ def maybe_handle_llm_actions(
                 safe_request = _sanitize_name(str(request_id or "request"))
                 safe_provider = _sanitize_name(str(provider_id or "provider"))
                 out_path = out_dir / f"{safe_request}_{safe_provider}.txt"
-                out_path.write_text(output_text)
+                write_text_atomic(out_path, output_text)
                 output_full_path = str(out_path)
             except Exception:
                 output_full_path = None
