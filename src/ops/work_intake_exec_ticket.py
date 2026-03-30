@@ -371,8 +371,7 @@ def _write_gap_coverage_report(
         "notes": ["safe-only", "workspace-only", "no_repo_writes"],
     }
     _write_json(out_json, payload)
-    out_md.write_text(
-        "\n".join(
+    write_text_atomic(out_md, "\n".join(
             [
                 "GAP COVERAGE SAFE-ONLY APPLY",
                 "",
@@ -383,9 +382,7 @@ def _write_gap_coverage_report(
                 "Safe-only note; no repo writes.",
                 "",
             ]
-        ),
-        encoding="utf-8",
-    )
+        ))
     return (str(Path(".cache") / "reports" / f"{base}.json"), str(Path(".cache") / "reports" / f"{base}.md"))
 
 
@@ -411,8 +408,7 @@ def _write_doc_fix_suggestions(
         ],
     }
     _write_json(out_json, payload)
-    out_md.write_text(
-        "\n".join(
+    write_text_atomic(out_md, "\n".join(
             [
                 "DOC FIX SUGGESTIONS",
                 "",
@@ -426,9 +422,7 @@ def _write_doc_fix_suggestions(
                 "- Add a short clarification note where needed.",
                 "",
             ]
-        ),
-        encoding="utf-8",
-    )
+        ))
     return (str(Path(".cache") / "reports" / f"{base}.json"), str(Path(".cache") / "reports" / f"{base}.md"))
 
 
@@ -448,8 +442,7 @@ def _write_doc_nav_fix_plan(
         "notes": ["workspace-only", "safe-only", "no_repo_writes"],
     }
     _write_json(out_json, payload)
-    out_md.write_text(
-        "\n".join(
+    write_text_atomic(out_md, "\n".join(
             [
                 "DOC NAV FIX PLAN",
                 "",
@@ -458,9 +451,7 @@ def _write_doc_nav_fix_plan(
                 "Plan-only list; no repo writes.",
                 "",
             ]
-        ),
-        encoding="utf-8",
-    )
+        ))
     return (str(Path(".cache") / "reports" / "doc_nav_fix_plan.v1.json"), str(Path(".cache") / "reports" / "doc_nav_fix_plan.v1.md"))
 
 
@@ -488,8 +479,7 @@ def _ensure_plan(
         }
         _write_json(plan_path, plan_obj)
         md_path = plan_path.with_suffix(".plan.md")
-        md_path.write_text(
-            "\n".join(
+        write_text_atomic(md_path, "\n".join(
                 [
                     f"CHG PLAN: {chg_id}",
                     "",
@@ -499,9 +489,7 @@ def _ensure_plan(
                     "Plan-only steps drafted.",
                     "",
                 ]
-            ),
-            encoding="utf-8",
-        )
+            ))
     return str(plan_rel.as_posix())
 
 
@@ -606,8 +594,7 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
         _ensure_inside_workspace(workspace_root, out_json)
         _ensure_inside_workspace(workspace_root, out_md)
         _write_json(out_json, report)
-        out_md.write_text(
-            "\n".join(
+        write_text_atomic(out_md, "\n".join(
                 [
                     "WORK INTAKE TICKET EXECUTION",
                     "",
@@ -622,9 +609,7 @@ def run_work_intake_exec_ticket(*, workspace_root: Path, limit: int) -> dict[str
                     "",
                 ]
             )
-            + "\n",
-            encoding="utf-8",
-        )
+            + "\n")
 
         return {
             "status": "IDLE",

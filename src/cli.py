@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from src.shared.utils import write_json_atomic
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
@@ -150,10 +152,7 @@ def _cmd_run_shortcut(argv: list[str]) -> int:
     req_dir = workspace / ".cache" / "cli_requests"
     req_dir.mkdir(parents=True, exist_ok=True)
     envelope_path = req_dir / f"{request_id}.json"
-    envelope_path.write_text(
-        json.dumps(envelope, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(envelope_path, envelope)
 
     cmd = [
         sys.executable,

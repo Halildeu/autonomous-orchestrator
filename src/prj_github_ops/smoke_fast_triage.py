@@ -531,9 +531,8 @@ def run_smoke_fast_triage(*, workspace_root: Path, job_id: str, detail: bool = F
         f"- marker_detected: {markers[0] if markers else 'none'}",
         f"- report_path: {triage_rel}",
     ]
-    (workspace_root / ".cache" / "reports" / "smoke_fast_triage.v1.md").write_text(
+    write_text_atomic(workspace_root / ".cache" / "reports" / "smoke_fast_triage.v1.md",
         "\n".join(md_lines) + "\n",
-        encoding="utf-8",
     )
 
     return {

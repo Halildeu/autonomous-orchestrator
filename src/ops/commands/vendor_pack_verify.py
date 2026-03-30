@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root, warn
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 
 def _now_iso_utc() -> str:
@@ -116,7 +117,7 @@ def _write_result(outdir: Path, result: dict[str, Any]) -> None:
                 f"- tool_bin: {v.get('tool_bin')}",
             ]
         )
-    (outdir / "vendor_pack_verify.summary.v1.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(outdir / "vendor_pack_verify.summary.v1.md", "\n".join(lines) + "\n")
 
 
 def run_vendor_pack_verify(*, vendor_pack: Path, outdir: Path) -> dict[str, Any]:
@@ -338,7 +339,7 @@ def run_vendor_pack_verify(*, vendor_pack: Path, outdir: Path) -> dict[str, Any]
                 env=env,
             )
             smoke_out = (proc.stdout or "") + (("\n" + proc.stderr) if proc.stderr else "")
-            (outdir / "vendor_pack_verify.semgrep_version.v1.txt").write_text(smoke_out, encoding="utf-8")
+            write_text_atomic(outdir / "vendor_pack_verify.semgrep_version.v1.txt", smoke_out)
             if proc.returncode != 0:
                 result["error"] = "SMOKE_FAIL"
                 result["smoke_exit_code"] = proc.returncode

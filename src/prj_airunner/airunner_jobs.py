@@ -227,7 +227,7 @@ def seed_jobs(
         }
         rc_path = workspace_root / ".cache" / "reports" / "jobs" / f"seeded_{job_id}.rc.json"
         rc_path.parent.mkdir(parents=True, exist_ok=True)
-        rc_path.write_text(_dump_json({"rc": None, "seeded": True}), encoding="utf-8")
+        write_text_atomic(rc_path, _dump_json({"rc": None, "seeded": True}))
         job["evidence_paths"] = [str(Path(".cache") / "reports" / "jobs" / f"seeded_{job_id}.rc.json")]
         evidence_paths.extend(job["evidence_paths"])
         jobs.append(job)

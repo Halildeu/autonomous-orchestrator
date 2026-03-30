@@ -182,10 +182,7 @@ def run_heartbeat_checker_pinpoint(
     }
 
     out_json_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_json_resolved.write_text(
-        json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_text_atomic(out_json_resolved, json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n")
 
     md_lines: list[str] = ["# Heartbeat checker pinpoint (v1)", ""]
     for entry in results:

@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.shared.utils import write_json_atomic
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -123,10 +125,7 @@ def compact_session_decisions(
             "decisions_archived": len(to_archive),
             "decisions": to_archive,
         }
-        archive_file.write_text(
-            json.dumps(archive_data, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        write_json_atomic(archive_file, archive_data)
         archive_path = str(archive_file)
 
     # Update context with kept decisions only

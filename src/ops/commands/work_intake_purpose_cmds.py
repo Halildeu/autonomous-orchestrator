@@ -290,8 +290,7 @@ def cmd_work_intake_purpose_generate(args: argparse.Namespace) -> int:
             _write_json(report_path, report)
             report_md_path = ws_root / REPORT_REL
             report_md_path.parent.mkdir(parents=True, exist_ok=True)
-            report_md_path.write_text(
-                "\n".join(
+            write_text_atomic(report_md_path, "\n".join(
                     [
                         "# Work Intake Purpose Generate (AI)",
                         "",
@@ -300,8 +299,7 @@ def cmd_work_intake_purpose_generate(args: argparse.Namespace) -> int:
                         f"Generated at: {report['generated_at']}",
                     ]
                 )
-                + "\n",
-                encoding="utf-8",
+                + "\n"
             )
             print(json.dumps(report, ensure_ascii=False, sort_keys=True))
             return 2

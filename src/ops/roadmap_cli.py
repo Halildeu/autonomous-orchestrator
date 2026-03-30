@@ -29,7 +29,7 @@ from src.ops.roadmap_cli_helpers import (
 )
 from src.ops.portfolio_release import read_release_summary
 from src.ops.managed_repo_standards import build_managed_repo_standards_summary
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_bytes_atomic, write_json_atomic
 from src.ops.drift_scoreboard import (
     build_drift_scoreboard,
     build_drift_scoreboard_summary,
@@ -879,7 +879,7 @@ def cmd_workspace_bootstrap(args: argparse.Namespace) -> int:
             warn(f"FAIL error=FILE_EXISTS file={target}")
             return 2
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(p.read_bytes())
+        write_bytes_atomic(target, p.read_bytes())
         created_files += 1
 
     print(

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.shared.utils import write_text_atomic
+from src.shared.utils import write_bytes_atomic, write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -437,7 +437,7 @@ def run_north_star_subject_plan_profile_run(
                         notes.append("override_restore_failed=remove")
             else:
                 try:
-                    override_path.write_bytes(original_override_bytes)
+                    write_bytes_atomic(override_path, original_override_bytes)
                     notes.append("override_restored=original")
                 except Exception:
                     notes.append("override_restore_failed=write")

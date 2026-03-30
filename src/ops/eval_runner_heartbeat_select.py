@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root, warn
+from src.shared.utils import write_text_atomic
 
 _JSON_PATH_PATTERN = re.compile(r"[A-Za-z0-9_./-]+\.v1\.json", re.IGNORECASE)
 _HEARTBEAT_FILE_PATTERN = re.compile(r"heartbeat.*\.v1\.json$", re.IGNORECASE)
@@ -286,10 +287,7 @@ def run_eval_runner_heartbeat_select(
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(
-        json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_text_atomic(out_resolved, json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2) + "\n")
 
     try:
         rel = out_resolved.resolve().relative_to(workspace_root.resolve()).as_posix()

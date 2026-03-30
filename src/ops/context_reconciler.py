@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_bytes_atomic, write_json_atomic
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -224,7 +224,7 @@ def _push_artifact(
         return None
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_bytes(src.read_bytes())
+        write_bytes_atomic(dst, src.read_bytes())
         return {"action": "artifact_pushed", "path": rel_path}
     except Exception as e:
         return {"action": "artifact_push_failed", "path": rel_path, "error": str(e)[:100]}

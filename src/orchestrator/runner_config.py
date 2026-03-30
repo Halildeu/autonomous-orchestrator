@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from src.orchestrator.dlq import iso_utc_now
-from src.shared.utils import load_policy_validated
+from src.shared.utils import load_policy_validated, write_text_atomic
 from src.tools.gateway import PolicyViolation
 from src.utils.jsonio import load_json
 
@@ -72,12 +72,12 @@ def acquire_governor_lock(workspace: Path, *, max_parallel_runs: int) -> tuple[P
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(fd)
     except FileExistsError as e:
         raise PolicyViolation("CONCURRENCY_LIMIT", "Concurrency limit reached (governor lock exists).") from e
 
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(f"{iso_utc_now()} lock\n")
+        write_text_atomic(lock_path, f"{iso_utc_now()} lock\n")
     except Exception:
         try:
             lock_path.unlink()

@@ -279,10 +279,7 @@ def build_hierarchical_context(
         "decision_sources": {k: v for k, v in sorted(sources.items())},
     }
 
-    out_path.write_text(
-        json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(out_path, payload)
 
     return {
         "status": "OK",
