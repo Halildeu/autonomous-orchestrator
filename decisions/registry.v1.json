@@ -1,13 +1,13 @@
 {
-  "version": "v1",
   "topics": [
     {
-      "topic_id": "zanzibar-openfga",
-      "title": "OpenFGA Authorization Migration (Zanzibar)",
-      "status": "ACTIVE",
+      "last_updated": "2026-03-28",
       "path": "decisions/topics/zanzibar-openfga.v1.json",
       "revision": 3,
-      "last_updated": "2026-03-28"
+      "status": "ACTIVE",
+      "title": "OpenFGA Authorization Migration (Zanzibar)",
+      "topic_id": "zanzibar-openfga"
     }
-  ]
+  ],
+  "version": "v1"
 }

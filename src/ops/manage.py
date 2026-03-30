@@ -60,6 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.context_profile_resolver import register_context_profile_check_subcommand
     from src.ops.compile_rules_digest import register_compile_rules_digest_subcommand
     from src.ops.write_authorize import register_write_authorize_subcommand
+    from src.ops.decision_registry import register_decision_registry_subcommands
 
     register_status_subcommands(sub)
     register_hygiene_subcommands(sub)
@@ -91,6 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_context_profile_check_subcommand(sub)
     register_compile_rules_digest_subcommand(sub)
     register_write_authorize_subcommand(sub)
+    register_decision_registry_subcommands(sub)
 
     return parser
 

@@ -55,6 +55,7 @@ def compile_rule_packet(target_path: str, workspace_root: Path) -> dict:
     from src.ops.context_profile_resolver import resolve_profile
     from src.ops.compile_rules_digest import compile_rules_digest
     from src.ops.write_authorize import write_authorize
+    from src.ops.decision_registry import check_decisions
     from src.shared.utils import now_iso8601
 
     # 1. Resolve profile
@@ -99,6 +100,7 @@ def compile_rule_packet(target_path: str, workspace_root: Path) -> dict:
         },
         "required_validations": auth.get("required_validations", []),
         "evidence_required": digest.get("evidence_required", False),
+        "related_decisions": digest.get("related_decisions", []),
     }
 
     # Write packet to workspace for post-write reference
