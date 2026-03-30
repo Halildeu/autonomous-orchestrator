@@ -151,12 +151,12 @@ jobs:
         run: |
           set -euo pipefail
           git checkout "${ENF_PR_HEAD}"
-          python3 -m src.ops.manage enforcement-check --profile strict --baseline "${ENF_BASELINE}" --outdir .cache/ws_customer_default/.cache/reports/enf_ci --max-findings 310
+          python3 -m src.ops.manage enforcement-check --profile strict --baseline "${ENF_BASELINE}" --outdir .cache/ws_customer_default/.cache/reports/enf_ci --max-findings 285
 
       - name: Enforcement check (main strict)
         if: github.event_name != 'pull_request' && steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |
-          python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/ws_customer_default/.cache/reports/enf_ci --max-findings 310
+          python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/ws_customer_default/.cache/reports/enf_ci --max-findings 285
 
       - name: Enforcement fallback (portable baseline)
         if: steps.detect-enforcement-runtime.outputs.has_runtime != 'true'

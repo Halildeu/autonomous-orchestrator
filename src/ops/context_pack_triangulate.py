@@ -285,10 +285,7 @@ def run_context_pack_triangulate(
         candidates_rel=candidates_rel_path,
         merge_rel=merge_rel_path,
     )
-    context_pack_path.write_text(
-        json.dumps(context_pack_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(context_pack_path, context_pack_payload)
 
     return {
         "status": "OK",

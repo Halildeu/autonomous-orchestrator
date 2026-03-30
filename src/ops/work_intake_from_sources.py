@@ -1140,9 +1140,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
     out_json.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(out_json, payload)
     out_compaction.parent.mkdir(parents=True, exist_ok=True)
-    out_compaction.write_text(
-        json.dumps(
-            {
+    write_json_atomic(out_compaction, {
                 "version": "v1",
                 "generated_at": generated_at,
                 "workspace_root": str(workspace_root),
@@ -1157,14 +1155,7 @@ def run_work_intake_build(*, workspace_root: Path) -> dict[str, Any]:
                     "history_preserved_in_items=true",
                     "summary_uses_active_items_only=true",
                 ],
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+            })
 
     lines = [
         "# Work Intake Summary (v0.2)",

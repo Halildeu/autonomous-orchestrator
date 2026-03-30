@@ -190,10 +190,7 @@ def run_policy_rule_extract(
     }
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
-    out_resolved.write_text(
-        json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_text_atomic(out_resolved, json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n")
 
     if out_md:
         md_resolved = _resolve_reports_path(workspace_root, str(out_md))

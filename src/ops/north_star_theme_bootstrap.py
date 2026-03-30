@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.shared.utils import write_json_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 import argparse
 import json
@@ -349,9 +349,7 @@ def run_bootstrap(
             "output_full_path": combined.output_full_path,
             "output_full_paths": combined.output_full_paths,
         }
-        (reports_dir / f"north_star_consult_{provider_id}.v0.1.json").write_text(
-            json.dumps(out, indent=2, ensure_ascii=False)
-        )
+        write_json_atomic(reports_dir / f"north_star_consult_{provider_id}.v0.1.json", out)
 
     consolidated, conflicts = _consolidate_theme_sets(parsed_sets)
 
@@ -386,7 +384,7 @@ def run_bootstrap(
 
     # consolidation report
     consolidation_md = reports_dir / "theme_subtheme_consolidation.v0.1.md"
-    consolidation_md.write_text(
+    write_text_atomic(consolidation_md,
         "# Theme/Subtheme Consolidation\n\n"
         f"- subject_id: {subject_id}\n"
         f"- providers: {', '.join(providers)}\n"
@@ -396,7 +394,7 @@ def run_bootstrap(
     )
 
     closeout = reports_dir / "closeout_theme_subtheme_bootstrap.v0.1.md"
-    closeout.write_text(
+    write_text_atomic(closeout,
         "# Closeout — Theme/Subtheme Bootstrap\n\n"
         f"- subject_id: {subject_id}\n"
         f"- status: {'ACTIVE' if approve else 'PROPOSED'}\n"

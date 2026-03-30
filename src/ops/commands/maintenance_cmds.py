@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from src.ops.commands.common import repo_root, resolve_workspace_root_arg, run_step, warn
+from src.shared.utils import write_json_atomic
 from src.ops.commands.context_cmds import register_context_subcommands
 from src.ops.commands.maintenance_doc_cmds import (
     cmd_doc_graph,
@@ -115,10 +116,7 @@ def cmd_script_budget(args: argparse.Namespace) -> int:
             status = str(report.get("status") or "FAIL")
             hard_exceeded = int(report.get("hard_exceeded", hard_exceeded) or 0)
             soft_exceeded = int(report.get("soft_exceeded", soft_exceeded) or 0)
-            out_path.write_text(
-                json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-                encoding="utf-8",
-            )
+            write_json_atomic(out_path, report)
     except Exception:
         pass
 

@@ -894,16 +894,10 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     ]:
         path.parent.mkdir(parents=True, exist_ok=True)
 
-    out_integrity_json.write_text(
-        json.dumps(integrity_snapshot, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(out_integrity_json, integrity_snapshot)
     _write_integrity_md(out_integrity_md, integrity_snapshot)
 
-    out_assessment_raw.write_text(
-        json.dumps(assessment_raw, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(out_assessment_raw, assessment_raw)
 
     write_json_atomic(out_catalog, catalog)
     write_json_atomic(out_assessment, assessment)
@@ -930,10 +924,7 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
                 "north star maturity schema validation failed",
                 {"error": str(e)[:200]},
             )
-    out_maturity_tracking.write_text(
-        json.dumps(maturity_doc, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(out_maturity_tracking, maturity_doc)
 
     source_eval_hash = _hash_bytes(out_assessment_eval.read_bytes()) if out_assessment_eval.exists() else None
     source_raw_hash = _hash_bytes(out_assessment_raw.read_bytes()) if out_assessment_raw.exists() else None
@@ -994,18 +985,9 @@ def run_assessment(*, workspace_root: Path, dry_run: bool) -> dict[str, Any]:
     assessment_matrix = stage_matrices.get("assessment") if isinstance(stage_matrices, dict) else {}
     gap_matrix = stage_matrices.get("gap") if isinstance(stage_matrices, dict) else {}
 
-    out_reference_matrix.write_text(
-        json.dumps(reference_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    out_assessment_matrix.write_text(
-        json.dumps(assessment_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    out_gap_matrix.write_text(
-        json.dumps(gap_matrix, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_atomic(out_reference_matrix, reference_matrix)
+    write_json_atomic(out_assessment_matrix, assessment_matrix)
+    write_json_atomic(out_gap_matrix, gap_matrix)
 
     outputs_sha = _hash_bytes(json.dumps(assessment, sort_keys=True).encode("utf-8"))
     cursor = {

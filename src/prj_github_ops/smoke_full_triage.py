@@ -279,9 +279,8 @@ def run_smoke_full_triage(*, workspace_root: Path, job_id: str, detail: bool = F
         if parse_error:
             md_lines.append(f"- parse_error: {parse_error}")
     md_lines.append(f"- report_path: {triage_rel}")
-    (workspace_root / ".cache" / "reports" / "smoke_full_triage.v1.md").write_text(
+    write_text_atomic(workspace_root / ".cache" / "reports" / "smoke_full_triage.v1.md",
         "\n".join(md_lines) + "\n",
-        encoding="utf-8",
     )
 
     if catalog_path:
@@ -307,7 +306,7 @@ def run_smoke_full_triage(*, workspace_root: Path, job_id: str, detail: bool = F
         catalog_path_out = workspace_root / catalog_rel
         catalog_path_out.parent.mkdir(parents=True, exist_ok=True)
         write_text_atomic(catalog_path_out, _dump_json(catalog_payload))
-        (workspace_root / ".cache" / "reports" / "catalog_parse_triage.v1.md").write_text(
+        write_text_atomic(workspace_root / ".cache" / "reports" / "catalog_parse_triage.v1.md",
             "\n".join(
                 [
                     "# Catalog Parse Triage",
@@ -320,7 +319,6 @@ def run_smoke_full_triage(*, workspace_root: Path, job_id: str, detail: bool = F
                 ]
             )
             + "\n",
-            encoding="utf-8",
         )
 
     advisor_rel = str(Path(".cache") / "reports" / "advisor_expected_paths.v1.json")

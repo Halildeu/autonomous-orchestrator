@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.shared.utils import write_text_atomic
+from src.shared.utils import write_bytes_atomic, write_text_atomic
 
 import json
 from datetime import datetime, timezone
@@ -77,7 +77,7 @@ def _restore_override(path: Path, original_bytes: bytes | None) -> str:
         except Exception:
             return "remove_failed"
     try:
-        path.write_bytes(original_bytes)
+        write_bytes_atomic(path, original_bytes)
         return "restored"
     except Exception:
         return "restore_failed"

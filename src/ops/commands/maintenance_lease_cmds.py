@@ -275,10 +275,7 @@ def cmd_doer_loop_lock_seed(args: argparse.Namespace) -> int:
         }
         clear_report_path = ws / ".cache" / "reports" / "doer_loop_lock_clear_stale.v1.json"
         clear_report_path.parent.mkdir(parents=True, exist_ok=True)
-        clear_report_path.write_text(
-            json.dumps(clear_report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        write_json_atomic(clear_report_path, clear_report)
         clear_report_rel = str(Path(".cache") / "reports" / "doer_loop_lock_clear_stale.v1.json")
 
     report_rel = Path(".cache") / "reports" / "doer_loop_lock_seed.v1.json"
