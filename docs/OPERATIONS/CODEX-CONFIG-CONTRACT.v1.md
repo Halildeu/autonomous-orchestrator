@@ -21,12 +21,16 @@ modelini ve core_lock/ops/gate/runner zincirini korur.
 - fallback only: AGENTS.md
 - router: AGENTS.md icindeki SSOT Entrypoint Map
 
-## CODEX_HOME (deterministik)
-- repo-local config: <repo>/.codex/config.toml
+## Config resolution (deterministik)
+- repo-local config template: <repo>/.codex/config.toml (Codex auto-load, proje trusted olmali)
 - managed runtime overlay: <repo>/policies/policy_codex_runtime.v1.json
-- CODEX_HOME bu klasore ayarlanarak global configten bagimsiz calisir
+- auth: default global store (keyring veya file-backed fallback ~/.codex/auth.json); repo'ya kopyalanmaz
+- interactive CLI'da CODEX_HOME manuel export ETMEYIN — credential bulunamaz ve 401 hatasi olusur
+- program-led runner'lar icin CODEX_HOME yalnizca <WS>/.cache/codex_home/ yoluna set edilir (ic kullanim)
 - tek gercek config: <WS>/.cache/codex_home/config.toml (program-led bootstrap)
 - bootstrap, repo template + managed runtime overlay birlesiminden effective config uretir
+- NOT: repo-local auto-read yalnizca template'i okur; overlay'i uygulamaz. Overlay yalniz orchestrator bootstrap ile workspace runtime'a yazilir
+- Trust gereksinimi: repo-local config yuklenmediyse ~/.codex/config.toml icinde projeyi trusted isaretle
 
 ## Managed Runtime Overlay
 - Overlay schema: schemas/policy-codex-runtime.schema.v1.json
