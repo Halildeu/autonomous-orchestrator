@@ -98,6 +98,9 @@ class EvidenceWriter:
     def write_summary(self, summary: dict) -> None:
         save_json(self.run_dir / "summary.json", summary)
 
+    def write_closeout(self, closeout: dict[str, Any]) -> None:
+        save_json(self.run_dir / "closeout.v1.json", closeout)
+
     def write_suspend(self, suspend: dict) -> None:
         save_json(self.run_dir / "suspend.json", suspend)
 
@@ -154,6 +157,9 @@ class EvidenceWriter:
             },
             "provider": {"provider_used": provider_used, "model_used": model_used},
         }
+        execution_target = summary.get("execution_target") if isinstance(summary.get("execution_target"), dict) else {}
+        if execution_target:
+            provenance["execution_target"] = execution_target
         save_json(self.run_dir / "provenance.v1.json", provenance)
 
     def write_integrity_manifest(self) -> None:
