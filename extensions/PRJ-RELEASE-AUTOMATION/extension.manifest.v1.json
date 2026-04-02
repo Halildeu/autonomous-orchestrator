@@ -23,8 +23,8 @@
     ],
     "kernel_api_actions": [],
     "ops": [
-      "release-check",
       "pr-merge-e2e",
+      "release-check",
       "release-final-e2e",
       "release-plan",
       "release-prepare",

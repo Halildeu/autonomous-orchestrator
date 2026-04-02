@@ -24,9 +24,9 @@
     ],
     "kernel_api_actions": [],
     "ops": [
+      "planner-apply-selection",
       "planner-build-plan",
-      "planner-show-plan",
-      "planner-apply-selection"
+      "planner-show-plan"
     ],
     "ops_single_gate": [
       "planner-show-plan"

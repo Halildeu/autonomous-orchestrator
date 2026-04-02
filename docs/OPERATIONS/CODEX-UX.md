@@ -14,7 +14,7 @@ Bu doküman, “kullanıcı komut yazmaz” yaklaşımını SSOT olarak tanımla
   - Side-effect’ler dry-run ve policy/gate/governor kontrolleri ile kontrol edilir.
   - Şüphede dur: `report_only` / “plan only” yaklaşımı.
 - Codex runtime overlay:
-  - Effective model/config repo template'ten degil, `policy_codex_runtime.v1.json` + CODEX_HOME bootstrap'tan gelir.
+  - Effective model/config repo template'ten degil, `policy_codex_runtime.v1.json` + orchestrator bootstrap'tan gelir (CODEX_HOME yalniz runner ic kullaniminda set edilir; interactive CLI'da export etmeyin).
 - Session memory:
   - Varsayilan strateji `hybrid`'dir: local session evidence korunur, provider-state/compaction referanslari ayrica tutulur.
   - OpenAI `Responses` devam zinciri kullaniliyorsa son `response_id` session context'e yazilir ve sonraki canli cagrida `previous_response_id` olarak tekrar kullanilir.

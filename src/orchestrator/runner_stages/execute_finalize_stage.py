@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import json
 import time
+from typing import Any
 
 from src.evidence.writer import EvidenceWriter
 from src.orchestrator import autonomy, budget_runtime, dlq, quota
+from src.orchestrator.closeout_evidence import build_closeout_envelope, closeout_summary_fields
 from src.orchestrator.executor_adapters import resolve_executor_port
 from src.orchestrator.failure_preview import failure_preview_from_exception
 from src.orchestrator.observability.otel_bridge import attach_trace_meta
 from src.orchestrator.quality_gate import run_quality_gates, quality_gate_summary
 from src.shared.status import validate_run_transition
 from src.orchestrator.runner_stages.context import ExecutionContext, StageContext
+from src.orchestrator.target_health import evaluate_execution_target_guard
 from src.tools.gateway import PolicyViolation
 
 
@@ -255,6 +258,24 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
         "mode": quota_autonomy_state.autonomy_record.get("mode"),
     }
 
+    execution_target_guard: dict[str, Any] = {}
+    try:
+        execution_target_guard = evaluate_execution_target_guard(
+            workspace=stage_ctx.workspace,
+            envelope=stage_ctx.envelope,
+            writes_allowed=run_ctx.writes_allowed,
+        )
+    except Exception:
+        execution_target_guard = {}
+
+    closeout = build_closeout_envelope(
+        run_id=exec_ctx.run_id,
+        result_state=str(summary.get("result_state") or summary.get("status") or ""),
+        nodes=summary.get("nodes") if isinstance(summary.get("nodes"), list) else [],
+        execution_target_guard=execution_target_guard,
+    )
+    summary.update(closeout_summary_fields(closeout))
+
     attach_trace_meta(summary, workspace=stage_ctx.workspace, out_dir=stage_ctx.out_dir, run_id=exec_ctx.run_id)
     _persist_execution_to_session(
         workspace=stage_ctx.workspace,
@@ -266,6 +287,7 @@ def execute_and_finalize_stage(*, stage_ctx: StageContext, exec_ctx: ExecutionCo
         summary=summary,
     )
     evidence.write_summary(summary)
+    evidence.write_closeout(closeout)
     if summary.get("result_state") == "SUSPENDED":
         resume_path = evidence.run_dir
         try:

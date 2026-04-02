@@ -68,6 +68,11 @@ def run_closeout_write(
     out_path: Path | str,
     title: str,
     evidence_paths: Iterable[str] | None,
+    actor_role: str | None = None,
+    actor: str | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+    handoff_from: str | None = None,
 ) -> dict[str, Any]:
     title = str(title or "").strip()
     if not title:
@@ -91,6 +96,16 @@ def run_closeout_write(
         evidence_paths=evidence,
         workspace_root=str(workspace_root),
     )
+    if str(actor_role or "").strip():
+        trace_meta["actor_role"] = str(actor_role).strip()
+    if str(actor or "").strip():
+        trace_meta["actor"] = str(actor).strip()
+    if str(provider or "").strip():
+        trace_meta["provider_used"] = str(provider).strip()
+    if str(model or "").strip():
+        trace_meta["model_used"] = str(model).strip()
+    if str(handoff_from or "").strip():
+        trace_meta["handoff_from"] = str(handoff_from).strip()
 
     try:
         out_rel = out_resolved.resolve().relative_to(workspace_root.resolve()).as_posix()
@@ -107,6 +122,16 @@ def run_closeout_write(
         "trace_meta": trace_meta,
         "notes": ["PROGRAM_LED=true", "NO_NETWORK=true", "WORKSPACE_ONLY=true"],
     }
+    if str(actor_role or "").strip():
+        payload["actor_role"] = str(actor_role).strip()
+    if str(actor or "").strip():
+        payload["actor"] = str(actor).strip()
+    if str(provider or "").strip():
+        payload["provider"] = str(provider).strip()
+    if str(model or "").strip():
+        payload["model"] = str(model).strip()
+    if str(handoff_from or "").strip():
+        payload["handoff_from"] = str(handoff_from).strip()
 
     out_resolved.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(out_resolved, payload)
@@ -128,6 +153,11 @@ def cmd_closeout_write(args: argparse.Namespace) -> int:
         out_path=out_arg,
         title=title,
         evidence_paths=evidence,
+        actor_role=str(getattr(args, "actor_role", "") or ""),
+        actor=str(getattr(args, "actor", "") or ""),
+        provider=str(getattr(args, "provider", "") or ""),
+        model=str(getattr(args, "model", "") or ""),
+        handoff_from=str(getattr(args, "handoff_from", "") or ""),
     )
     if result.get("status") != "OK":
         warn(f"FAIL error={result.get('error_code')}")
@@ -147,4 +177,9 @@ def register_closeout_write_subcommand(parent: argparse._SubParsersAction) -> No
         default=[],
         help="Evidence path (repeatable).",
     )
+    ap.add_argument("--actor-role", default="", help="Optional actor role.")
+    ap.add_argument("--actor", default="", help="Optional actor id.")
+    ap.add_argument("--provider", default="", help="Optional provider name.")
+    ap.add_argument("--model", default="", help="Optional model name.")
+    ap.add_argument("--handoff-from", default="", help="Optional originating handoff id.")
     ap.set_defaults(func=cmd_closeout_write)

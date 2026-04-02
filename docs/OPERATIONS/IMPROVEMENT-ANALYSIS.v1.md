@@ -1,330 +1,316 @@
-# IMPROVEMENT-ANALYSIS v1 — autonomous-orchestrator
+# IMPROVEMENT-ANALYSIS (v1)
 
-Tarih: 2026-03-26
-Durum: Analiz raporu (kod degisikligi yok)
-Oncelik referansi: P0-P3 improvement priorities (mutabik kalinan siralama)
+**Amac**
 
----
+Bu rapor, `autonomous-orchestrator` repo'sunun iyilestirme alanlarini implementasyon karari oncesinde tek yerde toplamak icin hazirlandi.
 
-## 1. P0 — Crash Consistency & Data Integrity
+Temel gozlem:
 
-### 1.1 Mevcut Durum
+- Governance / schema / policy / layer-boundary taraflari olgun.
+- Execution core calisiyor, ancak state, locking, recovery ve route kapsami acisindan parcali gorunuyor.
+- Crash safety mevcut ama lokal korumalarla sinirli.
+- Test hacmi yuksek olsa da dagilim dengesiz; ozellikle command-level ve end-to-end zincirlerde bosluk var.
 
-| Bilesen | Dosya | Mekanizma | Guclu | Zayif |
-|---------|-------|-----------|-------|-------|
-| Atomic write | `src/shared/utils.py` | tmp + rename | POSIX atomik rename | fsync yok; OS buffer flush oncesi crash = veri kaybi |
-| Governor lock | `src/orchestrator/runner_config.py` | `O_CREAT\|O_EXCL` | Exclusive creation atomik | Stale-lock timeout yok, PID/timestamp yok |
-| Idempotency store | `src/orchestrator/idempotency.py` | `path.write_text()` | Deterministic run_id (SHA256) | Atomik degil; concurrent write korumasiz |
-| Work item leases | `src/ops/work_item_leases.py` | load → modify → save | Stale lease cleanup mevcut | Read-modify-write atomik degil; race condition |
-| Doer loop lock | `src/ops/doer_loop_lock.py` | write + stale detect | Stale-lock temizleme + kanit yazimi | Temizleme ve yazma atomik degil |
-| Evidence writer | `src/evidence/writer.py` | append + manifest | SHA256 integrity manifest | Append idempotent degil; resume'da duplicate entry |
-| Evidence verify | `src/evidence/integrity_verify.py` | SHA256 recompute | Corruption detection mevcut | Manifest kendisi korumasiz; torn write algilanmaz |
+Not:
 
-### 1.2 Kritik Bosluklar
+- Bu rapor analiz ve oneridir; kod degisikligi uygulamaz.
+- Oncelik sirasi kullanici baglaminda verilen `P0 -> P3` dizilimine gore ele alindi.
 
-1. **Fsync eksikligi**: `write_text_atomic()` ve `write_bytes_atomic()` rename yapar ama `os.fsync()` cagirmaz. Ext4 `data=writeback` modunda rename sonrasi crash → icerik kaybi mumkun.
+## 1. P0 - Crash Consistency & Data Integrity
 
-2. **CAS (Compare-And-Swap) yok**: Tum stateful dosyalar (lease, idempotency, doer lock) load-modify-write pattern kullaniyor. Iki concurrent process ayni dosyayi okuyup yazarsa, son yazan kazanir, onceki degisiklik sessizce kaybolur.
+### Mevcut Durum
 
-3. **Global file locking yok**: Governor lock sadece runner pipeline icin. Lease dosyalari, idempotency store, evidence yazimlari icin lock mekanizmasi yok.
+| Bilesken | Dosya | Mekanizma | Guclu | Zayif |
+|---|---|---|---|---|
+| Atomic write helper | `src/shared/utils.py:37-60` | tmp -> rename | Basit ve tekrar kullanilabilir atomik yazim deseni var | `fsync` yok; crash aninda kernel buffer flush edilmeden veri kaybi riski suruyor |
+| JSON save helper | `src/utils/jsonio.py:12-16` | `path.write_text()` | Kullanim kolay, sade API | Atomik degil; evidence ve orchestrator tarafinda dogrudan kullaniliyor |
+| Governor lock | `src/orchestrator/runner_config.py:64-93` | `O_CREAT | O_EXCL` | Ayni anda ikinci runner'i kaba seviyede engelliyor | TTL yok, PID yok, stale-lock recovery yok |
+| Idempotency store | `src/orchestrator/idempotency.py:57-60` | load/save JSON map | Deterministic run-id ve mapping mantigi var | Yazim atomik degil; concurrent writer korumasi yok |
+| Work item leases | `src/ops/work_item_leases.py:81-137` | load -> modify -> save | Stale lease cleanup var | Read-modify-write atomik degil; race condition acik |
+| Doer loop lock | `src/ops/doer_loop_lock.py:101-176` | load / stale detect / rewrite | Stale lock temizleme mantigi var | Temizleme ve yeniden yazma ayri adimlar; global file lock yok |
+| Work item state | `src/ops/work_item_state.py:94-151` | state JSON + JSONL append | Tek work-item izi olusturuyor | JSON save atomik degil; JSONL append idempotent degil |
+| Evidence writer | `src/evidence/writer.py:35-43`, `src/evidence/writer.py:94-182` | append + JSON save + integrity manifest | SHA256 manifest ile sonradan verify edilebiliyor | `_append_text()` / `_append_jsonl()` duplicate event uretebilir; `save_json()` atomik degil |
+| Evidence verify | `src/evidence/integrity_verify.py:26-83` | SHA256 recompute | Corruption tespiti var | Manifest dosyasinin kendisi icin durable write / self-protection yok; torn write durumunda yalniz shape invalid donuyor |
+| Path write arbitration | `src/orchestrator/file_write_arbitration.py:68-132` | logical lease | Ayni hedef yol icin lease mantigi var | Kayitlar `path.write_text()` ile yaziliyor; OS-level lock / CAS yok |
 
-4. **Corruption detection at rest yok**: State dosyalarinda (lease, idempotency, doer lock) checksum, version, written_at, writer_pid gibi metadata yok. Silent corruption algilanamaz.
+### Kritik Bosluklar
 
-5. **Resume idempotency yok**: Evidence `_append_text()` (`writer.py`) crash sonrasi ayni log entry'yi tekrar yazar. Event ID veya dedup mekanizmasi yok.
+- `fsync` eksikligi: `write_text_atomic()` rename yapiyor ama dosya veya parent directory `fsync` cagirmiyor. Ani crash / power loss senaryosunda rename oncesi veya sonrasi veri kaybi olasiligi suruyor.
+- CAS (Compare-And-Swap) yok: lease, idempotency, work-item-state ve benzeri state dosyalari load-modify-save deseniyle calisiyor. Son yazan kazanir; onceki update sessizce ezilebilir.
+- Global file locking yok: governor lock var ama lease, idempotency, evidence ve state store katmanlarinda ortak bir lock primitive yok.
+- Corruption metadata zayif: state JSON dosyalarinda `writer_pid`, `checksum`, `revision`, `previous_hash` gibi alanlar yok. Sonradan adli inceleme zorlasiyor.
+- JSON save standardi daginik: `src/shared/utils.py` icinde atomik helper varken `src/utils/jsonio.py` ve bazi ops modulleri halen dogrudan `write_text()` kullaniyor.
+- Resume idempotency sinirli: evidence append fonksiyonlari event-id veya dedup anahtari kullanmiyor. Resume / retry sonrasi duplicate satirlar olusabilir.
+- Governor stale recovery eksik: `acquire_governor_lock()` lock varligina bakiyor ama stale sayma mantigi yok. Crash sonrasi manuel temizleme gerekebilir.
 
-6. **Stale lock recovery**: Governor lock'ta (`runner_config.py`) timeout yok. Process crash yapip lock dosyasini birakirsa, manuel temizlik gerekir. Doer loop lock'ta stale detect var ama governor'da yok.
+### Onerilen Cozumler
 
-### 1.3 Onerilen Cozumler
+| Oneri | Dosya | Etki |
+|---|---|---|
+| P0.1 `write_json_durable()` ve `write_text_durable()` eklenmesi: temp file + flush + `os.fsync()` + `replace()` + parent dir fsync | `src/shared/atomicity.py` (yeni) | Tum stateful yazimlar icin ortak durable temel |
+| P0.2 `atomic_modify_json()` yardimcisi: load + modify callback + revision/CAS + retry | `src/shared/atomicity.py` (yeni) | Race condition azaltma, lost update onleme |
+| P0.3 `file_lock()` context manager: `fcntl.flock` wrapper | `src/shared/atomicity.py` (yeni) | Lease, idempotency ve state yazimlarina process-level koruma |
+| P0.4 Stateful JSON'lara `_meta` alani: `revision`, `checksum`, `written_at`, `writer_pid`, `writer_tag` | `work_item_state`, `work_item_leases`, `idempotency`, `doer_loop_lock`, benzeri JSON store'lar | Corruption detect + forensics |
+| P0.5 Governor lock'a TTL, PID ve stale cleanup eklemek | `src/orchestrator/runner_config.py` | Deadlock / orphan lock riskini azaltma |
+| P0.6 Evidence append'lerine `event_id` ve dedup mantigi eklemek | `src/evidence/writer.py` | Resume guvenligi ve append idempotency |
+| P0.7 Crash consistency contract / matris dokumani olusturmak: owner, pattern, atomicity, lock, recovery | `docs/OPERATIONS/CRASH-CONSISTENCY-MATRIX.v1.md` (yeni) | Hangi dosyanin hangi garantiye sahip oldugunu SSOT seviyesinde gorunur kilma |
 
-| # | Oneri | Hedef Dosya | Etki |
-|---|-------|-------------|------|
-| P0.1 | `write_json_durable()`: atomic write + fsync + verify | `src/shared/atomicity.py` (yeni) | Tum stateful yazimlarin temeli |
-| P0.2 | `atomic_modify_json()`: load + modifier callback + CAS + retry | `src/shared/atomicity.py` | Race condition onleme |
-| P0.3 | `file_lock()` context manager: `fcntl.flock` wrapper + timeout | `src/shared/atomicity.py` | Concurrent write koruması |
-| P0.4 | State `_meta` alani: version, checksum, written_at, writer_pid | Her state JSON dosyasi | Corruption detect + forensics |
-| P0.5 | Governor lock'a TTL + PID yazma + stale cleanup | `src/orchestrator/runner_config.py` | Deadlock onleme |
-| P0.6 | Evidence append'e event_id + dedup kontrolu | `src/evidence/writer.py` | Resume guvenliği |
-| P0.7 | Crash consistency contract dokumani | `docs/OPERATIONS/CRASH-CONSISTENCY-CONTRACT.v1.md` | Per-file tablo: owner, write pattern, atomicity, lock, recovery, corruption detection |
+### Degerlendirme
 
-### 1.4 Teknik Backlog — P0
-
-```
-P0.1 write_json_durable
-  Dosya: src/shared/atomicity.py (yeni modul)
-  Degisiklik: tmp file → write → fsync(fd) → rename → fsync(dir_fd) → verify checksum
-  Test: tmp dosya olustur, fsync oncesi kill simule et, dosya bozulmamis olmali
-  Kabul kriteri: tum write_json_atomic cagrilari write_json_durable'a migrate
-
-P0.2 atomic_modify_json
-  Dosya: src/shared/atomicity.py
-  Degisiklik: load → file_lock → modify callback → write_json_durable → unlock
-  Test: iki thread ayni dosyayi concurrent modify → her iki degisiklik korunmus
-  Kabul kriteri: lease ve idempotency store bu fonksiyonu kullaniyor
-
-P0.3 file_lock
-  Dosya: src/shared/atomicity.py
-  Degisiklik: fcntl.flock(LOCK_EX) + timeout + stale detect (PID check)
-  Test: lock alinmisken ikinci acquire → timeout sonrasi fail
-  Kabul kriteri: lease, idempotency, evidence yazimlari lock altinda
-
-P0.4 State _meta
-  Dosya: Her state JSON (lease, idempotency, governor, doer lock)
-  Degisiklik: {"_meta": {"version": "v1", "checksum": "sha256:...", "written_at": "...", "writer_pid": 1234}}
-  Test: _meta olmayan dosya yukleme → WARN log; checksum mismatch → FAIL
-  Kabul kriteri: tum stateful dosyalar _meta tasiyor
-
-P0.5 Governor TTL + PID
-  Dosya: src/orchestrator/runner_config.py
-  Degisiklik: lock dosyasina JSON yaz {pid, acquired_at, ttl_seconds}; acquire'da stale check
-  Test: stale lock (eski PID, suresi dolmus) → otomatik temizleme ve yeni lock
-  Kabul kriteri: crash sonrasi governor lock TTL sonrasi otomatik aciliyor
-
-P0.6 Evidence event dedup
-  Dosya: src/evidence/writer.py
-  Degisiklik: her append'e event_id (run_id + step + seq); append oncesi son satiri oku, ayni event_id varsa skip
-  Test: ayni event_id ile iki kez append → tek entry
-  Kabul kriteri: resume sonrasi duplicate log entry yok
-
-P0.7 Crash consistency contract
-  Dosya: docs/OPERATIONS/CRASH-CONSISTENCY-CONTRACT.v1.md
-  Degisiklik: per-file tablo (stateful dosya, owner modul, write pattern, atomicity level, lock type, recovery mechanism, corruption detection)
-  Test: CI gate ile dokuman varligi ve tablo bos olmamasi check
-  Kabul kriteri: tum bilinen stateful dosyalar tabloda listelenmis
-```
-
----
+P0 alaninda repo sifirdan baslamiyor; aksine atomik rename, stale lease ve integrity verify gibi iyi ilk adimlar var. Sorun, bu korumalarin ortak bir transactional model olusturmamasi. Bu nedenle bir sonraki mimari adim "yeni locklar eklemek" degil, tum stateful IO davranisini ayni durable / locked helper altyapisina toplamak olmali.
 
 ## 2. State Machine Consolidation
 
-### 2.1 Mevcut Durum
+### Mevcut Durum
 
-Iki ayri state modeli birbirinden bagimsiz calisiyor:
+Bugun iki farkli state modeli var:
 
-| Model | Tanimlayan Dosya | State'ler | Nerede Yasiyor |
-|-------|------------------|-----------|----------------|
-| Work Item | `src/ops/work_item_state.py` | OPEN, PLANNED, IN_PROGRESS, APPLIED, CLOSED, NOOP | `.cache/index/work_item_state.v1.json` |
-| Execution | Inline string (schema'da) | COMPLETED, FAILED, SUSPENDED | `.cache/reports/<run_id>/summary.json` |
+| Model | Tanimlayan | States | Nerede Yasiyor |
+|---|---|---|---|
+| Work Item | `src/ops/work_item_state.py:8-15` | `OPEN`, `PLANNED`, `IN_PROGRESS`, `APPLIED`, `CLOSED`, `NOOP` | `.cache/index/work_item_state.v1.json` ve `.cache/index/work_item_runs.v1.jsonl` |
+| Execution / Node / Run | `src/orchestrator/workflow_exec_contracts.py:22-25`, `src/orchestrator/runner_stages/*`, `src/orchestrator/workflow_exec_steps.py` | `COMPLETED`, `FAILED`, `SUSPENDED`, `SKIPPED`, ayrica summary seviyesinde `BLOCKED` | `summary.json`, runner stage snapshot'lari ve in-memory `RunContext` |
 
-Pipeline 6 asamali (Validate → Governor → Routing → Idempotency → Quota/Autonomy → Execute/Finalize) — sirali ve deterministik. Ama state gecisleri valide edilmiyor.
+Ek gozlemler:
 
-State machine davranisi PROJECT-SSOT'ta tanimli: `OPEN/PLANNED/IN_PROGRESS/APPLIED/CLOSED/NOOP` (satir 44).
+- Pipeline 6 asamali ve deterministik: Validate -> Governor -> Routing -> Idempotency -> Quota/Autonomy -> Execute/Finalize.
+- `orchestrator/state_machine.v1.json` halen placeholder: `Placeholder. Extend to real execution state machine later.`
+- Work item state update'leri `src/ops/work_intake_exec_ticket.py:912-929` ve `src/ops/work_intake_exec_ticket.py:1052-1069` icinde execution sonuclarindan turetiliyor; bu bridge mevcut ama implicit.
 
-### 2.2 Bosluklar
+### Kritik Bosluklar
 
-1. **Transition validation yok**: OPEN'dan dogrudan CLOSED'a gecis engellenmiyor. Sadece 2 kural mevcut (close: final state check, reopen: CLOSED check).
-2. **Iki model arasi mapping yok**: Execution COMPLETED → Work Item APPLIED gecisi implicit ve garanti altinda degil.
-3. **Work item state icin JSON schema yok**: State'ler Python constant olarak tanimli ama schema ile valide edilmiyor.
-4. **`orchestrator/state_machine.v1.json` placeholder**: `"note": "Placeholder. Extend to real execution state machine later."` — gercek state grafi yok.
-5. **Forward-only constraint yok**: Reopen haric, herhangi bir state'e geri donulebilir (kural yok).
-6. **Contract test yetersiz**: `single_trace_state_machine_contract_test.py` presence check yapiyor, gecis sirasi check degil.
+- Transition validation yok: `src/ops/work_item_state.py:94-125` icindeki `update_state()` gelen state'i dogrudan yaziyor. Gecis matrisi enforce edilmiyor.
+- Iki model arasi mapping implicit: execution sonucu `APPLIED` / `PLANNED` / `NOOP` gibi work-item state'lerine ayrik if/else ile cevriliyor; tek merkezi bridge yok.
+- Schema yok: `schemas/` altinda work item state veya transition matrix icin dedike bir schema bulunmadi.
+- `orchestrator/state_machine.v1.json` placeholder durumda; canli SSOT gorevi gormuyor.
+- Forward-only constraint yok: `OPEN -> CLOSED` gibi gecisleri kod seviyesi guard ile engelleyen bir mekanizma gorunmuyor.
+- Contract test sinirli: `src/ops/single_trace_state_machine_contract_test.py` state dosyasi ve bazi durumlarin varligini kontrol ediyor; tam trajectory order validate etmiyor.
+- Execution status'leri inline string: `COMPLETED`, `FAILED`, `SUSPENDED` gibi degerler farkli dosyalarda literal olarak kullaniliyor; ortak constants katmani yok.
 
-### 2.3 Onerilen Cozumler
+### Onerilen Cozumler
 
-| # | Oneri | Hedef | Etki |
-|---|-------|-------|------|
-| S.1 | `schemas/state-machine-work-item.schema.v1.json` | Transition matrix | Gecerli gecisleri schema ile enforce |
-| S.2 | `orchestrator/state_machine.v1.json` doldurma | Gercek state grafi | Placeholder'i canli SSOT yap |
-| S.3 | `validate_transition()` | `src/ops/work_item_state.py` | Invalid gecisleri engelle |
-| S.4 | Execution → Work Item mapping | Bridge modul | Iki model arasi tutarlilik |
-| S.5 | Execution state constants | `src/orchestrator/constants.py` | Inline string'leri kaldir |
-| S.6 | Trajectory contract test | `tests/` | Full OPEN→APPLIED yolunu test et |
+| Oneri | Dosya | Etki |
+|---|---|---|
+| S.1 Work item transition matrix schema'si eklemek | `schemas/state-machine-work-item.schema.v1.json` (yeni) | Gecerli gecisleri schema seviyesinde tanimlama |
+| S.2 Placeholder state machine dosyasini gercek graf ile doldurmak | `orchestrator/state_machine.v1.json` | SSOT state grafi |
+| S.3 `validate_transition()` fonksiyonu eklemek | `src/ops/work_item_state.py` | Invalid gecisleri yazim oncesi engelleme |
+| S.4 Execution -> Work Item mapping icin explicit bridge modulu yazmak | `src/orchestrator/state_bridge.py` veya `src/ops/state_bridge.py` (yeni) | Iki model arasi tutarlilik |
+| S.5 Execution status constants dosyasi eklemek | `src/orchestrator/constants.py` (yeni) | Inline string daginikligini azaltma |
+| S.6 Full trajectory contract testleri eklemek | `src/ops/` veya `tests/` altinda yeni testler | `OPEN -> PLANNED -> IN_PROGRESS -> APPLIED/CLOSED/NOOP` yolunu ve invalid transition'lari dogrulama |
 
-### 2.4 Teknik Backlog — State
+### Degerlendirme
 
-```
-S.1 Transition matrix schema
-  Dosya: schemas/state-machine-work-item.schema.v1.json (yeni)
-  Degisiklik: {transitions: [{from: "OPEN", to: ["PLANNED", "NOOP", "CLOSED"]}, ...]}
-  Test: validate_schemas.py gecmeli
-  Kabul kriteri: gecersiz gecis (orn. NOOP→OPEN) schema fail uretir
-
-S.2 state_machine.v1.json doldurma
-  Dosya: orchestrator/state_machine.v1.json
-  Degisiklik: placeholder → {version, states: [...], transitions: [...], final_states: [...]}
-  Test: validate_schemas.py; work_item_state.py'deki constant'larla match
-  Kabul kriteri: dokuman ve kod ayni state/transition setini kullaniyor
-
-S.3 validate_transition()
-  Dosya: src/ops/work_item_state.py
-  Degisiklik: update_state() icinde gecis oncesi transition matrix'e bakma
-  Test: OPEN→APPLIED gecisi → ValidationError
-  Kabul kriteri: tum state degisiklikleri validate_transition'dan geciyor
-
-S.4 Execution → Work Item bridge
-  Dosya: src/ops/ veya src/orchestrator/ (yeni veya mevcut)
-  Degisiklik: COMPLETED→APPLIED, FAILED→(state kalir), SUSPENDED→IN_PROGRESS mapping
-  Test: execution COMPLETED sonrasi work item APPLIED'a gecmis olmali
-  Kabul kriteri: iki model arasi mapping explicit ve test edilmis
-
-S.5 Execution state constants
-  Dosya: src/orchestrator/constants.py (yeni)
-  Degisiklik: RESULT_COMPLETED = "COMPLETED", RESULT_FAILED = "FAILED", RESULT_SUSPENDED = "SUSPENDED"
-  Test: Python kaynak dosyalarinda (src/**/*.py) literal "COMPLETED"/"FAILED"/"SUSPENDED" kullanimi → constants import'undan gelmeli
-  Kabul kriteri: src/ altindaki .py dosyalarinda constants.py disinda literal result_state string kullanimi yok (snapshot, fixture, dokuman ve test assertion'lar haric)
-
-S.6 Trajectory contract test
-  Dosya: tests/ops/test_state_machine_trajectory.py (yeni)
-  Degisiklik: OPEN→PLANNED→IN_PROGRESS→APPLIED full trajectory test
-  Test: pytest tests/ -x
-  Kabul kriteri: OPEN→APPLIED (invalid skip) → test fail
-```
-
----
+Buradaki sorun "hic state machine yok" degil; state machine'in SSOT, code-path ve evidence katmanlarina esit yayilmamis olmasi. Dogru hedef yeni state sayilari icat etmek degil, mevcut iki state modelini tek mapping kontratina oturtmak.
 
 ## 3. Decision Policy Engine
 
-### 3.1 Mevcut Durum
+### Mevcut Durum
 
-- `orchestrator/decision_policy.v1.json`: `approval_risk_threshold: 0.7`
-- `src/orchestrator/decision_boundary.py` (97 LOC): full_auto / human_review / strict_deny resolution
-- `src/ops/decision_inbox.py`: karar toplama + safe default uygulama
-- `docs/OPERATIONS/DECISION-POLICY.md`: Safe defaults (NETWORK=OFF, AUTO_APPLY=BLOCKED) + insan onayi gerektiren kararlar dokumante edilmis
+Repo'da karar altyapisi mevcut:
 
-Threshold + 3-tier boundary calisiyor. Decision Inbox mevcut ve fonksiyonel.
+- `orchestrator/decision_policy.v1.json:1-5`: su an yalnizca `approval_risk_threshold: 0.7` ve "extend later" notu iceriyor.
+- `src/orchestrator/decision_boundary.py` (97 LOC): `full_auto`, `human_review`, `strict_deny` resolution.
+- `src/ops/decision_inbox.py` (948 LOC): seed, inbox, apply ve `decisions_applied.v1.jsonl` uretimi.
+- `docs/OPERATIONS/DECISION-POLICY.md`: safe defaults, insan onayi gerektiren aksiyonlar ve status semantigi.
+- `src/orchestrator/runner_config.py` ve ilgili runner stage'ler: autonomy/threshold baglami.
 
-### 3.2 Bosluklar
+Bugunku model calisiyor, ancak agirlikla su eksende:
 
-1. **Rule composition yok**: Kararlar if/else zinciri; declarative kural motoru yok.
-2. **Audit trail eksik**: Hangi kuralin hangi sonucu urettigini izleyen structured log yok.
-3. **Decision reversibility yok**: Uygulanan karar geri alinamiyor.
-4. **Risk scoring basit**: `risk_score` tek scalar; multi-factor scoring (blast radius, reversibility, confidence) yok.
+- threshold / boundary resolution
+- safe default apply
+- decision inbox kaydi
 
-### 3.3 Onerilen Cozumler (P3 — gelecek iterasyon)
+### Bosluklar
 
-| # | Oneri | Etki |
-|---|-------|------|
-| D.1 | Declarative rule engine: JSON rule definitions → evaluation | Extensible karar mekanizmasi |
-| D.2 | Decision audit log: her karar icin structured trace | Compliance + debugging |
-| D.3 | Decision rollback: applied karar geri alma mekanizmasi | Safety net |
-| D.4 | Multi-factor risk scoring: blast_radius, reversibility, confidence | Daha nuansli karar siniri |
+- Rule composition sinirli: karar davranisi declarative bir kural motorundan cok kod icindeki if/else ve threshold semantigine dayaniyor.
+- Audit trail var ama rule-trace yok: `decisions_applied.v1.jsonl` bulunuyor, fakat "hangi kural / hangi kosul / hangi override bu sonuca yol acti" seviyesinde detayli trace standardi yok.
+- Rollback semantigi net degil: uygulanan kararlar icin explicit geri alma veya supersede mekanizmasi belirgin degil.
+- Risk scoring tek-boyutlu: `risk_score` tek scalar olarak kullaniliyor; actor, target, side-effect tipi, environment, confidence gibi faktorler ayri bir kompozisyon modeliyle ifade edilmiyor.
+- Decision intent ve execution outcome baglantisi daginik: karar sonucu ile pipeline stage sonucu arasinda tek normalized audit modeli yok.
 
----
+### Onerilen Cozumler (P3 - sonraki iterasyon)
+
+| Oneri | Etki |
+|---|---|
+| D.1 Declarative rule engine: JSON rule definitions -> evaluator | Extensible karar modeli |
+| D.2 Decision audit trace: rule_id, matched_conditions, winning_rule, overridden_by, resulting_action | Compliance ve debugging derinligi |
+| D.3 Decision rollback / supersede mekanizmasi | Yanlis auto-apply kararlarini geri alma guvencesi |
+| D.4 Multi-factor risk scoring | Daha nuansli karar siniri |
+
+### Degerlendirme
+
+Bu alan temel olarak yok degil; tersine repo'nun olgun governance taraflarindan biri. Ancak bugunku haliyle "policy engine" degil, daha cok "boundary + inbox + safe default" kombinasyonu. Bu nedenle P3 olarak konumlanmasi mantikli.
 
 ## 4. Test & CI Olgunlugu
 
-### 4.1 Mevcut Durum
+### Mevcut Durum
 
-| Katman | Sayi | Kapsam | Not |
-|--------|------|--------|-----|
-| Schema validation | 168 schema | Kapsamli | `validate_schemas.py` tum schema'lari dogruluyor |
-| Policy dry-run | 31 fixture | Kapsamli | `policy_dry_run.py` tum fixture'larda calisir |
-| Extension contract tests | 50 dosya | Tam | Her extension'da en az 1 contract test |
-| Inline contract tests | 316 dosya | Yaygin ama daginik | `src/` ve `ci/` icinde `*_contract_test.py` |
-| Command modules | 37 modul | — | 156 registered subcommand |
-| Command-level tests | 5 test | Cok zayif | 156 subcommand'dan 5'i test edilmis |
-| Integration tests | 0 | Yok | Cross-command workflow testi yok |
-| Performance tests | 0 | Yok | Latency baseline yok |
+Repo'da test hacmi yuksek, ancak dagilim esit degil. Fiili repo durumu su sekilde ozetlenebilir:
 
-### 4.2 Bosluklar
+| Katman | Test Sayisi / Hacim | Kapsam | Notlar |
+|---|---|---|---|
+| Schema validation | 168 schema | Kapsamli | `ci/validate_schemas.py` guncel ciktiyla 168 schema dogruluyor |
+| Policy dry-run | 31 fixture | Kapsamli | `ci/policy_dry_run.py` `fixtures/envelopes` altinda 31 fixture calistiriyor |
+| Extension manifest / extension contract | 50 test dosyasi | Guclu | Extension yuzeyinde belirgin contract test yogunlugu var |
+| Ops commands | 5 command-seviyesi contract test, 37 command modulu, 156 ust-seviye subcommand | Zayif | Command surface genis, dogrudan command-test yogunlugu dusuk |
+| Inline contract tests | 316 dosya (`src + ci`), 297 dosya (`src`) | Yaygin ama daginik | `*_contract_test.py` yapisi genis ama merkezi degil |
+| Bootstrap | `ci/context_bootstrap_contract_test.py` mevcut | Kismi | Tier 1/2/3 zinciri icin tam sayisal coverage matrisi yok |
+| Integration | Belirgin tek zincir suite'i yok | Zayif | Cross-command workflow testi sinirli |
+| Performance | Belirgin latency baseline suite'i yok | Zayif | Sistematik performans regresyon kapi gozlenmiyor |
 
-1. **Command-level test coverage zayif**: 156 registered subcommand'dan 5'i command-seviyesinde test edilmis. 316 inline contract test var ama pytest disinda ve daginik.
-2. **conftest.py yok**: Her test kendi fixture setup'ini yapiyor; tekrar ve tutarsizlik.
-3. **Dual-mode fragmentation**: pytest + standalone `__main__` script karisimi.
-4. **Parametrize kullanilmiyor**: Test varyasyonlari copy-paste.
-5. **Integration test yok**: intake → plan → execute → evidence zinciri test edilmemis.
+Ek notlar:
 
-### 4.3 Onerilen Cozumler
+- Repo icinde uygulama koduna ait bir `conftest.py` bulunmadi; yalnizca `.venv` altinda ucuncu parti paket `conftest.py` dosyalari var.
+- Test yogunlugu extension ve contract tarafinda yuksek; command surface ve end-to-end zincirde dusuk.
 
-| # | Oneri | Etki |
-|---|-------|------|
-| T.1 | `tests/conftest.py`: ortak fixture'lar (workspace, repo_root, sample_envelope) | Duplicate azaltma |
-| T.2 | Kritik ops komut testleri: system-status, work-intake-check, deploy-check | Coverage artisi |
-| T.3 | Integration test suite: intake→plan→execute→evidence→verify | End-to-end guven |
-| T.4 | Standalone testleri pytest'e migrate (P2) | Tutarlilik |
+### Kritik Bosluklar
 
-### 4.4 Teknik Backlog — Test
+- Test sayisi fazla ama command coverage daginik: extension ve contract odagi guclu, command-package odagi zayif.
+- `conftest.py` eksikligi nedeniyle ortak fixture dili zayif; test setup'lari tekrara acik.
+- Standalone script test + contract test + CI script karisimi var; bu durum test ergonomisini ve yeni katkiyi zorlastiriyor.
+- Parametrize ve shared builders kulturu zayif gorunuyor; ayni patern farkli dosyalarda tekrar ediyor.
+- End-to-end zincir guvencesi eksik: work intake secimi, execution, evidence yazimi, integrity verify ve status surfacing tek senaryoda birlikte dogrulanmiyor.
 
-```
-T.1 conftest.py
-  Dosya: tests/conftest.py (yeni)
-  Degisiklik: workspace_root, repo_root, sample_envelope, mock_policy fixture'lari
-  Test: mevcut testler hala geciyor (pytest tests/ -x)
-  Kabul kriteri: yeni testler conftest fixture kullaniyor
+### Onerilen Cozumler
 
-T.2 Kritik komut testleri
-  Dosya: tests/ops/test_system_status.py, test_work_intake_check.py, test_deploy_check.py (yeni)
-  Degisiklik: her biri tmp_path workspace ile basic contract test
-  Test: pytest tests/ -x
-  Kabul kriteri: command-level test sayisi 5→8+
+| Oneri | Etki |
+|---|---|
+| T.1 Repo-seviyesi `tests/conftest.py` ve ortak fixture seti | Duplicate azaltma, test yazma hizi |
+| T.2 Kritik command'lar icin yeni contract testler: `system-status`, `work-intake-check`, `deploy-check`, `airunner-run`, `release-check` | Komut yuzeyi guveni |
+| T.3 Entegre zincir test suite'i: intake -> select -> execute -> evidence -> verify -> status | End-to-end guvence |
+| T.4 Standalone script testlerini kademeli olarak pytest pattern'ine yaklastirmak | Tutarlilik ve okunurluk |
+| T.5 Test envanteri ve coverage matrisi dokumani | Hangi alanin ne kadar korundugunu gorunur kilma |
 
-T.3 Integration test
-  Dosya: tests/integration/test_intake_to_evidence.py (yeni)
-  Degisiklik: work-intake-check → planner-show-plan → (simulate exec) → evidence verify
-  Test: pytest tests/integration/ -x
-  Kabul kriteri: zincir basariyla tamamlaniyor, evidence dosyalari mevcut ve integrity OK
-```
+### Degerlendirme
 
----
+Buradaki ana sorun "test yok" degil, "dogru yerde test yogunlugu yok". Repo bugun governance ve extension kontratlarini iyi testliyor; bundan sonraki kazanc execution zinciri ve command surface testlerinden gelecek.
 
-## 5. Execution Core — Parcalilik
+## 5. Execution Core - Parcalilik Analizi
 
-### 5.1 Mevcut Durum
+### Mevcut Durum
 
-`src/orchestrator/` = 6,697 LOC production (7,773 LOC testler dahil).
-6 asamali pipeline calisiyor: Validate → Governor → Routing → Idempotency → Quota/Autonomy → Execute/Finalize.
+`src/orchestrator/` altindaki execution yapisi calisiyor, ancak tek bir "motor" hissi vermekten cok birden fazla modulin koordinasyonuna dayaniyor.
 
-### 5.2 Bosluklar
+Gozlemler:
 
-1. **workflow_exec_steps.py 1,279 LOC**: Script budget soft limit (1,200) asilmis; hard limit (2,000) yaklasiyor. Tek dosyada module dispatch + tool gateway + suspension + budget checkpoint.
-2. **Resume kopuklugu**: `runner_resume.py` (385 LOC) pipeline stage'lerinden bagimsiz calisiyor.
-3. **Strategy table dar**: 5 route; extension-based routing yok.
-4. **State bridge yok**: RunContext (memory) ↔ work_item_state (disk) ↔ evidence/summary (disk) arasi explicit mapping yok.
+- `src/orchestrator/` toplaminda yaklasik 6,697 LOC production kod, test dosyalariyla birlikte 7,773 LOC bulunuyor.
+- `src/orchestrator/workflow_exec_steps.py` su an 1,279 LOC.
+- `src/orchestrator/runner_resume.py` 385 LOC ve ana pipeline'dan kavramsal olarak ayrik duruyor.
+- `orchestrator/strategy_table.v1.json` su an 5 route iceriyor.
+- Routing, idempotency, quota/autonomy, execute/finalize asamalari pipeline icinde var; fakat state gorunumu RunContext, work-item-state ve evidence summary arasinda dagiliyor.
 
-### 5.3 Onerilen Cozumler (P2 — depth & discipline)
+### Kritik Bosluklar
 
-| # | Oneri | Etki |
-|---|-------|------|
-| E.1 | `workflow_exec_steps.py` parcalama: module_dispatch.py, tool_gateway.py, budget_checkpoint.py | Script budget uyumu + okunurluk |
-| E.2 | Resume logic'i pipeline stage olarak entegre | Tutarli execution flow |
-| E.3 | Strategy table'i extension manifest'lerden otomatik uret | Route coverage artisi |
-| E.4 | State bridge modulu: RunContext ↔ work_item_state ↔ evidence | Tek state gorunumu |
+- `workflow_exec_steps.py` soft script-budget sinirini asiyor; tek dosyada cok fazla sorumluluk tasiyor.
+- Module dispatch, tool gateway, suspension handling, budget checkpoint ve node result normalization ayni dosyada ic ice.
+- Resume logic pipeline stage'lerinden ayrik hissettiriyor; kavramsal akista ikinci bir execution yolu olusturuyor.
+- Strategy table statik ve dar kapsamli; extension manifest tabanli route uretimi gorulmuyor.
+- State bridge eksik: RunContext, `work_item_state.v1.json` ve evidence `summary.json` arasinda tek normalize "execution state view" yok.
 
----
+### Onerilen Cozumler (P2 - depth & discipline)
 
-## 6. Uygulama Sirasi
+| Oneri | Etki |
+|---|---|
+| E.1 `workflow_exec_steps.py` parcalama: `module_dispatch`, `tool_gateway`, `budget_checkpoint`, `decision_gate`, `result_normalizer` | Script budget uyumu + okunurluk |
+| E.2 Resume logic'i ayrik yardimci olmaktan cikarip pipeline stage olarak konumlamak | Tek execution flow |
+| E.3 Strategy table'i extension manifest / registry kaynaklarindan generate etmek | Route coverage ve maintainability |
+| E.4 State bridge modulu: `RunContext <-> work_item_state <-> evidence summary` | Tek state gorunumu |
 
-```
-Faz 1 (P0): Crash Safety Foundation
-  P0.1 → P0.3 → P0.4 → P0.5 → P0.7
-  Tahmini kapsam: 1 yeni modul + 4-6 dosya degisikligi + 1 dokuman
+### Degerlendirme
 
-Faz 2 (State): Consolidation
-  S.1 → S.2 → S.3 → S.5 → S.6
-  Tahmini kapsam: 1 yeni schema + 5-6 dosya degisikligi + 1 test
+Execution core'un sorunu "calismiyor" degil; artik governance olgunlugunu tasiyacak kadar merkezilesmemis olmasi. Bu nedenle P2 refaktorleri dogrudan yeni capability eklemekten daha degerli olabilir.
 
-Faz 3 (Test): Coverage
-  T.1 → T.2 → T.3
-  Tahmini kapsam: 5-8 yeni test dosyasi
+### Uygulama Sirasi Onerisi
 
-Faz 4 (Execution): Refactoring — P2
-  E.1 → E.4 → E.2
-  Tahmini kapsam: 5-8 dosya degisikligi
+### Faz 1 - Crash Safety Foundation (P0)
 
-Faz 5 (Decision): Engine — P3
-  D.1 → D.2
-  Gelecek iterasyon
-```
+Onerilen sira:
 
----
+1. P0.1 durable write primitive
+2. P0.3 file lock primitive
+3. P0.2 atomic modify / CAS wrapper
+4. P0.4 state metadata standardi
+5. P0.5 governor stale recovery
+6. P0.6 evidence dedup
+7. P0.7 crash consistency matrisi
 
-## Referanslar
+Beklenen etki:
 
-Tum dosya referanslari 2026-03-26 tarihinde repo icinde dogrulanmistir:
-- `src/shared/utils.py` (116 LOC)
-- `src/orchestrator/runner_config.py` (225 LOC)
-- `src/orchestrator/idempotency.py` (79 LOC)
-- `src/ops/work_item_leases.py` (143 LOC)
-- `src/ops/doer_loop_lock.py` (190 LOC)
-- `src/evidence/writer.py` (182 LOC)
-- `src/evidence/integrity_verify.py` (103 LOC)
-- `src/ops/work_item_state.py` (151 LOC)
-- `src/orchestrator/decision_boundary.py` (97 LOC)
-- `src/orchestrator/quality_gate.py` (142 LOC)
-- `src/orchestrator/workflow_exec_steps.py` (1,279 LOC)
-- `src/orchestrator/runner_resume.py` (385 LOC)
-- `src/orchestrator/runner_execute.py` (80 LOC)
-- `orchestrator/state_machine.v1.json` (placeholder)
-- `orchestrator/decision_policy.v1.json` (approval_risk_threshold: 0.7)
-- `orchestrator/strategy_table.v1.json` (5 route)
-- `docs/OPERATIONS/PROJECT-SSOT.md` (state machine tanimi, satir 44)
-- `docs/OPERATIONS/DECISION-POLICY.md` (decision kuralları)
+- Tum stateful IO icin ortak primitive
+- Orphan lock ve lost update riskinde dogrudan azalma
+- Sonraki state-machine consolidation icin daha saglam zemin
+
+### Faz 2 - State Consolidation
+
+Onerilen sira:
+
+1. S.1 work-item transition schema
+2. S.2 canonical state machine JSON
+3. S.3 transition validation
+4. S.5 execution constants
+5. S.4 explicit bridge
+6. S.6 trajectory contract tests
+
+Beklenen etki:
+
+- Transition'lar dokuman + schema + code seviyesinde teklesir
+- Work item ve execution state gorunumleri uyumlu hale gelir
+
+### Faz 3 - Test Coverage
+
+Onerilen sira:
+
+1. T.1 shared fixtures
+2. T.2 command-level contract tests
+3. T.3 end-to-end zincir testleri
+4. T.4 test standardizasyonu
+
+Beklenen etki:
+
+- Execution ve command surface guveni artar
+- Refaktor riskleri kontrol altina alinir
+
+### Faz 4 - Execution Refactoring
+
+Onerilen sira:
+
+1. E.1 `workflow_exec_steps.py` parcalama
+2. E.4 state bridge
+3. E.2 resume integration
+4. E.3 strategy generation
+
+Beklenen etki:
+
+- Core daha az parcali gorunur
+- Yeni route ve extension eklemek daha ucuz hale gelir
+
+### Faz 5 - Decision Engine (P3)
+
+Onerilen sira:
+
+1. D.1 declarative rule engine
+2. D.2 structured audit trace
+3. D.3 rollback / supersede
+4. D.4 multi-factor risk scoring
+
+Beklenen etki:
+
+- Decision tarafi threshold merkezli olmaktan cikarak policy engine olgunluguna yaklasir
+
+### Dogrulama
+
+- Rapor, repo icinde dogrulanan gercek dosya yollarina dayandirildi.
+- Bu calismada analiz dokumani disinda uygulama kodu degistirilmedi.
+- P0-P3 onceligi kullanici baglaminda verilen siralamaya gore korundu.
+
+### Sonuc
+
+Repo'nun mevcut gucu governance, schema/policy, extension kontrati ve fail-closed disiplininden geliyor. Iyilestirme yol haritasi bu gucu bozmayip execution tarafina tasimali.
+
+Bu nedenle en saglikli strateji:
+
+- once crash safety ve state durability temeli,
+- sonra state machine konsolidasyonu,
+- ardindan test coverage,
+- en son execution refaktorleri ve gelismis decision engine.
+
+Boylece repo "guclu governance + parcali execution" durumundan "guclu governance + toplu ve guvenilir execution core" durumuna evrilebilir.

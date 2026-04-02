@@ -330,6 +330,118 @@
       ],
       "type": "object"
     },
+    "module_delivery_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "lanes_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lanes_ok": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lanes_fail": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "timed_out_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "invalid_report_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last_failed_lane": {
+          "type": "string"
+        },
+        "last_failed_report_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "lanes_total",
+        "lanes_ok",
+        "lanes_fail",
+        "timed_out_count",
+        "invalid_report_count"
+      ],
+      "type": "object"
+    },
+    "error_observability_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "items_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "active_items_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "acked_items_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "build_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "runner_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "browser_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "active_build_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "active_runner_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "active_browser_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "latest_source_type": {
+          "type": "string"
+        },
+        "latest_report_path": {
+          "type": "string"
+        },
+        "report_path": {
+          "type": "string"
+        },
+        "ack_state_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "items_total",
+        "active_items_total",
+        "acked_items_total",
+        "build_count",
+        "runner_count",
+        "browser_count",
+        "active_build_count",
+        "active_runner_count",
+        "active_browser_count"
+      ],
+      "type": "object"
+    },
     "last_decision_inbox_path": {
       "type": "string"
     },

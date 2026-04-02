@@ -54,9 +54,10 @@ def _list_str(value: Any) -> list[str]:
 
 def _normalize_entrypoints(value: Any) -> dict[str, list[str]]:
     if not isinstance(value, dict):
-        return {"ops": [], "kernel_api_actions": [], "cockpit_sections": []}
+        return {"ops": [], "ops_single_gate": [], "kernel_api_actions": [], "cockpit_sections": []}
     return {
         "ops": _list_str(value.get("ops")),
+        "ops_single_gate": _list_str(value.get("ops_single_gate")),
         "kernel_api_actions": _list_str(value.get("kernel_api_actions")),
         "cockpit_sections": _list_str(value.get("cockpit_sections")),
     }
@@ -97,7 +98,12 @@ def _load_policy(core_root: Path, workspace_root: Path) -> ExtensionRegistryPoli
             "read_roots_allowlist": ["roadmaps/PROJECTS/", "extensions/"],
             "notes": [],
         },
-        entrypoints={"ops": ["extension-registry"], "kernel_api_actions": [], "cockpit_sections": ["extensions"]},
+        entrypoints={
+            "ops": ["extension-registry"],
+            "ops_single_gate": [],
+            "kernel_api_actions": [],
+            "cockpit_sections": ["extensions"],
+        },
         determinism={
             "stable_sort": True,
             "content_hash_required": True,

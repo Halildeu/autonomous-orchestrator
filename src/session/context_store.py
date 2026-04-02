@@ -20,6 +20,18 @@ class SessionContextError(RuntimeError):
         self.message = message
 
 
+_VALID_ACTOR_ROLES = {
+    "architect",
+    "planner",
+    "implementer",
+    "reviewer",
+    "verifier",
+    "consultant",
+    "assurance_owner",
+    "operator",
+}
+
+
 def _repo_root() -> Path:
     # src/session/context_store.py -> session -> src -> repo root
     return Path(__file__).resolve().parents[2]
@@ -319,6 +331,54 @@ def upsert_provider_state(
 
     context["provider_state"] = state
     context["memory_strategy"] = str(context.get("memory_strategy") or "hybrid")
+    context["updated_at"] = now
+    return context
+
+
+def upsert_actor_state(
+    context: dict[str, Any],
+    *,
+    role: str,
+    actor: str,
+    provider: str,
+    model: str,
+    target_id: str = "",
+    selection_reason: str = "",
+    fallback_used: bool = False,
+) -> dict[str, Any]:
+    if not isinstance(context, dict):
+        raise SessionContextError("SCHEMA_INVALID", "context must be a dict")
+
+    role_norm = str(role or "").strip()
+    actor_norm = str(actor or "").strip()
+    provider_norm = str(provider or "").strip()
+    model_norm = str(model or "").strip()
+
+    if role_norm not in _VALID_ACTOR_ROLES:
+        raise SessionContextError("INVALID_ARGS", "role must be a valid actor role")
+    if not actor_norm:
+        raise SessionContextError("INVALID_ARGS", "actor must be non-empty")
+    if not provider_norm:
+        raise SessionContextError("INVALID_ARGS", "provider must be non-empty")
+    if not model_norm:
+        raise SessionContextError("INVALID_ARGS", "model must be non-empty")
+
+    now = _now_iso8601()
+    state: dict[str, Any] = {
+        "role": role_norm,
+        "actor": actor_norm,
+        "provider": provider_norm,
+        "model": model_norm,
+        "updated_at": now,
+    }
+    if str(target_id or "").strip():
+        state["target_id"] = str(target_id).strip()
+    if str(selection_reason or "").strip():
+        state["selection_reason"] = str(selection_reason).strip()
+    if bool(fallback_used):
+        state["fallback_used"] = True
+
+    context["actor_state"] = state
     context["updated_at"] = now
     return context
 

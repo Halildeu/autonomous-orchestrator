@@ -11,7 +11,7 @@
     "core_min": "0.0.0",
     "notes": []
   },
-  "docs_ref": "extensions/PRJ-UI-COCKPIT-LITE/README.md#prj-ui-cockpit-lite",
+  "docs_ref": "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-UI-COCKPIT-LITE",
   "enabled": true,
   "entrypoints": {
     "cockpit_sections": [
@@ -19,12 +19,12 @@
     ],
     "kernel_api_actions": [],
     "ops": [
-      "cockpit-serve",
-      "cockpit-healthcheck"
+      "cockpit-healthcheck",
+      "cockpit-serve"
     ],
     "ops_single_gate": [
-      "cockpit-serve",
-      "cockpit-healthcheck"
+      "cockpit-healthcheck",
+      "cockpit-serve"
     ]
   },
   "tests_entrypoints": [

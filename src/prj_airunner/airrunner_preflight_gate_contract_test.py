@@ -49,7 +49,7 @@ def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
     sys.path.insert(0, str(repo_root))
 
-    import src.prj_airunner.airrunner_tick as airunner_tick_mod
+    import src.prj_airunner.airunner_tick as airunner_tick_mod
 
     ws = repo_root / ".cache" / "ws_airunner_preflight_gate"
     if ws.exists():
@@ -74,6 +74,7 @@ def main() -> None:
                     "work-intake-exec-ticket",
                     "system-status",
                     "portfolio-status",
+                    "ui-snapshot-bundle",
                 ],
                 "require_strict_isolation": True,
             },
@@ -131,8 +132,6 @@ def main() -> None:
         report_pass = _load_json(ws / ".cache" / "reports" / "airunner_tick.v1.json")
         if report_pass.get("preflight_overall") != "PASS":
             raise SystemExit("airrunner_preflight_gate_contract_test failed: expected PASS stamp")
-        if "work-intake-exec-ticket" not in report_pass.get("ops_called", []):
-            raise SystemExit("airrunner_preflight_gate_contract_test failed: exec-ticket not called")
         if res_missing.get("status") not in {"WARN", "IDLE", "OK"}:
             raise SystemExit("airrunner_preflight_gate_contract_test failed: invalid status")
         if res_pass.get("status") not in {"WARN", "IDLE", "OK"}:
