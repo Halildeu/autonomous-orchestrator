@@ -19,6 +19,11 @@ def _find_repo_root(start: Path) -> Path:
     return Path.cwd()
 
 
+_REPO_ROOT = _find_repo_root(Path(__file__).resolve())
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+
 def _run_manage(args: list[str], repo_root: Path) -> subprocess.CompletedProcess[str]:
     cmd = [sys.executable, "-m", "src.ops.manage"] + args
     return subprocess.run(cmd, cwd=str(repo_root), text=True, capture_output=True)
@@ -37,7 +42,7 @@ def _validate(schema: dict, instance: dict, label: str) -> None:
 
 
 def main() -> None:
-    repo_root = _find_repo_root(Path(__file__).resolve())
+    repo_root = _REPO_ROOT
     ws = repo_root / ".cache" / "ws_api_demo"
     if ws.exists():
         shutil.rmtree(ws)

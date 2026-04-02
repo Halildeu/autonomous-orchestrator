@@ -76,6 +76,7 @@
             "required": ["ops", "kernel_api_actions", "cockpit_sections"],
             "properties": {
               "ops": { "type": "array", "items": { "type": "string" } },
+              "ops_single_gate": { "type": "array", "items": { "type": "string" } },
               "kernel_api_actions": { "type": "array", "items": { "type": "string" } },
               "cockpit_sections": { "type": "array", "items": { "type": "string" } }
             }

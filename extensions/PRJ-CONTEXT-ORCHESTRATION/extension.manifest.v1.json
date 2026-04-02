@@ -22,19 +22,19 @@
     ],
     "kernel_api_actions": [],
     "ops": [
+      "context-drift",
+      "context-health",
       "context-pack-build",
       "context-pack-route",
-      "context-health",
       "context-reconcile",
-      "context-drift",
+      "session-link-parent",
       "session-set",
       "session-status",
-      "session-link-parent",
       "session-sync"
     ],
     "ops_single_gate": [
-      "context-router-check",
-      "context-health-check"
+      "context-health-check",
+      "context-router-check"
     ]
   },
   "tests_entrypoints": [

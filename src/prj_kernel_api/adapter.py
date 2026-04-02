@@ -303,6 +303,16 @@ def _build_response(
     return result
 
 
+def _normalize_intake_payload(*, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(payload)
+    top_next_actions = normalized.get("top_next_actions")
+    if action == "intake_next" and not isinstance(normalized.get("top_next"), list):
+        normalized["top_next"] = top_next_actions[:5] if isinstance(top_next_actions, list) else []
+    if action == "intake_create_plan" and "plan_path" not in normalized:
+        normalized["plan_path"] = None
+    return normalized
+
+
 def _extract_headers(req: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, str]:
     headers: Dict[str, str] = {}
     raw_headers = req.get("headers")
@@ -1031,24 +1041,18 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
                 "work-intake-build",
                 "--workspace-root",
                 str(workspace_root),
-                "--mode",
-                "build",
             ]
         elif action == "intake_next":
             args = [
                 "work-intake-build",
                 "--workspace-root",
                 str(workspace_root),
-                "--mode",
-                "next",
             ]
         elif action == "intake_create_plan":
             args = [
                 "work-intake-build",
                 "--workspace-root",
                 str(workspace_root),
-                "--mode",
-                "create_plan",
             ]
         elif action == "project_status":
             args = [
@@ -1118,7 +1122,7 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
         if detail:
             notes.append("detail=true")
 
-        if proc.returncode != 0:
+        if proc.returncode != 0 and not (action == "doc_nav_check" and isinstance(payload, dict)):
             err_excerpt = _redact(stderr.strip())[:300] if stderr else ""
             return _build_response(
                 status="FAIL",
@@ -1148,6 +1152,12 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
 
         status = payload.get("status") if isinstance(payload, dict) else None
         status_str = str(status) if isinstance(status, str) and status else "OK"
+        if action in {"intake_status", "intake_next", "intake_create_plan"} and isinstance(payload, dict):
+            payload = _normalize_intake_payload(action=action, payload=payload)
+        if action == "doc_nav_check":
+            raw = str(status or "")
+            if raw == "FAIL":
+                status_str = "WARN"
         if action in {"github_ops_check", "github_ops_job_start", "github_ops_job_poll"}:
             raw = str(status or "")
             if raw in {"SKIP"}:

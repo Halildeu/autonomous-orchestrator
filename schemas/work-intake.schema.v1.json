@@ -32,6 +32,7 @@
       "properties": {
         "total_count": { "type": "integer", "minimum": 0 },
         "active_count": { "type": "integer", "minimum": 0 },
+        "historical_done_count": { "type": "integer", "minimum": 0 },
         "counts_by_bucket": {
           "type": "object",
           "additionalProperties": false,
@@ -51,7 +52,6 @@
           "type": "object",
           "additionalProperties": { "type": "integer", "minimum": 0 }
         },
-        "historical_done_count": { "type": "integer", "minimum": 0 },
         "top_next_actions": {
           "type": "array",
           "items": { "$ref": "#/$defs/item_summary" }

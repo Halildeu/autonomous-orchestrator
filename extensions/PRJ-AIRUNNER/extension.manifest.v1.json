@@ -27,8 +27,8 @@
     "cockpit_sections": [],
     "kernel_api_actions": [],
     "ops": [
-      "airunner-status",
-      "airunner-run"
+      "airunner-run",
+      "airunner-status"
     ],
     "ops_single_gate": []
   },

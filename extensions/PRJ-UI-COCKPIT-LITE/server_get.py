@@ -599,6 +599,18 @@ def handle_do_get(self, *, repo_root: Path, ws_root: Path, allow_roots: list[Pat
         self._send_json(200, self._wrap_file(path))
         return
     
+    if parsed.path == "/api/context-health":
+        path = ws_root / ".cache" / "reports" / "system_status.v1.json"
+        payload = self._wrap_file(path)
+        data = payload.get("data") if isinstance(payload, dict) else {}
+        sections = data.get("sections") if isinstance(data, dict) else {}
+        ctx = sections.get("context_health") if isinstance(sections, dict) else {}
+        if not ctx:
+            self._send_json(200, {"status": "OK", "score": 0, "grade": "N/A", "message": "No context health data yet"})
+        else:
+            self._send_json(200, ctx)
+        return
+
     if parsed.path == "/api/ui_snapshot":
         path = ws_root / ".cache" / "reports" / "ui_snapshot_bundle.v1.json"
         self._send_json(200, self._wrap_file(path))

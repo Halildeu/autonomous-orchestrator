@@ -539,21 +539,23 @@ def publish_release(
     policy: ReleasePolicy | None = None,
 ) -> dict[str, Any]:
     policy = policy or _load_policy(workspace_root)
+    channel_value = str(channel or "rc").strip().lower() or "rc"
+    offline_related_job_id = f"release-publish:{channel_value}:offline"
     if not policy.network_publish_enabled:
         return {
             "status": "SKIP",
             "error_code": "NETWORK_PUBLISH_DISABLED",
             "next_steps": ["release-plan", "release-prepare", "Durumu goster"],
-            "related_job_id": None,
-            "related_job_status": None,
+            "related_job_id": offline_related_job_id,
+            "related_job_status": "SKIP",
         }
     if not allow_network or not trusted_context:
         return {
             "status": "IDLE",
             "error_code": "NETWORK_PUBLISH_NOT_ALLOWED",
             "next_steps": ["Enable policy.network_publish_enabled", "Provide trusted context"],
-            "related_job_id": None,
-            "related_job_status": None,
+            "related_job_id": offline_related_job_id,
+            "related_job_status": "IDLE",
         }
 
     related_job: dict[str, Any] = {}
