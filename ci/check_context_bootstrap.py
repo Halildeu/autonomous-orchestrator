@@ -32,6 +32,26 @@ TIER_3_PROJECT: list[tuple[str, str | None]] = [
 
 DEFAULT_FRESHNESS_THRESHOLD = 86400  # 24 hours
 
+# Commands that generate tier 1 files (auto-bootstrap)
+_TIER1_GENERATORS: list[tuple[str, list[str]]] = [
+    (
+        ".cache/reports/system_status.v1.json",
+        ["python3", "-m", "src.ops.manage", "system-status", "--workspace-root"],
+    ),
+    (
+        ".cache/reports/portfolio_status.v1.json",
+        ["python3", "-m", "src.ops.manage", "portfolio-status", "--workspace-root"],
+    ),
+    (
+        ".cache/roadmap_state.v1.json",
+        [
+            "python3", "-m", "src.ops.manage", "roadmap-status",
+            "--roadmap", "roadmaps/SSOT/roadmap.v1.json",
+            "--workspace-root",
+        ],
+    ),
+]
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -87,13 +107,64 @@ def _check_file(
     return entry
 
 
+def _auto_generate_tier1(repo_root: Path, workspace_root: Path) -> list[str]:
+    """Auto-generate missing tier 1 files by running ops commands."""
+    import subprocess
+
+    generated: list[str] = []
+    for rel_path, cmd_parts in _TIER1_GENERATORS:
+        full_path = workspace_root / rel_path
+        if full_path.exists():
+            continue
+        # Ensure parent directory exists
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        # Build command with workspace_root appended
+        cmd = cmd_parts + [str(workspace_root)]
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=30,
+                cwd=str(repo_root),
+            )
+            # Some commands write to file directly, others output JSON to stdout
+            if not full_path.exists() and result.stdout.strip():
+                # Try to capture stdout as JSON file
+                stdout = result.stdout.strip()
+                # Find JSON in output (skip non-JSON preamble)
+                json_start = stdout.find("{")
+                if json_start >= 0:
+                    import json
+                    try:
+                        data = json.loads(stdout[json_start:])
+                        full_path.write_text(
+                            json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                            encoding="utf-8",
+                        )
+                    except (json.JSONDecodeError, OSError):
+                        pass
+            if full_path.exists():
+                generated.append(rel_path)
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+    return generated
+
+
 def run_bootstrap_check(
     *,
     repo_root: Path,
     workspace_root: Path,
     freshness_threshold: int = DEFAULT_FRESHNESS_THRESHOLD,
+    auto_generate: bool = True,
 ) -> dict[str, Any]:
-    """Run bootstrap validation on all 3 tiers. Returns structured report."""
+    """Run bootstrap validation on all 3 tiers. Returns structured report.
+
+    If auto_generate=True, missing tier 1 files are generated automatically
+    by running the corresponding ops commands.
+    """
+    # Auto-generate missing tier 1 files
+    auto_generated: list[str] = []
+    if auto_generate:
+        auto_generated = _auto_generate_tier1(repo_root, workspace_root)
+
     tiers_config = [
         (1, "status_context", TIER_1_STATUS),
         (2, "structural_context", TIER_2_STRUCTURAL),
@@ -146,6 +217,7 @@ def run_bootstrap_check(
         "tiers": tiers,
         "status": "FAIL" if any_fail else "OK",
         "issues": all_issues,
+        "auto_generated": auto_generated,
     }
 
 
@@ -248,6 +320,7 @@ def run_bootstrap_gate(
         repo_root=repo_root,
         workspace_root=workspace_root,
         freshness_threshold=freshness_threshold,
+        auto_generate=True,
     )
 
     # Run gate checks
