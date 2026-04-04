@@ -59,10 +59,10 @@ Ek fix: `_gather_context_signals()` icine `manual_request.kind` yuklemesi ekle (
 
 ### 0.4 DoD
 
-- [ ] Profile resolver `overall_status` field'ini okuyor
-- [ ] `manual_request.kind` signal'i gather ediliyor
-- [ ] `ai-entry-pack-build` komutu manage.py'dan calistiriliyor
-- [ ] Contract test yesil
+- [x] Profile resolver `overall_status` field'ini okuyor
+- [x] `manual_request.kind` signal'i gather ediliyor
+- [x] `ai-entry-pack-build` komutu manage.py'dan calistiriliyor
+- [x] Contract test yesil (9/9 PASS)
 
 ---
 
@@ -207,13 +207,13 @@ Provenance kaydi:
 
 ### 1.7 DoD
 
-- [ ] Bootstrap gate calisiyor: health < 0.8 → grace mode → BLOCKED
-- [ ] context_compiler.py TEK assembly katmani: Claude + Codex ayni fonksiyonu cagiriyor
-- [ ] Agent-scoped artifact: race condition yok (paralel test ile dogrulanmis)
-- [ ] Her kural'da provenance: source + why + domain + priority
-- [ ] Schema validation geciyor
-- [ ] Mevcut enforcement_pre_write + codex_enforcement_bridge compiler uzerinden calisiyor
-- [ ] Contract testler yesil (3 dosya)
+- [x] Bootstrap gate calisiyor: health < 0.8 → grace mode → BLOCKED
+- [x] context_compiler.py TEK assembly katmani: Claude + Codex ayni fonksiyonu cagiriyor
+- [x] Agent-scoped artifact: race condition yok (paralel test ile dogrulanmis — test_parallel_race_condition.py)
+- [x] Her kural'da provenance: source + why + domain + priority
+- [x] Schema validation geciyor
+- [x] Mevcut enforcement_pre_write + codex_enforcement_bridge compiler uzerinden calisiyor
+- [x] Contract testler yesil (3 dosya + 2 e2e)
 
 ### 1.8 Riskler
 
@@ -396,14 +396,14 @@ Dev repo (`/Users/halilkocoglu/Documents/dev`) analiz edilecek dosyalar:
 
 ### 2.8 DoD
 
-- [ ] 6 domain otomatik tespit ediliyor (frontend, backend, database, accounting, api, infra)
-- [ ] Mevcut domain ID'ler korunuyor (src-ops, schemas, policies, ci, ...)
-- [ ] Confidence >= 0.7 icin domain kurallar yukleniyor
-- [ ] 5 domain convention dosyasi `.claude/rules/{domain}.md` formatinda
-- [ ] policy_domain_conventions.v1.json schema-valid (R5)
-- [ ] compile_rules_digest genisletilmis domain map calisiyor
-- [ ] Mevcut testler kirilmadan geciyor
-- [ ] Yeni contract testler yesil
+- [x] 6 domain otomatik tespit ediliyor (frontend, backend, database, accounting, api, infra)
+- [x] Mevcut domain ID'ler korunuyor (src-ops, schemas, policies, ci, ...)
+- [x] Confidence >= 0.7 icin domain kurallar yukleniyor
+- [x] 6 domain convention dosyasi `.claude/rules/{domain}.md` formatinda (infra dahil)
+- [x] policy_domain_conventions.v1.json schema-valid (R5)
+- [x] compile_rules_digest genisletilmis domain map calisiyor
+- [x] Mevcut testler kirilmadan geciyor
+- [x] Yeni contract testler yesil (26/26)
 
 ### 2.9 Riskler
 
@@ -492,11 +492,11 @@ Risk: LOW (0-3), MEDIUM (4-8), HIGH (9+), CRITICAL (20+)
 
 ### 3.6 DoD
 
-- [ ] Scope guard: 3x asimda BLOCK, domain degisimde WARN
-- [ ] Impact analizi: max_depth=3 grep-based traversal
-- [ ] Convention injection: domain-dogru conventions rule_packet'te
-- [ ] Compiler ciktisi tam: rules + conventions + scope + impact
-- [ ] Contract testler yesil
+- [x] Scope guard: 3x asimda BLOCK, domain degisimde WARN
+- [x] Impact analizi: max_depth=3 grep-based traversal
+- [x] Convention injection: domain-dogru conventions rule_packet'te
+- [x] Compiler ciktisi tam: rules + conventions + scope + impact
+- [x] Contract testler yesil (25/25)
 
 ---
 
@@ -556,11 +556,11 @@ State: `.cache/reports/context_session_metrics.v1.jsonl` (append-only)
 
 ### 4.6 DoD
 
-- [ ] 9 component health score (mevcut 6 + 3 yeni)
-- [ ] Session metrikleri JSONL olarak toplaniyoir
-- [ ] Cache hit rate tracking aktif
-- [ ] Drift early warning: DEGRADING trend tetikliyor
-- [ ] Contract testler yesil
+- [x] 9 component health score (mevcut 6 + 3 yeni)
+- [x] Session metrikleri JSONL olarak toplaniyoir
+- [x] Cache hit rate tracking aktif
+- [x] Drift early warning: DEGRADING trend tetikliyor
+- [x] Contract testler yesil (12/12)
 
 ---
 
@@ -653,13 +653,13 @@ Evolution proposal:
 
 ### 5.6 DoD
 
-- [ ] Rule effectiveness tracking: load/apply/violate/ignore sayaci
-- [ ] HOT/WARM/COLD/DEAD classification calisiyor
-- [ ] Evolution proposal uretiliyor
-- [ ] confidence >= 0.9 otomatik uygulaniyor + rollback ref
-- [ ] DEAD kurallar otomatik arsiveleniyor
-- [ ] fact_evolution.py mevcut testler hala geciyor
-- [ ] Contract testler yesil
+- [x] Rule effectiveness tracking: load/apply/violate/ignore sayaci
+- [x] HOT/WARM/COLD/DEAD classification calisiyor
+- [x] Evolution proposal uretiliyor
+- [x] confidence >= 0.9 otomatik uygulaniyor + rollback ref
+- [x] DEAD kurallar otomatik arsiveleniyor
+- [x] fact_evolution.py mevcut testler hala geciyor
+- [x] Contract testler yesil (19/19)
 
 ---
 
@@ -725,11 +725,11 @@ Snapshot:
 
 ### 6.6 DoD
 
-- [ ] AI entry pack enhanced: profile + consultations + quality
-- [ ] Consultation queue bootstrap'ta kontrol ediliyor
-- [ ] Context snapshot handoff sirasinda uretiliyor
-- [ ] Cross-agent context kaybi yok
-- [ ] Contract testler yesil
+- [x] AI entry pack enhanced: profile + consultations + quality (context_continuity section)
+- [x] Consultation queue bootstrap'ta kontrol ediliyor (context_snapshot._find_pending_consultations)
+- [x] Context snapshot handoff sirasinda uretiliyor
+- [x] Cross-agent context kaybi yok (snapshot + entry pack + agent-scoped artifacts)
+- [x] Contract testler yesil (6/6)
 
 ---
 
