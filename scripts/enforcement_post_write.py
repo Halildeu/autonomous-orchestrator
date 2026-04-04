@@ -22,7 +22,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_WS = _REPO_ROOT / ".cache" / "ws_customer_default"
-_PACKET_PATH = _DEFAULT_WS / ".cache" / "reports" / "rule_packet.v1.json"
+_PACKET_PATH = _DEFAULT_WS / ".cache" / "reports" / "rule_packet.v1.json"  # legacy path (also written by compiler)
 
 # Validation commands mapped from short names to full commands
 _VALIDATION_COMMANDS = {
@@ -31,14 +31,28 @@ _VALIDATION_COMMANDS = {
 }
 
 
+def _find_latest_packet() -> Path | None:
+    """Find the latest rule packet — try agent-scoped first, then legacy."""
+    reports_dir = _DEFAULT_WS / ".cache" / "reports"
+    if reports_dir.is_dir():
+        # Agent-scoped packets (Phase 1): rule_packet.{agent}.{hash}.v1.json
+        scoped = sorted(reports_dir.glob("rule_packet.claude.*.v1.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if scoped:
+            return scoped[0]
+    # Fallback to legacy path
+    if _PACKET_PATH.exists():
+        return _PACKET_PATH
+    return None
+
+
 def main() -> int:
-    if not _PACKET_PATH.exists():
-        # No rule packet — skip silently
-        print(json.dumps({"status": "SKIP", "reason": "no rule_packet.v1.json"}))
+    packet_path = _find_latest_packet()
+    if not packet_path:
+        print(json.dumps({"status": "SKIP", "reason": "no rule_packet found"}))
         return 0
 
     try:
-        packet = json.loads(_PACKET_PATH.read_text(encoding="utf-8"))
+        packet = json.loads(packet_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         print(json.dumps({"status": "SKIP", "reason": "rule_packet parse error"}))
         return 0

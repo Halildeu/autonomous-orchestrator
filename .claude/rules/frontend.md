@@ -17,3 +17,9 @@
 - Testing: vitest + @testing-library/react — not jest
 - Error boundary: @sentry/react for production error tracking
 - Route-based code splitting for performance
+- Monorepo structure: web/apps/mfe-shell (shell), web/packages/* (shared packages)
+- Exposed logic: web/apps/mfe-shell/src/exposed-logic.ts (module federation exports)
+- Features directory: web/apps/mfe-shell/src/features/ (feature-based organization)
+- Pages directory: web/apps/mfe-shell/src/pages/ (route-based pages)
+- Design Lab index: web/apps/mfe-shell/src/pages/admin/design-lab.index.json (component registry)
+- Shared packages: auth, config, design-system, i18n-dicts, blocks (all under web/packages/)

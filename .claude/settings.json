@@ -99,6 +99,16 @@
         ]
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ci/check_context_bootstrap.py --gate --workspace-root .cache/ws_customer_default 2>/dev/null || true",
+            "statusMessage": "Bootstrap gate check..."
+          }
+        ]
+      },
+      {
         "matcher": "Write",
         "hooks": [
           {
