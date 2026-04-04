@@ -47,6 +47,7 @@ _LAYER_MAP = [
 # ── Path → Rules domain mapping ──────────────────────────────────
 
 _DOMAIN_MAP = [
+    # ── Orchestrator-internal domains (existing, preserved) ──
     (re.compile(r"^src/ops/"), "src-ops"),
     (re.compile(r"^src/orchestrator/observability/"), "observability"),
     (re.compile(r"^src/orchestrator/"), "state-machine"),
@@ -66,6 +67,27 @@ _DOMAIN_MAP = [
     (re.compile(r"^\.codex/"), "cross-repo"),
     (re.compile(r"^AGENTS\.md$"), "cross-repo"),
     (re.compile(r"^CLAUDE\.md$"), "cross-repo"),
+    # ── Dev repo domain scopes (Phase 2 extension) ──
+    (re.compile(r"^web/"), "frontend"),
+    (re.compile(r"^apps/"), "frontend"),
+    (re.compile(r"^packages/"), "frontend"),
+    (re.compile(r".*\.tsx$"), "frontend"),
+    (re.compile(r".*\.jsx$"), "frontend"),
+    (re.compile(r".*\.vue$"), "frontend"),
+    (re.compile(r"^vite\.config"), "frontend"),
+    (re.compile(r"^tailwind\.config"), "frontend"),
+    (re.compile(r"^services/"), "backend"),
+    (re.compile(r"^server/"), "backend"),
+    (re.compile(r"^db/"), "database"),
+    (re.compile(r"^migrations/"), "database"),
+    (re.compile(r".*\.sql$"), "database"),
+    (re.compile(r".*account.*", re.IGNORECASE), "accounting"),
+    (re.compile(r".*budget.*", re.IGNORECASE), "accounting"),
+    (re.compile(r".*muhasebe.*", re.IGNORECASE), "accounting"),
+    (re.compile(r"^api/"), "api"),
+    (re.compile(r".*/api/"), "api"),
+    (re.compile(r"^docker"), "infra"),
+    (re.compile(r"^Dockerfile"), "infra"),
 ]
 
 # ── CODING-STANDARDS shared utilities ─────────────────────────────
@@ -172,6 +194,10 @@ def compile_rules_digest(*, workspace_root: Path, target_path: str, intent: str 
         naming = {"file": "snake_case.py", "max_lines": 800, "exit_codes": "0=pass, non-zero=fail"}
     elif target_path.startswith("tests/"):
         naming = {"file": "test_<description>.py", "functions": "test_<description>"}
+    elif domain == "frontend":
+        naming = {"file": "PascalCase.tsx or camelCase.ts", "components": "PascalCase", "hooks": "use<Name>"}
+    elif domain == "database":
+        naming = {"file": "UPPER_CASE.sql or snake_case.sql", "tables": "UPPER_CASE", "columns": "UPPER_CASE"}
 
     digest = {
         "version": "v1",

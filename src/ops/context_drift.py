@@ -321,6 +321,25 @@ def run_full_drift_detection(
         "policy_drift": policy_drift,
     }
 
+    # Early warning from session metrics (Phase 4)
+    early_warnings: list[str] = []
+    metrics_path = orchestrator_workspace / ".cache" / "reports" / "context_session_metrics.v1.json"
+    if metrics_path.exists():
+        try:
+            import json as _json
+            metrics = _json.loads(metrics_path.read_text(encoding="utf-8"))
+            hit_rate = metrics.get("cache_hit_rate", 1.0)
+            trend = metrics.get("quality_trend", "STABLE")
+            if hit_rate < 0.3:
+                early_warnings.append(f"ALERT: cache_hit_rate={hit_rate:.2f} < 0.3")
+            elif hit_rate < 0.5:
+                early_warnings.append(f"WARN: cache_hit_rate={hit_rate:.2f} < 0.5")
+            if trend == "DEGRADING":
+                early_warnings.append("ALERT: quality_trend=DEGRADING")
+        except Exception:
+            pass
+    report["early_warnings"] = early_warnings
+
     # Write report
     out_path = orchestrator_workspace / ".cache" / "reports" / "context_drift_report.v1.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -37,16 +37,24 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 
 def _compile_preflight(target_paths: list[str], workspace_root: Path) -> dict:
-    """Run enforcement pre-write for each target path, return combined result."""
-    from src.ops.compile_rules_digest import compile_rules_digest
-    from src.ops.write_authorize import write_authorize
+    """Run enforcement pre-write for each target via unified compiler (R1).
+
+    Uses src.ops.context_compiler.compile_enforcement_context() — the same
+    single assembly layer that Claude's enforcement_pre_write.py uses.
+    """
+    from src.ops.context_compiler import compile_enforcement_context
 
     results = []
     blocked_paths = []
 
     for tp in target_paths:
-        digest = compile_rules_digest(workspace_root=workspace_root, target_path=tp)
-        auth = write_authorize(workspace_root=workspace_root, target_path=tp)
+        compiled = compile_enforcement_context(
+            workspace_root=workspace_root,
+            target_path=tp,
+            agent_id="codex",
+        )
+        auth = compiled.get("authorization", {})
+        rules = compiled.get("rules", {})
 
         status = auth.get("status", "WARN")
         if status == "BLOCKED":
@@ -55,10 +63,10 @@ def _compile_preflight(target_paths: list[str], workspace_root: Path) -> dict:
         results.append({
             "target_path": tp,
             "authorization": status,
-            "layer": digest.get("layer", "?"),
-            "domain": digest.get("domain", "?"),
-            "rules_count": len(digest.get("domain_rules", [])),
-            "required_validations": auth.get("required_validations", []),
+            "layer": rules.get("layer", "?"),
+            "domain": rules.get("domain", "?"),
+            "rules_count": len(rules.get("domain_rules", [])),
+            "required_validations": compiled.get("required_validations", []),
         })
 
     return {

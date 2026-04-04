@@ -51,62 +51,30 @@ def _to_repo_relative(abs_path: str) -> str:
 
 
 def compile_rule_packet(target_path: str, workspace_root: Path) -> dict:
-    """Compile a rule packet: profile + digest + authorization."""
-    from src.ops.context_profile_resolver import resolve_profile
-    from src.ops.compile_rules_digest import compile_rules_digest
-    from src.ops.write_authorize import write_authorize
-    from src.shared.utils import now_iso8601
+    """Compile a rule packet via unified context compiler.
 
-    # 1. Resolve profile
-    try:
-        profile = resolve_profile(workspace_root)
-        profile_id = profile.get("profile_id", "TASK_EXECUTION")
-    except Exception:
-        profile_id = "TASK_EXECUTION"
+    Delegates to src.ops.context_compiler.compile_enforcement_context()
+    which is the single assembly layer for all agents (Claude + Codex).
+    """
+    from src.ops.context_compiler import compile_enforcement_context
 
-    # 2. Compile rules digest
-    try:
-        digest = compile_rules_digest(workspace_root=workspace_root, target_path=target_path)
-    except Exception:
-        digest = {"layer": "UNKNOWN", "domain": "general", "domain_rules": [], "general_rules": {}}
+    result = compile_enforcement_context(
+        workspace_root=workspace_root,
+        target_path=target_path,
+        agent_id="claude",
+    )
 
-    # 3. Write authorize
-    try:
-        auth = write_authorize(workspace_root=workspace_root, target_path=target_path)
-    except Exception:
-        auth = {"status": "WARN", "deny_reasons": ["authorization check failed"]}
-
-    # 4. Assemble rule packet
-    packet = {
-        "version": "v1",
-        "generated_at": now_iso8601(),
-        "target_path": target_path,
-        "profile_id": profile_id,
-        "authorization": {
-            "status": auth.get("status", "WARN"),
-            "deny_reasons": auth.get("deny_reasons", []),
-            "core_unlock_required": auth.get("core_unlock_required", False),
-            "core_unlock_active": auth.get("core_unlock_active", False),
-        },
-        "rules": {
-            "layer": digest.get("layer", "UNKNOWN"),
-            "domain": digest.get("domain", "general"),
-            "naming": digest.get("naming", {}),
-            "shared_utils": digest.get("shared_utils", {}),
-            "domain_rules": digest.get("domain_rules", []),
-            "general_rules": digest.get("general_rules", {}),
-            "forbidden_patterns": digest.get("general_rules", {}).get("forbidden", []),
-        },
-        "required_validations": auth.get("required_validations", []),
-        "evidence_required": digest.get("evidence_required", False),
+    # Return legacy-compatible packet structure
+    return {
+        "version": result["version"],
+        "generated_at": result["compiled_at"],
+        "target_path": result["target_path"],
+        "profile_id": result["profile"]["id"],
+        "authorization": result["authorization"],
+        "rules": result["rules"],
+        "required_validations": result["required_validations"],
+        "evidence_required": result["evidence_required"],
     }
-
-    # Write packet to workspace for post-write reference
-    packet_path = workspace_root / ".cache" / "reports" / "rule_packet.v1.json"
-    packet_path.parent.mkdir(parents=True, exist_ok=True)
-    packet_path.write_text(json.dumps(packet, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-    return packet
 
 
 def main() -> int:
