@@ -23,3 +23,14 @@
 - Pages directory: web/apps/mfe-shell/src/pages/ (route-based pages)
 - Design Lab index: web/apps/mfe-shell/src/pages/admin/design-lab.index.json (component registry)
 - Shared packages: auth, config, design-system, i18n-dicts, blocks (all under web/packages/)
+
+## Pinned Versions (auto-updated from package.json)
+- React: ~18.2.0 (NOT React 19 — migration not started)
+- Vite: 8.0.3 (pnpm override enforced)
+- TypeScript: ^5.8.3
+- AG Grid: 34.3.1 (exact — pnpm override enforced)
+- Tailwind CSS: 4.2.2 via @tailwindcss/vite
+- Node.js: 20.x || 22.x
+- @mfe/design-system: 1.1.0
+- @tanstack/react-query: ^5.90.10
+- keycloak-js: ^26.2.3

@@ -89,6 +89,12 @@ def compile_enforcement_context(
     # 6e. Domain conventions (Phase 3)
     conventions = _load_conventions(domain_scope.get("primary_domain", "general"))
 
+    # 6f. Tech stack discovery (Phase 2 — Autopilot)
+    tech_stack = _load_tech_stack(workspace_root)
+
+    # 6g. Project card (Phase 3 — Autopilot, R5 separate axis)
+    project_card = _resolve_project(target_path, workspace_root)
+
     # 7. Assemble result
     result: dict[str, Any] = {
         "version": "v1",
@@ -119,6 +125,8 @@ def compile_enforcement_context(
         "rules_with_provenance": provenance,
         "compilation_sources": sources,
         "domain_scope": domain_scope,
+        "tech_stack": tech_stack,
+        "project_card": project_card,
         "conventions": conventions,
         "scope_check": scope_check,
         "impact": impact,
@@ -268,6 +276,34 @@ def _analyze_impact(target_path: str) -> dict[str, Any]:
     except Exception as exc:
         logger.debug("Impact analysis skipped: %s", exc)
         return {"target": target_path, "affected_count": 0, "risk_level": "LOW"}
+
+
+# ── Project Card (Phase 3 — Autopilot, R5) ────────────────────
+
+
+def _resolve_project(target_path: str, workspace_root: Path) -> dict[str, Any]:
+    """Resolve project context card (separate axis from domain scope — R5)."""
+    try:
+        from src.ops.project_card_resolver import resolve_project_card
+        return resolve_project_card(target_path, workspace_root)
+    except Exception as exc:
+        logger.debug("Project card resolution skipped: %s", exc)
+        return {"project_id": "unknown", "project_group": "unknown"}
+
+
+# ── Tech Stack (Phase 2 — Autopilot) ──────────────────────────
+
+
+def _load_tech_stack(workspace_root: Path) -> dict[str, Any]:
+    """Load cached tech stack discovery report."""
+    try:
+        report_path = workspace_root / ".cache" / "reports" / "tech_stack_discovery.v1.json"
+        if report_path.exists():
+            data = load_json(report_path)
+            return data.get("critical_summary", {})
+    except Exception as exc:
+        logger.debug("Tech stack load skipped: %s", exc)
+    return {}
 
 
 # ── Domain Conventions (Phase 3) ──────────────────────────────
