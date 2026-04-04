@@ -8,6 +8,14 @@
       "path": "decisions/topics/zanzibar-openfga.v1.json",
       "revision": 3,
       "last_updated": "2026-03-28"
+    },
+    {
+      "topic_id": "chart-viz-engine-selection",
+      "title": "Chart & Visualization Engine Selection (Design Lab Platform)",
+      "status": "ACTIVE",
+      "path": "decisions/topics/chart-viz-engine-selection.v1.json",
+      "revision": 1,
+      "last_updated": "2026-04-04"
     }
   ]
 }

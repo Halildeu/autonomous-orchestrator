@@ -1,0 +1,144 @@
+{
+  "version": "v1",
+  "topic_id": "chart-viz-engine-selection",
+  "title": "Chart & Visualization Engine Selection (Design Lab Platform)",
+  "status": "ACTIVE",
+  "revision": 1,
+  "decided_at": "2026-04-04T00:00:00Z",
+  "decided_by": ["user", "claude", "codex"],
+  "decisions": [
+    {
+      "decision_id": "D-001",
+      "statement": "ECharts (Apache 2.0) ana chart rendering engine olarak kullanilacak",
+      "rationale": "Ucretsiz, full customize, 40+ chart tipi, Superset+Metabase referansi, Canvas+WebGL+SVG destegi, tree-shakeable.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-002",
+      "statement": "AG Charts Community (MIT) sadece grid-linked embedded chart icin kullanilacak",
+      "rationale": "AG Grid entegrasyonu native. Standalone chart icin ECharts tercih edilir.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-003",
+      "statement": "Hybrid rendering: ECharts (dashboard/standalone) + AG Charts (grid-linked) + Canvas/SVG (full custom)",
+      "rationale": "Tek engine her senaryoyu kapsamaz. Soyutlama katmani swap riskini elimine eder.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-004",
+      "statement": "Design Lab internal sarmalama — uygulama kodunda echarts/ag-charts dogrudan import edilmez",
+      "rationale": "forbidden_imports kurali. Design Lab kendi paket kodunda kullanir, tuketici sadece Design Lab API gorur.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-005",
+      "statement": "ChartSpec engine-agnostic deklaratif format — tum chart tanimlamalari bu spec uzerinden",
+      "rationale": "Engine swap yapilabilir, AI NL->ChartSpec uretebilir, config-driven dashboard.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-006",
+      "statement": "Cross-filter bus Zustand store + event emitter hybrid",
+      "rationale": "Zustand React-native, minimal, selector-based re-render. Event emitter non-React (AG Grid callback) icin.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-007",
+      "statement": "Permission chart katmaninda DEGiL — data pipeline/OpenFGA katmaninda",
+      "rationale": "Zanzibar karari (zanzibar-openfga topic) ile uyumlu. Chart zaten filtrelenmis veri alir.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-008",
+      "statement": "AI Layer chart platformunun disinda — harici ChartSpec tuketici servis",
+      "rationale": "Separation of concerns. AI NL->ChartSpec uretir, chart platform spec render eder.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-009",
+      "statement": "Grid abstraction interface simdiden tanimlanacak — AG Grid ilk adapter",
+      "rationale": "Uzun vadede AG Grid yetmeyecek, interface tanimi gelecek gecisi kolaylastirir.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-010",
+      "statement": "ECharts renderer secimi auto-detect: <5K SVG, 5K-50K Canvas, >50K WebGL",
+      "rationale": "ECharts bunu native yapiyor, ustune ek abstraction gereksiz.",
+      "status": "FINAL"
+    },
+    {
+      "decision_id": "D-011",
+      "statement": "WebGPU 18-24 ay sonra revisit — simdi erken",
+      "rationale": "Browser destegi yetersiz (2026 Q1), ECharts WebGL yeterli.",
+      "status": "TENTATIVE"
+    }
+  ],
+  "constraints": [
+    "Tum chart render katmani Design Lab internal — uygulama kodu echarts/ag-charts import edemez",
+    "ChartSpec schema (schemas/chart-spec.schema.v1.json) tum chart tanimlarinin SSOT'u",
+    "Bundle size CI gate: 350KB gzip limit (ECharts tree-shaking zorunlu)",
+    "Accessibility: WCAG 2.1 AA zorunlu — keyboard nav, data table fallback, ARIA, colorblind palettes",
+    "Security: XSS sanitization, stream URL whitelist, custom formatter block zorunlu",
+    "AG Charts sadece grid-linked senaryolarda — standalone chart icin ECharts",
+    "Katman sirasi: P0 gate -> P1 foundation -> P2 interaction -> P3+ enterprise (atlama yok)",
+    "Her faz CI gate gecmeden sonraki faza gecilmez"
+  ],
+  "rejected_alternatives": [
+    {
+      "alternative": "Highcharts kullanma",
+      "reason": "Ticari lisans, yillik ucretli. Apache 2.0 ECharts ayni ozellikleri ucretsiz sunuyor.",
+      "tried_count": 0
+    },
+    {
+      "alternative": "D3.js direkt kullanma (wrapper olmadan)",
+      "reason": "Low-level, her chart tipi icin cok fazla kod. ECharts declarative API daha verimli.",
+      "tried_count": 0
+    },
+    {
+      "alternative": "Recharts kullanma",
+      "reason": "Sinirli chart tipleri, buyuk veri performansi zayif, Canvas/WebGL yok.",
+      "tried_count": 0
+    },
+    {
+      "alternative": "Vega-Lite ara katman (NL->Vega-Lite->render)",
+      "reason": "Ek rendering engine gerektirir, ECharts config zaten declarative. Gereksiz abstraction.",
+      "tried_count": 0
+    },
+    {
+      "alternative": "AG Charts Enterprise",
+      "reason": "Ticari lisans gerektiriyor. Community yeterli grid-linked icin.",
+      "tried_count": 0
+    },
+    {
+      "alternative": "RxJS cross-filter bus",
+      "reason": "Fazla kompleks, React disinda kalir, ogrenme egrisi yuksek. Zustand daha pragmatik.",
+      "tried_count": 0
+    },
+    {
+      "alternative": "React Context cross-filter",
+      "reason": "Re-render sorunu, non-React bilesenlere ulasamaz (AG Grid callback).",
+      "tried_count": 0
+    },
+    {
+      "alternative": "Permission chart katmaninda (row/column filtering)",
+      "reason": "Zanzibar karari: tum authorization OpenFGA uzerinden. Chart zaten filtrelenmis veri alir.",
+      "tried_count": 0
+    }
+  ],
+  "related_paths": [
+    "schemas/chart-spec.schema.v1.json",
+    "policies/policy_ui_design_system.v1.json",
+    "extensions/PRJ-PM-SUITE/contract/feature_execution_contract_chart_platform.v1.json"
+  ],
+  "cross_repo_refs": [
+    "dev-repo: packages/x-charts/src/ (chart platform kodu)",
+    "dev-repo: packages/design-system/src/components/charts/ (ECharts migrated charts)",
+    "dev-repo: packages/x-charts/package.json (echarts ^5.6.0)"
+  ],
+  "supersedes": null,
+  "superseded_by": null,
+  "change_log": [
+    {"revision": 1, "date": "2026-04-04", "change": "Initial: ECharts hybrid strateji, 11 karar, 8 reddedilen. Claude+Codex istisare sonucu."}
+  ]
+}

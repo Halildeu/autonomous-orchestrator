@@ -79,6 +79,10 @@
           },
           "minItems": 2,
           "uniqueItems": true
+        },
+        "forbidden_imports_note": {
+          "type": "string",
+          "description": "Human-readable note explaining why certain imports are forbidden."
         }
       }
     },
@@ -147,6 +151,47 @@
         },
         "theme_context_provider_path": {
           "const": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
+        }
+      }
+    },
+    "chart_platform": {
+      "type": "object",
+      "description": "Chart & visualization platform configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "primary_engine": { "type": "string" },
+        "primary_engine_license": { "type": "string" },
+        "grid_linked_engine": { "type": "string" },
+        "grid_linked_engine_license": { "type": "string" },
+        "spec_schema": { "type": "string" },
+        "decision_topic": { "type": "string" },
+        "internal_packages": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "bundle_size_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_gzip_kb": { "type": "integer", "minimum": 1 },
+            "tree_shaking_required": { "type": "boolean" }
+          }
+        },
+        "accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "wcag_level": { "type": "string", "enum": ["A", "AA", "AAA"] },
+            "keyboard_navigation": { "type": "boolean" },
+            "data_table_fallback": { "type": "boolean" },
+            "colorblind_palettes": { "type": "boolean" },
+            "contrast_ratio_min": { "type": "number" }
+          }
+        },
+        "ci_gates": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
         }
       }
     },
