@@ -83,6 +83,11 @@
             "type": "command",
             "command": "python3 -c \"import json,pathlib;p=pathlib.Path('.cache/ws_customer_default/.cache/reports/system_status.v1.json');d=json.loads(p.read_text()) if p.exists() else {};print(f'[Context Restore] System: {d.get(\"overall_status\",\"unknown\")}')\" 2>/dev/null || echo '[Context Restore] system_status not available'",
             "statusMessage": "Restoring context after compaction..."
+          },
+          {
+            "type": "command",
+            "command": "python3 scripts/memory_sweep.py --trigger compaction --lightweight 2>/dev/null || true",
+            "statusMessage": "Lightweight memory check..."
           }
         ]
       }
@@ -147,6 +152,26 @@
             "type": "command",
             "command": "python3 scripts/enforcement_post_write.py",
             "statusMessage": "Running post-write validations..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git merge*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/memory_sweep.py --trigger merge 2>/dev/null || true",
+            "statusMessage": "Memory sweep after merge..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git pull*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/memory_sweep.py --trigger pull 2>/dev/null || true",
+            "statusMessage": "Memory sweep after pull..."
           }
         ]
       }

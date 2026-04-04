@@ -83,6 +83,7 @@ def check_scope(
     *,
     new_file: str,
     new_domain: str = "",
+    new_project: str = "",
 ) -> dict[str, Any]:
     """Check if writing new_file is within declared scope.
 
@@ -111,6 +112,12 @@ def check_scope(
         domains_touched.add(new_domain)
     actual["domains_touched"] = sorted(domains_touched)
 
+    # Project tracking (R6 — separate from domains, never override)
+    projects_touched = set(actual.get("projects_touched", []))
+    if new_project and new_project != "unknown":
+        projects_touched.add(new_project)
+    actual["projects_touched"] = sorted(projects_touched)
+
     # Evaluate scope
     warnings: list[str] = list(state.get("warnings", []))
     status = "WITHIN_SCOPE"
@@ -136,6 +143,16 @@ def check_scope(
         if status == "WITHIN_SCOPE":
             status = "WARN"
             reason = domain_warn
+
+    # Project change check (R6 — separate from domain, never override domain)
+    declared_project = declared.get("project", "")
+    if declared_project and new_project and new_project != declared_project and new_project != "unknown":
+        proj_warn = f"Project changed: {declared_project} → {new_project}"
+        if proj_warn not in warnings:
+            warnings.append(proj_warn)
+        if status == "WITHIN_SCOPE":
+            status = "WARN"
+            reason = proj_warn
 
     # Update state
     state["actual_scope"] = actual
