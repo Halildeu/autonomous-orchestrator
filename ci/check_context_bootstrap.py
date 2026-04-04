@@ -15,9 +15,9 @@ from typing import Any
 
 
 TIER_1_STATUS: list[tuple[str, str | None]] = [
-    (".cache/ws_customer_default/.cache/reports/system_status.v1.json", "schemas/system-status.schema.json"),
-    (".cache/ws_customer_default/.cache/reports/portfolio_status.v1.json", None),
-    (".cache/ws_customer_default/.cache/roadmap_state.v1.json", None),
+    (".cache/reports/system_status.v1.json", "schemas/system-status.schema.json"),
+    (".cache/reports/portfolio_status.v1.json", None),
+    (".cache/roadmap_state.v1.json", None),
 ]
 
 TIER_2_STRUCTURAL: list[tuple[str, str | None]] = [
@@ -111,7 +111,7 @@ def run_bootstrap_check(
         for rel_path, schema_rel in file_list:
             # Tier 1 files are workspace-relative, Tier 2-3 are repo-relative
             if rel_path.startswith(".cache/"):
-                check_root = repo_root
+                check_root = workspace_root
             else:
                 check_root = repo_root
 

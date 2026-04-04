@@ -6,7 +6,13 @@ import json
 import os
 import subprocess
 import sys
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python < 3.11
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        tomllib = None  # type: ignore[assignment]
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
