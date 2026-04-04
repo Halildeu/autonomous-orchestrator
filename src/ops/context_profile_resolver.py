@@ -43,7 +43,9 @@ def _gather_context_signals(workspace_root: Path) -> dict[str, Any]:
     if status_path.exists():
         try:
             status = load_json(status_path)
-            signals["system_status"] = {"overall_status": status.get("status", "OK")}
+            signals["system_status"] = {
+                "overall_status": status.get("overall_status") or status.get("status", "OK"),
+            }
         except Exception:
             pass
 
@@ -58,6 +60,19 @@ def _gather_context_signals(workspace_root: Path) -> dict[str, Any]:
             pass
     else:
         signals["integrity"] = {"violation_count": 0}
+
+    # Manual request (needed for REVIEW/ASSESSMENT/PLANNING auto-resolution)
+    manual_req_dir = workspace_root / ".cache" / "index" / "manual_requests"
+    manual_request_signal: dict[str, Any] = {"kind": ""}
+    if manual_req_dir.is_dir():
+        try:
+            req_files = sorted(manual_req_dir.glob("*.json"), reverse=True)
+            if req_files:
+                req = load_json(req_files[0])
+                manual_request_signal["kind"] = req.get("kind", "")
+        except Exception:
+            pass
+    signals["manual_request"] = manual_request_signal
 
     # Session
     session_path = workspace_root / ".cache" / "reports" / "session_status.v1.json"

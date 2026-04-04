@@ -323,9 +323,63 @@ def _compute_context_health_lens(*, workspace_root: Path, lenses_policy: dict[st
         pass
     components["extension_health"] = {"score": ext_health_score, "max": 20}
 
-    # Total score: sum of 6 components (0-120) → normalize to 0.0-1.0
+    # Component 7: Rule Relevance (0-20) — how many loaded rules were actually used
+    rule_relevance_score = 20  # Default: no metrics yet
+    metrics_path = workspace_root / ".cache" / "reports" / "context_session_metrics.v1.json"
+    if metrics_path.exists():
+        try:
+            import json as _json2
+            metrics = _json2.loads(metrics_path.read_text(encoding="utf-8"))
+            applied = metrics.get("rules_applied", 0)
+            total_loaded = metrics.get("rules_loaded", 1)
+            if total_loaded > 0:
+                rule_relevance_score = min(20, int((applied / total_loaded) * 20))
+            if rule_relevance_score < 12:
+                reasons.append(f"low_rule_relevance_{rule_relevance_score}/20")
+        except Exception:
+            pass
+    components["rule_relevance"] = {"score": rule_relevance_score, "max": 20}
+
+    # Component 8: Token Efficiency (0-20) — compiled context size vs limit
+    efficiency_score = 20  # Default: efficient
+    compiled_ctx_path = workspace_root / ".cache" / "reports" / "rule_packet.v1.json"
+    if compiled_ctx_path.exists():
+        try:
+            ctx_size = compiled_ctx_path.stat().st_size
+            max_bytes = 65536  # policy_context_orchestration max_context_pack_bytes
+            ratio = ctx_size / max_bytes
+            if ratio > 0.8:
+                efficiency_score = 5
+                reasons.append("context_pack_near_limit")
+            elif ratio > 0.5:
+                efficiency_score = 12
+            else:
+                efficiency_score = 20
+        except Exception:
+            pass
+    components["token_efficiency"] = {"score": efficiency_score, "max": 20}
+
+    # Component 9: Cache Hit Rate (0-20) — compilation cache effectiveness
+    cache_score = 20  # Default: no data
+    if metrics_path.exists():
+        try:
+            import json as _json3
+            metrics = _json3.loads(metrics_path.read_text(encoding="utf-8"))
+            hits = metrics.get("cache_hits", 0)
+            misses = metrics.get("cache_misses", 0)
+            total_cache = hits + misses
+            if total_cache > 0:
+                hit_rate = hits / total_cache
+                cache_score = min(20, int(hit_rate * 20))
+                if hit_rate < 0.5:
+                    reasons.append(f"low_cache_hit_rate_{hit_rate:.2f}")
+        except Exception:
+            pass
+    components["cache_hit_rate"] = {"score": cache_score, "max": 20}
+
+    # Total score: sum of 9 components (0-180) → normalize to 0.0-1.0
     total = sum(c["score"] for c in components.values())
-    normalized = total / 120.0
+    normalized = total / 180.0
 
     status = _lens_status(normalized, min_ok, min_warn)
 

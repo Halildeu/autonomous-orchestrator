@@ -183,6 +183,24 @@ jobs:
           except: pass
           " 2>> "${GITHUB_STEP_SUMMARY}" || true
 
+      - name: Bootstrap gate check (report-only)
+        if: steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
+        run: |
+          python3 ci/check_context_bootstrap.py --gate \
+            --workspace-root .cache/ws_customer_default || true
+          echo "### Bootstrap Gate" >> "${GITHUB_STEP_SUMMARY}"
+          python3 ci/check_context_bootstrap.py --gate \
+            --workspace-root .cache/ws_customer_default 2>/dev/null \
+            | python3 -c "
+          import json,sys
+          try:
+            d=json.load(sys.stdin)
+            print(f'| Gate | Health | Profile |', file=sys.stderr)
+            print(f'|------|--------|---------|', file=sys.stderr)
+            print(f'| {d.get(\"gate_result\",\"?\")} | {d.get(\"health_score\",\"?\")} | {d.get(\"profile_id\",\"?\")} |', file=sys.stderr)
+          except: pass
+          " 2>> "${GITHUB_STEP_SUMMARY}" || true
+
       - name: Context health check (report-only)
         if: steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |

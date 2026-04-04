@@ -122,6 +122,33 @@
         }
       }
     },
+    "bootstrap_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pre-agent bootstrap gate settings (Phase 1).",
+      "required": ["enabled", "min_health_score", "grace_invocations", "evidence_path"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether bootstrap gate is active."
+        },
+        "min_health_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum health score to pass gate."
+        },
+        "grace_invocations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of invocations that get WARN instead of BLOCKED."
+        },
+        "evidence_path": {
+          "type": "string",
+          "description": "Workspace-relative path for gate evidence artifact."
+        }
+      }
+    },
     "guardrails": {
       "type": "object",
       "additionalProperties": false,

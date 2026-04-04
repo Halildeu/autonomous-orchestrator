@@ -70,6 +70,21 @@ REQUIRED_FILES = (
     "policies/work_intake_fragments/rules/manual_request.v1.json",
     "policies/work_intake_fragments/rules/gap.v1.json",
     "policies/work_intake_fragments/rules/time_sink.v1.json",
+    # Context Engine v2 (Phase 1-6)
+    "src/ops/context_compiler.py",
+    "src/ops/domain_scope_engine.py",
+    "src/ops/scope_guard.py",
+    "src/ops/impact_analyzer.py",
+    "src/ops/context_session_metrics.py",
+    "src/ops/rule_effectiveness.py",
+    "src/ops/context_snapshot.py",
+    "schemas/compiled-context.schema.v1.json",
+    "schemas/bootstrap-evidence.schema.v1.json",
+    "schemas/context-snapshot.schema.v1.json",
+    "policies/policy_domain_conventions.v1.json",
+    "policies/policy_scope_guard.v1.json",
+    "policies/policy_context_quality.v1.json",
+    "policies/policy_context_memory_tiers.v1.json",
 )
 
 REQUIRED_LOCK_KEYS = (
@@ -128,6 +143,9 @@ REQUIRED_COMMANDS = (
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py --repo-root . --out-json .cache/reports/coverage_visibility.v1.json --out-md .cache/reports/coverage_visibility.v1.md",
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py --repo-root . --out-json .cache/reports/observability_coverage_matrix.v1.json --out-md .cache/reports/observability_coverage_matrix.v1.md",
     "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root .",
+    # Context Engine v2
+    "python3 -m src.ops.manage compile-context --workspace-root .cache/ws_customer_default --target-path schemas/test.schema.v1.json",
+    "python3 ci/check_context_bootstrap.py --gate --workspace-root .cache/ws_customer_default",
 )
 
 REQUIRED_PRESERVE_PATHS = (

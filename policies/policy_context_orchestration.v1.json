@@ -36,6 +36,12 @@
       ".cache/index/active_context_profile.v1.json"
     ]
   },
+  "bootstrap_gate": {
+    "enabled": true,
+    "min_health_score": 0.8,
+    "grace_invocations": 2,
+    "evidence_path": ".cache/reports/bootstrap_evidence.v1.json"
+  },
   "guardrails": {
     "network_default": false,
     "report_only_on_missing_context": true,

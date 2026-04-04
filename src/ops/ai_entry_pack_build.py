@@ -13,6 +13,51 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _build_context_continuity(workspace_root: Path, workspace_rel: str) -> dict[str, Any]:
+    """Build context continuity section for agent handoff (Phase 6)."""
+    continuity: dict[str, Any] = {}
+
+    # Active profile
+    profile_path = workspace_root / ".cache" / "index" / "active_context_profile.v1.json"
+    if profile_path.exists():
+        try:
+            profile = json.loads(profile_path.read_text(encoding="utf-8"))
+            continuity["active_profile"] = {
+                "id": profile.get("profile_id", "UNKNOWN"),
+                "resolution_method": profile.get("resolution_method", "unknown"),
+            }
+        except Exception:
+            pass
+
+    # Quality snapshot
+    metrics_path = workspace_root / ".cache" / "reports" / "context_session_metrics.v1.json"
+    if metrics_path.exists():
+        try:
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+            continuity["quality_snapshot"] = {
+                "cache_hit_rate": metrics.get("cache_hit_rate", 0.0),
+                "quality_trend": metrics.get("quality_trend", "STABLE"),
+            }
+        except Exception:
+            pass
+
+    # Scope state
+    scope_path = workspace_root / ".cache" / "reports" / "scope_guard_state.v1.json"
+    if scope_path.exists():
+        try:
+            scope = json.loads(scope_path.read_text(encoding="utf-8"))
+            continuity["scope_state"] = {"status": scope.get("status", "UNKNOWN")}
+        except Exception:
+            pass
+
+    # Compiled context ref
+    compiled_path = workspace_root / ".cache" / "reports" / "rule_packet.v1.json"
+    if compiled_path.exists():
+        continuity["compiled_context_ref"] = f"{workspace_rel}/.cache/reports/rule_packet.v1.json"
+
+    return continuity
+
+
 def ai_entry_pack_path(workspace_root: Path) -> Path:
     return workspace_root / "project" / "PRJ-MULTI-AI-CODING-OS" / "ai_entry_pack.v1.json"
 
@@ -129,6 +174,9 @@ def build_ai_entry_pack(*, workspace_root: Path) -> dict[str, Any]:
         "worktree_health": f"{workspace_rel}/.cache/reports/worktree_health.v1.json",
     }
 
+    # Phase 6: Context continuity fields
+    context_continuity = _build_context_continuity(workspace_root, workspace_rel)
+
     payload = {
         "version": "v1",
         "kind": "ai-entry-pack",
@@ -141,6 +189,7 @@ def build_ai_entry_pack(*, workspace_root: Path) -> dict[str, Any]:
             "Authority kaynagi degildir; canonical registry/policy/dokumanlara referans verir.",
         ],
         "refs": refs,
+        "context_continuity": context_continuity,
         "summary": {
             "repo_count": len(active.get("repos") if isinstance(active.get("repos"), list) else []),
             "target_count": len(active.get("targets") if isinstance(active.get("targets"), list) else []),
