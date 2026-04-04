@@ -1,0 +1,333 @@
+{
+  "version": "v1",
+  "feature_id": "chart-platform",
+  "title": "Design Lab Chart & Grid Platform",
+  "status": "ACTIVE",
+  "decision_ref": "decisions/topics/chart-viz-engine-selection.v1.json",
+  "schema_ref": "schemas/chart-spec.schema.v1.json",
+  "created_at": "2026-04-04",
+  "phases": [
+    {
+      "phase_id": "P0",
+      "title": "Governance Gate",
+      "status": "DONE",
+      "dod": [
+        "DCP created with 11 decisions, 8 rejected alternatives",
+        "ChartSpec schema created and validated",
+        "Policy updated with forbidden_imports and chart_platform section",
+        "Decision Registry updated"
+      ]
+    },
+    {
+      "phase_id": "P1",
+      "title": "Foundation — ECharts Migration",
+      "status": "DONE",
+      "dod": [
+        "ECharts modular imports (tree-shakeable)",
+        "ECharts renderer lifecycle (useEChartsRenderer hook)",
+        "ChartSpec TypeScript types",
+        "ChartSpec to ECharts option transformer",
+        "ChartSpec validator",
+        "DesignLabEChartsTheme adapter (figma tokens → ECharts)",
+        "Colorblind palettes (deuteranopia, protanopia, tritanopia, monochrome)",
+        "Decal patterns for additional differentiation",
+        "BarChart → ECharts migration (same props API)",
+        "LineChart → ECharts migration",
+        "AreaChart → ECharts migration",
+        "PieChart → ECharts migration",
+        "ScatterChart → ECharts migration",
+        "A11y: ChartKeyboardNav component",
+        "A11y: ChartDataTable fallback component",
+        "A11y: ChartAriaLive component",
+        "A11y: useReducedMotion hook",
+        "States: ChartLoadingState (skeleton)",
+        "States: ChartEmptyState",
+        "States: ChartErrorState",
+        "States: ChartErrorBoundary",
+        "Security: sanitizeChartText (XSS prevention)",
+        "Security: validateStreamUrl (whitelist)",
+        "CI: spec-transform contract tests",
+        "CI: a11y contract tests (axe-core)",
+        "CI: security contract tests (XSS payload array)",
+        "CI: memory leak test (100-cycle mount/unmount)",
+        "CI: performance benchmark (10K point tests)",
+        "Vite config: echarts optimizeDeps.include",
+        "ESLint: forbidden-imports rule update",
+        "Bundle: tree-shaking verified, <350KB gzip"
+      ],
+      "ci_gates": [
+        "bundle-size-check",
+        "a11y-axe-audit",
+        "contrast-ratio-check",
+        "xss-sanitization-check",
+        "memory-leak-test"
+      ]
+    },
+    {
+      "phase_id": "P2",
+      "title": "Interaction Layer",
+      "status": "PLANNED",
+      "dod": [
+        "Cross-filter bus (Zustand store + event emitter)",
+        "Chart-to-chart filtering (click → filter other charts)",
+        "Chart-to-grid filtering (click chart → filter AG Grid)",
+        "Grid-to-chart filtering (filter grid → update chart)",
+        "Drill-down navigation (click → deeper detail level)",
+        "Drill-down breadcrumb (back navigation)",
+        "Brush selection (rect, x-axis, y-axis)",
+        "Zoom and pan support",
+        "Undo/redo for filter and drill operations",
+        "Bookmark management (save/load filter state)",
+        "Animation: smooth data transitions",
+        "Animation: stagger between series",
+        "Animation: respect prefers-reduced-motion",
+        "Touch gestures: pinch zoom, swipe navigate",
+        "Mobile tooltip: long-press trigger",
+        "Query cancellation (abort previous on new filter)",
+        "Data volume indicator (showing row count)",
+        "Debounce filter propagation (150ms default)",
+        "Storybook: cross-filter demo page",
+        "Storybook: drill-down demo page",
+        "Test: cross-filter integration tests"
+      ],
+      "ci_gates": [
+        "performance-benchmark",
+        "chart-spec-validation"
+      ]
+    },
+    {
+      "phase_id": "P3",
+      "title": "Enterprise Charts & Themes",
+      "status": "PLANNED",
+      "dod": [
+        "GaugeChart → ECharts migration",
+        "RadarChart → ECharts migration",
+        "TreemapChart → ECharts migration",
+        "HeatmapChart → ECharts migration",
+        "WaterfallChart → ECharts migration",
+        "FunnelChart → ECharts migration",
+        "SankeyChart (new, ECharts native)",
+        "SunburstChart (new, ECharts native)",
+        "Dark mode theme (DesignLabEChartsDarkTheme)",
+        "High contrast theme",
+        "Print-safe theme (grayscale + patterns)",
+        "SSR/RSC: client-only boundary enforcement",
+        "i18n: ECharts locale + @mfe/i18n-dicts integration",
+        "i18n: number/date format per locale",
+        "RTL: research spike and basic support",
+        "Data transforms: moving_avg, percentile, std_dev, regression",
+        "Auto-granularity (zoom → aggregate level change)",
+        "Responsive: legend collapse at breakpoint",
+        "Responsive: chart type switch at breakpoint",
+        "Storybook: all chart type stories",
+        "ag-charts dependency cleanup (remove from design-system)",
+        "AG Charts → ECharts full migration complete"
+      ],
+      "ci_gates": [
+        "visual-regression",
+        "tree-shaking-verify"
+      ]
+    },
+    {
+      "phase_id": "P4",
+      "title": "Grid Abstraction Layer",
+      "status": "PLANNED",
+      "dod": [
+        "GridAdapter interface definition (setData, getSelectedRows, onFilterChange, onSortChange, applyExternalFilter, getColumnDefs, destroy)",
+        "AGGridAdapter implementation",
+        "Grid ↔ Chart deep linking (shared selection state)",
+        "Grid column → chart encoding auto-mapping",
+        "Grid filter model → chart filter sync",
+        "Grid row selection → chart highlight",
+        "Chart selection → grid row highlight",
+        "GridAdapter unit tests",
+        "GridAdapter integration tests with AG Grid",
+        "Documentation: GridAdapter API reference"
+      ]
+    },
+    {
+      "phase_id": "P5",
+      "title": "AI Integration",
+      "status": "PLANNED",
+      "dod": [
+        "NL → ChartSpec generator (Claude API integration)",
+        "Auto-insight: anomaly detection on chart data",
+        "Auto-insight: trend identification",
+        "Smart chart type suggestion based on data shape",
+        "Chart description generation (for a11y alt text)",
+        "Integration with AiChatService",
+        "Test: NL→ChartSpec transform tests"
+      ]
+    },
+    {
+      "phase_id": "P6",
+      "title": "Performance Optimization",
+      "status": "PLANNED",
+      "dod": [
+        "WebGL lazy loading (echarts-gl on demand)",
+        "Streaming data render (WebSocket/SSE → live chart update)",
+        "Web Worker: data transform offloading",
+        "Cache layer: LRU cache for query results",
+        "LTTB downsampling for >50K points",
+        "Progressive rendering for large datasets",
+        "Viewport-aware lazy initialization",
+        "Memory profiling and leak prevention",
+        "100K+ point benchmark (target <2s render)",
+        "Bundle code splitting (per chart type)",
+        "Source map analysis and optimization",
+        "CDN asset optimization for ECharts modules",
+        "Server-side aggregation gateway (>100K threshold)",
+        "Real-time dashboard: 60fps update target",
+        "Test: performance regression CI gate"
+      ]
+    },
+    {
+      "phase_id": "P7",
+      "title": "Collaboration & Offline",
+      "status": "PLANNED",
+      "dod": [
+        "Shared annotations on chart data points",
+        "Comment threads on charts",
+        "Dashboard sharing (URL state serialization)",
+        "Dashboard state persistence (localStorage + URL)",
+        "Dashboard version history (JSON diffing)",
+        "Export: PNG, SVG, PDF, CSV, XLSX (combined chart+grid)",
+        "Print layout: A4-optimized dashboard rendering",
+        "Offline: Service Worker for cached dashboard data",
+        "Offline: IndexedDB for query result cache",
+        "Offline indicator and sync status",
+        "Collaborative cursor (who is viewing what)",
+        "Notification: data refresh alerts",
+        "Notification: threshold breach alerts",
+        "Share link generation with embedded filter state",
+        "Test: offline/online transition tests"
+      ]
+    },
+    {
+      "phase_id": "P8",
+      "title": "Advanced Analytics & Extensibility",
+      "status": "PLANNED",
+      "dod": [
+        "Data storytelling: guided narrative from chart sequence",
+        "What-if analysis: parameter sliders → computed projections",
+        "Threshold alerts: configurable data alerts with notification",
+        "Sonification: data-to-audio mapping for accessibility",
+        "WebGPU renderer (feature-flagged, experimental)",
+        "Custom chart plugin API (register new chart types)",
+        "Chart template marketplace (save/share/import templates)",
+        "Full RTL implementation (Arabic, Hebrew layout)",
+        "Cross-browser compatibility matrix (Chrome, Firefox, Safari, Edge)",
+        "E2E test suite (Playwright, all chart types, all interactions)",
+        "Predictive analytics: time series forecasting overlay",
+        "Computed fields: derived metrics from multiple data sources",
+        "Dashboard-as-code: JSON config → full dashboard",
+        "Embeddable mode: chart widget for external sites",
+        "API: chart image generation endpoint (server-side ECharts)",
+        "Multi-language chart labels from i18n dictionaries",
+        "Calendar chart: date-based heatmap visualization",
+        "Graph chart: network/relationship visualization",
+        "Geo chart: map-based data visualization",
+        "Parallel coordinates: multi-dimensional comparison",
+        "Performance: 1M+ point WebGPU benchmark",
+        "Security audit: OWASP top 10 verification for chart inputs",
+        "Documentation: complete developer guide with examples"
+      ],
+      "note": "No feature is deferred beyond P8 — this is the complete platform vision."
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-001",
+      "description": "ECharts bundle size bloat (full: ~800KB)",
+      "severity": "HIGH",
+      "mitigation": "Tree-shaking with echarts/core + modular chart imports. CI gate at 350KB gzip."
+    },
+    {
+      "id": "R-002",
+      "description": "AG Charts → ECharts migration breaks existing charts",
+      "severity": "HIGH",
+      "mitigation": "Incremental migration. Same props API preserved. AG Charts removed only after all charts migrated."
+    },
+    {
+      "id": "R-003",
+      "description": "Cross-filter performance with many linked charts",
+      "severity": "MEDIUM",
+      "mitigation": "Zustand selector-based re-render + debounce + query cancellation."
+    },
+    {
+      "id": "R-004",
+      "description": "ECharts SSR incompatibility (DOM-dependent)",
+      "severity": "MEDIUM",
+      "mitigation": "Client-only boundary ('use client'). No SSR for chart components."
+    },
+    {
+      "id": "R-005",
+      "description": "WebGL memory leaks on chart destroy/recreate",
+      "severity": "MEDIUM",
+      "mitigation": "Memory leak CI test (100-cycle mount/unmount). ECharts dispose() on unmount."
+    },
+    {
+      "id": "R-006",
+      "description": "Colorblind palette insufficient contrast",
+      "severity": "MEDIUM",
+      "mitigation": "Contrast ratio CI gate (4.5:1 minimum). Decal patterns as additional differentiator."
+    },
+    {
+      "id": "R-007",
+      "description": "Vite prebundle conflict with ECharts dynamic imports",
+      "severity": "LOW",
+      "mitigation": "optimizeDeps.include for echarts/*, exclude for dynamic chart modules."
+    },
+    {
+      "id": "R-008",
+      "description": "XSS via chart tooltip/label content",
+      "severity": "HIGH",
+      "mitigation": "sanitizeChartText for all user-provided text. Custom formatter disabled by default."
+    },
+    {
+      "id": "R-009",
+      "description": "Large dataset (>100K rows) browser tab crash",
+      "severity": "HIGH",
+      "mitigation": "Server-side aggregation threshold + LTTB downsampling + progressive rendering."
+    },
+    {
+      "id": "R-010",
+      "description": "i18n ECharts locale conflicts with @mfe/i18n-dicts",
+      "severity": "LOW",
+      "mitigation": "ECharts locale registered separately, not pre-bundled in Vite."
+    },
+    {
+      "id": "R-011",
+      "description": "Design token changes break ECharts theme",
+      "severity": "MEDIUM",
+      "mitigation": "DesignLabEChartsTheme adapter reads tokens at runtime. Token change → theme auto-updates."
+    }
+  ],
+  "success_metrics": [
+    {"metric": "P1 chart count", "target": "5/5 core charts migrated", "phase": "P1"},
+    {"metric": "CI tests green", "target": "179/179 tests passing", "phase": "P1"},
+    {"metric": "Bundle size", "target": "<350KB gzip", "phase": "P1"},
+    {"metric": "A11y score", "target": "axe-core 0 violations", "phase": "P1"},
+    {"metric": "Memory leak", "target": "0 leak in 100-cycle test", "phase": "P1"},
+    {"metric": "Cross-filter latency", "target": "<100ms for 5 linked charts", "phase": "P2"},
+    {"metric": "Drill-down depth", "target": "3+ levels supported", "phase": "P2"},
+    {"metric": "Enterprise chart count", "target": "8+ advanced chart types", "phase": "P3"},
+    {"metric": "Dark mode coverage", "target": "100% chart types", "phase": "P3"},
+    {"metric": "Grid adapter swap time", "target": "<1 day to swap implementation", "phase": "P4"},
+    {"metric": "NL→ChartSpec accuracy", "target": ">80% correct chart type", "phase": "P5"},
+    {"metric": "100K point render", "target": "<2 seconds", "phase": "P6"},
+    {"metric": "Offline dashboard load", "target": "<3 seconds from cache", "phase": "P7"},
+    {"metric": "Plugin registration", "target": "<50 lines to add new chart type", "phase": "P8"}
+  ],
+  "timeline_estimate": {
+    "total_weeks": "22-30",
+    "critical_path": "P1→P2→P3 (foundation→interaction→enterprise)",
+    "parallel_opportunities": "P4 can start after P2, P5 after P3, P6 concurrent with P4-P5"
+  },
+  "rollback_strategy": {
+    "P1": "Revert ECharts, restore AG Charts imports. All original files preserved during migration.",
+    "P2": "Remove cross-filter bus. Charts work standalone without filtering.",
+    "P3": "Keep P1 charts, skip enterprise types. No data loss.",
+    "general": "Each phase is independently revertible. No phase depends on unreleased future phases."
+  }
+}
