@@ -4,7 +4,13 @@ from __future__ import annotations
 from src.shared.utils import write_text_atomic
 
 import json
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        tomllib = None  # type: ignore[assignment]
 from pathlib import Path
 from typing import Any, Dict
 

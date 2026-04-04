@@ -6,7 +6,13 @@ import json
 import shutil
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        tomllib = None  # type: ignore[assignment]
 
 from src.prj_kernel_api.codex_home import ensure_codex_home
 
