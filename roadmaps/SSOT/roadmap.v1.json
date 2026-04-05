@@ -33,8 +33,10 @@
       "id": "M0",
       "notes": [
         "Amaç: core ürün (shippable) ile workspace (tenant/private) ayrımını netleştirmek.",
-        "Deliverables: docs/OPERATIONS/core-vs-workspace.md + templates/workspace_template + promote/sanitize scanner hooks."
+        "Deliverables: docs/OPERATIONS/core-vs-workspace.md + templates/workspace_template + promote/sanitize scanner hooks.",
+        "CHG-20260405-006: Bootstrap trust and launcher normalization. Consultation artifacts whose recorded branch or head_sha do not match the current worktree must be marked foreign or untrusted during bootstrap. Bootstrap commands, CAPABILITY or KABILIYET artifacts, and roadmap steps must resolve an environment-compatible Python launcher such as python3 or a runtime abstraction instead of assuming a bare python binary exists. Freshness policy should distinguish volatile workspace reports from structural SSOT files."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "text": "M0 is a roadmap definition milestone (v0.3): core↔workspace boundary, workspace bootstrap/sanitize conventions, promotion-lane scan gates.",
@@ -52,8 +54,7 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold",
-      "status": "in_progress"
+      "title": "Core↔Workspace boundary + bootstrap/sanitize + promotion lane scaffold"
     },
     {
       "dod": [
@@ -62,6 +63,7 @@
       ],
       "gates": [],
       "id": "M0.1",
+      "status": "done",
       "steps": [
         {
           "paths": [
@@ -108,8 +110,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Core Lock + Project Boundary",
-      "status": "done"
+      "title": "Core Lock + Project Boundary"
     },
     {
       "constraints": {
@@ -143,6 +144,7 @@
         "Deliverables: tenant/<TENANT>/{context,stakeholders,scope,criteria}.v1.md + ci/validate_iso_core_presence.py + policy_report ISO core status.",
         "DoD: ISO core yoksa conservative mode raporu; varsa referans alınır."
       ],
+      "status": "open",
       "steps": [
         {
           "path": "tenant/TENANT-DEFAULT",
@@ -173,8 +175,7 @@
           "type": "create_file"
         }
       ],
-      "title": "ISO Core SSOT (Context/Stakeholder/Scope/Criteria) + aktif gate",
-      "status": "open"
+      "title": "ISO Core SSOT (Context/Stakeholder/Scope/Criteria) + aktif gate"
     },
     {
       "constraints": {
@@ -220,8 +221,10 @@
       "notes": [
         "Amaç: Kullanıcı kararları çelişmesin; discovery doğru filtrelesin.",
         "Dosyalar: tenant/<TENANT>/decision-bundle.v1.json + schemas/tenant-decision-bundle.schema.json + ci/validate_tenant_consistency.py",
-        "Consistency Gate (fail-closed): stack/packs/side_effect_policy/tool/network/format uyumu."
+        "Consistency Gate (fail-closed): stack/packs/side_effect_policy/tool/network/format uyumu.",
+        "CHG-20260405-007: Decision hydration hygiene. Planning and architecture context resolution must read ACTIVE topics from decisions/registry.v1.json and surface relevant decisions explicitly so decision coverage is deterministic rather than dependent on ad hoc manual file reads."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "path": "tenant/TENANT-DEFAULT",
@@ -402,8 +405,7 @@
           "type": "note"
         }
       ],
-      "title": "Tenant Decision Bundle SSOT v0.1 + Consistency Gate",
-      "status": "in_progress"
+      "title": "Tenant Decision Bundle SSOT v0.1 + Consistency Gate"
     },
     {
       "constraints": {
@@ -425,6 +427,7 @@
         "Deliverables: formats/* + schemas/format-contract.schema.json + ci/validate_format_contracts.py + selection logic.",
         "v0.1 runnable: workspace-root altında derived formats index üretir: .cache/index/formats.v1.json"
       ],
+      "status": "open",
       "steps": [
         {
           "path": "formats",
@@ -448,8 +451,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Format & Conversation Contract SSOT",
-      "status": "open"
+      "title": "Format & Conversation Contract SSOT"
     },
     {
       "constraints": {
@@ -472,6 +474,7 @@
         "Kural: ISO içerikleri kopyalanmaz; iso_refs ile tenant ISO core dosyalarına referans verilir (M1).",
         "v0.1: runnable (read-only core existence check). Core repo yazımı yapmaz; deliverables ileride promotion lane ile core’a taşınır."
       ],
+      "status": "open",
       "steps": [
         {
           "paths": [
@@ -483,8 +486,7 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "CAPABILITY spec-core meta contract (ISO refs + evidence + risk)",
-      "status": "open"
+      "title": "CAPABILITY spec-core meta contract (ISO refs + evidence + risk)"
     },
     {
       "constraints": {
@@ -504,6 +506,7 @@
         "Amaç: decision bundle + packs + formats birleşimiyle deterministik discovery/selection.",
         "Deliverables: packs/<pack_id>/manifest.v1.json (+schema) + src/tenant/build_catalog.py + .cache/index/catalog.v1.json (derived)."
       ],
+      "status": "open",
       "steps": [
         {
           "path": "packs/pack-demo",
@@ -556,8 +559,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Packs Catalog v0.1 + Composite Catalog Builder",
-      "status": "open"
+      "title": "Packs Catalog v0.1 + Composite Catalog Builder"
     },
     {
       "constraints": {
@@ -578,8 +580,10 @@
         "Amaç: sohbet içi ephemeral kararları TTL ile yönetmek; provenance’a hash olarak yazmak.",
         "Deliverables: .cache/sessions/<session_id>/session_context.v1.json + session_context_hash.",
         "v0.1 runnable: default session init ile workspace-root altında session_context dosyası üretir.",
-        "CHG-20260301-004: Context hardening package for Session RAM lane. Scope: fail-closed handling for roadmap/project bootstrap state mismatch, formalized session decision write/read E2E proof (session-set -> cross_session_context -> shared_decisions), schema/validation coverage for session_cross_context.v1.json artifact, and helper dedup for repeated _parse_iso8601 utilities."
+        "CHG-20260301-004: Context hardening package for Session RAM lane. Scope: fail-closed handling for roadmap/project bootstrap state mismatch, formalized session decision write/read E2E proof (session-set -> cross_session_context -> shared_decisions), schema/validation coverage for session_cross_context.v1.json artifact, and helper dedup for repeated _parse_iso8601 utilities.",
+        "CHG-20260405-005: Session and consultation isolation. Active context profile and session artifacts must be agent-scoped and worktree-aware. When a consultation response artifact is written, the paired consultation state must atomically transition from OPEN to ANSWERED or RESOLVED and record agent_id, branch, head_sha, and responded_at provenance. Session freshness should be derived from session TTL metadata rather than unrelated shared report ages."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/sessions",
@@ -599,8 +603,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Session RAM (Ephemeral mini-SSOT) v0.1",
-      "status": "open"
+      "title": "Session RAM (Ephemeral mini-SSOT) v0.1"
     },
     {
       "constraints": {
@@ -620,6 +623,7 @@
         "Amaç: lider pratikler doküman değil, üretimde aktif kontrol (quality gate).",
         "Deliverables: best_practices/ veya packs/bp-* + policies/policy_quality.v1.json + ops best-practice-status."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/index",
@@ -639,8 +643,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Best Practice & Trend Library (aktif gate) v0.1",
-      "status": "open"
+      "title": "Best Practice & Trend Library (aktif gate) v0.1"
     },
     {
       "constraints": {
@@ -661,6 +664,7 @@
         "Amaç: workspace/tenant ortamında üretilen generic artefact’ları sanitize edip public candidates olarak ayırmak.",
         "Deliverables: public_candidates.v1.json + sanitize scan (fail-closed)."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/learning",
@@ -680,8 +684,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Learning Harvest / Public Candidates (sanitized) v0.1",
-      "status": "open"
+      "title": "Learning Harvest / Public Candidates (sanitized) v0.1"
     },
     {
       "constraints": {
@@ -701,6 +704,7 @@
         "Amaç: run_index + dlq_index üretmek (bounded, deterministic).",
         "Deliverables: .cache/index/run_index.v1.json + dlq_index.v1.json"
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/index",
@@ -721,8 +725,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Ops Index Layer v0.1",
-      "status": "open"
+      "title": "Ops Index Layer v0.1"
     },
     {
       "constraints": {
@@ -743,6 +746,7 @@
         "Amaç: harvest işlemini incremental yapmak, cursor + window ile O(delta).",
         "Deliverables: public_candidates + harvest_cursor"
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/learning",
@@ -763,8 +767,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Harvest incremental v0.2 (cursor + window)",
-      "status": "open"
+      "title": "Harvest incremental v0.2 (cursor + window)"
     },
     {
       "constraints": {
@@ -784,6 +787,7 @@
         "Amaç: artifact pointer üretmek (content-addressed, workspace-local).",
         "Deliverables: .cache/artifacts/public_candidates.pointer.v1.json + <sha>.bin"
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/artifacts",
@@ -801,8 +805,7 @@
           "type": "assert_pointer_target_exists"
         }
       ],
-      "title": "Artifact Pointer v0.1 (local pointer+hash)",
-      "status": "open"
+      "title": "Artifact Pointer v0.1 (local pointer+hash)"
     },
     {
       "constraints": {
@@ -823,6 +826,7 @@
         "Amaç: suggest-only learning event log + stats; control plane karar verir.",
         "Deliverables: learning/events.jsonl + flaky_index/strategy_stats + provenance hash + ops learning-status."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/learning",
@@ -842,8 +846,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Learning Plane v0.1 (Offline Advisor / Suggest-only)",
-      "status": "open"
+      "title": "Learning Plane v0.1 (Offline Advisor / Suggest-only)"
     },
     {
       "constraints": {
@@ -864,6 +867,7 @@
         "Amaç: fail→fix→push→green→merge loop; runaway yok (budget/quota/governor/kill switches).",
         "Deliverables: PR lifecycle orchestration + ops autopilot-status + metrics."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/ops",
@@ -883,8 +887,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Autopilot MVP v0.1 (Insansız PR Loop)",
-      "status": "open"
+      "title": "Autopilot MVP v0.1 (Insansız PR Loop)"
     },
     {
       "constraints": {
@@ -903,8 +906,10 @@
       "id": "M8.1",
       "notes": [
         "Amaç: workspace sağlık durumu tek raporda (JSON + Markdown).",
-        "Offline, deterministic, no network; yalnızca mevcut artifact özetleri."
+        "Offline, deterministic, no network; yalnızca mevcut artifact özetleri.",
+        "CHG-20260405-002: Status canonicalization for M8.1. System-status must read and write only workspace-root canonical reports, emit provenance for source artifact paths, and stop falling back to repo-root .cache status files that can diverge from workspace truth. Project-status customer entrypoint should deterministically resolve the canonical roadmap when omitted and surface the resolved roadmap path in evidence."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "path": ".cache/reports",
@@ -925,8 +930,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "System Status Report v0.1 (Unified Cockpit)",
-      "status": "in_progress"
+      "title": "System Status Report v0.1 (Unified Cockpit)"
     },
     {
       "constraints": {
@@ -946,6 +950,7 @@
         "Amaç: incubator çıktılarından deterministik promotion bundle üretmek (zip + diff + md).",
         "No auto-apply; sadece draft ve evidence."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/promotion",
@@ -967,8 +972,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Promotion Bundle v0.2 (Incubator → Draft)",
-      "status": "open"
+      "title": "Promotion Bundle v0.2 (Incubator → Draft)"
     },
     {
       "constraints": {
@@ -988,6 +992,7 @@
         "Amaç: pack manifest SSOT + conflict gate (hard fail, soft warn).",
         "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
       ],
+      "status": "open",
       "steps": [
         {
           "path": "packs",
@@ -1011,8 +1016,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack Manifest SSOT + Validation",
-      "status": "open"
+      "title": "Pack Manifest SSOT + Validation"
     },
     {
       "constraints": {
@@ -1032,6 +1036,7 @@
         "Amaç: pack capability index üretimi + cursor; deterministik ve bounded.",
         "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/index",
@@ -1051,8 +1056,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack Index Build (O(delta))",
-      "status": "open"
+      "title": "Pack Index Build (O(delta))"
     },
     {
       "constraints": {
@@ -1072,6 +1076,7 @@
         "Amaç: deterministik shortlist + tie-break + selection trace üretimi.",
         "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
       ],
+      "status": "open",
       "steps": [
         {
           "apply_only": true,
@@ -1087,8 +1092,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack Selection Trace (SSOT)",
-      "status": "open"
+      "title": "Pack Selection Trace (SSOT)"
     },
     {
       "constraints": {
@@ -1108,6 +1112,7 @@
         "Amaç: pack improvement mappings ile öneri zenginleştirme.",
         "Uygulama: apply_only run_cmd; dry-run readonly güvenli."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/learning",
@@ -1127,8 +1132,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Pack-aware Advisor (bounded)",
-      "status": "open"
+      "title": "Pack-aware Advisor (bounded)"
     },
     {
       "constraints": {
@@ -1149,6 +1153,7 @@
         "Cekirdek SSOT artefactlari core repo icinde dogrulanir.",
         "Workspace-run icin assert_core_paths_exist ile fail-closed kontrol edilir."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "paths": [
@@ -1174,8 +1179,7 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "North Star SSOT (standards catalog) v0.1",
-      "status": "in_progress"
+      "title": "North Star SSOT (standards catalog) v0.1"
     },
     {
       "constraints": {
@@ -1195,6 +1199,7 @@
         "Uretim: north_star catalog + assessment + cursor + scorecard.",
         "apply_only run_cmd; dry-run readonly guvenli."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "path": ".cache/index",
@@ -1222,8 +1227,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Assessment Runner v0.1 (index-first, O(delta))",
-      "status": "in_progress"
+      "title": "Assessment Runner v0.1 (index-first, O(delta))"
     },
     {
       "constraints": {
@@ -1243,6 +1247,7 @@
         "Eval lens ciktilari assessment_eval icinde kilitlenir.",
         "apply_only run_cmd; dry-run readonly guvenli."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/index",
@@ -1266,8 +1271,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Assessment Eval Lenses v0.1",
-      "status": "open"
+      "title": "Assessment Eval Lenses v0.1"
     },
     {
       "constraints": {
@@ -1287,6 +1291,7 @@
         "Gap register ve ozet raporu assessment runner tarafindan uretilir.",
         "apply_only run_cmd; dry-run readonly guvenli."
       ],
+      "status": "open",
       "steps": [
         {
           "path": ".cache/index",
@@ -1311,8 +1316,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Gap Register v0.1 + Closure Mapping",
-      "status": "open"
+      "title": "Gap Register v0.1 + Closure Mapping"
     },
     {
       "constraints": {
@@ -1332,6 +1336,7 @@
         "Benchmark bolumu cockpit raporuna eklenir.",
         "Recheck loop mevcut debt autopilot yeniden kontrol akisini kullanir."
       ],
+      "status": "open",
       "steps": [
         {
           "paths": [
@@ -1341,8 +1346,7 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "Cockpit Integration + Recheck Loop (PDCA/PUKO)",
-      "status": "open"
+      "title": "Cockpit Integration + Recheck Loop (PDCA/PUKO)"
     },
     {
       "constraints": {
@@ -1362,6 +1366,7 @@
         "Project manifest schema is core SSOT.",
         "Workspace runs only assert core artifacts; no core writes."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "paths": [
@@ -1375,8 +1380,7 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "Project manifest SSOT + validation",
-      "status": "in_progress"
+      "title": "Project manifest SSOT + validation"
     },
     {
       "constraints": {
@@ -1394,8 +1398,10 @@
       "id": "M11.2",
       "notes": [
         "Program-led portfolio-status produces deterministic output.",
-        "apply_only run_cmd; dry-run readonly is safe."
+        "apply_only run_cmd; dry-run readonly is safe.",
+        "CHG-20260405-003: Portfolio-status single-gate contract. Exactly one canonical portfolio_status.v1.json must exist under workspace root; extension counts, manual request counts, next focus, and release summary fields must align with downstream consumers and never be duplicated under repo-root cache paths."
       ],
+      "status": "in_progress",
       "steps": [
         {
           "path": ".cache/reports",
@@ -1415,8 +1421,7 @@
           "type": "assert_paths_exist"
         }
       ],
-      "title": "Portfolio status (single gate) v0.1",
-      "status": "in_progress"
+      "title": "Portfolio status (single gate) v0.1"
     },
     {
       "constraints": {
@@ -1434,8 +1439,10 @@
       "id": "M11.3",
       "notes": [
         "Projects summary is sourced from portfolio-status when present.",
-        "No core writes during roadmap execution."
+        "No core writes during roadmap execution.",
+        "CHG-20260405-004: Counter alignment across project and system summaries. Project counts, completed milestone counts, and project section summaries must be sourced from the same canonical roadmap_state and portfolio artifacts so system-status, portfolio-status, and project-status cannot report contradictory numbers for the same workspace."
       ],
+      "status": "open",
       "steps": [
         {
           "paths": [
@@ -1445,8 +1452,7 @@
           "type": "assert_core_paths_exist"
         }
       ],
-      "title": "System status projects section",
-      "status": "open"
+      "title": "System status projects section"
     },
     {
       "constraints": {
@@ -1483,14 +1489,14 @@
         "RB-011 Summary Builder Unification: consolidate all summary payload construction paths into one builder while keeping output schema and values backward compatible.",
         "RB-012 workflow_exec_steps Modularization: split _exec_mod_a, _exec_approval, _exec_mod_b, _exec_mod_policy_review, _exec_mod_dlq_triage into separate modules and keep workflow outputs/evidence stable."
       ],
+      "status": "open",
       "steps": [
         {
           "text": "Checkpoint milestone: no new SSOT work to apply. This milestone records completed Router lane evidence.",
           "type": "note"
         }
       ],
-      "title": "Router core lane completed (checkpoint)",
-      "status": "open"
+      "title": "Router core lane completed (checkpoint)"
     }
   ],
   "roadmap_id": "RM-SSOT-001",
