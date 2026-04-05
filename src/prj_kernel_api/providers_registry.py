@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from src.prj_kernel_api.providers_registry_schema import validate_policy, validate_registry
+from src.shared.utils import write_json_atomic
 
 PROVIDERS_DIR = ".cache/providers"
 PROVIDERS_FILE = "providers.v1.json"
@@ -14,10 +15,7 @@ POLICY_FILE = "provider_policy.v1.json"
 
 
 def _write_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    write_json_atomic(tmp, obj)
-    tmp.replace(path)
+    write_json_atomic(path, obj)
 
 
 def _default_registry() -> Dict[str, Any]:

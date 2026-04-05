@@ -5,10 +5,18 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
-from src.prj_kernel_api.providers_registry import ensure_providers_registry
-from src.prj_kernel_api.providers_registry_schema import validate_registry
+import pytest
+
+
+pytestmark = [
+    pytest.mark.contract,
+    pytest.mark.kernel_api,
+    pytest.mark.serial,
+]
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -16,6 +24,15 @@ def _find_repo_root(start: Path) -> Path:
         if (p / "pyproject.toml").exists():
             return p
     return Path.cwd()
+
+
+_REPO_ROOT = _find_repo_root(Path(__file__).resolve())
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+
+from src.prj_kernel_api.providers_registry import ensure_providers_registry
+from src.prj_kernel_api.providers_registry_schema import validate_registry
 
 
 def _hash_file(path: Path) -> str:
@@ -66,6 +83,18 @@ def _write_legacy_registry(path: Path) -> None:
     path.write_text(json.dumps(legacy, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _run_self() -> None:
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve())],
+        cwd=str(_REPO_ROOT),
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip()
+        raise SystemExit(message or "providers_registry legacy subprocess failed.")
+
+
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
     ws = repo_root / ".cache" / "ws_registry_legacy_demo"
@@ -91,6 +120,10 @@ def main() -> None:
         raise SystemExit("Legacy registry test failed: normalization is not idempotent.")
 
     print(json.dumps({"status": "OK", "hash": first_hash[:12]}, ensure_ascii=False, sort_keys=True))
+
+
+def test_providers_registry_legacy_idempotency() -> None:
+    _run_self()
 
 
 if __name__ == "__main__":

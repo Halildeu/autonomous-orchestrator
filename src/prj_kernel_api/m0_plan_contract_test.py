@@ -4,9 +4,18 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
-from src.prj_kernel_api.m0_plan import ensure_manage_split_plan
+import pytest
+
+
+pytestmark = [
+    pytest.mark.contract,
+    pytest.mark.kernel_api,
+    pytest.mark.serial,
+]
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -14,6 +23,14 @@ def _find_repo_root(start: Path) -> Path:
         if (p / "pyproject.toml").exists():
             return p
     return Path.cwd()
+
+
+_REPO_ROOT = _find_repo_root(Path(__file__).resolve())
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+
+from src.prj_kernel_api.m0_plan import ensure_manage_split_plan
 
 
 def _load_json(path: Path) -> dict:
@@ -42,6 +59,18 @@ def _assert_result(result: dict) -> Path:
     if not path.exists():
         raise SystemExit("M0 plan test failed: canonical plan missing.")
     return path
+
+
+def _run_self() -> None:
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve())],
+        cwd=str(_REPO_ROOT),
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip()
+        raise SystemExit(message or "m0_plan contract subprocess failed.")
 
 
 def main() -> None:
@@ -85,6 +114,10 @@ def main() -> None:
             sort_keys=True,
         )
     )
+
+
+def test_m0_plan_contract() -> None:
+    _run_self()
 
 
 if __name__ == "__main__":

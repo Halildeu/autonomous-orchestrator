@@ -31,3 +31,16 @@ orchestrator = "src.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src", "src.*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+markers = [
+    "contract: deterministic contract coverage",
+    "kernel_api: PRJ-KERNEL-API test surface",
+    "ops: src/ops test surface",
+    "script_contract: script-backed contract coverage",
+    "surface: UI/system-status surface coverage",
+    "serial: test should not run concurrently with peers",
+    "http: HTTP gateway or socket-backed coverage",
+    "known_red: expected-failing migration target; not for blocking lanes",
+]

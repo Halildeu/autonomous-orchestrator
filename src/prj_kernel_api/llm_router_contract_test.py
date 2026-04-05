@@ -8,6 +8,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
+
+pytestmark = [pytest.mark.contract, pytest.mark.kernel_api]
+
 
 def _find_repo_root(start: Path) -> Path:
     for p in [start] + list(start.parents):
@@ -83,4 +88,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
+
+
+def test_llm_router_contract(kernel_api_env, workspace_root_tmp: Path) -> None:
+    kernel_api_env(WWV_WORKSPACE_ROOT=str(workspace_root_tmp))
     main()
