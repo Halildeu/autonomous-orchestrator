@@ -22,6 +22,60 @@ from .drift_scoreboard import (
     write_drift_scoreboard,
 )
 
+def _canonical_artifact_path(raw: str | Path, *, workspace_root: Path, core_root: Path) -> str:
+    path = raw if isinstance(raw, Path) else Path(str(raw))
+    if path.is_absolute():
+        return str(path.resolve())
+    workspace_candidate = (workspace_root / path).resolve()
+    core_candidate = (core_root / path).resolve()
+    if core_candidate.exists() and not workspace_candidate.exists():
+        return str(core_candidate)
+    return str(workspace_candidate)
+
+
+def _system_status_policy_path(*, workspace_root: Path, core_root: Path) -> Path:
+    ws_policy = workspace_root / "policies" / "policy_system_status.v1.json"
+    if ws_policy.exists():
+        return ws_policy.resolve()
+    return (core_root / "policies" / "policy_system_status.v1.json").resolve()
+
+
+def _system_status_source_artifact_paths(
+    *,
+    workspace_root: Path,
+    core_root: Path,
+    out_json: Path,
+    out_md: Path,
+    drift_scoreboard_path: str | Path,
+) -> dict[str, str]:
+    return {
+        "policy_system_status": str(_system_status_policy_path(workspace_root=workspace_root, core_root=core_root)),
+        "portfolio_status": str((workspace_root / ".cache" / "reports" / "portfolio_status.v1.json").resolve()),
+        "roadmap_state": str((workspace_root / ".cache" / "roadmap_state.v1.json").resolve()),
+        "work_intake": str((workspace_root / ".cache" / "index" / "work_intake.v1.json").resolve()),
+        "extension_registry": str((workspace_root / ".cache" / "index" / "extension_registry.v1.json").resolve()),
+        "active_context_profile": str((workspace_root / ".cache" / "index" / "active_context_profile.v1.json").resolve()),
+        "system_status_json": str(out_json.resolve()),
+        "system_status_md": str(out_md.resolve()),
+        "drift_scoreboard": _canonical_artifact_path(
+            drift_scoreboard_path,
+            workspace_root=workspace_root,
+            core_root=core_root,
+        ),
+    }
+
+
+def _attach_provenance_notes(report: dict[str, Any], source_artifact_paths: dict[str, str]) -> None:
+    notes = report.get("notes") if isinstance(report.get("notes"), list) else []
+    note_values = [str(item) for item in notes if isinstance(item, str)]
+    for key in sorted(source_artifact_paths):
+        value = source_artifact_paths[key]
+        if not value:
+            continue
+        note_values.append(f"source_artifact.{key}={value}")
+    report["notes"] = list(dict.fromkeys(note_values))
+
+
 def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -> dict[str, Any]:
     policy = _load_policy(core_root, workspace_root)
     if not policy.enabled:
@@ -38,32 +92,6 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
         policy=policy,
         dry_run=dry_run,
     )
-    errors = _validate_schema(core_root, report)
-    if errors:
-        return {"status": "FAIL", "error_code": "SCHEMA_INVALID", "errors": errors[:10], "out_json": str(out_json), "out_md": str(out_md), "on_fail": policy.on_fail}
-
-    if dry_run:
-        drift_payload = build_drift_scoreboard(
-            workspace_root=workspace_root,
-            core_root=core_root,
-            managed_repo_standards_summary=report.get("sections", {}).get("managed_repo_standards")
-            if isinstance(report.get("sections"), dict)
-            else None,
-            max_repos=200,
-        )
-        return {
-            "status": "WOULD_WRITE",
-            "overall_status": report.get("overall_status"),
-            "out_json": str(out_json),
-            "out_md": str(out_md),
-            "drift_scoreboard_path": str(drift_payload.get("report_path") or ""),
-            "on_fail": policy.on_fail,
-        }
-
-    out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_md.parent.mkdir(parents=True, exist_ok=True)
-    write_text_atomic(out_json, _dump_json(report))
-    write_text_atomic(out_md, _render_md(report))
     drift_payload = build_drift_scoreboard(
         workspace_root=workspace_root,
         core_root=core_root,
@@ -72,7 +100,48 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
         else None,
         max_repos=200,
     )
-    drift_report_path = write_drift_scoreboard(workspace_root=workspace_root, scoreboard=drift_payload)
+    drift_report_path = _canonical_artifact_path(
+        drift_payload.get("report_path") or "",
+        workspace_root=workspace_root,
+        core_root=core_root,
+    )
+    source_artifact_paths = _system_status_source_artifact_paths(
+        workspace_root=workspace_root,
+        core_root=core_root,
+        out_json=out_json,
+        out_md=out_md,
+        drift_scoreboard_path=drift_report_path,
+    )
+    _attach_provenance_notes(report, source_artifact_paths)
+    errors = _validate_schema(core_root, report)
+    if errors:
+        return {
+            "status": "FAIL",
+            "error_code": "SCHEMA_INVALID",
+            "errors": errors[:10],
+            "out_json": str(out_json),
+            "out_md": str(out_md),
+            "drift_scoreboard_path": drift_report_path,
+            "source_artifact_paths": source_artifact_paths,
+            "on_fail": policy.on_fail,
+        }
+
+    if dry_run:
+        return {
+            "status": "WOULD_WRITE",
+            "overall_status": report.get("overall_status"),
+            "out_json": str(out_json),
+            "out_md": str(out_md),
+            "drift_scoreboard_path": drift_report_path,
+            "source_artifact_paths": source_artifact_paths,
+            "on_fail": policy.on_fail,
+        }
+
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_md.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(out_json, _dump_json(report))
+    write_text_atomic(out_md, _render_md(report))
+    write_drift_scoreboard(workspace_root=workspace_root, scoreboard=drift_payload)
 
     return {
         "status": "OK",
@@ -80,6 +149,7 @@ def run_system_status(*, workspace_root: Path, core_root: Path, dry_run: bool) -
         "out_json": str(out_json),
         "out_md": str(out_md),
         "drift_scoreboard_path": drift_report_path,
+        "source_artifact_paths": source_artifact_paths,
         "on_fail": policy.on_fail,
     }
 
