@@ -14,9 +14,9 @@
       "port": 8790
     },
     {
-      "name": "MFE Shell (Webpack Dev Server)",
+      "name": "MFE Shell (Vite)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/halilkocoglu/Documents/dev/web && npx kill-port 3000 2>/dev/null; cd apps/mfe-shell && AUTH_MODE=permitAll VITE_ENABLE_FAKE_AUTH=true VITE_FAKE_AUTH_ROLE=ADMIN VITE_FAKE_AUTH_PERMISSIONS=THEME_ADMIN npx webpack serve --config webpack.dev.js --no-watch-options-stdin"],
+      "runtimeArgs": ["-c", "export PATH=/Users/halilkocoglu/.nvm/versions/node/v22.22.2/bin:$PATH && cd /Users/halilkocoglu/Documents/dev/web && AUTH_MODE=permitAll VITE_ENABLE_FAKE_AUTH=true VITE_FAKE_AUTH_ROLE=ADMIN VITE_FAKE_AUTH_PERMISSIONS=THEME_ADMIN SHELL_ENABLE_SUGGESTIONS_REMOTE=false SHELL_ENABLE_ETHIC_REMOTE=false SHELL_ENABLE_ACCESS_REMOTE=false SHELL_ENABLE_AUDIT_REMOTE=false SHELL_ENABLE_USERS_REMOTE=false npx vite --force --config apps/mfe-shell/vite.config.ts"],
       "port": 3000
     },
     {
