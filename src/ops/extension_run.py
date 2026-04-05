@@ -363,19 +363,14 @@ def _gate_context_router_check(*, core_root: Path, workspace_root: Path, mode: s
     return payload
 
 
-def _dispatch_single_gate_for_extension(
+def _single_gate_handlers(
     *,
     core_root: Path,
     workspace_root: Path,
     extension_id: str,
-    gate_name: str,
     mode: str,
-) -> tuple[dict[str, Any] | None, str | None]:
-    gate = str(gate_name or "").strip()
-    if not gate:
-        return (None, "SINGLE_GATE_EMPTY")
-
-    handlers: dict[str, Callable[[], dict[str, Any]]] = {
+) -> dict[str, Callable[[], dict[str, Any]]]:
+    return {
         "enforcement-check": lambda: _gate_enforcement_check(
             core_root=core_root,
             workspace_root=workspace_root,
@@ -389,7 +384,11 @@ def _dispatch_single_gate_for_extension(
         "cockpit-healthcheck": lambda: _gate_cockpit_healthcheck(workspace_root=workspace_root),
         "cockpit-serve": lambda: _gate_cockpit_healthcheck(workspace_root=workspace_root),
         "script-budget": lambda: _gate_script_budget(core_root=core_root, workspace_root=workspace_root),
-        "work-intake-check": lambda: _gate_work_intake_check(core_root=core_root, workspace_root=workspace_root, mode=mode),
+        "work-intake-check": lambda: _gate_work_intake_check(
+            core_root=core_root,
+            workspace_root=workspace_root,
+            mode=mode,
+        ),
         "planner-show-plan": lambda: _gate_planner_show_plan(core_root=core_root, workspace_root=workspace_root),
         "context-router-check": lambda: _gate_context_router_check(
             core_root=core_root,
@@ -397,6 +396,40 @@ def _dispatch_single_gate_for_extension(
             mode=mode,
         ),
     }
+
+
+def _select_single_gate(
+    *,
+    ops_single_gate: list[str],
+    handlers: dict[str, Callable[[], dict[str, Any]]],
+) -> tuple[str, list[str]]:
+    if not ops_single_gate:
+        return ("", [])
+    unsupported = [gate for gate in ops_single_gate if gate not in handlers]
+    for gate in ops_single_gate:
+        if gate in handlers:
+            return (gate, unsupported)
+    return (ops_single_gate[0], unsupported)
+
+
+def _dispatch_single_gate_for_extension(
+    *,
+    core_root: Path,
+    workspace_root: Path,
+    extension_id: str,
+    gate_name: str,
+    mode: str,
+) -> tuple[dict[str, Any] | None, str | None]:
+    gate = str(gate_name or "").strip()
+    if not gate:
+        return (None, "SINGLE_GATE_EMPTY")
+
+    handlers = _single_gate_handlers(
+        core_root=core_root,
+        workspace_root=workspace_root,
+        extension_id=extension_id,
+        mode=mode,
+    )
     handler = handlers.get(gate)
     if handler is None:
         return (None, "SINGLE_GATE_DISPATCH_UNWIRED")
@@ -464,7 +497,18 @@ def build_extension_run_report(
         ops_entrypoints = _list_str(entrypoints.get("ops"))
         ops_single_gate = _list_str(entrypoints.get("ops_single_gate"))
         if ops_single_gate:
-            selected_single_gate = ops_single_gate[0]
+            supported_handlers = _single_gate_handlers(
+                core_root=core_root,
+                workspace_root=workspace_root,
+                extension_id=extension_id,
+                mode=mode,
+            )
+            selected_single_gate, unsupported_single_gates = _select_single_gate(
+                ops_single_gate=ops_single_gate,
+                handlers=supported_handlers,
+            )
+            if unsupported_single_gates:
+                notes.append("single_gate_unsupported_skipped=" + ",".join(unsupported_single_gates))
     elif manifest_err:
         notes.append(manifest_err)
 

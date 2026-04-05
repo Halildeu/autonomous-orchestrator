@@ -73,19 +73,19 @@ def main() -> None:
         raise SystemExit("work_intake_operability_docs_hygiene_mapping_contract_test failed: items missing")
 
     expected = {
-        "operability_docs_ops_md_count_gt": "TICKET",
-        "operability_repo_md_total_count_gt": "PROJECT",
+        "GAP-EVAL-LENS-operability-docs-test1": "PROJECT",
+        "GAP-EVAL-LENS-operability-docs-test2": "PROJECT",
     }
-    for reason, bucket in expected.items():
-        match = [i for i in items if isinstance(i, dict) and i.get("lens_reason") == reason]
+    for source_ref, bucket in expected.items():
+        match = [i for i in items if isinstance(i, dict) and i.get("source_ref") == source_ref]
         if not match:
             raise SystemExit(
-                "work_intake_operability_docs_hygiene_mapping_contract_test failed: missing reason " + reason
+                "work_intake_operability_docs_hygiene_mapping_contract_test failed: missing source_ref " + source_ref
             )
         for item in match:
             if item.get("bucket") != bucket:
                 raise SystemExit(
-                    "work_intake_operability_docs_hygiene_mapping_contract_test failed: bucket mismatch for " + reason
+                    "work_intake_operability_docs_hygiene_mapping_contract_test failed: bucket mismatch for " + source_ref
                 )
             suggested = item.get("suggested_extension")
             if isinstance(suggested, list) and "PRJ-AIRUNNER" in suggested:

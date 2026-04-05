@@ -31,6 +31,7 @@ def main() -> None:
     from src.ops.commands.maintenance_cmds import cmd_work_intake_select
     from src.ops.work_intake_exec_ticket import run_work_intake_exec_ticket
     from src.ops.work_intake_from_sources import run_work_intake_build, _intake_id
+    from src.ops.work_item_leases import acquire_lease
 
     ws = repo_root / ".cache" / "ws_single_trace_lease"
     if ws.exists():
@@ -67,8 +68,19 @@ def main() -> None:
     if res2.get("status") not in {"OK", "WARN"}:
         raise SystemExit("single_trace_lease_contract_test failed: rebuild status")
 
-    run_work_intake_exec_ticket(workspace_root=ws, limit=1)
-    run_work_intake_exec_ticket(workspace_root=ws, limit=1)
+    lease_result = acquire_lease(
+        workspace_root=ws,
+        work_item_id=intake_id,
+        run_id="LOCK-RUN-TRACE-001",
+        owner="contract-test",
+        ttl_seconds=600,
+    )
+    if lease_result.get("status") != "ACQUIRED":
+        raise SystemExit("single_trace_lease_contract_test failed: lease seed status")
+
+    exec_result = run_work_intake_exec_ticket(workspace_root=ws, limit=1)
+    if int(exec_result.get("skipped_by_reason", {}).get("LOCKED_ITEM") or 0) != 1:
+        raise SystemExit("single_trace_lease_contract_test failed: LOCKED_ITEM summary mismatch")
 
     lease_path = ws / ".cache" / "index" / "work_item_leases.v1.json"
     if not lease_path.exists():

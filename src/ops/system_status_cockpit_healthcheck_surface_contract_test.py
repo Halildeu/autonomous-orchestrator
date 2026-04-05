@@ -35,11 +35,11 @@ def main() -> None:
     policy = _load_policy(repo_root, ws)
     report = build_system_status(workspace_root=ws, core_root=repo_root, policy=policy, dry_run=True)
     sections = report.get("sections") if isinstance(report, dict) else {}
-    ext = sections.get("extensions") if isinstance(sections, dict) else None
-    if not isinstance(ext, dict):
-        raise SystemExit("system_status_cockpit_healthcheck_surface_contract_test failed: extensions missing")
+    cockpit = sections.get("cockpit_lite") if isinstance(sections, dict) else None
+    if not isinstance(cockpit, dict):
+        raise SystemExit("system_status_cockpit_healthcheck_surface_contract_test failed: cockpit_lite missing")
     expected = ".cache/reports/cockpit_healthcheck.v1.json"
-    if ext.get("last_cockpit_healthcheck_path") != expected:
+    if cockpit.get("last_healthcheck_path") != expected:
         raise SystemExit("system_status_cockpit_healthcheck_surface_contract_test failed: path mismatch")
 
     print(json.dumps({"status": "OK"}, ensure_ascii=False, sort_keys=True))

@@ -10,6 +10,7 @@ from src.ops.commands.common import repo_root
 from src.ops.doer_loop_lock import owner_tag_from_env
 from src.ops.work_intake_from_sources import _load_autopilot_policy, run_work_intake_build
 from src.ops.work_item_claims import get_active_claim
+from src.shared.utils import write_json_atomic
 
 
 def _now_iso() -> str:
