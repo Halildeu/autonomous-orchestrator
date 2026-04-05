@@ -10,6 +10,8 @@ from typing import Any
 
 from src.ops.commands.common import resolve_workspace_root_arg
 from src.ops.roadmap_cli_helpers import (
+    DEFAULT_CANONICAL_ROADMAP_REL,
+    _canonicalize_artifact_path,
     _extract_milestone_preview,
     _load_json,
     _load_project_manifests,
@@ -23,6 +25,7 @@ from src.ops.roadmap_cli_helpers import (
     _read_last_finish_evidence,
     _read_system_status_summary,
     _read_work_intake_focus,
+    _resolve_status_roadmap,
     _resolve_under_root,
     repo_root,
     warn,
@@ -227,7 +230,7 @@ def cmd_roadmap_status(args: argparse.Namespace) -> int:
 
 def cmd_project_status(args: argparse.Namespace) -> int:
     root = repo_root()
-    roadmap_path = _resolve_under_root(root, Path(str(args.roadmap)))
+    roadmap_path = _resolve_status_roadmap(root, getattr(args, "roadmap", None))
     workspace_root = resolve_workspace_root_arg(root, str(args.workspace_root), prefer_customer_workspace=True)
     if workspace_root is None:
         warn("ERROR: workspace root not found")
@@ -248,9 +251,14 @@ def cmd_project_status(args: argparse.Namespace) -> int:
     actions_count, actions_top = _read_actions_top(workspace_root, limit=5)
     overall_status, system_status_path = _read_system_status_summary(workspace_root)
     last_finish = _read_last_finish_evidence(workspace_root)
+    roadmap_path_s = str(roadmap_path.resolve())
+    last_finish_path = _canonicalize_artifact_path(last_finish, workspace_root, root)
+    system_status_path_s = _canonicalize_artifact_path(system_status_path, workspace_root, root)
 
-    completed = status_payload.get("completed") if isinstance(status_payload, dict) else None
-    completed_count = len(completed) if isinstance(completed, list) else 0
+    completed_count = status_payload.get("completed_count") if isinstance(status_payload, dict) else None
+    if not isinstance(completed_count, int):
+        completed = status_payload.get("completed") if isinstance(status_payload, dict) else None
+        completed_count = len(completed) if isinstance(completed, list) else 0
     quarantine_until = status_payload.get("quarantine_until") if isinstance(status_payload, dict) else None
     backoff_seconds = status_payload.get("backoff_seconds") if isinstance(status_payload, dict) else None
 
@@ -302,10 +310,11 @@ def cmd_project_status(args: argparse.Namespace) -> int:
         f"core_unlock_reason_present={core_unlock_reason_present}"
     )
     evidence_parts: list[str] = []
-    if last_finish:
-        evidence_parts.append(f"finish_evidence={last_finish}")
-    if system_status_path:
-        evidence_parts.append(f"system_status={system_status_path}")
+    evidence_parts.append(f"roadmap={roadmap_path_s}")
+    if last_finish_path:
+        evidence_parts.append(f"finish_evidence={last_finish_path}")
+    if system_status_path_s:
+        evidence_parts.append(f"system_status={system_status_path_s}")
     evidence_line = " ".join(evidence_parts) if evidence_parts else "no_evidence_available"
 
     actions_lines: list[str] = []
@@ -328,9 +337,10 @@ def cmd_project_status(args: argparse.Namespace) -> int:
         "status": result_status,
         "next_milestone": preview_obj.get("next_milestone"),
         "completed_count": completed_count,
-        "evidence": [p for p in [last_finish, system_status_path] if p],
+        "evidence": [p for p in [roadmap_path_s, last_finish_path, system_status_path_s] if p],
         "actions_top": actions_top,
         "workspace_root": str(workspace_root),
+        "roadmap_path": roadmap_path_s,
         "core_lock": core_lock,
         "core_unlock_requested": core_unlock_requested,
         "project_root": str(project_root),
@@ -1002,7 +1012,11 @@ def register_roadmap_subcommands(sub: argparse._SubParsersAction) -> None:
     ap_rm_status.set_defaults(func=cmd_roadmap_status)
 
     ap_proj = sub.add_parser("project-status", help="Show roadmap + cockpit status (AUTOPILOT CHAT format).")
-    ap_proj.add_argument("--roadmap", required=True, help="Path to roadmaps/<...>/roadmap.v1.json")
+    ap_proj.add_argument(
+        "--roadmap",
+        default=DEFAULT_CANONICAL_ROADMAP_REL.as_posix(),
+        help=f"Path to roadmaps/<...>/roadmap.v1.json (default: {DEFAULT_CANONICAL_ROADMAP_REL.as_posix()}).",
+    )
     ap_proj.add_argument("--workspace-root", required=True, help="Workspace root for state/actions/reports.")
     ap_proj.add_argument("--mode", default="autopilot_chat", help="autopilot_chat (default).")
     ap_proj.set_defaults(func=cmd_project_status)

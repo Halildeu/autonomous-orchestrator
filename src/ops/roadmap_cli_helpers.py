@@ -9,6 +9,8 @@ from typing import Any
 from src.ops.portfolio_budget import script_budget_actions_from_report
 from src.ops.reaper import parse_bool as parse_reaper_bool
 
+DEFAULT_CANONICAL_ROADMAP_REL = Path("roadmaps") / "SSOT" / "roadmap.v1.json"
+
 
 def repo_root() -> Path:
     # src/ops/roadmap_cli_helpers.py -> ops -> src -> repo root
@@ -21,6 +23,33 @@ def warn(msg: str) -> None:
 
 def _resolve_under_root(root: Path, p: Path) -> Path:
     return (root / p).resolve() if not p.is_absolute() else p.resolve()
+
+
+def _resolve_status_roadmap(root: Path, roadmap_arg: str | Path | None) -> Path:
+    raw = str(roadmap_arg or "").strip()
+    if not raw:
+        return _resolve_under_root(root, DEFAULT_CANONICAL_ROADMAP_REL)
+    return _resolve_under_root(root, Path(raw))
+
+
+def _canonicalize_artifact_path(raw: str | Path | None, workspace_root: Path, core_root: Path) -> str | None:
+    if isinstance(raw, Path):
+        return str(raw.resolve())
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+
+    value = Path(raw.strip())
+    if value.is_absolute():
+        return str(value.resolve())
+
+    candidates = [
+        (workspace_root / value).resolve(),
+        (core_root / value).resolve(),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return str(candidates[0])
 
 
 def _parse_bool_flag(value: str, *, flag_name: str) -> bool:
