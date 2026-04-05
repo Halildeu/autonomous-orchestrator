@@ -59,9 +59,9 @@ def main() -> None:
     if not lens_items:
         raise SystemExit("work_intake_integration_coherence_mapping_contract_test failed: lens gap intake missing")
     buckets = {i.get("bucket") for i in lens_items if isinstance(i, dict)}
-    if "INCIDENT" not in buckets:
+    if "PROJECT" not in buckets:
         raise SystemExit(
-            "work_intake_integration_coherence_mapping_contract_test failed: expected INCIDENT bucket"
+            "work_intake_integration_coherence_mapping_contract_test failed: expected PROJECT bucket"
         )
 
     print(json.dumps({"status": "OK", "bucket": sorted(buckets)}, ensure_ascii=False, sort_keys=True))

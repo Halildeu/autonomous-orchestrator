@@ -142,6 +142,45 @@ jobs:
       - name: Codex home contract
         run: python3 src/prj_kernel_api/codex_home_contract_test.py --workspace-root .cache/ws_customer_default
 
+  kernel-api-pytest-contracts:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: Kernel API pytest contracts (wave 1)
+        run: python3 -m pytest src/prj_kernel_api -m "contract and kernel_api and not known_red" -q
+
+  ops-surface-pytest-contracts:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: Ops surface pytest contracts (wave 2)
+        run: python3 -m pytest src/ops -m "contract and ops and surface" -q
+
+  ops-script-pytest-contracts:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: Ops script pytest contracts (wave 3)
+        run: python3 -m pytest src/ops -m "contract and ops and script_contract and not surface" -q
+
   contract-gate:
     runs-on: ubuntu-latest
     needs:

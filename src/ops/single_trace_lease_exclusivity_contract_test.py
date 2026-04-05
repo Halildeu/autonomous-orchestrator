@@ -31,6 +31,7 @@ def main() -> None:
     from src.ops.commands.maintenance_cmds import cmd_work_intake_select
     from src.ops.work_intake_exec_ticket import run_work_intake_exec_ticket
     from src.ops.work_intake_from_sources import run_work_intake_build, _intake_id
+    from src.ops.work_item_leases import acquire_lease
 
     ws = repo_root / ".cache" / "ws_single_trace_lease_exclusive"
     if ws.exists():
@@ -67,8 +68,19 @@ def main() -> None:
     if res2.get("status") not in {"OK", "WARN"}:
         raise SystemExit("single_trace_lease_exclusivity_contract_test failed: rebuild status")
 
-    run_work_intake_exec_ticket(workspace_root=ws, limit=1)
-    run_work_intake_exec_ticket(workspace_root=ws, limit=1)
+    lease_result = acquire_lease(
+        workspace_root=ws,
+        work_item_id=intake_id,
+        run_id="LOCK-RUN-TRACE-002",
+        owner="exclusive-holder",
+        ttl_seconds=600,
+    )
+    if lease_result.get("status") != "ACQUIRED":
+        raise SystemExit("single_trace_lease_exclusivity_contract_test failed: lease seed status")
+
+    exec_result = run_work_intake_exec_ticket(workspace_root=ws, limit=1)
+    if int(exec_result.get("skipped_by_reason", {}).get("LOCKED_ITEM") or 0) != 1:
+        raise SystemExit("single_trace_lease_exclusivity_contract_test failed: LOCKED_ITEM summary mismatch")
 
     report_path = ws / ".cache" / "reports" / "work_intake_exec_ticket.v1.json"
     report = json.loads(report_path.read_text(encoding="utf-8"))
@@ -76,6 +88,17 @@ def main() -> None:
     locked = [e for e in entries if isinstance(e, dict) and e.get("skip_reason") == "LOCKED_ITEM"]
     if not locked:
         raise SystemExit("single_trace_lease_exclusivity_contract_test failed: LOCKED_ITEM missing")
+
+    lease_path = ws / ".cache" / "index" / "work_item_leases.v1.json"
+    lease_obj = json.loads(lease_path.read_text(encoding="utf-8"))
+    leases = lease_obj.get("leases") if isinstance(lease_obj.get("leases"), list) else []
+    if len(leases) != 1:
+        raise SystemExit("single_trace_lease_exclusivity_contract_test failed: lease count mismatch")
+    lease = leases[0] if isinstance(leases[0], dict) else {}
+    if str(lease.get("owner") or "") != "exclusive-holder":
+        raise SystemExit("single_trace_lease_exclusivity_contract_test failed: owner mismatch")
+    if str(lease.get("run_id") or "") != "LOCK-RUN-TRACE-002":
+        raise SystemExit("single_trace_lease_exclusivity_contract_test failed: run_id mismatch")
 
 
 if __name__ == "__main__":

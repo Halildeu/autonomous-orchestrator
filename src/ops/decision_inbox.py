@@ -196,6 +196,9 @@ def _load_seed_ingested_index(path: Path) -> dict[str, datetime]:
 
 
 def _append_seed_ingested(path: Path, record: dict[str, Any]) -> None:
+    seed_id = str(record.get("seed_id") or "")
+    if seed_id and seed_id in _load_seed_ingested_index(path):
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
     with path.open("a", encoding="utf-8") as fh:
@@ -370,18 +373,11 @@ def run_decision_inbox_build(*, workspace_root: Path) -> dict[str, Any]:
 
     seed_items = _load_decision_seeds(workspace_root)
     seed_ingest_path = _seed_ingest_path(workspace_root)
-    seed_ingested = _load_seed_ingested_index(seed_ingest_path)
-    dedup_hours = int(policy.get("limits", {}).get("dedup_window_hours", 24) or 24)
-    dedup_cutoff = _now_iso()
-    dedup_floor = _parse_iso(dedup_cutoff) - timedelta(hours=dedup_hours) if _parse_iso(dedup_cutoff) else None
     seed_ingest_records: list[dict[str, Any]] = []
     for seed in seed_items:
         decision_kind = _normalize_decision_kind(str(seed.get("decision_kind") or "UNKNOWN"))
         target = str(seed.get("target") or "")
         seed_id = str(seed.get("seed_id") or _hash_text(f"{workspace_root}:{decision_kind}:{target}"))
-        ingested_at = seed_ingested.get(seed_id)
-        if dedup_floor is not None and ingested_at is not None and ingested_at >= dedup_floor:
-            continue
         source_intake_id = str(seed.get("source_intake_id") or f"SEED:{target or seed_id}")
         bucket = str(seed.get("bucket") or "PROJECT")
         seed_options = seed.get("options") if isinstance(seed.get("options"), list) else []
