@@ -90,6 +90,32 @@ def main() -> None:
         ws / ".cache" / "policy_overrides" / "policy_auto_mode.override.v1.json",
         {"version": "v1", "enabled": True, "mode": "mixed", "limits": {"max_actions_per_tick": 1}},
     )
+    _write_json(
+        ws / ".cache" / "policy_overrides" / "policy_airunner_jobs.override.v2.json",
+        {
+            "version": "v2",
+            "jobs": {
+                "max_running": 0,
+                "max_poll_per_tick": 0,
+                "poll_interval_seconds": 0,
+                "timeout_seconds": 60,
+                "stale_after_seconds": 3600,
+                "allowed_job_types": [],
+                "network_required_job_types": [],
+            },
+            "perf": {
+                "enable": False,
+                "event_log_max_lines": 10,
+                "time_sinks_window": 0,
+                "thresholds_ms": {
+                    "smoke_full_p95_warn": 1,
+                    "smoke_fast_p95_warn": 1,
+                    "release_prepare_p95_warn": 1,
+                },
+            },
+            "intake_mapping": {"time_sink_bucket": "TICKET", "time_sink_escalate_to_incident_after": 3},
+        },
+    )
 
     _write_json(
         ws / ".cache" / "index" / "manual_requests" / "REQ-AUTO-MODE-TICK.v1.json",

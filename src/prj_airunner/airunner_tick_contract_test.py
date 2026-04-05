@@ -110,6 +110,18 @@ def main() -> None:
                 "poll_interval_seconds": 0,
                 "timeout_seconds": 120,
                 "stale_after_seconds": 3600,
+                "stuck_job": {
+                    "max_polls_without_progress": 0,
+                    "stale_after_seconds": 3600,
+                    "action_on_stale": "ARCHIVE",
+                },
+                "smoke_full": {
+                    "enabled": True,
+                    "timeout_seconds": 120,
+                    "poll_interval_seconds": 0,
+                    "max_concurrent": 1,
+                    "cooldown_seconds": 0,
+                },
                 "allowed_job_types": ["SMOKE_FULL"],
                 "network_required_job_types": [],
                 "smoke_full_cmd": [sys.executable, "-c", smoke_stub, "{rc_path}"],
@@ -128,10 +140,10 @@ def main() -> None:
         },
     )
 
+    now = datetime.now(timezone.utc).replace(microsecond=0)
     _write_preflight_stamp(ws, now.isoformat().replace("+00:00", "Z"))
 
     lock_path = ws / ".cache" / "airunner" / "airunner_lock.v1.json"
-    now = datetime.now(timezone.utc).replace(microsecond=0)
     _write_json(
         lock_path,
         {
@@ -159,9 +171,6 @@ def main() -> None:
     jobs_index_path = ws / ".cache" / "airunner" / "jobs_index.v1.json"
     if not jobs_index_path.exists():
         raise SystemExit("airunner_tick_contract_test failed: jobs_index missing")
-    time_sinks_path = ws / ".cache" / "reports" / "time_sinks.v1.json"
-    if not time_sinks_path.exists():
-        raise SystemExit("airunner_tick_contract_test failed: time_sinks report missing")
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
     policy_source = report.get("policy_source")
@@ -169,14 +178,10 @@ def main() -> None:
         raise SystemExit("airunner_tick_contract_test failed: policy_source must be core+workspace_override")
 
     ops_called = report.get("ops_called")
-    if ops_called != [
-        "work-intake-check",
-        "work-intake-exec-ticket",
-        "system-status",
-        "portfolio-status",
-        "ui-snapshot-bundle",
-    ]:
-        raise SystemExit("airunner_tick_contract_test failed: ops_called mismatch")
+    if ops_called != ["airunner-jobs-poll", "ui-snapshot-bundle"]:
+        raise SystemExit("airunner_tick_contract_test failed: first tick must be poll-only")
+    if report.get("poll_first_enforced") is not True:
+        raise SystemExit("airunner_tick_contract_test failed: poll_first_enforced expected on first tick")
 
     notes = report.get("notes")
     if not isinstance(notes, list) or "NETWORK=false" not in notes:
@@ -192,16 +197,22 @@ def main() -> None:
     if job.get("status") != "RUNNING":
         raise SystemExit("airunner_tick_contract_test failed: expected running SMOKE_FULL job")
 
-    time.sleep(0.6)
-    res_poll = run_airunner_tick(workspace_root=ws)
-    report_poll = json.loads(report_path.read_text(encoding="utf-8"))
-    if report_poll.get("jobs_polled", 0) < 0:
-        raise SystemExit("airunner_tick_contract_test failed: jobs_polled missing")
-    idx = json.loads(jobs_index_path.read_text(encoding="utf-8"))
-    jobs = idx.get("jobs") if isinstance(idx, dict) else None
-    job = jobs[0] if isinstance(jobs, list) and jobs else {}
-    if job.get("status") != "PASS":
-        raise SystemExit("airunner_tick_contract_test failed: expected PASS after poll")
+    time_sinks_path = ws / ".cache" / "reports" / "time_sinks.v1.json"
+    deadline = time.monotonic() + 5.0
+    report_poll = report
+    while True:
+        time.sleep(0.2)
+        res_poll = run_airunner_tick(workspace_root=ws)
+        report_poll = json.loads(report_path.read_text(encoding="utf-8"))
+        if report_poll.get("jobs_polled", 0) < 0:
+            raise SystemExit("airunner_tick_contract_test failed: jobs_polled missing")
+        idx = json.loads(jobs_index_path.read_text(encoding="utf-8"))
+        jobs = idx.get("jobs") if isinstance(idx, dict) else None
+        job = jobs[0] if isinstance(jobs, list) and jobs else {}
+        if job.get("status") == "PASS" and time_sinks_path.exists():
+            break
+        if time.monotonic() >= deadline:
+            raise SystemExit("airunner_tick_contract_test failed: PASS/time_sinks timeout after poll-clear")
 
     policy, _, policy_hash, _ = _load_policy(ws)
     schedule = policy.get("schedule") if isinstance(policy.get("schedule"), dict) else {}

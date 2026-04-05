@@ -178,6 +178,30 @@ jobs:
       - name: Ops script pytest contracts (wave 3)
         run: python3 -m pytest src/ops -m "contract and ops and script_contract and not surface" -q
 
+  airunner-wave-4b4-pytest-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: Airunner pytest contracts (wave 4B.4 non-serial)
+        run: python3 -m pytest src/prj_airunner -m "contract and airunner and wave_4b4 and not serial" -q
+
+  airunner-wave-4b4-pytest-contracts-serial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -e ".[dev]" --quiet
+      - name: Airunner pytest contracts (wave 4B.4 serial)
+        run: python3 -m pytest src/prj_airunner -m "contract and airunner and wave_4b4 and serial" -q
+
   contract-gate:
     runs-on: ubuntu-latest
     needs:
@@ -192,6 +216,8 @@ jobs:
       - kernel-api-pytest-contracts
       - ops-surface-pytest-contracts
       - ops-script-pytest-contracts
+      - airunner-wave-4b4-pytest-contracts
+      - airunner-wave-4b4-pytest-contracts-serial
     if: always()
     steps:
       - name: Gate check
@@ -208,6 +234,8 @@ jobs:
           echo "kernel-api-pytest=${{ needs.kernel-api-pytest-contracts.result }}"
           echo "ops-surface-pytest=${{ needs.ops-surface-pytest-contracts.result }}"
           echo "ops-script-pytest=${{ needs.ops-script-pytest-contracts.result }}"
+          echo "airunner-wave-4b4=${{ needs.airunner-wave-4b4-pytest-contracts.result }}"
+          echo "airunner-wave-4b4-serial=${{ needs.airunner-wave-4b4-pytest-contracts-serial.result }}"
           test "${{ needs.context-contracts.result }}" = "success"
           test "${{ needs.decision-contracts.result }}" = "success"
           test "${{ needs.policy-contracts.result }}" = "success"
@@ -219,3 +247,5 @@ jobs:
           test "${{ needs.kernel-api-pytest-contracts.result }}" = "success"
           test "${{ needs.ops-surface-pytest-contracts.result }}" = "success"
           test "${{ needs.ops-script-pytest-contracts.result }}" = "success"
+          test "${{ needs.airunner-wave-4b4-pytest-contracts.result }}" = "success"
+          test "${{ needs.airunner-wave-4b4-pytest-contracts-serial.result }}" = "success"

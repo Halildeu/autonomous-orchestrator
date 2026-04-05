@@ -15,7 +15,11 @@ from src.prj_airunner.smoke_full_job_packs import (
     _ensure_demo_pack_selection_trace,
     _ensure_demo_public_candidates_bundle,
     _ensure_demo_public_candidates_pointer,
+    _load_expected_pack_advisor_paths,
+    _load_expected_pack_selection_paths,
+    _pack_advisor_semantic_ok,
 )
+from src.shared.utils import write_text_atomic
 
 
 def _now_iso() -> str:

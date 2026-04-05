@@ -53,7 +53,6 @@ from src.prj_airunner.airunner_tick_support import (
 )
 from src.prj_airunner.airunner_tick_support_v2 import (
     build_active_hours_context,
-    seed_network_live_decision,
 )
 from src.prj_airunner.airunner_tick_helpers import (
     _allow_repeat_tick,
@@ -901,97 +900,93 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
         ):
             live_allowed, live_reason = network_live_gate_status(workspace_root=workspace_root)
             if not live_allowed:
-                status = "IDLE"
-                error_code = "BLOCKED_BY_DECISION"
                 notes.append(f"network_live_gate={live_reason}")
-                seed_network_live_decision(
-                    workspace_root=workspace_root,
-                    evidence_paths=evidence_paths,
-                    ops_called=ops_called,
-                    notes=notes,
-                    reason=live_reason,
-                )
-            else:
-                start_payload = _run_cmd_json_with_perf(
-                    op_name="github-ops-job-start",
-                    func=cmd_github_ops_job_start,
-                    args=argparse.Namespace(workspace_root=str(workspace_root), kind="SMOKE_FULL", dry_run="false"),
-                    workspace_root=workspace_root,
-                    perf_cfg=perf_cfg,
-                )
-                ops_called.append("github-ops-job-start")
-                report_path = start_payload.get("job_report_path") if isinstance(start_payload, dict) else None
-                if isinstance(report_path, str) and report_path:
-                    evidence_paths.append(report_path)
-                index_path = start_payload.get("jobs_index_path") if isinstance(start_payload, dict) else None
-                if isinstance(index_path, str) and index_path:
-                    evidence_paths.append(index_path)
-                ui_payload = _run_cmd_json_with_perf(
-                    op_name="ui-snapshot-bundle",
-                    func=cmd_ui_snapshot,
-                    args=argparse.Namespace(
-                        workspace_root=str(workspace_root),
-                        out=".cache/reports/ui_snapshot_bundle.v1.json",
-                    ),
-                    workspace_root=workspace_root,
-                    perf_cfg=perf_cfg,
-                )
-                ui_report = ui_payload.get("report_path") if isinstance(ui_payload, dict) else None
-                if isinstance(ui_report, str) and ui_report:
-                    evidence_paths.append(ui_report)
-                heartbeat_rel = _write_heartbeat(
-                    heartbeat_path,
-                    workspace_root=workspace_root,
-                    tick_id=tick_id,
-                    status="OK",
-                    error_code=None,
-                    window_bucket=window_bucket,
-                    policy_hash=policy_hash,
-                    notes=notes + ["PROGRAM_LED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"],
-                )
-                evidence_paths.append(heartbeat_rel)
-                report = {
-                    "version": "v1",
-                    "generated_at": _now_iso(),
-                    "status": "OK",
-                    "error_code": None,
-                    "tick_id": tick_id,
-                    "workspace_root": str(workspace_root),
-                    "policy_source": policy_source,
-                    "policy_hash": policy_hash,
-                    "fast_gate": fast_gate,
-                    "jobs_started": int(job_stats.get("started", 0)) + 1,
-                    "jobs_polled": int(job_stats.get("polled", 0)),
-                    "jobs_running": int(job_stats.get("running", 0)),
-                    "jobs_failed": int(job_stats.get("failed", 0)),
-                    "jobs_passed": int(job_stats.get("passed", 0)),
-                    "queued_before": queued_before,
-                    "running_before": running_before,
-                    "queued_after": queued_after,
-                    "running_after": running_after,
-                    "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
-                    "ops_called": ["work-intake-check", "github-ops-job-start", "ui-snapshot-bundle"],
-                    "actions": {"applied": 0, "planned": 0, "idle": 0},
-                    "evidence_paths": sorted({str(p) for p in evidence_paths if isinstance(p, str) and p}),
-                    "notes": notes
-                    + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"],
-                }
-                report.update(preflight_meta)
-                report.update(active_meta("START_ONLY"))
-                rel_json, rel_md = _write_tick_report(report, workspace_root)
-                return {
-                    "status": "OK",
-                    "policy_source": policy_source,
-                    "policy_hash": policy_hash,
-                    "report_path": rel_json,
-                    "report_md_path": rel_md,
-                    "jobs_started": int(job_stats.get("started", 0)) + 1,
-                    "jobs_polled": int(job_stats.get("polled", 0)),
-                    "jobs_running": int(job_stats.get("running", 0)),
-                    "jobs_failed": int(job_stats.get("failed", 0)),
-                    "jobs_passed": int(job_stats.get("passed", 0)),
-                    "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
-                }
+            dry_run = "false" if live_allowed else "true"
+            start_payload = _run_cmd_json_with_perf(
+                op_name="github-ops-job-start",
+                func=cmd_github_ops_job_start,
+                args=argparse.Namespace(workspace_root=str(workspace_root), kind="SMOKE_FULL", dry_run=dry_run),
+                workspace_root=workspace_root,
+                perf_cfg=perf_cfg,
+            )
+            ops_called.append("github-ops-job-start")
+            report_path = start_payload.get("job_report_path") if isinstance(start_payload, dict) else None
+            if isinstance(report_path, str) and report_path:
+                evidence_paths.append(report_path)
+            index_path = start_payload.get("jobs_index_path") if isinstance(start_payload, dict) else None
+            if isinstance(index_path, str) and index_path:
+                evidence_paths.append(index_path)
+            ui_payload = _run_cmd_json_with_perf(
+                op_name="ui-snapshot-bundle",
+                func=cmd_ui_snapshot,
+                args=argparse.Namespace(
+                    workspace_root=str(workspace_root),
+                    out=".cache/reports/ui_snapshot_bundle.v1.json",
+                ),
+                workspace_root=workspace_root,
+                perf_cfg=perf_cfg,
+            )
+            ui_report = ui_payload.get("report_path") if isinstance(ui_payload, dict) else None
+            if isinstance(ui_report, str) and ui_report:
+                evidence_paths.append(ui_report)
+            heartbeat_notes = notes + ["PROGRAM_LED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"]
+            if not live_allowed:
+                heartbeat_notes.append("GITHUB_START_DRY_RUN=true")
+            heartbeat_rel = _write_heartbeat(
+                heartbeat_path,
+                workspace_root=workspace_root,
+                tick_id=tick_id,
+                status="OK",
+                error_code=None,
+                window_bucket=window_bucket,
+                policy_hash=policy_hash,
+                notes=heartbeat_notes,
+            )
+            evidence_paths.append(heartbeat_rel)
+            report_notes = notes + ["PROGRAM_LED=true", "STRICT_ISOLATED=true", "NETWORK=false", "START_ONLY=true", "GITHUB_START=true"]
+            if not live_allowed:
+                report_notes.append("GITHUB_START_DRY_RUN=true")
+            report = {
+                "version": "v1",
+                "generated_at": _now_iso(),
+                "status": "OK",
+                "error_code": None,
+                "tick_id": tick_id,
+                "workspace_root": str(workspace_root),
+                "policy_source": policy_source,
+                "policy_hash": policy_hash,
+                "fast_gate": fast_gate,
+                "jobs_started": int(job_stats.get("started", 0)) + 1,
+                "jobs_polled": int(job_stats.get("polled", 0)),
+                "jobs_running": int(job_stats.get("running", 0)),
+                "jobs_failed": int(job_stats.get("failed", 0)),
+                "jobs_passed": int(job_stats.get("passed", 0)),
+                "queued_before": queued_before,
+                "running_before": running_before,
+                "queued_after": queued_after,
+                "running_after": running_after,
+                "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
+                "ops_called": ["work-intake-check", "github-ops-job-start", "ui-snapshot-bundle"],
+                "actions": {"applied": 0, "planned": 0, "idle": 0},
+                "evidence_paths": sorted({str(p) for p in evidence_paths if isinstance(p, str) and p}),
+                "notes": report_notes,
+            }
+            report.update(preflight_meta)
+            report.update(active_meta("START_ONLY"))
+            rel_json, rel_md = _write_tick_report(report, workspace_root)
+            return {
+                "status": "OK",
+                "policy_source": policy_source,
+                "policy_hash": policy_hash,
+                "report_path": rel_json,
+                "report_md_path": rel_md,
+                "jobs_started": int(job_stats.get("started", 0)) + 1,
+                "jobs_polled": int(job_stats.get("polled", 0)),
+                "jobs_running": int(job_stats.get("running", 0)),
+                "jobs_failed": int(job_stats.get("failed", 0)),
+                "jobs_passed": int(job_stats.get("passed", 0)),
+                "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
+            }
         if exec_payload is None and allow_apply:
             limit = max(1, int(max_actions))
             exec_payload = _run_cmd_json_with_perf(
