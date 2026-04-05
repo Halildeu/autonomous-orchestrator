@@ -9,7 +9,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from jsonschema import Draft202012Validator
+
+
+pytestmark = [
+    pytest.mark.contract,
+    pytest.mark.kernel_api,
+    pytest.mark.serial,
+]
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -39,6 +47,18 @@ def _validate(schema: dict, instance: dict, label: str) -> None:
     if errors:
         where = errors[0].json_path or "$"
         raise SystemExit(f"Adapter test failed: {label} schema invalid at {where}.")
+
+
+def _run_self() -> None:
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve())],
+        cwd=str(_REPO_ROOT),
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip()
+        raise SystemExit(message or "Adapter test subprocess failed.")
 
 
 def main() -> None:
@@ -528,6 +548,10 @@ def main() -> None:
         os.environ["KERNEL_API_AUTH_MODE"] = prev_auth_mode
 
     print(json.dumps({"status": "OK", "workspace": str(ws)}, ensure_ascii=False, sort_keys=True))
+
+
+def test_adapter_contract() -> None:
+    _run_self()
 
 
 if __name__ == "__main__":

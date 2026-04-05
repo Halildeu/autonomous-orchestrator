@@ -1,7 +1,7 @@
 """Program-led M0 plan discovery/generation (workspace-scoped, deterministic)."""
 
 from __future__ import annotations
-from src.shared.utils import write_text_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 import json
 from pathlib import Path
@@ -14,10 +14,7 @@ GENERATED_REPORT = "m0_manage_split_generated.v1.json"
 
 
 def _write_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    write_json_atomic(tmp, obj)
-    tmp.replace(path)
+    write_json_atomic(path, obj)
 
 
 def _matches_plan_name(filename: str) -> bool:

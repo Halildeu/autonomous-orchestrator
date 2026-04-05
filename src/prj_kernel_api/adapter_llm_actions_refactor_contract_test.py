@@ -5,6 +5,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
+
+pytestmark = [pytest.mark.contract, pytest.mark.kernel_api]
+
 
 def _find_repo_root(start: Path) -> Path:
     for p in [start] + list(start.parents):
@@ -76,4 +81,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
+
+
+def test_adapter_llm_actions_refactor_contract() -> None:
     main()

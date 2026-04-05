@@ -7,7 +7,12 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from src.prj_kernel_api.dotenv_loader import load_env_presence, resolve_env_presence
+
+
+pytestmark = [pytest.mark.contract, pytest.mark.kernel_api]
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -84,4 +89,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
+
+
+def test_dotenv_loader_contract() -> None:
     main()

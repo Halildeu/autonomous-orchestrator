@@ -10,9 +10,18 @@ import time
 from http.client import HTTPConnection
 from pathlib import Path
 
+import pytest
 from jsonschema import Draft202012Validator
 
 from src.prj_kernel_api.http_gateway import KernelApiServer
+
+
+pytestmark = [
+    pytest.mark.contract,
+    pytest.mark.kernel_api,
+    pytest.mark.http,
+    pytest.mark.serial,
+]
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -61,6 +70,87 @@ def _post_json(port: int, payload: dict, headers: dict[str, str] | None = None) 
         raise SystemExit("HTTP gateway test failed: response is not JSON.")
 
 
+def _run_contract(*, workspace_root: Path, port: int, req_schema: dict, resp_schema: dict) -> dict[str, int]:
+    token = "TEST_TOKEN"
+    auth_headers = {"Authorization": f"Bearer {token}"}
+    minimal_req = {
+        "version": "v1",
+        "request_id": "REQ-HTTP-OK",
+        "kind": "project_status",
+        "workspace_root": str(workspace_root),
+        "mode": "json",
+        "env_mode": "process",
+    }
+    _validate(req_schema, minimal_req, "request")
+    resp = _post_json(port, minimal_req, headers=auth_headers)
+    _validate(resp_schema, resp, "response")
+
+    unauth_resp = _post_json(port, minimal_req)
+    _validate(resp_schema, unauth_resp, "unauthorized_response")
+    if unauth_resp.get("error_code") != "KERNEL_API_UNAUTHORIZED":
+        raise SystemExit("HTTP gateway test failed: missing auth should be unauthorized.")
+
+    wrong_resp = _post_json(port, minimal_req, headers={"Authorization": "Bearer WRONG"})
+    _validate(resp_schema, wrong_resp, "wrong_token_response")
+    if wrong_resp.get("error_code") != "KERNEL_API_UNAUTHORIZED":
+        raise SystemExit("HTTP gateway test failed: wrong token should be unauthorized.")
+
+    llm_req = {
+        "version": "v1",
+        "request_id": "REQ-HTTP-LLM",
+        "kind": "llm_providers_init",
+        "workspace_root": str(workspace_root),
+        "mode": "json",
+        "env_mode": "process",
+    }
+    _validate(req_schema, llm_req, "request")
+    llm_resp = _post_json(port, llm_req, headers=auth_headers)
+    _validate(resp_schema, llm_resp, "llm_response")
+
+    probe_req = {
+        "version": "v1",
+        "request_id": "REQ-HTTP-PROBE",
+        "kind": "llm_live_probe",
+        "workspace_root": str(workspace_root),
+        "mode": "json",
+        "env_mode": "process",
+    }
+    _validate(req_schema, probe_req, "request")
+    probe_resp = _post_json(port, probe_req, headers=auth_headers)
+    _validate(resp_schema, probe_resp, "llm_probe_response")
+    if probe_resp.get("status") != "OK":
+        raise SystemExit("HTTP gateway test failed: llm_live_probe should return OK when live disabled.")
+
+    bad_json = "{"  # invalid
+    conn = HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("POST", "/v1/kernel-api", body=bad_json, headers={"Content-Type": "application/json"})
+    bad_resp = conn.getresponse()
+    bad_body = bad_resp.read().decode("utf-8")
+    conn.close()
+    bad_obj = json.loads(bad_body)
+    _validate(resp_schema, bad_obj, "bad_json_response")
+    if bad_obj.get("error_code") not in {"KERNEL_API_BAD_JSON", "KERNEL_API_SCHEMA_INVALID"}:
+        raise SystemExit("HTTP gateway test failed: bad JSON error_code mismatch.")
+
+    invalid_req = {
+        "version": "v1",
+        "request_id": "REQ-HTTP-INVALID",
+        "workspace_root": str(workspace_root),
+    }
+    invalid_resp = _post_json(port, invalid_req, headers=auth_headers)
+    _validate(resp_schema, invalid_resp, "invalid_request_response")
+    if invalid_resp.get("error_code") != "KERNEL_API_SCHEMA_INVALID":
+        raise SystemExit("HTTP gateway test failed: schema invalid error_code mismatch.")
+
+    audit_path = workspace_root / ".cache" / "reports" / "kernel_api_audit.v1.jsonl"
+    if not audit_path.exists():
+        raise SystemExit("HTTP gateway test failed: audit log missing.")
+    audit_text = audit_path.read_text(encoding="utf-8")
+    if token in audit_text:
+        raise SystemExit("HTTP gateway test failed: audit log leaked token.")
+    return {"status": "OK", "port": port}
+
+
 def main() -> None:
     repo_root = _find_repo_root(Path(__file__).resolve())
     ws = repo_root / ".cache" / "ws_http_demo"
@@ -74,100 +164,51 @@ def main() -> None:
     prev_auth_mode = os.environ.get("KERNEL_API_AUTH_MODE")
     os.environ["KERNEL_API_TOKEN"] = token
     os.environ["KERNEL_API_AUTH_MODE"] = "bearer"
-    auth_headers = {"Authorization": f"Bearer {token}"}
 
     server, thread = _start_server(repo_root, ws)
     time.sleep(0.05)
-
-    minimal_req = {
-        "version": "v1",
-        "request_id": "REQ-HTTP-OK",
-        "kind": "project_status",
-        "workspace_root": str(ws),
-        "mode": "json",
-        "env_mode": "process",
-    }
-    _validate(req_schema, minimal_req, "request")
-    resp = _post_json(server.server_address[1], minimal_req, headers=auth_headers)
-    _validate(resp_schema, resp, "response")
-
-    unauth_resp = _post_json(server.server_address[1], minimal_req)
-    _validate(resp_schema, unauth_resp, "unauthorized_response")
-    if unauth_resp.get("error_code") != "KERNEL_API_UNAUTHORIZED":
-        raise SystemExit("HTTP gateway test failed: missing auth should be unauthorized.")
-
-    wrong_resp = _post_json(server.server_address[1], minimal_req, headers={"Authorization": "Bearer WRONG"})
-    _validate(resp_schema, wrong_resp, "wrong_token_response")
-    if wrong_resp.get("error_code") != "KERNEL_API_UNAUTHORIZED":
-        raise SystemExit("HTTP gateway test failed: wrong token should be unauthorized.")
-
-    llm_req = {
-        "version": "v1",
-        "request_id": "REQ-HTTP-LLM",
-        "kind": "llm_providers_init",
-        "workspace_root": str(ws),
-        "mode": "json",
-        "env_mode": "process",
-    }
-    _validate(req_schema, llm_req, "request")
-    llm_resp = _post_json(server.server_address[1], llm_req, headers=auth_headers)
-    _validate(resp_schema, llm_resp, "llm_response")
-
-    probe_req = {
-        "version": "v1",
-        "request_id": "REQ-HTTP-PROBE",
-        "kind": "llm_live_probe",
-        "workspace_root": str(ws),
-        "mode": "json",
-        "env_mode": "process",
-    }
-    _validate(req_schema, probe_req, "request")
-    probe_resp = _post_json(server.server_address[1], probe_req, headers=auth_headers)
-    _validate(resp_schema, probe_resp, "llm_probe_response")
-    if probe_resp.get("status") != "OK":
-        raise SystemExit("HTTP gateway test failed: llm_live_probe should return OK when live disabled.")
-
-    bad_json = "{"  # invalid
-    conn = HTTPConnection("127.0.0.1", server.server_address[1], timeout=10)
-    conn.request("POST", "/v1/kernel-api", body=bad_json, headers={"Content-Type": "application/json"})
-    bad_resp = conn.getresponse()
-    bad_body = bad_resp.read().decode("utf-8")
-    conn.close()
-    bad_obj = json.loads(bad_body)
-    _validate(resp_schema, bad_obj, "bad_json_response")
-    if bad_obj.get("error_code") not in {"KERNEL_API_BAD_JSON", "KERNEL_API_SCHEMA_INVALID"}:
-        raise SystemExit("HTTP gateway test failed: bad JSON error_code mismatch.")
-
-    invalid_req = {
-        "version": "v1",
-        "request_id": "REQ-HTTP-INVALID",
-        "workspace_root": str(ws),
-    }
-    invalid_resp = _post_json(server.server_address[1], invalid_req, headers=auth_headers)
-    _validate(resp_schema, invalid_resp, "invalid_request_response")
-    if invalid_resp.get("error_code") != "KERNEL_API_SCHEMA_INVALID":
-        raise SystemExit("HTTP gateway test failed: schema invalid error_code mismatch.")
-
-    audit_path = ws / ".cache" / "reports" / "kernel_api_audit.v1.jsonl"
-    if not audit_path.exists():
-        raise SystemExit("HTTP gateway test failed: audit log missing.")
-    audit_text = audit_path.read_text(encoding="utf-8")
-    if token in audit_text:
-        raise SystemExit("HTTP gateway test failed: audit log leaked token.")
-
-    server.shutdown()
-    thread.join(timeout=2)
-    if prev_token is None:
-        os.environ.pop("KERNEL_API_TOKEN", None)
-    else:
-        os.environ["KERNEL_API_TOKEN"] = prev_token
-    if prev_auth_mode is None:
-        os.environ.pop("KERNEL_API_AUTH_MODE", None)
-    else:
-        os.environ["KERNEL_API_AUTH_MODE"] = prev_auth_mode
-
-    print(json.dumps({"status": "OK", "port": server.server_address[1]}, ensure_ascii=False, sort_keys=True))
+    try:
+        result = _run_contract(
+            workspace_root=ws,
+            port=server.server_address[1],
+            req_schema=req_schema,
+            resp_schema=resp_schema,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+        if prev_token is None:
+            os.environ.pop("KERNEL_API_TOKEN", None)
+        else:
+            os.environ["KERNEL_API_TOKEN"] = prev_token
+        if prev_auth_mode is None:
+            os.environ.pop("KERNEL_API_AUTH_MODE", None)
+        else:
+            os.environ["KERNEL_API_AUTH_MODE"] = prev_auth_mode
 
 
 if __name__ == "__main__":
     main()
+
+
+def test_http_gateway_contract(
+    repo_root: Path,
+    workspace_root_tmp: Path,
+    kernel_api_env,
+    http_gateway_server,
+    request_response_schemas: tuple[dict, dict],
+) -> None:
+    req_schema, resp_schema = request_response_schemas
+    kernel_api_env(
+        KERNEL_API_TOKEN="TEST_TOKEN",
+        KERNEL_API_AUTH_MODE="bearer",
+    )
+    _server, port = http_gateway_server(workspace_root_tmp)
+    _run_contract(
+        workspace_root=workspace_root_tmp,
+        port=port,
+        req_schema=req_schema,
+        resp_schema=resp_schema,
+    )

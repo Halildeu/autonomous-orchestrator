@@ -6,6 +6,8 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 try:
     import tomllib
 except ModuleNotFoundError:
@@ -15,6 +17,9 @@ except ModuleNotFoundError:
         tomllib = None  # type: ignore[assignment]
 
 from src.prj_kernel_api.codex_home import ensure_codex_home
+
+
+pytestmark = [pytest.mark.contract, pytest.mark.kernel_api]
 
 
 def _fail(code: str, message: str) -> None:
@@ -29,13 +34,8 @@ def _find_repo_root(start: Path) -> Path:
     return Path.cwd()
 
 
-def main() -> None:
-    repo_root = _find_repo_root(Path(__file__).resolve())
-    ws = repo_root / ".cache" / "ws_codex_home_demo"
-    if ws.exists():
-        shutil.rmtree(ws)
-
-    env_overrides = ensure_codex_home(str(ws))
+def _run_contract(workspace_root: Path) -> str:
+    env_overrides = ensure_codex_home(str(workspace_root))
     codex_home = env_overrides.get("CODEX_HOME")
     if not codex_home:
         _fail("CODEX_HOME_MISSING", "CODEX_HOME not returned.")
@@ -69,8 +69,24 @@ def main() -> None:
     if not isinstance(fallback, list) or "AGENTS.md" not in fallback:
         _fail("CODEX_HOME_INVALID", "fallback list missing AGENTS.md.")
 
+    return str(codex_home)
+
+
+def main() -> None:
+    repo_root = _find_repo_root(Path(__file__).resolve())
+    ws = repo_root / ".cache" / "ws_codex_home_demo"
+    if ws.exists():
+        shutil.rmtree(ws)
+
+    codex_home = _run_contract(ws)
+
     print(json.dumps({"status": "OK", "codex_home": str(codex_home)}, sort_keys=True))
 
 
 if __name__ == "__main__":
     main()
+
+
+def test_codex_home_contract(workspace_root_tmp: Path) -> None:
+    codex_home = _run_contract(workspace_root_tmp)
+    assert codex_home

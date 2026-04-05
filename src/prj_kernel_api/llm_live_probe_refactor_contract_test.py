@@ -2,9 +2,19 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+import pytest
+
+
+pytestmark = [
+    pytest.mark.contract,
+    pytest.mark.kernel_api,
+    pytest.mark.serial,
+]
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -17,6 +27,19 @@ def _find_repo_root(start: Path) -> Path:
 def _must(condition: bool, message: str) -> None:
     if not condition:
         raise SystemExit(f"llm_live_probe_refactor_contract_test failed: {message}")
+
+
+def _run_self() -> None:
+    repo_root = _find_repo_root(Path(__file__).resolve())
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve())],
+        cwd=str(repo_root),
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip()
+        raise SystemExit(message or "llm_live_probe_refactor subprocess failed.")
 
 
 def main() -> None:
@@ -52,6 +75,10 @@ def main() -> None:
             sort_keys=True,
         )
     )
+
+
+def test_llm_live_probe_refactor_contract() -> None:
+    _run_self()
 
 
 if __name__ == "__main__":
