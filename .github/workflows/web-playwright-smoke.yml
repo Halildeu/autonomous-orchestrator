@@ -201,17 +201,32 @@ jobs:
           echo "executable_path=" >> "${GITHUB_OUTPUT}"
           echo "[pw-smoke] sistem tarayicisi bulunamadi; Docker fallback kullanilacak."
 
-      - name: Pull Playwright image
+      - name: Build local Playwright smoke image
         if: ${{ steps.detect_browser.outputs.executable_path == '' }}
         run: |
           set -euo pipefail
-          image="mcr.microsoft.com/playwright:v1.58.2-noble"
+          image="platform-playwright-smoke:chromium-bookworm"
           echo "[pw-smoke] Docker fallback image: ${image}"
-          if timeout 600 docker pull "${image}"; then
+          if docker image inspect "${image}" >/dev/null 2>&1; then
+            echo "[pw-smoke] yerel smoke image zaten mevcut."
             exit 0
           fi
 
-          echo "[pw-smoke] HATA: Playwright image pull basarisiz oldu. Runner tanisi basliyor."
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "${tmpdir}"' EXIT
+          printf '%s\n' \
+            'FROM node:20-bookworm' \
+            'RUN apt-get update \\' \
+            '  && apt-get install -y --no-install-recommends chromium ca-certificates \\' \
+            '  && rm -rf /var/lib/apt/lists/*' \
+            > "${tmpdir}/Dockerfile"
+
+          if timeout 900 docker build -t "${image}" "${tmpdir}"
+          then
+            exit 0
+          fi
+
+          echo "[pw-smoke] HATA: yerel smoke image olusturma basarisiz oldu. Runner tanisi basliyor."
           echo "--- docker version ---"
           docker version || true
           echo "--- docker info ---"
@@ -220,10 +235,10 @@ jobs:
           docker system df || true
           echo "--- disk usage ---"
           df -h . /var/lib/docker || true
-          echo "--- resolver check ---"
-          getent hosts mcr.microsoft.com || true
-          echo "--- registry probe ---"
-          curl -I --max-time 20 https://mcr.microsoft.com/v2/ || true
+          echo "--- resolver check (docker.io) ---"
+          getent hosts registry-1.docker.io || true
+          echo "--- registry probe (docker.io) ---"
+          curl -I --max-time 20 https://registry-1.docker.io/v2/ || true
           exit 1
 
       - name: Run Playwright smoke
@@ -243,6 +258,8 @@ jobs:
             exit 0
           fi
 
+          image="platform-playwright-smoke:chromium-bookworm"
+          export PLAYWRIGHT_EXECUTABLE_PATH="/usr/bin/chromium"
           docker run --rm \
             --network host \
             --ipc=host \
@@ -260,7 +277,7 @@ jobs:
             -e PW_REAL_USER_PASSWORD \
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work/web \
-            mcr.microsoft.com/playwright:v1.58.2-noble \
+            "${image}" \
             bash -lc "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && ${cmd}"
         env:
           INPUT_SUITE: ${{ inputs.suite }}
