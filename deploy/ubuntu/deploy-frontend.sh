@@ -29,8 +29,7 @@ require_cmd() {
 sync_repo() {
   if [[ -d "${REPO_DIR}/.git" ]]; then
     git -C "${REPO_DIR}" fetch origin "${REPO_BRANCH}"
-    git -C "${REPO_DIR}" checkout "${REPO_BRANCH}"
-    git -C "${REPO_DIR}" pull --ff-only origin "${REPO_BRANCH}"
+    git -C "${REPO_DIR}" checkout -B "${REPO_BRANCH}" FETCH_HEAD
     return 0
   fi
 

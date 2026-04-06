@@ -12,11 +12,15 @@ const routerFuture = {
 
 const authModeMock = { permitAll: false };
 const authStateMock = { token: null as string | null, initialized: true };
+const { startKeycloakLoginMock } = vi.hoisted(() => ({
+  startKeycloakLoginMock: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('../../app/auth/keycloakClient', () => ({
   default: {
     login: vi.fn().mockResolvedValue(undefined),
   },
+  startKeycloakLogin: startKeycloakLoginMock,
 }));
 
 vi.mock('@mfe/design-system', () => ({
@@ -41,7 +45,7 @@ vi.mock('../../app/store/store.hooks', () => ({
     selector({ auth: authStateMock }),
 }));
 
-import keycloak from '../../app/auth/keycloakClient';
+import { startKeycloakLogin } from '../../app/auth/keycloakClient';
 import LoginPage from './LoginPage.ui';
 
 describe('LoginPage', () => {
@@ -69,7 +73,6 @@ describe('LoginPage', () => {
   });
 
   it('calls keycloak.login on click with redirect', async () => {
-    const loginSpy = vi.spyOn(keycloak, 'login');
     render(
       <MemoryRouter initialEntries={['/login?redirect=/access/roles']} future={routerFuture}>
         <LoginPage />
@@ -79,13 +82,14 @@ describe('LoginPage', () => {
     const button = screen.getByTestId('corporate-login-button');
     fireEvent.click(button);
 
-    expect(loginSpy).toHaveBeenCalledTimes(1);
-    expect(loginSpy).toHaveBeenCalledWith({ redirectUri: 'http://localhost:3000/login?redirect=%2Faccess%2Froles' });
+    expect(startKeycloakLogin).toHaveBeenCalledTimes(1);
+    expect(startKeycloakLogin).toHaveBeenCalledWith({
+      redirectUri: 'http://localhost:3000/login?redirect=%2Faccess%2Froles',
+    });
   });
 
   it('keycloak init tamamlanmadan login butonunu devre disi birakir', () => {
     authStateMock.initialized = false;
-    const loginSpy = vi.spyOn(keycloak, 'login');
 
     render(
       <MemoryRouter initialEntries={['/login?redirect=/access/roles']} future={routerFuture}>
@@ -98,7 +102,7 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('corporate-login-pending')).toBeInTheDocument();
 
     fireEvent.click(button);
-    expect(loginSpy).not.toHaveBeenCalled();
+    expect(startKeycloakLogin).not.toHaveBeenCalled();
   });
 
   it('shows permitAll mode with Devam Et button', () => {

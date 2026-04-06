@@ -259,6 +259,11 @@
       "ux_subtheme_id": "least_privilege_interaction_design"
     },
     {
+      "path": "web/apps/mfe-shell/src/app/auth/keycloakClient.ts",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "secure_session_step_up_authentication"
+    },
+    {
       "path": "web/apps/mfe-shell/src/pages/login/LoginPage.ui.tsx",
       "ux_theme_id": "trust_privacy_security_ux",
       "ux_subtheme_id": "secure_session_step_up_authentication"
