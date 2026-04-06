@@ -282,16 +282,16 @@ jobs:
       - name: Run Playwright smoke
         run: |
           set -euo pipefail
-          cmd="pnpm run pw:ci"
+          cmd="npx -y pnpm@9.15.9 run pw:ci"
           if [ "${INPUT_SUITE}" = "authz-zanzibar" ]; then
-            cmd="pnpm run pw:authz-zanzibar"
+            cmd="npx -y pnpm@9.15.9 run pw:authz-zanzibar"
           elif [ "${INPUT_MODE}" = "nightly" ]; then
-            cmd="pnpm run pw:nightly"
+            cmd="npx -y pnpm@9.15.9 run pw:nightly"
           fi
 
           if [ -n "${PLAYWRIGHT_EXECUTABLE_PATH:-}" ]; then
             cd web
-            pnpm install --frozen-lockfile
+            npx -y pnpm@9.15.9 install --frozen-lockfile
             ${cmd}
             exit 0
           fi
@@ -322,7 +322,7 @@ jobs:
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work/web \
             "${image}" \
-            bash -lc "mkdir -p \"\$HOME\" \"\$XDG_CACHE_HOME\" \"\$NPM_CONFIG_CACHE\" \"\$PNPM_HOME\" && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && ${cmd}"
+            bash -lc "mkdir -p \"\$HOME\" \"\$XDG_CACHE_HOME\" \"\$NPM_CONFIG_CACHE\" \"\$PNPM_HOME\" && npx -y pnpm@9.15.9 install --frozen-lockfile && ${cmd}"
         env:
           INPUT_SUITE: ${{ inputs.suite }}
           INPUT_MODE: ${{ inputs.mode }}
@@ -330,7 +330,6 @@ jobs:
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
-          PW_KEYCLOAK_URL: ${{ env.PW_KEYCLOAK_URL }}
           KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
