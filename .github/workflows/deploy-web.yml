@@ -261,31 +261,18 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER != 'ubuntu-nginx' }}
         run: echo "::notice title=deploy-web::WEB_DEPLOY_PROVIDER!=ubuntu-nginx; skipping stage web deploy."
 
-      - name: Repair stage workspace ownership
+      - name: Validate stage host repo checkout
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        env:
+          WEB_DEPLOY_RUNNER_REPO_DIR: ${{ vars.WEB_DEPLOY_RUNNER_REPO_DIR }}
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm \
-            -v "${GITHUB_WORKSPACE}:/work" \
-            alpine:3.20 \
-            sh -lc 'find /work -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
-
-      - uses: actions/checkout@v4
-        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
-        with:
-          fetch-depth: 0
-          clean: false
-
-      - uses: actions/setup-node@v6
-        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
-        with:
-          node-version: 20
-
-      - uses: pnpm/action-setup@v4
-        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
-        with:
-          version: 10
+          repo_dir="${WEB_DEPLOY_RUNNER_REPO_DIR:-/home/halil/platform/repo}"
+          if [[ ! -d "${repo_dir}/.git" ]]; then
+            echo "::error title=deploy-web::stage host repo missing at ${repo_dir}"
+            exit 1
+          fi
 
       - name: Deploy web on stage host (self-hosted)
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
@@ -299,6 +286,7 @@ jobs:
           WEB_DEPLOY_REMOTE_RELEASES_DIR: ${{ vars.WEB_DEPLOY_REMOTE_RELEASES_DIR }}
           WEB_DEPLOY_REMOTE_CURRENT_LINK: ${{ vars.WEB_DEPLOY_REMOTE_CURRENT_LINK }}
           WEB_DEPLOY_REMOTE_BRANCH: ${{ github.ref_name }}
+          WEB_DEPLOY_RUNNER_REPO_DIR: ${{ vars.WEB_DEPLOY_RUNNER_REPO_DIR }}
         shell: bash
         run: |
           set -euo pipefail
@@ -309,7 +297,12 @@ jobs:
             exit 1
           fi
 
-          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh deploy/ubuntu/run-frontend-nginx-container.sh
+          repo_dir="${WEB_DEPLOY_RUNNER_REPO_DIR:-/home/halil/platform/repo}"
+
+          chmod +x \
+            "${repo_dir}/deploy/ubuntu/deploy-frontend.sh" \
+            "${repo_dir}/deploy/ubuntu/rollback-frontend.sh" \
+            "${repo_dir}/deploy/ubuntu/run-frontend-nginx-container.sh"
 
           PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN}" \
           AUTH_MODE="${WEB_AUTH_MODE:-keycloak}" \
@@ -317,9 +310,9 @@ jobs:
           KEYCLOAK_REALM="${WEB_KEYCLOAK_REALM:-serban}" \
           KEYCLOAK_CLIENT_ID="${WEB_KEYCLOAK_CLIENT_ID:-frontend}" \
           NGINX_KEYCLOAK_UPSTREAM="${WEB_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8080}" \
-          REPO_DIR="${GITHUB_WORKSPACE}" \
+          REPO_DIR="${repo_dir}" \
           REPO_BRANCH="${WEB_DEPLOY_REMOTE_BRANCH}" \
           WEB_RELEASES_DIR="${WEB_DEPLOY_REMOTE_RELEASES_DIR:-/home/halil/platform/web/releases}" \
           WEB_CURRENT_LINK="${WEB_DEPLOY_REMOTE_CURRENT_LINK:-/home/halil/platform/web/current}" \
           NGINX_CONTAINER_ENABLED="true" \
-          deploy/ubuntu/deploy-frontend.sh
+          "${repo_dir}/deploy/ubuntu/deploy-frontend.sh"
