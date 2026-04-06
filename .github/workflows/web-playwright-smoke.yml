@@ -147,26 +147,11 @@ jobs:
       - linux
       - x64
       - stage-backend
-    container:
-      image: mcr.microsoft.com/playwright:v1.58.2-noble
-      options: --ipc=host
     environment: stage
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Validate base_url
         run: |
@@ -176,10 +161,6 @@ jobs:
             echo "[pw-smoke] HATA: 'base_url' boş olamaz. Staging URL girin (örn: http://10.9.10.53:5544)."
             exit 1
           fi
-
-      - name: Install web dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: web
 
       - name: Validate authz smoke secrets
         if: ${{ inputs.suite == 'authz-zanzibar' }}
@@ -195,15 +176,34 @@ jobs:
       - name: Run Playwright smoke
         run: |
           set -euo pipefail
-          if [ "${{ inputs.suite }}" = "authz-zanzibar" ]; then
-            pnpm run pw:authz-zanzibar
-          elif [ "${{ inputs.mode }}" = "nightly" ]; then
-            pnpm run pw:nightly
-          else
-            pnpm run pw:ci
+          cmd="pnpm run pw:ci"
+          if [ "${INPUT_SUITE}" = "authz-zanzibar" ]; then
+            cmd="pnpm run pw:authz-zanzibar"
+          elif [ "${INPUT_MODE}" = "nightly" ]; then
+            cmd="pnpm run pw:nightly"
           fi
-        working-directory: web
+
+          docker run --rm \
+            --network host \
+            --ipc=host \
+            -e CI=1 \
+            -e PLAYWRIGHT_BASE_URL \
+            -e PW_SOFT_MODE \
+            -e PW_AUTH_MODE \
+            -e PW_READONLY_ENFORCE \
+            -e KEYCLOAK_TOKEN_URL \
+            -e KEYCLOAK_CLIENT_ID \
+            -e KEYCLOAK_CLIENT_SECRET \
+            -e KEYCLOAK_SCOPE \
+            -e PW_REAL_USER_EMAIL \
+            -e PW_REAL_USER_PASSWORD \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work/web \
+            mcr.microsoft.com/playwright:v1.58.2-noble \
+            bash -lc "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && ${cmd}"
         env:
+          INPUT_SUITE: ${{ inputs.suite }}
+          INPUT_MODE: ${{ inputs.mode }}
           PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
