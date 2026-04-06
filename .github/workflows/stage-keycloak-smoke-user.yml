@@ -319,7 +319,7 @@ jobs:
 
               set +e
               authz_status="$(
-                curl -sS \
+                curl -sSk \
                   -o "${body_file}" \
                   -D "${headers_file}" \
                   -w '%{http_code}' \
@@ -342,8 +342,10 @@ jobs:
 
               echo "[app-authz] target=${label} url=${url} status=${authz_status} content_type=${content_type:--}"
 
-              if [[ "${content_type}" == application/json* ]]; then
+              if [[ "${authz_status}" == "200" && "${content_type}" == application/json* ]]; then
                 python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")); mods=payload.get("allowedModules") or []; perms=payload.get("permissions") or []; module_map=payload.get("modules") or {}; module_keys=list(module_map.keys()) if isinstance(module_map, dict) else []; roles=payload.get("roles") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods)); print("[app-authz] permissions=" + ",".join(str(x) for x in perms)); print("[app-authz] moduleKeys=" + ",".join(str(x) for x in module_keys)); print("[app-authz] roles=" + ",".join(str(x) for x in roles))' "${body_file}"
+              elif [[ "${content_type}" == application/json* ]]; then
+                python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")); print("[app-authz] error=" + str(payload.get("error","-"))); print("[app-authz] message=" + str(payload.get("message","-"))); print("[app-authz] path=" + str(payload.get("path","-"))); print("[app-authz] status_field=" + str(payload.get("status","-")));' "${body_file}"
               else
                 body_preview="$(tr '\n' ' ' < "${body_file}" | sed 's/[[:space:]]\\+/ /g' | cut -c1-240)"
                 echo "[app-authz] body_preview=${body_preview:--}"
