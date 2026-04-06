@@ -193,13 +193,6 @@ jobs:
         run: |
           set -euo pipefail
           cd "${GITHUB_WORKSPACE}"
-          if [[ -d "/home/halil/platform/repo/web" ]]; then
-            echo "[pw-smoke] host checkout bulundu; web agaci lokal repo uzerinden kopyalaniyor."
-            mkdir -p "${GITHUB_WORKSPACE}/web"
-            cp -R "/home/halil/platform/repo/web/." "${GITHUB_WORKSPACE}/web/"
-            exit 0
-          fi
-
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "${tmpdir}"' EXIT
           archive="${tmpdir}/repo.tar.gz"
@@ -221,14 +214,6 @@ jobs:
           rm -rf "${GITHUB_WORKSPACE}/web"
           mkdir -p "${GITHUB_WORKSPACE}/web"
           cp -R "${src_dir}/web/." "${GITHUB_WORKSPACE}/web/"
-
-      - name: Overlay branch authz smoke spec
-        if: ${{ inputs.suite == 'authz-zanzibar' }}
-        run: |
-          set -euo pipefail
-          mkdir -p "${GITHUB_WORKSPACE}/web/tests/playwright"
-          cp "${src_dir}/web/tests/playwright/authz.zanzibar.spec.ts" \
-            "${GITHUB_WORKSPACE}/web/tests/playwright/authz.zanzibar.spec.ts"
 
       - name: Validate base_url
         run: |
