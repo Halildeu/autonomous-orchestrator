@@ -215,17 +215,17 @@ jobs:
             TARGET_PASSWORD="${TARGET_PASSWORD}" python3 -c 'import json,os; print(json.dumps({"type":"password","temporary":False,"value":os.environ["TARGET_PASSWORD"]}))'
           )"
 
-          curl -sS -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer ${admin_token}" \
-            -H "Content-Type: application/json" \
-            -X PUT "${keycloak_base}/admin/realms/${REALM_NAME}/users/${user_id}/reset-password" \
-            -d "${reset_payload}" \
-            | {
-              read -r status
-              if [[ "${status}" != "204" ]]; then
-                echo "[kc] HATA: parola reset başarısız (HTTP ${status})."
-                exit 1
-              fi
-            }
+          status="$(
+            curl -sS -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer ${admin_token}" \
+              -H "Content-Type: application/json" \
+              -X PUT "${keycloak_base}/admin/realms/${REALM_NAME}/users/${user_id}/reset-password" \
+              -d "${reset_payload}"
+          )"
+
+          if [[ "${status}" != "204" ]]; then
+            echo "[kc] HATA: parola reset başarısız (HTTP ${status})."
+            exit 1
+          fi
 
           echo "[kc] OK: smoke kullanıcı parolası güncellendi."
