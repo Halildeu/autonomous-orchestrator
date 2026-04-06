@@ -43,11 +43,33 @@ const clickFirst = async (page: Page, selectors: string[]) => {
 };
 
 const performBrowserLogin = async (page: Page, root: string, email: string, password: string) => {
+  page.on('console', (msg) => {
+    const text = msg.text();
+    if (/keycloak|login|auth/i.test(text)) {
+      console.log(`[authz-smoke] console.${msg.type()}=${text}`);
+    }
+  });
+  page.on('pageerror', (error) => {
+    console.log(`[authz-smoke] pageerror=${error.message}`);
+  });
+
   await page.context().clearCookies();
   await page.goto(`${root}/login?redirect=${encodeURIComponent('/access/roles')}`, {
     waitUntil: 'domcontentloaded',
   });
   const initialUrl = page.url();
+  const runtimeEnv = await page.evaluate(() => {
+    const env = ((window as any).__env__ ?? (window as any).__ENV__ ?? {}) as Record<string, string>;
+    return {
+      authMode: env.VITE_AUTH_MODE ?? env.AUTH_MODE ?? '',
+      keycloakUrl: env.VITE_KEYCLOAK_URL ?? env.KEYCLOAK_URL ?? '',
+      keycloakRealm: env.VITE_KEYCLOAK_REALM ?? env.KEYCLOAK_REALM ?? '',
+      keycloakClientId: env.VITE_KEYCLOAK_CLIENT_ID ?? env.KEYCLOAK_CLIENT_ID ?? '',
+    };
+  });
+  console.log(
+    `[authz-smoke] runtime_env authMode=${runtimeEnv.authMode} keycloakUrl=${runtimeEnv.keycloakUrl} realm=${runtimeEnv.keycloakRealm} clientId=${runtimeEnv.keycloakClientId}`,
+  );
 
   const appLoginButtonSelectors = [
     '[data-testid="corporate-login-button"]',
