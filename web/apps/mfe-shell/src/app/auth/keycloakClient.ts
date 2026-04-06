@@ -61,6 +61,19 @@ const readBrowserAuthRuntime = () => {
 export const startKeycloakLogin = async ({
   redirectUri,
 }: KeycloakLoginRedirectOptions): Promise<void> => {
+  const loginUrl = await resolveKeycloakLoginUrl({ redirectUri });
+  if (loginUrl) {
+    navigateToLoginUrl(loginUrl);
+    return;
+  }
+
+  console.info(`[Auth] Falling back to keycloak.login(). redirectUri=${summarizeUrl(redirectUri)}`);
+  await keycloak.login({ redirectUri });
+};
+
+export const resolveKeycloakLoginUrl = async ({
+  redirectUri,
+}: KeycloakLoginRedirectOptions): Promise<string | null> => {
   if (typeof window !== 'undefined') {
     const runtime = readBrowserAuthRuntime();
     const currentHref = runtime.currentHref;
@@ -90,8 +103,7 @@ export const startKeycloakLogin = async ({
         );
 
         if (loginUrl !== currentHref) {
-          navigateToLoginUrl(loginUrl);
-          return;
+          return loginUrl;
         }
 
         console.warn(
@@ -104,16 +116,14 @@ export const startKeycloakLogin = async ({
       }
 
       if (loginUrl && loginUrl !== currentHref) {
-        navigateToLoginUrl(loginUrl);
-        return;
+        return loginUrl;
       }
     } catch (error) {
       console.error('[Auth] keycloak.createLoginUrl() failed:', error);
     }
   }
 
-  console.info(`[Auth] Falling back to keycloak.login(). redirectUri=${summarizeUrl(redirectUri)}`);
-  await keycloak.login({ redirectUri });
+  return null;
 };
 
 export default keycloak;
