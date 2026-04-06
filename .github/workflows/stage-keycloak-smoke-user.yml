@@ -260,8 +260,14 @@ jobs:
           enabled="$(
             printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; value=first.get("enabled",""); print(str(value).lower() if isinstance(value,bool) else value)' 2>/dev/null || true
           )"
+          email_verified="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; value=first.get("emailVerified",""); print(str(value).lower() if isinstance(value,bool) else value)' 2>/dev/null || true
+          )"
+          required_actions="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; actions=first.get("requiredActions", []); actions=actions if isinstance(actions,list) else []; print(",".join(str(x) for x in actions))' 2>/dev/null || true
+          )"
 
-          echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown}"
+          echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown} emailVerified=${email_verified:-unknown} requiredActions=${required_actions:--}"
 
           if [[ "${MODE}" == "inspect" ]]; then
             echo "[kc] OK: smoke kullanıcı erişilebilir."
@@ -290,4 +296,21 @@ jobs:
             exit 1
           fi
 
-          echo "[kc] OK: smoke kullanıcı parolası güncellendi."
+          user_update_payload="$(
+            python3 -c 'import json; print(json.dumps({"enabled": True, "emailVerified": True, "requiredActions": []}))'
+          )"
+
+          update_status="$(
+            curl -sS -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer ${admin_token}" \
+              -H "Content-Type: application/json" \
+              -X PUT "${keycloak_base}/admin/realms/${REALM_NAME}/users/${user_id}" \
+              -d "${user_update_payload}"
+          )"
+
+          if [[ "${update_status}" != "204" ]]; then
+            echo "[kc] HATA: smoke kullanıcı durumu güncellenemedi (HTTP ${update_status})."
+            exit 1
+          fi
+
+          echo "[kc] OK: smoke kullanıcı parolası ve setup durumu güncellendi."
