@@ -80,15 +80,26 @@ const issuePasswordGrantToken = async (email: string, password: string): Promise
 };
 
 const fetchAuthzSnapshot = async (root: string, token: string): Promise<AuthzSnapshot> => {
-  const response = await fetch(`${root}/api/v1/authz/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const candidates = ['/v1/authz/me', '/api/v1/authz/me'];
+  let lastStatus = 0;
 
-  const payload = (await response.json().catch(() => ({}))) as AuthzSnapshot;
-  expect(response.ok, `/api/v1/authz/me beklenen gibi dönmedi: ${response.status}`).toBeTruthy();
-  return payload;
+  for (const path of candidates) {
+    const response = await fetch(`${root}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    lastStatus = response.status;
+    if (!response.ok) {
+      continue;
+    }
+
+    return (await response.json().catch(() => ({}))) as AuthzSnapshot;
+  }
+
+  expect(false, `authz snapshot endpoint'i bulunamadı. son HTTP durum: ${lastStatus}`).toBeTruthy();
+  return {} as AuthzSnapshot;
 };
 
 test.describe('Zanzibar authz live smoke', () => {
