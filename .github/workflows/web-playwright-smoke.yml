@@ -178,12 +178,20 @@ jobs:
         run: |
           set -euo pipefail
           for bin in \
+            "$(command -v google-chrome-stable || true)" \
+            "$(command -v google-chrome || true)" \
+            "$(command -v chromium || true)" \
+            "$(command -v chromium-browser || true)" \
+            "$(command -v microsoft-edge-stable || true)" \
+            "$(command -v microsoft-edge || true)" \
             /usr/bin/google-chrome \
             /usr/bin/google-chrome-stable \
             /usr/bin/chromium \
             /usr/bin/chromium-browser \
+            /usr/bin/microsoft-edge \
+            /usr/bin/microsoft-edge-stable \
             /snap/bin/chromium; do
-            if [ -x "${bin}" ]; then
+            if [ -n "${bin}" ] && [ -x "${bin}" ]; then
               echo "PLAYWRIGHT_EXECUTABLE_PATH=${bin}" >> "${GITHUB_ENV}"
               echo "executable_path=${bin}" >> "${GITHUB_OUTPUT}"
               echo "[pw-smoke] sistem tarayicisi bulundu: ${bin}"
@@ -197,7 +205,26 @@ jobs:
         if: ${{ steps.detect_browser.outputs.executable_path == '' }}
         run: |
           set -euo pipefail
-          docker pull mcr.microsoft.com/playwright:v1.58.2-noble
+          image="mcr.microsoft.com/playwright:v1.58.2-noble"
+          echo "[pw-smoke] Docker fallback image: ${image}"
+          if timeout 180 docker pull "${image}"; then
+            exit 0
+          fi
+
+          echo "[pw-smoke] HATA: Playwright image pull basarisiz oldu. Runner tanisi basliyor."
+          echo "--- docker version ---"
+          docker version || true
+          echo "--- docker info ---"
+          docker info || true
+          echo "--- docker system df ---"
+          docker system df || true
+          echo "--- disk usage ---"
+          df -h . /var/lib/docker || true
+          echo "--- resolver check ---"
+          getent hosts mcr.microsoft.com || true
+          echo "--- registry probe ---"
+          curl -I --max-time 20 https://mcr.microsoft.com/v2/ || true
+          exit 1
 
       - name: Run Playwright smoke
         run: |
