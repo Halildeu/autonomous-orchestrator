@@ -150,8 +150,43 @@ jobs:
           echo "[kc] realm=${REALM_NAME} user_count=${user_count}"
 
           if [[ "${user_count}" -eq 0 ]]; then
-            echo "[kc] HATA: smoke kullanıcı bulunamadı: ${TARGET_EMAIL}"
-            exit 1
+            if [[ "${MODE}" != "reset-password" ]]; then
+              echo "[kc] HATA: smoke kullanıcı bulunamadı: ${TARGET_EMAIL}"
+              exit 1
+            fi
+
+            create_payload="$(
+              TARGET_EMAIL="${TARGET_EMAIL}" python3 -c 'import json,os; email=os.environ["TARGET_EMAIL"]; print(json.dumps({"username":email,"email":email,"enabled":True,"emailVerified":True}))'
+            )"
+
+            create_status="$(
+              curl -sS -o /dev/null -w '%{http_code}' \
+                -H "Authorization: Bearer ${admin_token}" \
+                -H "Content-Type: application/json" \
+                -X POST "${keycloak_base}/admin/realms/${REALM_NAME}/users" \
+                -d "${create_payload}"
+            )"
+
+            if [[ "${create_status}" != "201" && "${create_status}" != "409" ]]; then
+              echo "[kc] HATA: smoke kullanıcı oluşturulamadı (HTTP ${create_status})."
+              exit 1
+            fi
+
+            user_payload="$(
+              curl -sS \
+                -H "Authorization: Bearer ${admin_token}" \
+                "${keycloak_base}/admin/realms/${REALM_NAME}/users?email=${email_q}"
+            )"
+
+            user_count="$(
+              printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(len(payload) if isinstance(payload,list) else 0)' 2>/dev/null || printf '0'
+            )"
+            echo "[kc] created-or-found user_count=${user_count}"
+
+            if [[ "${user_count}" -eq 0 ]]; then
+              echo "[kc] HATA: oluşturma sonrası smoke kullanıcı hâlâ bulunamadı: ${TARGET_EMAIL}"
+              exit 1
+            fi
           fi
 
           user_id="$(
