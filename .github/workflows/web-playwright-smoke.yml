@@ -180,13 +180,15 @@ jobs:
             docker run --rm \
               -v "${GITHUB_WORKSPACE}:/work" \
               "${image}" \
-              bash -lc 'rm -rf /work/.pnpm-store /work/web/node_modules /work/web/test-results || true'
+              bash -lc 'find /work -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
           else
             echo "[pw-smoke] cleanup image henuz yok; docker cleanup atlandi."
           fi
 
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Validate base_url
         run: |
