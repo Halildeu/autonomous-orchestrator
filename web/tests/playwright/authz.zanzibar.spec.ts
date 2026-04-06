@@ -64,14 +64,43 @@ const summarizeUrl = (value: string): string => {
 };
 
 const performBrowserLogin = async (page: Page, root: string, email: string, password: string) => {
+  await page.addInitScript(() => {
+    window.addEventListener('error', (event) => {
+      const error = event.error as Error | undefined;
+      const payload = {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        stack: error?.stack ?? '',
+      };
+      console.log(`[authz-window-error] ${JSON.stringify(payload)}`);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason as { message?: string; stack?: string } | undefined;
+      const payload = {
+        message: reason?.message ?? String(event.reason ?? ''),
+        stack: reason?.stack ?? '',
+      };
+      console.log(`[authz-window-rejection] ${JSON.stringify(payload)}`);
+    });
+  });
+
   page.on('console', (msg) => {
     const text = msg.text();
     if (/keycloak|login|auth/i.test(text)) {
       console.log(`[authz-smoke] console.${msg.type()}=${text}`);
     }
+    if (text.startsWith('[authz-window-error]') || text.startsWith('[authz-window-rejection]')) {
+      console.log(`[authz-smoke] console.${msg.type()}=${text}`);
+    }
   });
   page.on('pageerror', (error) => {
     console.log(`[authz-smoke] pageerror=${error.message}`);
+    if (error.stack) {
+      console.log(`[authz-smoke] pageerror.stack=${error.stack}`);
+    }
   });
 
   await page.context().clearCookies();
@@ -246,32 +275,50 @@ const deriveAllowedModules = (authz: AuthzSnapshot): string[] => {
   return Array.from(modules);
 };
 
-const fetchAuthzSnapshot = async (root: string, token: string): Promise<AuthzSnapshot> => {
+const fetchAuthzSnapshot = async (page: Page, root: string, token: string): Promise<AuthzSnapshot> => {
   const candidates = ['/api/v1/authz/me', '/v1/authz/me'];
-  let lastStatus = 0;
+  const result = await page.evaluate(
+    async ({ currentRoot, currentToken, paths }) => {
+      let lastStatus = 0;
 
-  for (const path of candidates) {
-    const response = await fetch(`${root}${path}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
+      for (const path of paths) {
+        const response = await fetch(`${currentRoot}${path}`, {
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+            Accept: 'application/json',
+          },
+        });
 
-    lastStatus = response.status;
-    if (!response.ok) {
-      continue;
-    }
+        lastStatus = response.status;
+        if (!response.ok) {
+          continue;
+        }
 
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.toLowerCase().startsWith('application/json')) {
-      continue;
-    }
+        const contentType = response.headers.get('content-type') ?? '';
+        if (!contentType.toLowerCase().startsWith('application/json')) {
+          continue;
+        }
 
-    return (await response.json().catch(() => ({}))) as AuthzSnapshot;
+        return {
+          ok: true,
+          lastStatus,
+          snapshot: await response.json().catch(() => ({})),
+        };
+      }
+
+      return {
+        ok: false,
+        lastStatus,
+        snapshot: {},
+      };
+    },
+    { currentRoot: root, currentToken: token, paths: candidates },
+  );
+
+  expect(result.ok, `authz snapshot endpoint'i bulunamadı. son HTTP durum: ${result.lastStatus}`).toBeTruthy();
+  if (result.ok) {
+    return result.snapshot as AuthzSnapshot;
   }
-
-  expect(false, `authz snapshot endpoint'i bulunamadı. son HTTP durum: ${lastStatus}`).toBeTruthy();
   return {} as AuthzSnapshot;
 };
 
@@ -282,7 +329,7 @@ test.describe('Zanzibar authz live smoke', () => {
     const root = baseURL ?? 'http://localhost:3000';
     await performBrowserLogin(page, root, TEST_EMAIL, TEST_PASSWORD);
     const token = await readBrowserToken(page);
-    const authz = await fetchAuthzSnapshot(root, token);
+    const authz = await fetchAuthzSnapshot(page, root, token);
     const allowedModules = deriveAllowedModules(authz);
 
     expect(authz.superAdmin).toBeFalsy();
