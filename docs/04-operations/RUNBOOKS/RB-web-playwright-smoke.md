@@ -180,3 +180,5 @@ Owner: Frontend
 - Runner: `web/tests/playwright/scenario-runner.spec.ts`
 - Telemetry: `web/tests/playwright/utils/pw_telemetry.ts`
 - CI workflow: `.github/workflows/web-playwright-smoke.yml`
+  - `env=stage` seçilirse smoke koşusu self-hosted `stage-backend` runner üzerinde çalışır ve `stage` environment secret'larını kullanır.
+  - `env=prod` seçilirse smoke koşusu GitHub-hosted runner üzerinde çalışır ve ilgili environment secret'larını kullanır.
