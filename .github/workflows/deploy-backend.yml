@@ -297,7 +297,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_ACTOR: ${{ github.actor }}
           BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
-          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
           BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
         shell: bash
         run: |
@@ -306,8 +305,8 @@ jobs:
 
           short_sha="${GITHUB_SHA:0:7}"
           remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
-          remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
           remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+          repo_dir="${GITHUB_WORKSPACE}"
 
           if [ ! -f "${remote_env_file}" ]; then
             echo "::error title=deploy-backend::backend env file missing: ${remote_env_file}"
@@ -317,7 +316,7 @@ jobs:
           chmod +x deploy/ubuntu/deploy-backend.sh deploy/ubuntu/rollback-backend.sh
 
           ENV_FILE="${remote_env_file}" \
-          REPO_DIR="${remote_repo_dir}" \
+          REPO_DIR="${repo_dir}" \
           COMPOSE_PROFILES="${remote_profiles}" \
           REPO_BRANCH="${GITHUB_REF_NAME}" \
           RENDER_ENV_BEFORE_DEPLOY="true" \
@@ -332,14 +331,13 @@ jobs:
         if: ${{ failure() && env.DEPLOY_ENABLED == 'true' }}
         env:
           BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
-          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
           BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
         shell: bash
         run: |
           set -euo pipefail
 
           remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
-          remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+          remote_repo_dir="${GITHUB_WORKSPACE}"
           remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
           compose_file="${remote_repo_dir}/backend/docker-compose.prod.yml"
 
