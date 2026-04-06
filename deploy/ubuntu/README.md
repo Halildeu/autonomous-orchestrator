@@ -163,6 +163,10 @@ Bu repo artık Ubuntu üzerinde tek-domain statik frontend bundle'ı da üretebi
   - `deploy/ubuntu/run-frontend-nginx-container.sh`
 - Nginx örnek config:
   - `deploy/ubuntu/nginx-frontend-5544.example.conf`
+- TLS / live edge için önerilen host:
+  - `ai.acik.com`
+- `ai.acik.com` için örnek Caddy config:
+  - `deploy/ubuntu/Caddyfile.ai-acik.com.example`
 - Host prerequisites:
   - `git`
   - `node 20`
@@ -195,6 +199,30 @@ deploy/ubuntu/deploy-frontend.sh
 
 `deploy-frontend.sh` host üzerinde `pnpm install --frozen-lockfile` çalıştırır; bu yüzden Ubuntu makinede `pnpm` kurulu olmalıdır. `NGINX_CONTAINER_ENABLED=true` ile çağrıldığında aynı akış Docker içindeki Nginx container'ını da yeniler.
 
+HTTPS / secure-context için opsiyonel env desteği:
+
+- `NGINX_SERVER_NAME`
+- `NGINX_TLS_ENABLED=true`
+- `NGINX_TLS_CERT_PATH`
+- `NGINX_TLS_KEY_PATH`
+- `NGINX_HTTP_PORT` varsayılan `80`
+- `NGINX_HTTPS_PORT` varsayılan `443`
+
+Örnek canlı host çağrısı:
+
+```bash
+PUBLIC_ORIGIN="https://ai.acik.com" \
+KEYCLOAK_PUBLIC_URL="https://ai.acik.com" \
+NGINX_CONTAINER_ENABLED="true" \
+NGINX_SERVER_NAME="ai.acik.com" \
+NGINX_TLS_ENABLED="true" \
+NGINX_TLS_CERT_PATH="/etc/letsencrypt/live/ai.acik.com/fullchain.pem" \
+NGINX_TLS_KEY_PATH="/etc/letsencrypt/live/ai.acik.com/privkey.pem" \
+NGINX_HTTP_PORT="80" \
+NGINX_HTTPS_PORT="443" \
+deploy/ubuntu/deploy-frontend.sh
+```
+
 Bu akış şu anda çekirdek remote setini paketler:
 
 - `mfe-shell`
@@ -207,3 +235,14 @@ Bu akış şu anda çekirdek remote setini paketler:
 
 - `stage` için self-hosted runner üstünden host deploy yapılır
 - `prod/non-stage` için `WEB_SSH_DEPLOY_ENABLED=true` ise SSH deploy yolu kullanılır
+
+Canlı / secure-context için ek GitHub environment var'ları:
+
+- `WEB_PUBLIC_ORIGIN=https://ai.acik.com`
+- `WEB_KEYCLOAK_PUBLIC_URL=https://ai.acik.com`
+- `WEB_EDGE_SERVER_NAME=ai.acik.com`
+- `WEB_TLS_ENABLED=true`
+- `WEB_TLS_CERT_PATH=/etc/letsencrypt/live/ai.acik.com/fullchain.pem`
+- `WEB_TLS_KEY_PATH=/etc/letsencrypt/live/ai.acik.com/privkey.pem`
+- `WEB_HTTP_PORT=80`
+- `WEB_HTTPS_PORT=443`

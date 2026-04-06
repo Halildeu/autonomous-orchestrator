@@ -137,6 +137,9 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_TLS_ENABLED: ${{ vars.WEB_TLS_ENABLED }}
+          WEB_TLS_CERT_PATH: ${{ vars.WEB_TLS_CERT_PATH }}
+          WEB_TLS_KEY_PATH: ${{ vars.WEB_TLS_KEY_PATH }}
         shell: bash
         run: |
           set -euo pipefail
@@ -144,6 +147,13 @@ jobs:
           if [ -z "${WEB_PUBLIC_ORIGIN:-}" ]; then
             echo "::error title=deploy-web::WEB_PUBLIC_ORIGIN missing; refusing Ubuntu Nginx deploy."
             exit 1
+          fi
+
+          if [[ "${WEB_TLS_ENABLED:-false}" == "true" ]]; then
+            if [ -z "${WEB_TLS_CERT_PATH:-}" ] || [ -z "${WEB_TLS_KEY_PATH:-}" ]; then
+              echo "::error title=deploy-web::WEB_TLS_ENABLED=true but cert/key paths are missing."
+              exit 1
+            fi
           fi
 
       - name: Deploy web (hook)
@@ -160,6 +170,12 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' && env.WEB_SSH_DEPLOY_ENABLED == 'true' && (github.event.inputs.env || 'stage') != 'stage' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_EDGE_SERVER_NAME: ${{ vars.WEB_EDGE_SERVER_NAME }}
+          WEB_TLS_ENABLED: ${{ vars.WEB_TLS_ENABLED }}
+          WEB_TLS_CERT_PATH: ${{ vars.WEB_TLS_CERT_PATH }}
+          WEB_TLS_KEY_PATH: ${{ vars.WEB_TLS_KEY_PATH }}
+          WEB_HTTP_PORT: ${{ vars.WEB_HTTP_PORT }}
+          WEB_HTTPS_PORT: ${{ vars.WEB_HTTPS_PORT }}
           WEB_DEPLOY_SSH_HOST: ${{ secrets.WEB_DEPLOY_SSH_HOST }}
           WEB_DEPLOY_SSH_PORT: ${{ secrets.WEB_DEPLOY_SSH_PORT }}
           WEB_DEPLOY_SSH_USER: ${{ secrets.WEB_DEPLOY_SSH_USER }}
@@ -229,6 +245,12 @@ jobs:
           chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh deploy/ubuntu/run-frontend-nginx-container.sh 2>/dev/null || true
 
           PUBLIC_ORIGIN="${PUBLIC_ORIGIN}" \
+          NGINX_SERVER_NAME="${WEB_EDGE_SERVER_NAME:-_}" \
+          NGINX_TLS_ENABLED="${WEB_TLS_ENABLED:-false}" \
+          NGINX_TLS_CERT_PATH="${WEB_TLS_CERT_PATH:-}" \
+          NGINX_TLS_KEY_PATH="${WEB_TLS_KEY_PATH:-}" \
+          NGINX_HTTP_PORT="${WEB_HTTP_PORT:-80}" \
+          NGINX_HTTPS_PORT="${WEB_HTTPS_PORT:-443}" \
           REPO_DIR="${REMOTE_REPO_DIR}" \
           WEB_RELEASES_DIR="${REMOTE_RELEASES_DIR}" \
           WEB_CURRENT_LINK="${REMOTE_CURRENT_LINK}" \
@@ -296,6 +318,12 @@ jobs:
           WEB_KEYCLOAK_REALM: ${{ vars.WEB_KEYCLOAK_REALM }}
           WEB_KEYCLOAK_CLIENT_ID: ${{ vars.WEB_KEYCLOAK_CLIENT_ID }}
           WEB_KEYCLOAK_UPSTREAM: ${{ vars.WEB_KEYCLOAK_UPSTREAM }}
+          WEB_EDGE_SERVER_NAME: ${{ vars.WEB_EDGE_SERVER_NAME }}
+          WEB_TLS_ENABLED: ${{ vars.WEB_TLS_ENABLED }}
+          WEB_TLS_CERT_PATH: ${{ vars.WEB_TLS_CERT_PATH }}
+          WEB_TLS_KEY_PATH: ${{ vars.WEB_TLS_KEY_PATH }}
+          WEB_HTTP_PORT: ${{ vars.WEB_HTTP_PORT }}
+          WEB_HTTPS_PORT: ${{ vars.WEB_HTTPS_PORT }}
           WEB_DEPLOY_REMOTE_RELEASES_DIR: ${{ vars.WEB_DEPLOY_REMOTE_RELEASES_DIR }}
           WEB_DEPLOY_REMOTE_CURRENT_LINK: ${{ vars.WEB_DEPLOY_REMOTE_CURRENT_LINK }}
           WEB_DEPLOY_REMOTE_BRANCH: ${{ github.ref_name }}
@@ -323,6 +351,12 @@ jobs:
           KEYCLOAK_REALM="${WEB_KEYCLOAK_REALM:-serban}" \
           KEYCLOAK_CLIENT_ID="${WEB_KEYCLOAK_CLIENT_ID:-frontend}" \
           NGINX_KEYCLOAK_UPSTREAM="${WEB_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8080}" \
+          NGINX_SERVER_NAME="${WEB_EDGE_SERVER_NAME:-_}" \
+          NGINX_TLS_ENABLED="${WEB_TLS_ENABLED:-false}" \
+          NGINX_TLS_CERT_PATH="${WEB_TLS_CERT_PATH:-}" \
+          NGINX_TLS_KEY_PATH="${WEB_TLS_KEY_PATH:-}" \
+          NGINX_HTTP_PORT="${WEB_HTTP_PORT:-80}" \
+          NGINX_HTTPS_PORT="${WEB_HTTPS_PORT:-443}" \
           REPO_DIR="${repo_dir}" \
           REPO_BRANCH="${WEB_DEPLOY_REMOTE_BRANCH}" \
           WEB_RELEASES_DIR="${WEB_DEPLOY_REMOTE_RELEASES_DIR:-/home/halil/platform/web/releases}" \
