@@ -363,7 +363,8 @@ jobs:
               exit 1
             fi
 
-            docker exec -i "${pg_container}" psql -v ON_ERROR_STOP=1 -U postgres -d users <<SQL
+            seed_sql="$(
+              python3 -c "from textwrap import dedent; user_id=int('${db_user_id}'); print(dedent('''\
             WITH target_role AS (
               INSERT INTO permission_service.roles (name, description, created_at, updated_at)
               VALUES ('STAGE_SMOKE_RESTRICTED', 'Restricted stage authz smoke role', NOW(), NOW())
@@ -408,7 +409,7 @@ jobs:
             UPDATE permission_service.user_role_assignments
             SET active = FALSE,
                 revoked_at = NOW()
-            WHERE user_id = ${db_user_id}
+            WHERE user_id = {user_id}
               AND active = TRUE;
 
             INSERT INTO permission_service.user_role_assignments (
@@ -417,10 +418,13 @@ jobs:
               active,
               assigned_at
             )
-            SELECT ${db_user_id}, r.id, TRUE, NOW()
+            SELECT {user_id}, r.id, TRUE, NOW()
             FROM permission_service.roles r
             WHERE r.name = 'STAGE_SMOKE_RESTRICTED';
-            SQL
+            ''').strip().format(user_id=user_id))"
+            )"
+
+            printf '%s\n' "${seed_sql}" | docker exec -i "${pg_container}" psql -v ON_ERROR_STOP=1 -U postgres -d users
 
             seed_summary="$(
               docker exec "${pg_container}" psql -U postgres -d users -At -F '|' \
