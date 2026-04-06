@@ -135,8 +135,12 @@ maybe_render_env() {
 sync_repo() {
   if [[ -d "${REPO_DIR}/.git" ]]; then
     git -C "${REPO_DIR}" fetch origin "${REPO_BRANCH}"
-    git -C "${REPO_DIR}" checkout "${REPO_BRANCH}"
-    git -C "${REPO_DIR}" pull --ff-only origin "${REPO_BRANCH}"
+    if git -C "${REPO_DIR}" show-ref --verify --quiet "refs/heads/${REPO_BRANCH}"; then
+      git -C "${REPO_DIR}" checkout "${REPO_BRANCH}"
+      git -C "${REPO_DIR}" merge --ff-only FETCH_HEAD
+    else
+      git -C "${REPO_DIR}" checkout -b "${REPO_BRANCH}" FETCH_HEAD
+    fi
     return 0
   fi
 
