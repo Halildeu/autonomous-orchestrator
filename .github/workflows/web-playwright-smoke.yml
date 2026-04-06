@@ -216,9 +216,7 @@ jobs:
           trap 'rm -rf "${tmpdir}"' EXIT
           printf '%s\n' \
             'FROM node:20-bookworm' \
-            'RUN apt-get update \\' \
-            '  && apt-get install -y --no-install-recommends chromium ca-certificates \\' \
-            '  && rm -rf /var/lib/apt/lists/*' \
+            'RUN apt-get update && apt-get install -y --no-install-recommends chromium ca-certificates && rm -rf /var/lib/apt/lists/*' \
             > "${tmpdir}/Dockerfile"
 
           if timeout 900 docker build -t "${image}" "${tmpdir}"
