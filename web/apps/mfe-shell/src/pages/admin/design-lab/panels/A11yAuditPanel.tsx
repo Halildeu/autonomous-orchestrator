@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  RefreshCw,
+  RefreshCw as _RefreshCw,
   ExternalLink,
   Shield,
 } from "lucide-react";

@@ -6,7 +6,7 @@ import {
   FileQuestion,
   BarChart3,
   ArrowUpRight,
-  ArrowDownRight,
+  ArrowDownRight as _ArrowDownRight,
   Minus,
   AlertCircle,
 } from "lucide-react";
