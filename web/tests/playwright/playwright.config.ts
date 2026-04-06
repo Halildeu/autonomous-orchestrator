@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const executablePath = (process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? '').trim();
+
 export default defineConfig({
   testDir: __dirname,
   timeout: 60 * 1000,
@@ -20,7 +22,16 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(executablePath
+          ? {
+              launchOptions: {
+                executablePath,
+              },
+            }
+          : {}),
+      },
     },
     {
       name: 'firefox',
