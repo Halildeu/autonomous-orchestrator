@@ -275,32 +275,50 @@ const deriveAllowedModules = (authz: AuthzSnapshot): string[] => {
   return Array.from(modules);
 };
 
-const fetchAuthzSnapshot = async (root: string, token: string): Promise<AuthzSnapshot> => {
+const fetchAuthzSnapshot = async (page: Page, root: string, token: string): Promise<AuthzSnapshot> => {
   const candidates = ['/api/v1/authz/me', '/v1/authz/me'];
-  let lastStatus = 0;
+  const result = await page.evaluate(
+    async ({ currentRoot, currentToken, paths }) => {
+      let lastStatus = 0;
 
-  for (const path of candidates) {
-    const response = await fetch(`${root}${path}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
+      for (const path of paths) {
+        const response = await fetch(`${currentRoot}${path}`, {
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+            Accept: 'application/json',
+          },
+        });
 
-    lastStatus = response.status;
-    if (!response.ok) {
-      continue;
-    }
+        lastStatus = response.status;
+        if (!response.ok) {
+          continue;
+        }
 
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.toLowerCase().startsWith('application/json')) {
-      continue;
-    }
+        const contentType = response.headers.get('content-type') ?? '';
+        if (!contentType.toLowerCase().startsWith('application/json')) {
+          continue;
+        }
 
-    return (await response.json().catch(() => ({}))) as AuthzSnapshot;
+        return {
+          ok: true,
+          lastStatus,
+          snapshot: await response.json().catch(() => ({})),
+        };
+      }
+
+      return {
+        ok: false,
+        lastStatus,
+        snapshot: {},
+      };
+    },
+    { currentRoot: root, currentToken: token, paths: candidates },
+  );
+
+  expect(result.ok, `authz snapshot endpoint'i bulunamadı. son HTTP durum: ${result.lastStatus}`).toBeTruthy();
+  if (result.ok) {
+    return result.snapshot as AuthzSnapshot;
   }
-
-  expect(false, `authz snapshot endpoint'i bulunamadı. son HTTP durum: ${lastStatus}`).toBeTruthy();
   return {} as AuthzSnapshot;
 };
 
@@ -311,7 +329,7 @@ test.describe('Zanzibar authz live smoke', () => {
     const root = baseURL ?? 'http://localhost:3000';
     await performBrowserLogin(page, root, TEST_EMAIL, TEST_PASSWORD);
     const token = await readBrowserToken(page);
-    const authz = await fetchAuthzSnapshot(root, token);
+    const authz = await fetchAuthzSnapshot(page, root, token);
     const allowedModules = deriveAllowedModules(authz);
 
     expect(authz.superAdmin).toBeFalsy();
