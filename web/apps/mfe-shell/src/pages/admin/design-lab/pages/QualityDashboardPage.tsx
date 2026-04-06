@@ -1,14 +1,14 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  _Shield,
+  Shield,
   Award,
   TrendingUp,
   AlertTriangle,
   BarChart3,
   CheckCircle2,
-  _XCircle,
-  _ArrowDown,
+  XCircle,
+  ArrowDown,
   Activity,
   FlaskConical,
   Languages,
@@ -101,7 +101,7 @@ const SCORECARD_METRICS = [
   { key: 'api', label: 'API Quality', icon: <FileCode2 className="h-3.5 w-3.5" />, color: 'text-state-info-text' },
   { key: 'a11y', label: 'Accessibility', icon: <ShieldCheck className="h-3.5 w-3.5" />, color: 'text-state-success-text' },
   { key: 'testCoverage', label: 'Test Coverage', icon: <Microscope className="h-3.5 w-3.5" />, color: 'text-action-secondary' },
-  { key: 'accessControl', label: 'Access Control', icon: <_Shield className="h-3.5 w-3.5" />, color: 'text-state-warning-text' },
+  { key: 'accessControl', label: 'Access Control', icon: <Shield className="h-3.5 w-3.5" />, color: 'text-state-warning-text' },
   { key: 'storyCompleteness', label: 'Story Complete', icon: <Blocks className="h-3.5 w-3.5" />, color: 'text-state-error-text' },
   { key: 'i18n', label: 'i18n Ready', icon: <Languages className="h-3.5 w-3.5" />, color: 'text-text-secondary' },
   { key: 'documentation', label: 'Documentation', icon: <BookMarked className="h-3.5 w-3.5" />, color: 'text-action-primary' },

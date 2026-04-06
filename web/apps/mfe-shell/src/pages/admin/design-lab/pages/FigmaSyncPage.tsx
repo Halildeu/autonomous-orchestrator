@@ -9,7 +9,7 @@ import {
   Type,
   Box,
   Layers,
-  _ArrowRight,
+  ArrowRight,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";

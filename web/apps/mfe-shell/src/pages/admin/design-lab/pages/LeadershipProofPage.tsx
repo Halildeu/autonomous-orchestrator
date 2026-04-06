@@ -19,10 +19,10 @@ import {
   Zap,
   Shield,
   BookOpen,
-  _Tag,
+  Tag,
   BarChart3,
-  _Calculator,
-  _ExternalLink,
+  Calculator,
+  ExternalLink,
   CheckCircle,
   ArrowRight,
 } from "lucide-react";

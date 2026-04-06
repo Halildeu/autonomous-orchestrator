@@ -11,7 +11,7 @@ import {
   FileCode2,
   BookOpen,
   ShieldCheck,
-  _ArrowRight,
+  ArrowRight,
   Globe,
   History,
   BookOpenCheck,

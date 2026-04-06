@@ -10,7 +10,7 @@ import {
   Package,
   CheckCircle,
   XCircle,
-  _AlertCircle,
+  AlertCircle,
   HelpCircle,
   Clock,
   Bug,

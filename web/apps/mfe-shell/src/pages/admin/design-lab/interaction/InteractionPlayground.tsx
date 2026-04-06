@@ -1,11 +1,11 @@
 import React, { useState, _useMemo, useCallback, useRef, useEffect } from "react";
 import {
   Zap,
-  _Play,
+  Play,
   RotateCcw,
-  _ChevronRight,
+  ChevronRight,
   ArrowRight,
-  _Unplug,
+  Unplug,
   Cable,
 } from "lucide-react";
 import { Text } from "@mfe/design-system";

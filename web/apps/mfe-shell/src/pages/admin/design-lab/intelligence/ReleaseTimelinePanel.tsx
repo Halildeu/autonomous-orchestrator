@@ -16,10 +16,10 @@ import {
   Tag,
   AlertTriangle,
   CheckCircle,
-  _Clock,
+  Clock,
   ChevronDown,
   ChevronRight,
-  _ExternalLink,
+  ExternalLink,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */

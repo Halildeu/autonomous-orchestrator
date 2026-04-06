@@ -2,10 +2,10 @@ import React, { useState, useMemo, _useCallback } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  _ExternalLink,
+  ExternalLink,
   Zap,
   Search,
-  _Filter,
+  Filter,
 } from "lucide-react";
 import { Text } from "@mfe/design-system";
 import { CodeBlock } from "../../../../../../../packages/design-system/src/catalog/design-lab-internals";
