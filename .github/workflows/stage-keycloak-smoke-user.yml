@@ -160,16 +160,7 @@ jobs:
               exit 1
             fi
 
-            printf '%s' "${client_payload}" | python3 - <<'PY'
-            import json, sys
-            payload = json.load(sys.stdin)
-            client = payload[0] if isinstance(payload, list) and payload else {}
-            print(f"[kc] clientId={client.get('clientId', 'unknown')}")
-            print(f"[kc] publicClient={client.get('publicClient')}")
-            print(f"[kc] directAccessGrantsEnabled={client.get('directAccessGrantsEnabled')}")
-            print(f"[kc] serviceAccountsEnabled={client.get('serviceAccountsEnabled')}")
-            print(f"[kc] standardFlowEnabled={client.get('standardFlowEnabled')}")
-            PY
+            printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); client=payload[0] if isinstance(payload,list) and payload else {}; print(f"[kc] clientId={client.get(\"clientId\",\"unknown\")}") ; print(f"[kc] publicClient={client.get(\"publicClient\")}") ; print(f"[kc] directAccessGrantsEnabled={client.get(\"directAccessGrantsEnabled\")}") ; print(f"[kc] serviceAccountsEnabled={client.get(\"serviceAccountsEnabled\")}") ; print(f"[kc] standardFlowEnabled={client.get(\"standardFlowEnabled\")}")'
             exit 0
           fi
 
@@ -193,24 +184,7 @@ jobs:
             )"
             status="$(printf '%s' "${token_response}" | tail -n 1)"
             body="$(printf '%s' "${token_response}" | sed '$d')"
-            printf '%s' "${body}" | python3 - <<'PY'
-            import json, sys
-            raw = sys.stdin.read().strip()
-            if not raw:
-                print("[kc] token_body=empty")
-                raise SystemExit(0)
-            try:
-                payload = json.loads(raw)
-            except Exception:
-                print(f"[kc] token_body_raw={raw[:400]}")
-                raise SystemExit(0)
-            error = str(payload.get("error", "")).strip()
-            desc = str(payload.get("error_description", "")).strip()
-            token = str(payload.get("access_token", "")).strip()
-            print(f"[kc] token_error={error or '-'}")
-            print(f"[kc] token_error_description={desc or '-'}")
-            print(f"[kc] access_token_present={'yes' if token else 'no'}")
-            PY
+            printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; error=str(payload.get("error","")).strip(); desc=str(payload.get("error_description","")).strip(); token=str(payload.get("access_token","")).strip(); print(f"[kc] token_error={error or \"-\"}"); print(f"[kc] token_error_description={desc or \"-\"}"); print(f"[kc] access_token_present={\"yes\" if token else \"no\"}")'
             echo "[kc] token_status=${status}"
             if [[ "${status}" != "200" ]]; then
               exit 1
