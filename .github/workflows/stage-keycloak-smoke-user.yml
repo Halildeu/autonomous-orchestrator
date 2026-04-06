@@ -58,7 +58,6 @@ jobs:
 
           require_cmd docker
           require_cmd curl
-          require_cmd jq
           require_cmd python3
 
           urlencode() {
@@ -130,7 +129,7 @@ jobs:
               -d "grant_type=password" \
               -d "client_id=admin-cli" \
               -d "username=${admin_user}" \
-              -d "password=${admin_pass}" | jq -r '.access_token // empty'
+              -d "password=${admin_pass}" | python3 -c 'import json,sys; payload=(lambda: json.load(sys.stdin))(); print(payload.get("access_token",""))' 2>/dev/null || true
           )"
 
           if [[ -z "${admin_token}" ]]; then
@@ -145,7 +144,9 @@ jobs:
               "${keycloak_base}/admin/realms/${REALM_NAME}/users?email=${email_q}"
           )"
 
-          user_count="$(jq 'length' <<<"${user_payload}")"
+          user_count="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(len(payload) if isinstance(payload,list) else 0)' 2>/dev/null || printf '0'
+          )"
           echo "[kc] realm=${REALM_NAME} user_count=${user_count}"
 
           if [[ "${user_count}" -eq 0 ]]; then
@@ -153,9 +154,15 @@ jobs:
             exit 1
           fi
 
-          user_id="$(jq -r '.[0].id // empty' <<<"${user_payload}")"
-          username="$(jq -r '.[0].username // empty' <<<"${user_payload}")"
-          enabled="$(jq -r '.[0].enabled // empty' <<<"${user_payload}")"
+          user_id="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; print(first.get("id",""))' 2>/dev/null || true
+          )"
+          username="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; print(first.get("username",""))' 2>/dev/null || true
+          )"
+          enabled="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; value=first.get("enabled",""); print(str(value).lower() if isinstance(value,bool) else value)' 2>/dev/null || true
+          )"
 
           echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown}"
 
@@ -169,11 +176,15 @@ jobs:
             exit 1
           fi
 
+          reset_payload="$(
+            TARGET_PASSWORD="${TARGET_PASSWORD}" python3 -c 'import json,os; print(json.dumps({"type":"password","temporary":False,"value":os.environ["TARGET_PASSWORD"]}))'
+          )"
+
           curl -sS -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${admin_token}" \
             -H "Content-Type: application/json" \
             -X PUT "${keycloak_base}/admin/realms/${REALM_NAME}/users/${user_id}/reset-password" \
-            -d "$(jq -n --arg value "${TARGET_PASSWORD}" '{type:"password", temporary:false, value:$value}')" \
+            -d "${reset_payload}" \
             | {
               read -r status
               if [[ "${status}" != "204" ]]; then
