@@ -12,6 +12,8 @@ STATE_DIR="${STATE_DIR:-/home/halil/platform/state}"
 CURRENT_RELEASE_FILE="${CURRENT_RELEASE_FILE:-${STATE_DIR}/web.current-release}"
 PREVIOUS_RELEASE_FILE="${PREVIOUS_RELEASE_FILE:-${STATE_DIR}/web.previous-release}"
 BUILD_SCRIPT="${BUILD_SCRIPT:-build:ubuntu:single-domain}"
+NGINX_CONTAINER_ENABLED="${NGINX_CONTAINER_ENABLED:-false}"
+NGINX_CONTAINER_SCRIPT="${NGINX_CONTAINER_SCRIPT:-${REPO_DIR}/deploy/ubuntu/run-frontend-nginx-container.sh}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -65,6 +67,14 @@ main() {
 
   ln -sfn "${release_dir}" "${WEB_CURRENT_LINK}"
   printf '%s\n' "${release_dir}" > "${CURRENT_RELEASE_FILE}"
+
+  if [[ "${NGINX_CONTAINER_ENABLED}" == "true" ]]; then
+    if [[ ! -x "${NGINX_CONTAINER_SCRIPT}" ]]; then
+      echo "[error] nginx container script missing or not executable: ${NGINX_CONTAINER_SCRIPT}" >&2
+      exit 1
+    fi
+    "${NGINX_CONTAINER_SCRIPT}"
+  fi
 
   echo "[deploy] frontend release=${release_dir}"
   printf '%s\n' "${short_sha}"

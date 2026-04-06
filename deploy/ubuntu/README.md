@@ -159,13 +159,15 @@ Bu repo artık Ubuntu üzerinde tek-domain statik frontend bundle'ı da üretebi
   - `deploy/ubuntu/deploy-frontend.sh`
 - Host rollback script:
   - `deploy/ubuntu/rollback-frontend.sh`
+- Containerized Nginx launcher:
+  - `deploy/ubuntu/run-frontend-nginx-container.sh`
 - Nginx örnek config:
   - `deploy/ubuntu/nginx-frontend-5544.example.conf`
 - Host prerequisites:
   - `git`
   - `node 20`
   - `pnpm`
-  - `nginx`
+  - `docker`
 
 Önerilen host path'leri:
 
@@ -191,7 +193,7 @@ WEB_CURRENT_LINK="/home/halil/platform/web/current" \
 deploy/ubuntu/deploy-frontend.sh
 ```
 
-`deploy-frontend.sh` host üzerinde `pnpm install --frozen-lockfile` çalıştırır; bu yüzden Ubuntu makinede `pnpm` kurulu olmalıdır.
+`deploy-frontend.sh` host üzerinde `pnpm install --frozen-lockfile` çalıştırır; bu yüzden Ubuntu makinede `pnpm` kurulu olmalıdır. `NGINX_CONTAINER_ENABLED=true` ile çağrıldığında aynı akış Docker içindeki Nginx container'ını da yeniler.
 
 Bu akış şu anda çekirdek remote setini paketler:
 

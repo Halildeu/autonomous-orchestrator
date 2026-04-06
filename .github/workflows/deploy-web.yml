@@ -222,12 +222,13 @@ jobs:
           set -euo pipefail
 
           cd "${REMOTE_REPO_DIR}" 2>/dev/null || true
-          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh 2>/dev/null || true
+          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh deploy/ubuntu/run-frontend-nginx-container.sh 2>/dev/null || true
 
           PUBLIC_ORIGIN="${PUBLIC_ORIGIN}" \
           REPO_DIR="${REMOTE_REPO_DIR}" \
           WEB_RELEASES_DIR="${REMOTE_RELEASES_DIR}" \
           WEB_CURRENT_LINK="${REMOTE_CURRENT_LINK}" \
+          NGINX_CONTAINER_ENABLED="true" \
           deploy/ubuntu/deploy-frontend.sh
           EOF
 
@@ -288,11 +289,12 @@ jobs:
             exit 1
           fi
 
-          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh
+          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh deploy/ubuntu/run-frontend-nginx-container.sh
 
           PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN}" \
           REPO_DIR="${GITHUB_WORKSPACE}" \
           REPO_BRANCH="${WEB_DEPLOY_REMOTE_BRANCH}" \
           WEB_RELEASES_DIR="${WEB_DEPLOY_REMOTE_RELEASES_DIR:-/home/halil/platform/web/releases}" \
           WEB_CURRENT_LINK="${WEB_DEPLOY_REMOTE_CURRENT_LINK:-/home/halil/platform/web/current}" \
+          NGINX_CONTAINER_ENABLED="true" \
           deploy/ubuntu/deploy-frontend.sh

@@ -36,6 +36,8 @@ Owner: @team/platform
   - `deploy/ubuntu/deploy-frontend.sh`
 - Host rollback:
   - `deploy/ubuntu/rollback-frontend.sh`
+- Nginx container launcher:
+  - `deploy/ubuntu/run-frontend-nginx-container.sh`
 - Nginx örnek config:
   - `deploy/ubuntu/nginx-frontend-5544.example.conf`
 - GitHub workflow:
@@ -67,7 +69,7 @@ Path map:
   - `git`
   - `node 20`
   - `pnpm`
-  - `nginx`
+  - `docker`
 - Repo checkout:
   - `/home/halil/platform/repo`
 - Frontend release klasörü:
@@ -96,10 +98,11 @@ PUBLIC_ORIGIN="http://10.9.10.53:5544" \
 REPO_DIR="/home/halil/platform/repo" \
 WEB_RELEASES_DIR="/home/halil/platform/web/releases" \
 WEB_CURRENT_LINK="/home/halil/platform/web/current" \
+NGINX_CONTAINER_ENABLED="true" \
 deploy/ubuntu/deploy-frontend.sh
 ```
 
-Not: deploy script host üzerinde `pnpm install --frozen-lockfile` çalıştırır.
+Not: deploy script host üzerinde `pnpm install --frozen-lockfile` çalıştırır. `NGINX_CONTAINER_ENABLED=true` verildiğinde 5544 dinleyen Docker Nginx container'ını da yeniler.
 
 ### 6.3 Rollback
 
