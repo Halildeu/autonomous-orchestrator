@@ -11,6 +11,14 @@ on:
         options:
           - ci
           - nightly
+      suite:
+        description: "Çalıştırılacak test kümesi"
+        required: false
+        default: "scenario-runner"
+        type: choice
+        options:
+          - scenario-runner
+          - authz-zanzibar
       soft_mode:
         description: "1: Soft mode (job kırma yok), 0: Hard mode (FAIL -> job fail)"
         required: false
@@ -76,10 +84,23 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: web
 
-      - name: Run Playwright YAML smoke
+      - name: Validate authz smoke secrets
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
         run: |
-          set -e
-          if [ "${{ inputs.mode }}" = "nightly" ]; then
+          set -euo pipefail
+          if [ -z "${PW_REAL_USER_PASSWORD:-}" ]; then
+            echo "[pw-smoke] HATA: authz-zanzibar için PW_REAL_USER_PASSWORD secret'ı zorunlu."
+            exit 1
+          fi
+        env:
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Run Playwright smoke
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.suite }}" = "authz-zanzibar" ]; then
+            npm run pw:authz-zanzibar
+          elif [ "${{ inputs.mode }}" = "nightly" ]; then
             npm run pw:nightly
           else
             npm run pw:ci
@@ -94,6 +115,8 @@ jobs:
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
           KEYCLOAK_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
+          PW_REAL_USER_EMAIL: ${{ secrets.PW_REAL_USER_EMAIL }}
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
 
       - name: Upload reports (pw)
         if: always()

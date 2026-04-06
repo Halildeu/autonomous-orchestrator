@@ -159,6 +159,7 @@
     "smoke:playwright": "npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/reporting.a11y.spec.ts tests/playwright/access.toast.spec.ts tests/playwright/shell.i18n.spec.ts",
     "pw:ci": "PW_MODE=ci npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/scenario-runner.spec.ts --project=chromium --workers=1",
     "pw:nightly": "PW_MODE=nightly npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/scenario-runner.spec.ts --project=chromium --workers=1",
+    "pw:authz-zanzibar": "npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/authz.zanzibar.spec.ts --project=chromium --workers=1",
     "doctor:frontend": "node ./scripts/ops/frontend-doctor.mjs",
     "doctor:lint": "node ./scripts/ops/lint-doctor.mjs",
     "doctor:lint:json": "node ./scripts/ops/lint-doctor.mjs --json",
