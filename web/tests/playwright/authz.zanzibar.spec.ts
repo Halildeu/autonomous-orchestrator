@@ -1,5 +1,4 @@
-import { test, expect } from '@playwright/test';
-import { authenticateAndNavigate } from './utils/auth';
+import { test, expect, type Page } from '@playwright/test';
 
 type AuthzSnapshot = {
   userId?: string;
@@ -9,45 +8,101 @@ type AuthzSnapshot = {
   superAdmin?: boolean;
 };
 
-type ParsedTokenEndpoint = {
-  baseUrl?: string;
-  realm?: string;
-};
-
-const parseKeycloakTokenUrl = (rawUrl: string): ParsedTokenEndpoint => {
-  if (!rawUrl) {
-    return {};
-  }
-
-  try {
-    const url = new URL(rawUrl);
-    const match = url.pathname.match(/^(.*)\/realms\/([^/]+)\/protocol\/openid-connect\/token$/);
-
-    if (!match) {
-      return {};
-    }
-
-    const prefix = match[1] ?? '';
-    const realm = match[2]?.trim();
-    const baseUrl = `${url.origin}${prefix}`.replace(/\/$/, '');
-
-    return {
-      baseUrl: baseUrl || url.origin,
-      realm,
-    };
-  } catch {
-    return {};
-  }
-};
-
-const derivedKeycloak = parseKeycloakTokenUrl((process.env.KEYCLOAK_TOKEN_URL ?? '').trim());
-const KEYCLOAK_URL = (process.env.PW_KEYCLOAK_URL ?? derivedKeycloak.baseUrl ?? 'http://localhost:8081').trim();
-const KEYCLOAK_REALM = (process.env.PW_KEYCLOAK_REALM ?? derivedKeycloak.realm ?? 'serban').trim();
-const KEYCLOAK_CLIENT_ID = (process.env.PW_KEYCLOAK_CLIENT_ID ?? process.env.KEYCLOAK_CLIENT_ID ?? 'frontend').trim();
-const KEYCLOAK_CLIENT_SECRET = (process.env.PW_KEYCLOAK_CLIENT_SECRET ?? process.env.KEYCLOAK_CLIENT_SECRET ?? '').trim();
-const KEYCLOAK_SCOPE = (process.env.PW_KEYCLOAK_SCOPE ?? process.env.KEYCLOAK_SCOPE ?? 'openid').trim();
 const TEST_EMAIL = (process.env.PW_REAL_USER_EMAIL ?? 'user3@example.com').trim();
 const TEST_PASSWORD = (process.env.PW_REAL_USER_PASSWORD ?? '').trim();
+
+const isVisible = async (page: Page, selectors: string[]): Promise<boolean> => {
+  for (const selector of selectors) {
+    if (await page.locator(selector).first().isVisible().catch(() => false)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const fillFirst = async (page: Page, selectors: string[], value: string) => {
+  for (const selector of selectors) {
+    const locator = page.locator(selector).first();
+    if (await locator.isVisible().catch(() => false)) {
+      await locator.fill(value);
+      return;
+    }
+  }
+  throw new Error(`Beklenen input bulunamadı: ${selectors.join(', ')}`);
+};
+
+const clickFirst = async (page: Page, selectors: string[]) => {
+  for (const selector of selectors) {
+    const locator = page.locator(selector).first();
+    if (await locator.isVisible().catch(() => false)) {
+      await locator.click();
+      return;
+    }
+  }
+  throw new Error(`Beklenen buton bulunamadı: ${selectors.join(', ')}`);
+};
+
+const performBrowserLogin = async (page: Page, root: string, email: string, password: string) => {
+  await page.context().clearCookies();
+  await page.goto(`${root}/login?redirect=${encodeURIComponent('/access/roles')}`, {
+    waitUntil: 'domcontentloaded',
+  });
+
+  const appLoginButtonSelectors = [
+    '[data-testid="corporate-login-button"]',
+    'button:has-text("Güvenli Kurumsal Giriş")',
+    'button:has-text("Kurumsal Giriş")',
+    'button:has-text("Sign In")',
+  ];
+  if (await isVisible(page, appLoginButtonSelectors)) {
+    await clickFirst(page, appLoginButtonSelectors);
+  }
+
+  const keycloakUserSelectors = ['#username', 'input[name="username"]', 'input[type="email"]'];
+  const keycloakPassSelectors = ['#password', 'input[name="password"]', 'input[type="password"]'];
+  const keycloakSubmitSelectors = ['#kc-login', 'button[type="submit"]', 'input[type="submit"]'];
+
+  const keycloakVisible = await page
+    .waitForFunction(
+      ({ userSelectors }) => {
+        return userSelectors.some((selector) => !!document.querySelector(selector));
+      },
+      { userSelectors: keycloakUserSelectors },
+      { timeout: 20_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+
+  if (keycloakVisible) {
+    await fillFirst(page, keycloakUserSelectors, email);
+    await fillFirst(page, keycloakPassSelectors, password);
+    await clickFirst(page, keycloakSubmitSelectors);
+  }
+
+  await page.waitForURL(
+    (url) => {
+      const href = url.toString();
+      return !href.includes('/realms/') && (href.includes('/access/roles') || href.includes('/login') || href.includes('/unauthorized'));
+    },
+    { timeout: 60_000 },
+  );
+};
+
+const readBrowserToken = async (page: Page): Promise<string> => {
+  await page.waitForFunction(() => {
+    const token = window.localStorage.getItem('token');
+    const stateToken = (window as any).__shellStore?.getState?.()?.auth?.token;
+    return Boolean(token || stateToken);
+  }, { timeout: 30_000 });
+
+  return page.evaluate(() => {
+    return (
+      window.localStorage.getItem('token') ??
+      (window as any).__shellStore?.getState?.()?.auth?.token ??
+      ''
+    );
+  });
+};
 
 const deriveAllowedModules = (authz: AuthzSnapshot): string[] => {
   const modules = new Set<string>();
@@ -98,37 +153,6 @@ const deriveAllowedModules = (authz: AuthzSnapshot): string[] => {
   return Array.from(modules);
 };
 
-const issuePasswordGrantToken = async (email: string, password: string): Promise<string> => {
-  const body = new URLSearchParams();
-  body.set('grant_type', 'password');
-  body.set('client_id', KEYCLOAK_CLIENT_ID);
-  body.set('username', email);
-  body.set('password', password);
-  if (KEYCLOAK_CLIENT_SECRET) {
-    body.set('client_secret', KEYCLOAK_CLIENT_SECRET);
-  }
-  if (KEYCLOAK_SCOPE) {
-    body.set('scope', KEYCLOAK_SCOPE);
-  }
-
-  const response = await fetch(
-    `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    },
-  );
-
-  const payload = await response.json().catch(() => ({}));
-  const token = typeof payload?.access_token === 'string' ? payload.access_token.trim() : '';
-
-  expect(response.ok, `Keycloak token endpoint başarısız oldu: ${response.status}`).toBeTruthy();
-  expect(token.length > 0, 'Restricted-user token alınamadı').toBeTruthy();
-
-  return token;
-};
-
 const fetchAuthzSnapshot = async (root: string, token: string): Promise<AuthzSnapshot> => {
   const candidates = ['/api/v1/authz/me', '/v1/authz/me'];
   let lastStatus = 0;
@@ -163,7 +187,8 @@ test.describe('Zanzibar authz live smoke', () => {
     test.skip(!TEST_PASSWORD, 'PW_REAL_USER_PASSWORD tanımlı değil.');
 
     const root = baseURL ?? 'http://localhost:3000';
-    const token = await issuePasswordGrantToken(TEST_EMAIL, TEST_PASSWORD);
+    await performBrowserLogin(page, root, TEST_EMAIL, TEST_PASSWORD);
+    const token = await readBrowserToken(page);
     const authz = await fetchAuthzSnapshot(root, token);
     const allowedModules = deriveAllowedModules(authz);
 
@@ -174,23 +199,12 @@ test.describe('Zanzibar authz live smoke', () => {
     expect(allowedModules).toEqual(expect.arrayContaining(['ACCESS', 'AUDIT', 'REPORT']));
     expect(allowedModules).not.toContain('THEME');
 
-    const previousToken = process.env.PW_TEST_TOKEN;
-    process.env.PW_TEST_TOKEN = token;
+    await page.goto(`${root}/access/roles`, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/access\/roles/, { timeout: 30_000 });
+    await expect(page.locator('.ag-root')).toBeVisible({ timeout: 30_000 });
 
-    try {
-      await authenticateAndNavigate(page, baseURL, '/access/roles', allowedModules);
-      await expect(page).toHaveURL(/\/access\/roles/);
-      await expect(page.locator('.ag-root')).toBeVisible({ timeout: 30_000 });
-
-      await page.goto(`${root}/admin/themes`, { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL(/\/unauthorized/, { timeout: 30_000 });
-      await expect(page.getByRole('heading', { name: /Erişim Yetkiniz Bulunmuyor|You do not have access/i })).toBeVisible();
-    } finally {
-      if (typeof previousToken === 'string') {
-        process.env.PW_TEST_TOKEN = previousToken;
-      } else {
-        delete process.env.PW_TEST_TOKEN;
-      }
-    }
+    await page.goto(`${root}/admin/themes`, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/unauthorized/, { timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: /Erişim Yetkiniz Bulunmuyor|You do not have access/i })).toBeVisible();
   });
 });
