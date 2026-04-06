@@ -261,16 +261,14 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER != 'ubuntu-nginx' }}
         run: echo "::notice title=deploy-web::WEB_DEPLOY_PROVIDER!=ubuntu-nginx; skipping stage web deploy."
 
-      - name: Validate stage host repo checkout
+      - name: Validate stage workspace checkout
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
-        env:
-          WEB_DEPLOY_RUNNER_REPO_DIR: ${{ vars.WEB_DEPLOY_RUNNER_REPO_DIR }}
         shell: bash
         run: |
           set -euo pipefail
-          repo_dir="${WEB_DEPLOY_RUNNER_REPO_DIR:-/home/halil/platform/repo}"
+          repo_dir="${GITHUB_WORKSPACE}"
           if [[ ! -d "${repo_dir}/.git" ]]; then
-            echo "::error title=deploy-web::stage host repo missing at ${repo_dir}"
+            echo "::error title=deploy-web::stage workspace repo missing at ${repo_dir}"
             exit 1
           fi
 
@@ -307,9 +305,7 @@ jobs:
             exit 1
           fi
 
-          repo_dir="${WEB_DEPLOY_RUNNER_REPO_DIR:-/home/halil/platform/repo}"
-          git -C "${repo_dir}" fetch origin "${WEB_DEPLOY_REMOTE_BRANCH}"
-          git -C "${repo_dir}" checkout -B "${WEB_DEPLOY_REMOTE_BRANCH}" FETCH_HEAD
+          repo_dir="${GITHUB_WORKSPACE}"
 
           chmod +x \
             "${repo_dir}/deploy/ubuntu/deploy-frontend.sh" \
