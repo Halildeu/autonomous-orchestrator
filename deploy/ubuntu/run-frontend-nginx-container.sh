@@ -8,6 +8,7 @@ NGINX_IMAGE="${NGINX_IMAGE:-nginx:1.27-alpine}"
 NGINX_CONFIG_PATH="${NGINX_CONFIG_PATH:-${NGINX_RUNTIME_DIR}/default.conf}"
 NGINX_PORT="${NGINX_PORT:-5544}"
 NGINX_GATEWAY_UPSTREAM="${NGINX_GATEWAY_UPSTREAM:-http://127.0.0.1:8080}"
+NGINX_KEYCLOAK_UPSTREAM="${NGINX_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8080}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -69,6 +70,24 @@ server {
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto \$scheme;
     proxy_pass ${NGINX_GATEWAY_UPSTREAM};
+  }
+
+  location /realms/ {
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_pass ${NGINX_KEYCLOAK_UPSTREAM};
+  }
+
+  location /resources/ {
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_pass ${NGINX_KEYCLOAK_UPSTREAM};
   }
 
   location / {

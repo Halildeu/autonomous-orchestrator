@@ -78,6 +78,10 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
     'button:has-text("Sign In")',
   ];
   if (await isVisible(page, appLoginButtonSelectors)) {
+    const loginButton = page.locator(appLoginButtonSelectors[0]).first();
+    if (await loginButton.isVisible().catch(() => false)) {
+      await expect(loginButton).toBeEnabled({ timeout: 30_000 });
+    }
     await clickFirst(page, appLoginButtonSelectors);
     await page.waitForURL((url) => url.toString() !== initialUrl || url.toString().includes('/realms/'), {
       timeout: 20_000,
@@ -117,53 +121,41 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
     `[authz-smoke] landing_body=${((await page.locator('body').textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').slice(0, 240)}`,
   );
 
-  try {
-    await page.waitForFunction(() => typeof (window as any).__shellStore !== 'undefined', undefined, { timeout: 60_000 });
-  } catch (error) {
+  await page.waitForFunction(() => {
+    return Boolean(window.localStorage.getItem('token'));
+  }, undefined, { timeout: 60_000 }).catch(async (error) => {
     const diagnostic = await page.evaluate(() => ({
       href: window.location.href,
       readyState: document.readyState,
       hasRoot: Boolean(document.querySelector('#root')),
       bodyClass: document.body?.className ?? '',
+      hasLocalToken: Boolean(window.localStorage.getItem('token')),
     }));
     throw new Error(
-      `shellStore beklenirken timeout. href=${diagnostic.href} readyState=${diagnostic.readyState} hasRoot=${diagnostic.hasRoot} bodyClass=${diagnostic.bodyClass} cause=${String(error)}`,
+      `browser token beklenirken timeout. href=${diagnostic.href} readyState=${diagnostic.readyState} hasRoot=${diagnostic.hasRoot} bodyClass=${diagnostic.bodyClass} hasLocalToken=${diagnostic.hasLocalToken} cause=${String(error)}`,
     );
-  }
-  await page.waitForFunction(() => {
-    const state = (window as any).__shellStore?.getState?.()?.auth;
-    return Boolean(state?.initialized);
-  }, undefined, { timeout: 60_000 });
+  });
 };
 
 const readBrowserToken = async (page: Page): Promise<string> => {
   try {
     await page.waitForFunction(() => {
-      const token = window.localStorage.getItem('token');
-      const stateToken = (window as any).__shellStore?.getState?.()?.auth?.token;
-      return Boolean(token || stateToken);
+      return Boolean(window.localStorage.getItem('token'));
     }, undefined, { timeout: 60_000 });
   } catch (error) {
     const diagnostic = await page.evaluate(() => {
-      const state = (window as any).__shellStore?.getState?.()?.auth;
       return {
         href: window.location.href,
-        initialized: Boolean(state?.initialized),
-        hasStoreToken: Boolean(state?.token),
         hasLocalToken: Boolean(window.localStorage.getItem('token')),
       };
     });
     throw new Error(
-      `Browser token beklenirken timeout. href=${diagnostic.href} initialized=${diagnostic.initialized} storeToken=${diagnostic.hasStoreToken} localToken=${diagnostic.hasLocalToken} cause=${String(error)}`,
+      `Browser token beklenirken timeout. href=${diagnostic.href} localToken=${diagnostic.hasLocalToken} cause=${String(error)}`,
     );
   }
 
   return page.evaluate(() => {
-    return (
-      window.localStorage.getItem('token') ??
-      (window as any).__shellStore?.getState?.()?.auth?.token ??
-      ''
-    );
+    return window.localStorage.getItem('token') ?? '';
   });
 };
 

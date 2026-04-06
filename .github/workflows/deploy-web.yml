@@ -113,6 +113,10 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_AUTH_MODE: ${{ vars.WEB_AUTH_MODE }}
+          WEB_KEYCLOAK_PUBLIC_URL: ${{ vars.WEB_KEYCLOAK_PUBLIC_URL }}
+          WEB_KEYCLOAK_REALM: ${{ vars.WEB_KEYCLOAK_REALM }}
+          WEB_KEYCLOAK_CLIENT_ID: ${{ vars.WEB_KEYCLOAK_CLIENT_ID }}
         run: pnpm run build:ubuntu:single-domain
         working-directory: web
 
@@ -276,6 +280,11 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_AUTH_MODE: ${{ vars.WEB_AUTH_MODE }}
+          WEB_KEYCLOAK_PUBLIC_URL: ${{ vars.WEB_KEYCLOAK_PUBLIC_URL }}
+          WEB_KEYCLOAK_REALM: ${{ vars.WEB_KEYCLOAK_REALM }}
+          WEB_KEYCLOAK_CLIENT_ID: ${{ vars.WEB_KEYCLOAK_CLIENT_ID }}
+          WEB_KEYCLOAK_UPSTREAM: ${{ vars.WEB_KEYCLOAK_UPSTREAM }}
           WEB_DEPLOY_REMOTE_RELEASES_DIR: ${{ vars.WEB_DEPLOY_REMOTE_RELEASES_DIR }}
           WEB_DEPLOY_REMOTE_CURRENT_LINK: ${{ vars.WEB_DEPLOY_REMOTE_CURRENT_LINK }}
           WEB_DEPLOY_REMOTE_BRANCH: ${{ github.ref_name }}
@@ -292,6 +301,11 @@ jobs:
           chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh deploy/ubuntu/run-frontend-nginx-container.sh
 
           PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN}" \
+          AUTH_MODE="${WEB_AUTH_MODE:-keycloak}" \
+          KEYCLOAK_PUBLIC_URL="${WEB_KEYCLOAK_PUBLIC_URL:-${WEB_PUBLIC_ORIGIN}}" \
+          KEYCLOAK_REALM="${WEB_KEYCLOAK_REALM:-serban}" \
+          KEYCLOAK_CLIENT_ID="${WEB_KEYCLOAK_CLIENT_ID:-frontend}" \
+          NGINX_KEYCLOAK_UPSTREAM="${WEB_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8080}" \
           REPO_DIR="${GITHUB_WORKSPACE}" \
           REPO_BRANCH="${WEB_DEPLOY_REMOTE_BRANCH}" \
           WEB_RELEASES_DIR="${WEB_DEPLOY_REMOTE_RELEASES_DIR:-/home/halil/platform/web/releases}" \

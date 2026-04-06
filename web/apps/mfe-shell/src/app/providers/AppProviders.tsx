@@ -12,17 +12,28 @@ import { AuthBootstrapper } from "./AuthBootstrapper";
 import { DownloadProgressListener } from "./DownloadProgressListener";
 import { api } from "@mfe/shared-http";
 import { isPermitAllMode } from "../auth/auth-config";
+import { useAppSelector } from "../store/store.hooks";
 
 // Side-effect imports — order matters
 import "../config/http-config";
 import "../config/shell-services-wiring";
 import "../config/i18n-config";
 
-const PermissionProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <PermissionProvider httpGet={api.get} permitAll={isPermitAllMode()}>
-    {children}
-  </PermissionProvider>
-);
+const PermissionProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { token, initialized } = useAppSelector((state) => state.auth);
+  const permitAllMode = isPermitAllMode();
+  const permissionFetchEnabled = permitAllMode || (initialized && Boolean(token));
+
+  return (
+    <PermissionProvider
+      httpGet={api.get}
+      permitAll={permitAllMode}
+      enabled={permissionFetchEnabled}
+    >
+      {children}
+    </PermissionProvider>
+  );
+};
 
 /* ------------------------------------------------------------------ */
 /*  AppProviders — Composes all shell-level providers                  */
