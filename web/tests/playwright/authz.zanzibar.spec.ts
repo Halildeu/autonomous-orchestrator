@@ -64,14 +64,43 @@ const summarizeUrl = (value: string): string => {
 };
 
 const performBrowserLogin = async (page: Page, root: string, email: string, password: string) => {
+  await page.addInitScript(() => {
+    window.addEventListener('error', (event) => {
+      const error = event.error as Error | undefined;
+      const payload = {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        stack: error?.stack ?? '',
+      };
+      console.log(`[authz-window-error] ${JSON.stringify(payload)}`);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason as { message?: string; stack?: string } | undefined;
+      const payload = {
+        message: reason?.message ?? String(event.reason ?? ''),
+        stack: reason?.stack ?? '',
+      };
+      console.log(`[authz-window-rejection] ${JSON.stringify(payload)}`);
+    });
+  });
+
   page.on('console', (msg) => {
     const text = msg.text();
     if (/keycloak|login|auth/i.test(text)) {
       console.log(`[authz-smoke] console.${msg.type()}=${text}`);
     }
+    if (text.startsWith('[authz-window-error]') || text.startsWith('[authz-window-rejection]')) {
+      console.log(`[authz-smoke] console.${msg.type()}=${text}`);
+    }
   });
   page.on('pageerror', (error) => {
     console.log(`[authz-smoke] pageerror=${error.message}`);
+    if (error.stack) {
+      console.log(`[authz-smoke] pageerror.stack=${error.stack}`);
+    }
   });
 
   await page.context().clearCookies();
