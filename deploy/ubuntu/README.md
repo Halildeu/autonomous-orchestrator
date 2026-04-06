@@ -146,3 +146,64 @@ Ornek cron:
   - `deploy/ubuntu/Caddyfile.ai-acik.com.example`
 - Production backend validate için:
   - `post-deploy-validate.yml` workflow_dispatch `env=prod` ve `target=backend|all`
+
+## Ubuntu Frontend (Nginx)
+
+Bu repo artık Ubuntu üzerinde tek-domain statik frontend bundle'ı da üretebilir.
+
+- Build script:
+  - `web/scripts/deploy/build-single-domain.mjs`
+- PNPM komutu:
+  - `pnpm run build:ubuntu:single-domain`
+- Host deploy script:
+  - `deploy/ubuntu/deploy-frontend.sh`
+- Host rollback script:
+  - `deploy/ubuntu/rollback-frontend.sh`
+- Containerized Nginx launcher:
+  - `deploy/ubuntu/run-frontend-nginx-container.sh`
+- Nginx örnek config:
+  - `deploy/ubuntu/nginx-frontend-5544.example.conf`
+- Host prerequisites:
+  - `git`
+  - `node 20`
+  - `pnpm`
+  - `docker`
+
+Önerilen host path'leri:
+
+- release klasörü:
+  - `/home/halil/platform/web/releases/<git-sha>`
+- aktif symlink:
+  - `/home/halil/platform/web/current`
+
+Build sırasında tek-domain public origin env'i zorunludur:
+
+```bash
+cd web
+WEB_PUBLIC_ORIGIN="http://10.9.10.53:5544" pnpm run build:ubuntu:single-domain
+```
+
+Host deploy:
+
+```bash
+PUBLIC_ORIGIN="http://10.9.10.53:5544" \
+REPO_DIR="/home/halil/platform/repo" \
+WEB_RELEASES_DIR="/home/halil/platform/web/releases" \
+WEB_CURRENT_LINK="/home/halil/platform/web/current" \
+deploy/ubuntu/deploy-frontend.sh
+```
+
+`deploy-frontend.sh` host üzerinde `pnpm install --frozen-lockfile` çalıştırır; bu yüzden Ubuntu makinede `pnpm` kurulu olmalıdır. `NGINX_CONTAINER_ENABLED=true` ile çağrıldığında aynı akış Docker içindeki Nginx container'ını da yeniler.
+
+Bu akış şu anda çekirdek remote setini paketler:
+
+- `mfe-shell`
+- `mfe-users`
+- `mfe-access`
+- `mfe-audit`
+- `mfe-reporting`
+
+`deploy-web.yml` içinde `WEB_DEPLOY_PROVIDER=ubuntu-nginx` ayarlanırsa:
+
+- `stage` için self-hosted runner üstünden host deploy yapılır
+- `prod/non-stage` için `WEB_SSH_DEPLOY_ENABLED=true` ise SSH deploy yolu kullanılır
