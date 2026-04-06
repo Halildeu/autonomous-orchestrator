@@ -297,7 +297,7 @@ jobs:
           fi
 
           user_update_payload="$(
-            python3 -c 'import json; print(json.dumps({"enabled": True, "emailVerified": True, "requiredActions": []}))'
+            TARGET_EMAIL="${TARGET_EMAIL}" python3 -c 'import json,os; email=os.environ["TARGET_EMAIL"]; print(json.dumps({"username": email, "email": email, "firstName": "Smoke", "lastName": "User", "enabled": True, "emailVerified": True, "requiredActions": []}))'
           )"
 
           update_status="$(
