@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@mfe/design-system';
 import { useShellCommonI18n } from '../../app/i18n';
-import keycloak from '../../app/auth/keycloakClient';
+import { startKeycloakLogin } from '../../app/auth/keycloakClient';
 import { buildAppRedirectUri, isPermitAllMode } from '../../app/auth/auth-config';
 import { useAppSelector } from '../../app/store/store.hooks';
 
@@ -40,8 +40,8 @@ const LoginPage = () => {
       return;
     }
     const redirectUri = buildAppRedirectUri(`/login?redirect=${encodeURIComponent(redirectPath)}`);
-    keycloak.login({ redirectUri }).catch((err) =>
-      console.error('[LoginPage] keycloak.login() failed:', err),
+    startKeycloakLogin({ redirectUri }).catch((err) =>
+      console.error('[LoginPage] startKeycloakLogin() failed:', err),
     );
   };
 
