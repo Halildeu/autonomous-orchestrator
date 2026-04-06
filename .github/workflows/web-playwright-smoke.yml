@@ -186,12 +186,25 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: false
-          filter: blob:none
-          sparse-checkout: |
-            web
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          git config gc.auto 0
+          git config advice.detachedHead false
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git sparse-checkout init --cone
+          git sparse-checkout set web
+          git fetch --no-tags --depth=1 --filter=blob:none origin "${GH_SHA}"
+          git checkout --detach FETCH_HEAD
+          git branch -f "${GH_REF_NAME}" "${GH_SHA}" || true
 
       - name: Validate base_url
         run: |
