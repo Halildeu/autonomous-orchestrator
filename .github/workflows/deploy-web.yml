@@ -274,6 +274,16 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/setup-node@v6
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        with:
+          version: 10
+
       - name: Deploy web on stage host (self-hosted)
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
