@@ -67,11 +67,7 @@ jobs:
 
           case "${TRIGGER_WORKFLOW}" in
             deploy-web)
-              if [ -n "${WEB_SMOKE_URL:-}" ]; then
-                validate_web=1
-              else
-                echo "::notice title=post-deploy-validate::WEB_SMOKE_URL missing; skipping web deploy validation."
-              fi
+              echo "::notice title=post-deploy-validate::Stage web validation delegated to stage self-hosted runner."
               ;;
             deploy-backend)
               echo "::notice title=post-deploy-validate::Backend validation delegated to stage self-hosted runner."
@@ -150,7 +146,11 @@ jobs:
 
           case "${TARGET}" in
             web)
-              validate_web=1
+              if [ "${MANUAL_ENV}" = "stage" ]; then
+                echo "::notice title=post-deploy-validate::Stage web manual validation runs on the stage self-hosted job."
+              else
+                validate_web=1
+              fi
               ;;
             backend)
               if [ "${MANUAL_ENV}" = "stage" ]; then
@@ -160,10 +160,11 @@ jobs:
               fi
               ;;
             all)
-              validate_web=1
               if [ "${MANUAL_ENV}" = "stage" ]; then
+                echo "::notice title=post-deploy-validate::Stage web manual validation runs on the stage self-hosted job."
                 echo "::notice title=post-deploy-validate::Stage backend manual validation runs on the stage self-hosted job."
               else
+                validate_web=1
                 validate_backend=1
               fi
               ;;
@@ -261,6 +262,45 @@ jobs:
 
           echo "::notice title=post-deploy-validate::PASS"
 
+  validate-stage-web:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.name == 'deploy-web'
+      && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping stage web validation."
+
+      - name: Validate stage web (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${WEB_SMOKE_URL:-}" ]; then
+            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate web deploy."
+            exit 1
+          fi
+
+          echo "::group::web smoke"
+          curl -fsS "${WEB_SMOKE_URL}" >/dev/null
+          echo "::endgroup::"
+
+          echo "::notice title=post-deploy-validate::PASS"
+
   validate-manual-stage-backend:
     runs-on:
       - self-hosted
@@ -308,5 +348,44 @@ jobs:
             echo "::error title=post-deploy-validate::Validation failed."
             exit 1
           fi
+
+          echo "::notice title=post-deploy-validate::PASS"
+
+  validate-manual-stage-web:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.env == 'stage'
+      && (github.event.inputs.target == 'web' || github.event.inputs.target == 'all')
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping manual stage web validation."
+
+      - name: Validate stage web manually (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${WEB_SMOKE_URL:-}" ]; then
+            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate web deploy."
+            exit 1
+          fi
+
+          echo "::group::web smoke"
+          curl -fsS "${WEB_SMOKE_URL}" >/dev/null
+          echo "::endgroup::"
 
           echo "::notice title=post-deploy-validate::PASS"
