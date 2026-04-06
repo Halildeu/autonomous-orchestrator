@@ -261,10 +261,21 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER != 'ubuntu-nginx' }}
         run: echo "::notice title=deploy-web::WEB_DEPLOY_PROVIDER!=ubuntu-nginx; skipping stage web deploy."
 
+      - name: Repair stage workspace ownership
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            alpine:3.20 \
+            sh -lc 'find /work -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
+
       - uses: actions/checkout@v4
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         with:
           fetch-depth: 0
+          clean: false
 
       - uses: actions/setup-node@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
