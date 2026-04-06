@@ -74,6 +74,15 @@ function readEnvString(keys: string[], fallback: string): string {
   return fallback;
 }
 
+function normalizeBasePath(value: string): string {
+  const normalized = value.trim();
+  if (!normalized || normalized === '/') {
+    return '/';
+  }
+  const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
 function buildRemotes() {
   const enabled = {
     suggestions: readEnvBoolean(['VITE_SHELL_ENABLE_SUGGESTIONS_REMOTE', 'SHELL_ENABLE_SUGGESTIONS_REMOTE']),
@@ -168,6 +177,8 @@ const sharedProdOnly = {
   'ag-grid-enterprise': singleton('ag-grid-enterprise'),
   'ag-grid-react': singleton('ag-grid-react'),
 };
+const isSingleDomainBuild =
+  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
 
 /* ------------------------------------------------------------------ */
 /*  Vite Config                                                         */
@@ -175,8 +186,10 @@ const sharedProdOnly = {
 
 export default defineConfig(({ mode }) => {
   const runtimeEnv = buildRuntimeEnv(mode);
+  const appBasePath = normalizeBasePath(readEnvString(['APP_BASE_PATH', 'VITE_APP_BASE_PATH'], '/'));
 
   return {
+    base: appBasePath,
     root: __dirname,
     publicDir: 'public',
 
@@ -208,8 +221,19 @@ export default defineConfig(({ mode }) => {
         /* Dev mode also needs core singleton sharing.
          * Without this, remotes load their own React runtime and routes white-screen with invalid hook calls. */
         shared: {
-          ...sharedCore,
-          ...(mode === 'production' ? sharedProdOnly : {}),
+          ...(isSingleDomainBuild
+            ? {
+                react: sharedCore.react,
+                'react-dom': sharedCore['react-dom'],
+                'react-router': sharedCore['react-router'],
+                'react-router-dom': sharedCore['react-router-dom'],
+                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
+                'react-redux': sharedCore['react-redux'],
+              }
+            : {
+                ...sharedCore,
+                ...(mode === 'production' ? sharedProdOnly : {}),
+              }),
         },
       }),
     ],

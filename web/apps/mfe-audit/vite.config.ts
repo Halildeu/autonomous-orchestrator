@@ -5,6 +5,27 @@ import { federation } from '@module-federation/vite';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 
+function readEnvString(keys: string[], fallback: string): string {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value !== 'string') continue;
+    const normalized = value.trim();
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+  return fallback;
+}
+
+function normalizeBasePath(value: string): string {
+  const normalized = value.trim();
+  if (!normalized || normalized === '/') {
+    return '/';
+  }
+  const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 const deps = pkg.dependencies as Record<string, string>;
 const singleton = (name: string, fallback: string | boolean = false) => ({
@@ -31,32 +52,50 @@ const sharedProdOnly = {
 const isTest = !!process.env['VITEST'];
 const isQualityBuild = process.env['QUALITY_AUDIT_BUILD'] === '1';
 const isQualityRemoteBuild = process.env['QUALITY_AUDIT_BUILD_REMOTE'] === '1';
+const isSingleDomainBuild =
+  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
 
-export default defineConfig(({ mode }) => ({
-  plugins: [
-    react(),
-    tailwindcss(),
-    ...((isTest || isQualityBuild) ? [] : [federation({
-      name: 'mfe_audit',
-      filename: 'remoteEntry.js',
-      dts: false,
-      remotes: {
-        mfe_shell: {
-          type: 'module',
-          name: 'mfe_shell',
-          entry: 'http://localhost:3000/remoteEntry.js',
+export default defineConfig(({ mode }) => {
+  const appBasePath = normalizeBasePath(readEnvString(['APP_BASE_PATH', 'VITE_APP_BASE_PATH'], '/'));
+  const shellRemoteEntry = readEnvString(['MFE_SHELL_URL', 'VITE_MFE_SHELL_URL'], 'http://localhost:3000/remoteEntry.js');
+
+  return ({
+    base: appBasePath,
+    plugins: [
+      react(),
+      tailwindcss(),
+      ...((isTest || isQualityBuild) ? [] : [federation({
+        name: 'mfe_audit',
+        filename: 'remoteEntry.js',
+        dts: false,
+        remotes: {
+          mfe_shell: {
+            type: 'module',
+            name: 'mfe_shell',
+            entry: shellRemoteEntry,
+          },
         },
-      },
-      exposes: {
-        './AuditApp': './src/app/components/AuditApp.tsx',
-        './shell-services': './src/app/services/shell-services.ts',
-      },
-      shared: {
-        ...sharedCore,
-        ...(mode === 'production' ? sharedProdOnly : {}),
-      },
-    })]),
-  ],
+        exposes: {
+          './AuditApp': './src/app/components/AuditApp.tsx',
+          './shell-services': './src/app/services/shell-services.ts',
+        },
+        shared: {
+          ...(isSingleDomainBuild
+            ? {
+                react: sharedCore.react,
+                'react-dom': sharedCore['react-dom'],
+                'react-router': sharedCore['react-router'],
+                'react-router-dom': sharedCore['react-router-dom'],
+                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
+                'react-redux': sharedCore['react-redux'],
+              }
+            : {
+                ...sharedCore,
+                ...(mode === 'production' ? sharedProdOnly : {}),
+              }),
+        },
+      })]),
+    ],
 
   resolve: {
     alias: {
@@ -105,5 +144,6 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
-  },
-}));
+    },
+  });
+});

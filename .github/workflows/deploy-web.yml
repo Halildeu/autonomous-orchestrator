@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "web/**"
+      - "deploy/ubuntu/**"
       - ".github/workflows/deploy-web.yml"
   workflow_dispatch:
     inputs:
@@ -12,6 +13,10 @@ on:
         description: "Deployment environment (informational)"
         required: true
         default: "stage"
+        type: choice
+        options:
+          - stage
+          - prod
 
 permissions:
   contents: read
@@ -23,9 +28,12 @@ concurrency:
 jobs:
   deploy-web:
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.env || 'stage' }}
     env:
       DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+      WEB_DEPLOY_PROVIDER: ${{ vars.WEB_DEPLOY_PROVIDER || 'hook' }}
+      WEB_SSH_DEPLOY_ENABLED: ${{ secrets.WEB_SSH_DEPLOY_ENABLED }}
 
     steps:
       - name: Skip if deploy disabled
@@ -83,21 +91,33 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        with:
+          version: 10
 
       - name: Install web dependencies
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: web
 
       - name: Build web
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
-        run: npm run build
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'hook' }}
+        run: pnpm run build
+        working-directory: web
+
+      - name: Build web (Ubuntu single-domain bundle)
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        env:
+          WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+        run: pnpm run build:ubuntu:single-domain
         working-directory: web
 
       - name: Validate deploy config (required)
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'hook' }}
         env:
           WEB_DEPLOY_HOOK_URL: ${{ secrets.WEB_DEPLOY_HOOK_URL }}
         shell: bash
@@ -109,8 +129,21 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Ubuntu Nginx deploy config (required)
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        env:
+          WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEB_PUBLIC_ORIGIN:-}" ]; then
+            echo "::error title=deploy-web::WEB_PUBLIC_ORIGIN missing; refusing Ubuntu Nginx deploy."
+            exit 1
+          fi
+
       - name: Deploy web (hook)
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'hook' }}
         env:
           WEB_DEPLOY_HOOK_URL: ${{ secrets.WEB_DEPLOY_HOOK_URL }}
         shell: bash
@@ -118,3 +151,144 @@ jobs:
           set -euo pipefail
           echo "::notice title=deploy-web::Triggering deploy hook (URL hidden)."
           curl -fsS -X POST "${WEB_DEPLOY_HOOK_URL}"
+
+      - name: Deploy web (Ubuntu Nginx via SSH)
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' && env.WEB_SSH_DEPLOY_ENABLED == 'true' && (github.event.inputs.env || 'stage') != 'stage' }}
+        env:
+          WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_DEPLOY_SSH_HOST: ${{ secrets.WEB_DEPLOY_SSH_HOST }}
+          WEB_DEPLOY_SSH_PORT: ${{ secrets.WEB_DEPLOY_SSH_PORT }}
+          WEB_DEPLOY_SSH_USER: ${{ secrets.WEB_DEPLOY_SSH_USER }}
+          WEB_DEPLOY_SSH_KEY: ${{ secrets.WEB_DEPLOY_SSH_KEY }}
+          WEB_DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.WEB_DEPLOY_SSH_KNOWN_HOSTS }}
+          WEB_DEPLOY_REMOTE_REPO_DIR: ${{ vars.WEB_DEPLOY_REMOTE_REPO_DIR }}
+          WEB_DEPLOY_REMOTE_RELEASES_DIR: ${{ vars.WEB_DEPLOY_REMOTE_RELEASES_DIR }}
+          WEB_DEPLOY_REMOTE_CURRENT_LINK: ${{ vars.WEB_DEPLOY_REMOTE_CURRENT_LINK }}
+          WEB_DEPLOY_REMOTE_BRANCH: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          required_vars=(
+            WEB_PUBLIC_ORIGIN
+            WEB_DEPLOY_SSH_HOST
+            WEB_DEPLOY_SSH_USER
+            WEB_DEPLOY_SSH_KEY
+            WEB_DEPLOY_SSH_KNOWN_HOSTS
+          )
+
+          missing=0
+          for name in "${required_vars[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=deploy-web::${name} missing; refusing SSH deploy."
+              missing=1
+            fi
+          done
+
+          if [ "${missing}" = "1" ]; then
+            exit 1
+          fi
+
+          remote_repo_dir="${WEB_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+          remote_releases_dir="${WEB_DEPLOY_REMOTE_RELEASES_DIR:-/home/halil/platform/web/releases}"
+          remote_current_link="${WEB_DEPLOY_REMOTE_CURRENT_LINK:-/home/halil/platform/web/current}"
+          ssh_port="${WEB_DEPLOY_SSH_PORT:-22}"
+
+          key_path="${RUNNER_TEMP}/web_deploy_ssh_key"
+          known_hosts_path="${RUNNER_TEMP}/web_known_hosts"
+
+          printf '%s' "${WEB_DEPLOY_SSH_KEY}" > "${key_path}"
+          chmod 600 "${key_path}"
+          printf '%s\n' "${WEB_DEPLOY_SSH_KNOWN_HOSTS}" > "${known_hosts_path}"
+          chmod 600 "${known_hosts_path}"
+
+          ssh_opts=(
+            -i "${key_path}"
+            -p "${ssh_port}"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="${known_hosts_path}"
+          )
+
+          echo "::notice title=deploy-web::Deploying Ubuntu Nginx frontend to ${WEB_DEPLOY_SSH_HOST}."
+          ssh "${ssh_opts[@]}" "${WEB_DEPLOY_SSH_USER}@${WEB_DEPLOY_SSH_HOST}" \
+            PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN}" \
+            REMOTE_REPO_DIR="${remote_repo_dir}" \
+            REMOTE_RELEASES_DIR="${remote_releases_dir}" \
+            REMOTE_CURRENT_LINK="${remote_current_link}" \
+            REPO_BRANCH="${WEB_DEPLOY_REMOTE_BRANCH}" \
+            'bash -se' <<'EOF'
+          set -euo pipefail
+
+          cd "${REMOTE_REPO_DIR}" 2>/dev/null || true
+          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh 2>/dev/null || true
+
+          PUBLIC_ORIGIN="${PUBLIC_ORIGIN}" \
+          REPO_DIR="${REMOTE_REPO_DIR}" \
+          WEB_RELEASES_DIR="${REMOTE_RELEASES_DIR}" \
+          WEB_CURRENT_LINK="${REMOTE_CURRENT_LINK}" \
+          deploy/ubuntu/deploy-frontend.sh
+          EOF
+
+      - name: Web host deploy skipped
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' && env.WEB_SSH_DEPLOY_ENABLED != 'true' && (github.event.inputs.env || 'stage') != 'stage' }}
+        run: echo "::notice title=deploy-web::Ubuntu Nginx selected; SSH host deploy skipped because WEB_SSH_DEPLOY_ENABLED!=true."
+
+  deploy-stage-web:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    needs: deploy-web
+    if: ${{ needs.deploy-web.result == 'success' && (github.event.inputs.env || 'stage') == 'stage' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+    environment: stage
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=deploy-web::DEPLOY_ENABLED!=true; skipping stage web deploy."
+
+      - uses: actions/checkout@v4
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        with:
+          version: 10
+
+      - name: Deploy web on stage host (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_DEPLOY_REMOTE_RELEASES_DIR: ${{ vars.WEB_DEPLOY_REMOTE_RELEASES_DIR }}
+          WEB_DEPLOY_REMOTE_CURRENT_LINK: ${{ vars.WEB_DEPLOY_REMOTE_CURRENT_LINK }}
+          WEB_DEPLOY_REMOTE_BRANCH: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${WEB_PUBLIC_ORIGIN:-}" ]; then
+            echo "::error title=deploy-web::WEB_PUBLIC_ORIGIN missing; refusing stage host deploy."
+            exit 1
+          fi
+
+          chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh
+
+          PUBLIC_ORIGIN="${WEB_PUBLIC_ORIGIN}" \
+          REPO_DIR="${GITHUB_WORKSPACE}" \
+          REPO_BRANCH="${WEB_DEPLOY_REMOTE_BRANCH}" \
+          WEB_RELEASES_DIR="${WEB_DEPLOY_REMOTE_RELEASES_DIR:-/home/halil/platform/web/releases}" \
+          WEB_CURRENT_LINK="${WEB_DEPLOY_REMOTE_CURRENT_LINK:-/home/halil/platform/web/current}" \
+          deploy/ubuntu/deploy-frontend.sh
