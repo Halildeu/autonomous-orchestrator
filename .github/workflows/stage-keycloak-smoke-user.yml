@@ -172,7 +172,7 @@ jobs:
                   -H "Authorization: Bearer ${admin_token}" \
                   "${keycloak_base}/admin/realms/${REALM_NAME}/clients?max=200"
               )"
-              printf '%s' "${all_clients_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); ids=[str(item.get("clientId","")).strip() for item in payload if isinstance(item,dict) and str(item.get("clientId","")).strip()]; ids=ids[:60]; print("[kc] available_client_ids=" + ", ".join(ids))'
+              printf '%s' "${all_clients_payload}" | python3 -c 'import base64,json,sys; payload=json.load(sys.stdin); ids=[str(item.get("clientId","")).strip() for item in payload if isinstance(item,dict) and str(item.get("clientId","")).strip()]; ids=ids[:60]; print("[kc] available_client_ids=" + ", ".join(ids)); print("[kc] available_client_ids_b64=" + ", ".join(base64.b64encode(item.encode("utf-8")).decode("ascii") for item in ids))'
               exit 1
             fi
 
