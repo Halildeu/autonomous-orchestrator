@@ -309,6 +309,55 @@ jobs:
         with:
           version: 10
 
+      - name: Prepare stage self-signed TLS certificate
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' && vars.WEB_TLS_ENABLED == 'true' && vars.WEB_TLS_SELF_SIGNED == 'true' }}
+        env:
+          WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_EDGE_SERVER_NAME: ${{ vars.WEB_EDGE_SERVER_NAME }}
+          WEB_TLS_CERT_PATH: ${{ vars.WEB_TLS_CERT_PATH }}
+          WEB_TLS_KEY_PATH: ${{ vars.WEB_TLS_KEY_PATH }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEB_TLS_CERT_PATH:-}" ] || [ -z "${WEB_TLS_KEY_PATH:-}" ]; then
+            echo "::error title=deploy-web::WEB_TLS_SELF_SIGNED=true but cert/key paths are missing."
+            exit 1
+          fi
+
+          if ! command -v openssl >/dev/null 2>&1; then
+            echo "::error title=deploy-web::openssl is required for stage self-signed TLS generation."
+            exit 1
+          fi
+
+          cert_path="${WEB_TLS_CERT_PATH}"
+          key_path="${WEB_TLS_KEY_PATH}"
+          cert_dir="$(dirname "${cert_path}")"
+          key_dir="$(dirname "${key_path}")"
+          server_name="${WEB_EDGE_SERVER_NAME:-ai.acik.com}"
+
+          mkdir -p "${cert_dir}" "${key_dir}"
+
+          if [[ -f "${cert_path}" && -f "${key_path}" ]]; then
+            echo "::notice title=deploy-web::Reusing existing stage self-signed TLS materials at ${cert_path}."
+            exit 0
+          fi
+
+          openssl req \
+            -x509 \
+            -nodes \
+            -newkey rsa:2048 \
+            -sha256 \
+            -days 30 \
+            -subj "/CN=${server_name}" \
+            -addext "subjectAltName=DNS:${server_name}" \
+            -keyout "${key_path}" \
+            -out "${cert_path}"
+
+          chmod 600 "${key_path}"
+          chmod 644 "${cert_path}"
+          echo "::notice title=deploy-web::Generated stage self-signed TLS certificate at ${cert_path}."
+
       - name: Deploy web on stage host (self-hosted)
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
