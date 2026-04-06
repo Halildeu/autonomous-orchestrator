@@ -81,7 +81,25 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
 
   await page.waitForURL((url) => !url.toString().includes('/realms/'), { timeout: 60_000 });
   await page.waitForLoadState('domcontentloaded');
-  await page.waitForFunction(() => typeof (window as any).__shellStore !== 'undefined', undefined, { timeout: 60_000 });
+  console.log(`[authz-smoke] landing_url=${page.url()}`);
+  console.log(`[authz-smoke] landing_title=${await page.title().catch(() => '-')}`);
+  console.log(
+    `[authz-smoke] landing_body=${((await page.locator('body').textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').slice(0, 240)}`,
+  );
+
+  try {
+    await page.waitForFunction(() => typeof (window as any).__shellStore !== 'undefined', undefined, { timeout: 60_000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      href: window.location.href,
+      readyState: document.readyState,
+      hasRoot: Boolean(document.querySelector('#root')),
+      bodyClass: document.body?.className ?? '',
+    }));
+    throw new Error(
+      `shellStore beklenirken timeout. href=${diagnostic.href} readyState=${diagnostic.readyState} hasRoot=${diagnostic.hasRoot} bodyClass=${diagnostic.bodyClass} cause=${String(error)}`,
+    );
+  }
   await page.waitForFunction(() => {
     const state = (window as any).__shellStore?.getState?.()?.auth;
     return Boolean(state?.initialized);
