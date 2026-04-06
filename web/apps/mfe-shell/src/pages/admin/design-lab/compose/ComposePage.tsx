@@ -4,7 +4,7 @@ import {
   Trash2,
   Copy,
   Check,
-  _Download,
+  Download as _Download,
   Code2,
   Grid3X3,
   AlignHorizontalSpaceAround,
@@ -13,7 +13,7 @@ import {
   Save,
   FolderOpen,
   X,
-  _Move,
+  Move as _Move,
 } from "lucide-react";
 import { Text } from "@mfe/design-system";
 import { PlaygroundPreview } from "../playground/PlaygroundPreview";
