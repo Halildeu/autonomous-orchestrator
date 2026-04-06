@@ -157,6 +157,12 @@ jobs:
             )"
             if [[ "${client_count}" -eq 0 ]]; then
               echo "[kc] HATA: client bulunamadı: ${KC_CLIENT_ID}"
+              all_clients_payload="$(
+                curl -sS \
+                  -H "Authorization: Bearer ${admin_token}" \
+                  "${keycloak_base}/admin/realms/${REALM_NAME}/clients?max=200"
+              )"
+              printf '%s' "${all_clients_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); ids=[str(item.get("clientId","")).strip() for item in payload if isinstance(item,dict) and str(item.get("clientId","")).strip()]; ids=ids[:60]; print("[kc] available_client_ids=" + ", ".join(ids))'
               exit 1
             fi
 
