@@ -25,73 +25,17 @@ Owner: @team/platform
   - remote'lar `/remotes/<slug>/remoteEntry.js`
 
 -------------------------------------------------------------------------------
-3. CANONICAL DOSYALAR
+3. BAŞLATMA / DURDURMA
 -------------------------------------------------------------------------------
 
-- Build script:
-  - `web/scripts/deploy/build-single-domain.mjs`
-- Package script:
-  - `web/package.json` → `build:ubuntu:single-domain`
-- Host deploy:
-  - `deploy/ubuntu/deploy-frontend.sh`
-- Host rollback:
-  - `deploy/ubuntu/rollback-frontend.sh`
-- Nginx container launcher:
-  - `deploy/ubuntu/run-frontend-nginx-container.sh`
-- Nginx örnek config:
-  - `deploy/ubuntu/nginx-frontend-5544.example.conf`
-- GitHub workflow:
-  - `.github/workflows/deploy-web.yml`
-
--------------------------------------------------------------------------------
-4. TOPOLOJİ
--------------------------------------------------------------------------------
-
-Public origin örneği:
-
-- `http://10.9.10.53:5544`
-
-Path map:
-
-- `/` → `mfe-shell`
-- `/remoteEntry.js` → shell remote entry
-- `/remotes/access/remoteEntry.js` → `mfe-access`
-- `/remotes/audit/remoteEntry.js` → `mfe-audit`
-- `/remotes/reporting/remoteEntry.js` → `mfe-reporting`
-- `/remotes/users/remoteEntry.js` → `mfe-users`
-- `/api/*` → `api-gateway`
-
--------------------------------------------------------------------------------
-5. HOST PATH'LERİ
--------------------------------------------------------------------------------
-
-- Gereken host paketleri:
-  - `git`
-  - `node 20`
-  - `pnpm`
-  - `docker`
-- Repo checkout:
-  - `/home/halil/platform/repo`
-- Frontend release klasörü:
-  - `/home/halil/platform/web/releases`
-- Aktif symlink:
-  - `/home/halil/platform/web/current`
-- State:
-  - `/home/halil/platform/state/web.current-release`
-  - `/home/halil/platform/state/web.previous-release`
-
--------------------------------------------------------------------------------
-6. ADIMLAR
--------------------------------------------------------------------------------
-
-### 6.1 Lokal veya CI build
+### 3.1 Lokal veya CI build
 
 ```bash
 cd web
 WEB_PUBLIC_ORIGIN="http://10.9.10.53:5544" pnpm run build:ubuntu:single-domain
 ```
 
-### 6.2 Host deploy
+### 3.2 Host deploy / yayın alma
 
 ```bash
 PUBLIC_ORIGIN="http://10.9.10.53:5544" \
@@ -104,16 +48,18 @@ deploy/ubuntu/deploy-frontend.sh
 
 Not: deploy script host üzerinde `pnpm install --frozen-lockfile` çalıştırır. `NGINX_CONTAINER_ENABLED=true` verildiğinde 5544 dinleyen Docker Nginx container'ını da yeniler.
 
-### 6.3 Rollback
+### 3.3 Rollback / durdurma
 
 ```bash
 WEB_CURRENT_LINK="/home/halil/platform/web/current" \
 deploy/ubuntu/rollback-frontend.sh
 ```
 
--------------------------------------------------------------------------------
-7. GITHUB AKIŞI
--------------------------------------------------------------------------------
+Gerekirse Nginx container'ını durdurma:
+
+```bash
+docker rm -f platform-web-nginx
+```
 
 `deploy-web.yml` içinde iki yol vardır:
 
@@ -123,27 +69,76 @@ deploy/ubuntu/rollback-frontend.sh
   - `stage` → self-hosted runner üstünde host deploy
   - `prod/non-stage` → `WEB_SSH_DEPLOY_ENABLED=true` ise SSH deploy
 
-Önerilen GitHub environment var/secrets:
-
-- var:
-  - `WEB_DEPLOY_PROVIDER=ubuntu-nginx`
-  - `WEB_PUBLIC_ORIGIN=http://10.9.10.53:5544`
-  - `WEB_DEPLOY_REMOTE_REPO_DIR=/home/halil/platform/repo`
-  - `WEB_DEPLOY_REMOTE_RELEASES_DIR=/home/halil/platform/web/releases`
-  - `WEB_DEPLOY_REMOTE_CURRENT_LINK=/home/halil/platform/web/current`
-- secret:
-  - `WEB_SSH_DEPLOY_ENABLED`
-  - `WEB_DEPLOY_SSH_HOST`
-  - `WEB_DEPLOY_SSH_PORT`
-  - `WEB_DEPLOY_SSH_USER`
-  - `WEB_DEPLOY_SSH_KEY`
-  - `WEB_DEPLOY_SSH_KNOWN_HOSTS`
-  - `WEB_SMOKE_URL`
-
 -------------------------------------------------------------------------------
-8. NOTLAR
+4. GÖZLEMLEME / LOG / METRİKLER
 -------------------------------------------------------------------------------
 
-- Bu ilk sürüm yalnız çekirdek remote setini paketler.
-- Cloudflare single-domain topolojisi ayrı bir yol olarak daha sonra eklenebilir.
-- `5544` public origin olduğu için auth redirect ve frontend public URL'leri aynı portla tanımlanmalıdır.
+- Canonical dosyalar:
+  - `web/scripts/deploy/build-single-domain.mjs`
+  - `web/package.json` → `build:ubuntu:single-domain`
+  - `deploy/ubuntu/deploy-frontend.sh`
+  - `deploy/ubuntu/rollback-frontend.sh`
+  - `deploy/ubuntu/run-frontend-nginx-container.sh`
+  - `deploy/ubuntu/nginx-frontend-5544.example.conf`
+  - `.github/workflows/deploy-web.yml`
+  - `.github/workflows/post-deploy-validate.yml`
+- Topoloji:
+  - public origin: `http://10.9.10.53:5544`
+  - `/` → `mfe-shell`
+  - `/remoteEntry.js` → shell remote entry
+  - `/remotes/access/remoteEntry.js` → `mfe-access`
+  - `/remotes/audit/remoteEntry.js` → `mfe-audit`
+  - `/remotes/reporting/remoteEntry.js` → `mfe-reporting`
+  - `/remotes/users/remoteEntry.js` → `mfe-users`
+  - `/api/*` → `api-gateway`
+- Host path'leri:
+  - repo checkout: `/home/halil/platform/repo`
+  - release root: `/home/halil/platform/web/releases`
+  - aktif symlink: `/home/halil/platform/web/current`
+  - state: `/home/halil/platform/state/web.current-release`
+  - state: `/home/halil/platform/state/web.previous-release`
+- Health / smoke:
+  - `http://10.9.10.53:5544/nginx-healthz`
+  - `post-deploy-validate.yml` içindeki stage web smoke job'ı
+- Log / izleme:
+  - GitHub Actions `deploy-web`
+  - GitHub Actions `post-deploy-validate`
+  - `docker logs platform-web-nginx`
+
+-------------------------------------------------------------------------------
+5. ARIZA DURUMLARI VE ADIMLAR
+-------------------------------------------------------------------------------
+
+- [ ] Arıza senaryosu 1 – Build artefaktı oluşmuyor:
+  - Given: `deploy-web` veya lokal `pnpm run build:ubuntu:single-domain` çalıştırılmıştır.
+  - When: single-domain build hata verir veya `web/dist/ubuntu-single-domain` oluşmaz.
+  - Then: önce `pnpm install --frozen-lockfile` tekrar çalıştırılır, sonra `WEB_PUBLIC_ORIGIN` değeri doğrulanır ve build yeniden alınır.
+
+- [ ] Arıza senaryosu 2 – Nginx container 5544 üzerinde kalkmıyor:
+  - Given: release host üzerinde başarıyla hazırlanmıştır.
+  - When: `platform-web-nginx` container'ı çıkış yapar veya `5544` portunu dinlemez.
+  - Then: `docker logs platform-web-nginx` ile config hatası kontrol edilir, gerekirse `deploy/ubuntu/run-frontend-nginx-container.sh` yeniden çalıştırılır ve hostta `5544` port çakışması doğrulanır.
+
+- [ ] Arıza senaryosu 3 – Frontend açılıyor ama `/api` istekleri başarısız:
+  - Given: tarayıcıdan `:5544` üzerinden shell yüklenmektedir.
+  - When: API çağrıları `502/504` döner veya gateway yanıt vermez.
+  - Then: backend gateway health durumu kontrol edilir, Nginx upstream hedefi `127.0.0.1:8080` olarak doğrulanır ve gerekirse backend deploy/smoke zinciri yeniden çalıştırılır.
+
+-------------------------------------------------------------------------------
+6. ÖZET
+-------------------------------------------------------------------------------
+
+- Frontend ilk canlı kesitte Ubuntu üzerinde tek-domain olarak yayınlanır.
+- Nginx edge katmanı `5544` portunda statik bundle ve `/api` reverse proxy sağlar.
+- Stage deploy zinciri GitHub Actions üzerinden build, host release ve smoke validation adımlarını kapsar.
+
+-------------------------------------------------------------------------------
+7. LİNKLER (İSTEĞE BAĞLI)
+-------------------------------------------------------------------------------
+
+- RUNBOOK: `docs/04-operations/RUNBOOKS/RB-ubuntu-backend-github-vault-deploy.md`
+- RUNBOOK: `docs/04-operations/RUNBOOKS/RB-production-cutover-checklist.md`
+- RUNBOOK: `docs/04-operations/RUNBOOKS/RB-web-playwright-smoke.md`
+- Workflow: `.github/workflows/deploy-web.yml`
+- Workflow: `.github/workflows/post-deploy-validate.yml`
+- Monitoring: `docker logs platform-web-nginx`
