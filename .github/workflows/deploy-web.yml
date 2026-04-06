@@ -242,7 +242,7 @@ jobs:
       - x64
       - stage-backend
     needs: deploy-web
-    if: ${{ needs.deploy-web.result == 'success' && (github.event.inputs.env || 'stage') == 'stage' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+    if: ${{ needs.deploy-web.result == 'success' && (github.event.inputs.env || 'stage') == 'stage' }}
     environment: stage
     env:
       DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
@@ -252,23 +252,27 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED != 'true' }}
         run: echo "::notice title=deploy-web::DEPLOY_ENABLED!=true; skipping stage web deploy."
 
+      - name: Skip if provider is not ubuntu-nginx
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER != 'ubuntu-nginx' }}
+        run: echo "::notice title=deploy-web::WEB_DEPLOY_PROVIDER!=ubuntu-nginx; skipping stage web deploy."
+
       - uses: actions/checkout@v4
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         with:
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         with:
           node-version: 20
 
       - uses: pnpm/action-setup@v4
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         with:
           version: 10
 
       - name: Deploy web on stage host (self-hosted)
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
           WEB_DEPLOY_REMOTE_RELEASES_DIR: ${{ vars.WEB_DEPLOY_REMOTE_RELEASES_DIR }}
