@@ -207,7 +207,7 @@ jobs:
           set -euo pipefail
           image="mcr.microsoft.com/playwright:v1.58.2-noble"
           echo "[pw-smoke] Docker fallback image: ${image}"
-          if timeout 180 docker pull "${image}"; then
+          if timeout 600 docker pull "${image}"; then
             exit 0
           fi
 
