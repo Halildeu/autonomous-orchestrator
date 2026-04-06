@@ -308,6 +308,8 @@ jobs:
           fi
 
           repo_dir="${WEB_DEPLOY_RUNNER_REPO_DIR:-/home/halil/platform/repo}"
+          git -C "${repo_dir}" fetch origin "${WEB_DEPLOY_REMOTE_BRANCH}"
+          git -C "${repo_dir}" checkout -B "${WEB_DEPLOY_REMOTE_BRANCH}" FETCH_HEAD
 
           chmod +x \
             "${repo_dir}/deploy/ubuntu/deploy-frontend.sh" \
