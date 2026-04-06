@@ -174,7 +174,7 @@ STOP_INFRA=1 ./scripts/stop-services.sh
 - Bu dokuman repo icindeki "baslangic memory" kaydi olarak kabul edilir.
 
 -------------------------------------------------------------------------------
-7. LINKLER (ISTEGE BAGLI)
+7. LİNKLER (İSTEĞE BAĞLI)
 -------------------------------------------------------------------------------
 
 - Backend README: `backend/README.md`
