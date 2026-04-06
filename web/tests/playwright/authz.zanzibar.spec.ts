@@ -5,6 +5,7 @@ type AuthzSnapshot = {
   userId?: string;
   permissions?: string[];
   allowedModules?: string[];
+  modules?: Record<string, string>;
   superAdmin?: boolean;
 };
 
@@ -48,6 +49,55 @@ const KEYCLOAK_SCOPE = (process.env.PW_KEYCLOAK_SCOPE ?? process.env.KEYCLOAK_SC
 const TEST_EMAIL = (process.env.PW_REAL_USER_EMAIL ?? 'user3@example.com').trim();
 const TEST_PASSWORD = (process.env.PW_REAL_USER_PASSWORD ?? '').trim();
 
+const deriveAllowedModules = (authz: AuthzSnapshot): string[] => {
+  const modules = new Set<string>();
+
+  const addModule = (raw: string | undefined) => {
+    const value = String(raw ?? '').trim().toUpperCase();
+    if (!value) {
+      return;
+    }
+
+    switch (value) {
+      case 'ACCESS':
+      case 'ACCESS-READ':
+      case 'VIEW_ACCESS':
+        modules.add('ACCESS');
+        return;
+      case 'AUDIT':
+      case 'AUDIT-READ':
+      case 'VIEW_AUDIT':
+        modules.add('AUDIT');
+        return;
+      case 'REPORT':
+      case 'REPORT_VIEW':
+      case 'VIEW_REPORTS':
+      case 'REPORT_EXPORT':
+      case 'REPORT_MANAGE':
+        modules.add('REPORT');
+        return;
+      case 'THEME':
+      case 'THEME_ADMIN':
+        modules.add('THEME');
+        return;
+      case 'USER_MANAGEMENT':
+      case 'USER-READ':
+      case 'VIEW_USERS':
+      case 'MANAGE_USERS':
+        modules.add('USER_MANAGEMENT');
+        return;
+      default:
+        modules.add(value);
+    }
+  };
+
+  (authz.allowedModules ?? []).forEach(addModule);
+  Object.keys(authz.modules ?? {}).forEach(addModule);
+  (authz.permissions ?? []).forEach(addModule);
+
+  return Array.from(modules);
+};
+
 const issuePasswordGrantToken = async (email: string, password: string): Promise<string> => {
   const body = new URLSearchParams();
   body.set('grant_type', 'password');
@@ -80,18 +130,24 @@ const issuePasswordGrantToken = async (email: string, password: string): Promise
 };
 
 const fetchAuthzSnapshot = async (root: string, token: string): Promise<AuthzSnapshot> => {
-  const candidates = ['/v1/authz/me', '/api/v1/authz/me'];
+  const candidates = ['/api/v1/authz/me', '/v1/authz/me'];
   let lastStatus = 0;
 
   for (const path of candidates) {
     const response = await fetch(`${root}${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
       },
     });
 
     lastStatus = response.status;
     if (!response.ok) {
+      continue;
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().startsWith('application/json')) {
       continue;
     }
 
@@ -109,9 +165,7 @@ test.describe('Zanzibar authz live smoke', () => {
     const root = baseURL ?? 'http://localhost:3000';
     const token = await issuePasswordGrantToken(TEST_EMAIL, TEST_PASSWORD);
     const authz = await fetchAuthzSnapshot(root, token);
-    const allowedModules = Array.isArray(authz.allowedModules)
-      ? authz.allowedModules
-      : (Array.isArray(authz.permissions) ? authz.permissions : []);
+    const allowedModules = deriveAllowedModules(authz);
 
     expect(authz.superAdmin).toBeFalsy();
     if (authz.userId !== undefined && authz.userId !== null) {

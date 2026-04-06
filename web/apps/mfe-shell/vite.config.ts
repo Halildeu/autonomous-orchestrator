@@ -270,12 +270,12 @@ export default defineConfig(({ mode }) => {
         // Direct service routes — bypass gateway (avoids Vault/Eureka issues)
         '/api/v1/reports': { target: 'http://localhost:8095', changeOrigin: true, secure: false },
         '/api/v1/dashboards': { target: 'http://localhost:8095', changeOrigin: true, secure: false },
-        // Zanzibar migration: permission-service removed, so legacy access
-        // routes must terminate on the user/authz service plane, not 8090.
+        // Access/authz plane permission-service uzerinde yasiyor; local dev
+        // proxy'leri stage gateway sahipligiyle ayni tutulur.
         '/api/v1/context-health': { target: 'http://localhost:8095', changeOrigin: true, secure: false },
-        '/api/v1/roles': { target: 'http://localhost:8089', changeOrigin: true, secure: false },
-        '/api/v1/permissions': { target: 'http://localhost:8089', changeOrigin: true, secure: false },
-        '/api/v1/authz': { target: 'http://localhost:8089', changeOrigin: true, secure: false },
+        '/api/v1/roles': { target: 'http://localhost:8090', changeOrigin: true, secure: false },
+        '/api/v1/permissions': { target: 'http://localhost:8090', changeOrigin: true, secure: false },
+        '/api/v1/authz': { target: 'http://localhost:8090', changeOrigin: true, secure: false },
         '/api/v1/users': { target: 'http://localhost:8089', changeOrigin: true, secure: false },
         '/api/v1/companies': { target: 'http://localhost:8092', changeOrigin: true, secure: false },
         '/api/v1/themes': { target: 'http://localhost:8091', changeOrigin: true, secure: false },

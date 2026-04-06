@@ -14,6 +14,7 @@ on:
           - inspect-app-authz
           - probe-password-grant
           - reset-password
+          - seed-smoke-role
       user_email:
         description: "Smoke kullanıcı e-postası"
         required: true
@@ -245,7 +246,7 @@ jobs:
               echo "[app-authz] target=${label} url=${url} status=${authz_status} content_type=${content_type:--}"
 
               if [[ "${content_type}" == application/json* ]]; then
-                python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")); mods=payload.get("allowedModules") or payload.get("permissions") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods))' "${body_file}"
+                python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")); mods=payload.get("allowedModules") or []; perms=payload.get("permissions") or []; module_map=payload.get("modules") or {}; module_keys=list(module_map.keys()) if isinstance(module_map, dict) else []; roles=payload.get("roles") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods)); print("[app-authz] permissions=" + ",".join(str(x) for x in perms)); print("[app-authz] moduleKeys=" + ",".join(str(x) for x in module_keys)); print("[app-authz] roles=" + ",".join(str(x) for x in roles))' "${body_file}"
               else
                 body_preview="$(tr '\n' ' ' < "${body_file}" | sed 's/[[:space:]]\\+/ /g' | cut -c1-240)"
                 echo "[app-authz] body_preview=${body_preview:--}"
@@ -257,6 +258,7 @@ jobs:
             probe_authz "edge-no-prefix" "http://127.0.0.1:5544/v1/authz/me"
             probe_authz "edge" "http://127.0.0.1:5544/api/v1/authz/me"
             probe_authz "gateway" "http://127.0.0.1:8080/api/v1/authz/me"
+            probe_authz "permission-service" "http://127.0.0.1:8090/api/v1/authz/me"
             probe_authz "user-service" "http://127.0.0.1:8089/api/v1/authz/me"
 
             pg_container="$(docker ps --format '{{.Names}}' | awk '/postgres|postgis|db/ { print; exit }')"
@@ -341,6 +343,103 @@ jobs:
           )"
 
           echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown} emailVerified=${email_verified:-unknown} requiredActions=${required_actions:--}"
+
+          if [[ "${MODE}" == "seed-smoke-role" ]]; then
+            pg_container="$(docker ps --format '{{.Names}}' | awk '/postgres|postgis|db/ { print; exit }')"
+            if [[ -z "${pg_container}" ]]; then
+              echo "[seed] HATA: postgres container bulunamadı."
+              docker ps --format '{{.Names}}'
+              exit 1
+            fi
+
+            email_sql="${TARGET_EMAIL//\'/''}"
+            db_user_id="$(
+              docker exec "${pg_container}" psql -U postgres -d users -At \
+                -c "SELECT u.id FROM user_service.users u WHERE lower(u.email) = lower('${email_sql}') ORDER BY u.id LIMIT 1;"
+            )"
+
+            if [[ -z "${db_user_id}" ]]; then
+              echo "[seed] HATA: user_service.users icinde smoke kullanicisi bulunamadi: ${TARGET_EMAIL}"
+              exit 1
+            fi
+
+            docker exec -i "${pg_container}" psql -v ON_ERROR_STOP=1 -U postgres -d users <<SQL
+            WITH target_role AS (
+              INSERT INTO permission_service.roles (name, description, created_at, updated_at)
+              VALUES ('STAGE_SMOKE_RESTRICTED', 'Restricted stage authz smoke role', NOW(), NOW())
+              ON CONFLICT (name) DO UPDATE
+                SET description = EXCLUDED.description,
+                    updated_at = NOW()
+              RETURNING id
+            ),
+            resolved_role AS (
+              SELECT id FROM target_role
+              UNION ALL
+              SELECT r.id
+              FROM permission_service.roles r
+              WHERE r.name = 'STAGE_SMOKE_RESTRICTED'
+            ),
+            target_permissions AS (
+              SELECT p.id, lower(p.code) AS code
+              FROM permission_service.permissions p
+              WHERE lower(p.code) IN ('access-read', 'audit-read', 'report_view')
+            )
+            INSERT INTO permission_service.role_permissions (
+              role_id,
+              permission_id,
+              permission_type,
+              permission_key,
+              grant_type
+            )
+            SELECT
+              rr.id,
+              tp.id,
+              'MODULE',
+              CASE tp.code
+                WHEN 'access-read' THEN 'ACCESS'
+                WHEN 'audit-read' THEN 'AUDIT'
+                WHEN 'report_view' THEN 'REPORT'
+              END,
+              'VIEW'
+            FROM (SELECT id FROM resolved_role ORDER BY id LIMIT 1) rr
+            JOIN target_permissions tp ON TRUE
+            ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+            UPDATE permission_service.user_role_assignments
+            SET active = FALSE,
+                revoked_at = NOW()
+            WHERE user_id = ${db_user_id}
+              AND active = TRUE;
+
+            INSERT INTO permission_service.user_role_assignments (
+              user_id,
+              role_id,
+              active,
+              assigned_at
+            )
+            SELECT ${db_user_id}, r.id, TRUE, NOW()
+            FROM permission_service.roles r
+            WHERE r.name = 'STAGE_SMOKE_RESTRICTED';
+            SQL
+
+            seed_summary="$(
+              docker exec "${pg_container}" psql -U postgres -d users -At -F '|' \
+                -c "SELECT u.id, u.email, COALESCE(string_agg(DISTINCT r.name, ',' ORDER BY r.name), ''), COALESCE(string_agg(DISTINCT p.code, ',' ORDER BY p.code), '') FROM user_service.users u LEFT JOIN permission_service.user_role_assignments ura ON ura.user_id = u.id AND ura.active = true LEFT JOIN permission_service.roles r ON r.id = ura.role_id LEFT JOIN permission_service.role_permissions rp ON rp.role_id = r.id LEFT JOIN permission_service.permissions p ON p.id = rp.permission_id WHERE u.id = ${db_user_id} GROUP BY u.id, u.email;"
+            )"
+
+            printf '%s\n' "${seed_summary}" | awk -F'|' '{ print "[seed] user_id=" $1 " email=" $2 " roles=" $3 " permissions=" $4 }'
+
+            seed_permissions="$(printf '%s' "${seed_summary}" | awk -F'|' '{ print $4 }')"
+            for required_permission in access-read audit-read REPORT_VIEW; do
+              if ! printf '%s' "${seed_permissions}" | grep -Eqi "(^|,)${required_permission}(,|$)"; then
+                echo "[seed] HATA: beklenen permission atanmadi: ${required_permission}"
+                exit 1
+              fi
+            done
+
+            echo "[seed] OK: restricted smoke role atandi."
+            exit 0
+          fi
 
           if [[ "${MODE}" == "inspect" ]]; then
             echo "[kc] OK: smoke kullanıcı erişilebilir."
