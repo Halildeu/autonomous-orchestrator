@@ -87,17 +87,17 @@ jobs:
               --out .cache/reports/deploy_scope_gate_web.v1.json
           fi
 
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        with:
+          version: 10
+
       - uses: actions/setup-node@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         with:
           node-version: 20
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-
-      - uses: pnpm/action-setup@v4
-        if: ${{ env.DEPLOY_ENABLED == 'true' }}
-        with:
-          version: 10
 
       - name: Install web dependencies
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
