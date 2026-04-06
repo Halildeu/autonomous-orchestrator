@@ -15,6 +15,7 @@ on:
           - probe-password-grant
           - reset-password
           - seed-smoke-role
+          - sync-frontend-client
       user_email:
         description: "Smoke kullanıcı e-postası"
         required: true
@@ -29,6 +30,11 @@ on:
         description: "Keycloak realm"
         required: false
         default: "serban"
+        type: string
+      public_origin:
+        description: "Frontend browser origin'i"
+        required: false
+        default: "https://ai.acik.com"
         type: string
 
 permissions:
@@ -51,6 +57,7 @@ jobs:
           TARGET_EMAIL: ${{ inputs.user_email }}
           TARGET_CLIENT_ID: ${{ inputs.client_id }}
           REALM_NAME: ${{ inputs.realm }}
+          PUBLIC_ORIGIN_INPUT: ${{ inputs.public_origin }}
           TARGET_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
           KC_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KC_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
@@ -176,7 +183,52 @@ jobs:
               exit 1
             fi
 
-            printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); client=payload[0] if isinstance(payload,list) and payload else {}; print("[kc] clientId=" + str(client.get("clientId","unknown"))); print("[kc] publicClient=" + str(client.get("publicClient"))); print("[kc] directAccessGrantsEnabled=" + str(client.get("directAccessGrantsEnabled"))); print("[kc] serviceAccountsEnabled=" + str(client.get("serviceAccountsEnabled"))); print("[kc] standardFlowEnabled=" + str(client.get("standardFlowEnabled")));'
+            printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); client=payload[0] if isinstance(payload,list) and payload else {}; redirects=[str(item).strip() for item in client.get("redirectUris",[]) if str(item).strip()]; origins=[str(item).strip() for item in client.get("webOrigins",[]) if str(item).strip()]; print("[kc] clientId=" + str(client.get("clientId","unknown"))); print("[kc] publicClient=" + str(client.get("publicClient"))); print("[kc] directAccessGrantsEnabled=" + str(client.get("directAccessGrantsEnabled"))); print("[kc] serviceAccountsEnabled=" + str(client.get("serviceAccountsEnabled"))); print("[kc] standardFlowEnabled=" + str(client.get("standardFlowEnabled"))); print("[kc] redirectUris=" + ", ".join(redirects)); print("[kc] webOrigins=" + ", ".join(origins));'
+            exit 0
+          fi
+
+          if [[ "${MODE}" == "sync-frontend-client" ]]; then
+            effective_client_id="${TARGET_CLIENT_ID:-frontend}"
+            public_origin="${PUBLIC_ORIGIN_INPUT:-https://ai.acik.com}"
+            public_origin="${public_origin%/}"
+
+            if [[ -z "${public_origin}" ]]; then
+              echo "[kc] HATA: sync-frontend-client için public_origin zorunlu."
+              exit 1
+            fi
+
+            client_q="$(urlencode "${effective_client_id}")"
+            client_payload="$(
+              curl -sS \
+                -H "Authorization: Bearer ${admin_token}" \
+                "${keycloak_base}/admin/realms/${REALM_NAME}/clients?clientId=${client_q}"
+            )"
+            client_id="$(
+              printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload[0].get("id","") if isinstance(payload,list) and payload else "")'
+            )"
+            if [[ -z "${client_id}" ]]; then
+              echo "[kc] HATA: sync-frontend-client için client bulunamadı: ${effective_client_id}"
+              exit 1
+            fi
+
+            current_client="$(
+              curl -sS \
+                -H "Authorization: Bearer ${admin_token}" \
+                "${keycloak_base}/admin/realms/${REALM_NAME}/clients/${client_id}"
+            )"
+
+            updated_client="$(
+              printf '%s' "${current_client}" | PUBLIC_ORIGIN="${public_origin}" python3 -c 'import json, os, sys; client=json.load(sys.stdin); origin=os.environ["PUBLIC_ORIGIN"].rstrip("/"); redirects=[str(item).strip() for item in client.get("redirectUris", []) if str(item).strip()]; web_origins=[str(item).strip() for item in client.get("webOrigins", []) if str(item).strip()]; [redirects.append(value) for value in ("http://127.0.0.1:3000/*", "http://localhost:3000/*", origin, f"{origin}/*") if value and value not in redirects]; [web_origins.append(value) for value in ("http://127.0.0.1:3000", "http://localhost:3000", origin) if value and value not in web_origins]; client["publicClient"]=True; client["serviceAccountsEnabled"]=False; client["standardFlowEnabled"]=True; client["directAccessGrantsEnabled"]=False; client["bearerOnly"]=False; client["rootUrl"]=origin; client["baseUrl"]=origin; client["redirectUris"]=redirects; client["webOrigins"]=web_origins; attributes=client.setdefault("attributes", {}); attributes["pkce.code.challenge.method"]="S256"; attributes["post.logout.redirect.uris"]="+"; print(json.dumps(client))'
+            )"
+
+            curl -sS \
+              -X PUT \
+              -H "Authorization: Bearer ${admin_token}" \
+              -H "Content-Type: application/json" \
+              "${keycloak_base}/admin/realms/${REALM_NAME}/clients/${client_id}" \
+              -d "${updated_client}" >/dev/null
+
+            printf '%s' "${updated_client}" | python3 -c 'import json,sys; client=json.load(sys.stdin); redirects=[str(item).strip() for item in client.get("redirectUris",[]) if str(item).strip()]; origins=[str(item).strip() for item in client.get("webOrigins",[]) if str(item).strip()]; print("[kc] synced_client=" + str(client.get("clientId","unknown"))); print("[kc] publicClient=" + str(client.get("publicClient"))); print("[kc] standardFlowEnabled=" + str(client.get("standardFlowEnabled"))); print("[kc] serviceAccountsEnabled=" + str(client.get("serviceAccountsEnabled"))); print("[kc] redirectUris=" + ", ".join(redirects)); print("[kc] webOrigins=" + ", ".join(origins));'
             exit 0
           fi
 
