@@ -301,3 +301,46 @@ jobs:
           GHCR_TOKEN="${GITHUB_TOKEN}" \
           TARGET_IMAGE_TAG="sha-${short_sha}" \
           deploy/ubuntu/deploy-backend.sh
+
+      - name: Collect stage backend diagnostics on failure
+        if: ${{ failure() && env.DEPLOY_ENABLED == 'true' }}
+        env:
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+          remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+          remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+          compose_file="${remote_repo_dir}/backend/docker-compose.prod.yml"
+
+          compose_flags=()
+          if [ -n "${remote_profiles}" ]; then
+            IFS=',' read -r -a raw_profiles <<< "${remote_profiles}"
+            for profile in "${raw_profiles[@]}"; do
+              profile="$(echo "${profile}" | xargs)"
+              [ -n "${profile}" ] || continue
+              compose_flags+=(--profile "${profile}")
+            done
+          fi
+
+          echo "::group::docker ps -a"
+          docker ps -a || true
+          echo "::endgroup::"
+
+          echo "::group::docker compose ps --all"
+          docker compose --env-file "${remote_env_file}" -f "${compose_file}" "${compose_flags[@]}" ps --all || true
+          echo "::endgroup::"
+
+          for service in discovery-server permission-service auth-service user-service variant-service core-data-service api-gateway openfga postgres-db; do
+            echo "::group::docker inspect ${service}"
+            docker inspect "platform-${service}-1" || true
+            echo "::endgroup::"
+
+            echo "::group::docker logs ${service}"
+            docker logs --tail 200 "platform-${service}-1" || true
+            echo "::endgroup::"
+          done
