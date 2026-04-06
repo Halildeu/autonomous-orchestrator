@@ -18,6 +18,11 @@ on:
         required: true
         default: "user3@example.com"
         type: string
+      client_id:
+        description: "Override edilecek Keycloak client_id"
+        required: false
+        default: ""
+        type: string
       realm:
         description: "Keycloak realm"
         required: false
@@ -42,6 +47,7 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           TARGET_EMAIL: ${{ inputs.user_email }}
+          TARGET_CLIENT_ID: ${{ inputs.client_id }}
           REALM_NAME: ${{ inputs.realm }}
           TARGET_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
           KC_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
@@ -139,13 +145,15 @@ jobs:
             exit 1
           fi
 
+          effective_client_id="${TARGET_CLIENT_ID:-${KC_CLIENT_ID:-}}"
+
           if [[ "${MODE}" == "inspect-client" ]]; then
-            if [[ -z "${KC_CLIENT_ID:-}" ]]; then
-              echo "[kc] HATA: inspect-client için KEYCLOAK_CLIENT_ID secret'ı zorunlu."
+            if [[ -z "${effective_client_id}" ]]; then
+              echo "[kc] HATA: inspect-client için client_id input'u veya KEYCLOAK_CLIENT_ID secret'ı zorunlu."
               exit 1
             fi
 
-            client_q="$(urlencode "${KC_CLIENT_ID}")"
+            client_q="$(urlencode "${effective_client_id}")"
             client_payload="$(
               curl -sS \
                 -H "Authorization: Bearer ${admin_token}" \
@@ -156,7 +164,7 @@ jobs:
               printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(len(payload) if isinstance(payload,list) else 0)' 2>/dev/null || printf '0'
             )"
             if [[ "${client_count}" -eq 0 ]]; then
-              echo "[kc] HATA: client bulunamadı: ${KC_CLIENT_ID}"
+              echo "[kc] HATA: client bulunamadı: ${effective_client_id}"
               all_clients_payload="$(
                 curl -sS \
                   -H "Authorization: Bearer ${admin_token}" \
@@ -171,23 +179,16 @@ jobs:
           fi
 
           if [[ "${MODE}" == "probe-password-grant" ]]; then
-            if [[ -z "${KC_CLIENT_ID:-}" || -z "${KC_CLIENT_SECRET:-}" || -z "${TARGET_PASSWORD:-}" ]]; then
-              echo "[kc] HATA: probe-password-grant için KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET ve PW_REAL_USER_PASSWORD zorunlu."
+            if [[ -z "${effective_client_id}" || -z "${TARGET_PASSWORD:-}" ]]; then
+              echo "[kc] HATA: probe-password-grant için client_id input'u veya KEYCLOAK_CLIENT_ID secret'ı ve PW_REAL_USER_PASSWORD zorunlu."
               exit 1
             fi
 
-            token_response="$(
-              curl -sS \
-                -w '\n%{http_code}' \
-                -X POST "${keycloak_base}/realms/${REALM_NAME}/protocol/openid-connect/token" \
-                -H "Content-Type: application/x-www-form-urlencoded" \
-                -d "grant_type=password" \
-                -d "client_id=${KC_CLIENT_ID}" \
-                -d "client_secret=${KC_CLIENT_SECRET}" \
-                -d "username=${TARGET_EMAIL}" \
-                -d "password=${TARGET_PASSWORD}" \
-                -d "scope=${KC_SCOPE:-openid}"
-            )"
+            token_cmd=(curl -sS -w '\n%{http_code}' -X POST "${keycloak_base}/realms/${REALM_NAME}/protocol/openid-connect/token" -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=password" -d "client_id=${effective_client_id}" -d "username=${TARGET_EMAIL}" -d "password=${TARGET_PASSWORD}" -d "scope=${KC_SCOPE:-openid}")
+            if [[ -n "${KC_CLIENT_SECRET:-}" && -z "${TARGET_CLIENT_ID:-}" ]]; then
+              token_cmd+=(-d "client_secret=${KC_CLIENT_SECRET}")
+            fi
+            token_response="$("${token_cmd[@]}")"
             status="$(printf '%s' "${token_response}" | tail -n 1)"
             body="$(printf '%s' "${token_response}" | sed '$d')"
             printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; error=str(payload.get("error","")).strip(); desc=str(payload.get("error_description","")).strip(); token=str(payload.get("access_token","")).strip(); print(f"[kc] token_error={error or \"-\"}"); print(f"[kc] token_error_description={desc or \"-\"}"); print(f"[kc] access_token_present={\"yes\" if token else \"no\"}")'
