@@ -65,10 +65,12 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
       keycloakUrl: env.VITE_KEYCLOAK_URL ?? env.KEYCLOAK_URL ?? '',
       keycloakRealm: env.VITE_KEYCLOAK_REALM ?? env.KEYCLOAK_REALM ?? '',
       keycloakClientId: env.VITE_KEYCLOAK_CLIENT_ID ?? env.KEYCLOAK_CLIENT_ID ?? '',
+      isSecureContext: window.isSecureContext,
+      hasCryptoSubtle: Boolean(window.crypto?.subtle),
     };
   });
   console.log(
-    `[authz-smoke] runtime_env authMode=${runtimeEnv.authMode} keycloakUrl=${runtimeEnv.keycloakUrl} realm=${runtimeEnv.keycloakRealm} clientId=${runtimeEnv.keycloakClientId}`,
+    `[authz-smoke] runtime_env authMode=${runtimeEnv.authMode} keycloakUrl=${runtimeEnv.keycloakUrl} realm=${runtimeEnv.keycloakRealm} clientId=${runtimeEnv.keycloakClientId} secureContext=${runtimeEnv.isSecureContext} subtle=${runtimeEnv.hasCryptoSubtle}`,
   );
 
   const appLoginButtonSelectors = [
@@ -81,6 +83,9 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
     const loginButton = page.locator(appLoginButtonSelectors[0]).first();
     if (await loginButton.isVisible().catch(() => false)) {
       await expect(loginButton).toBeEnabled({ timeout: 30_000 });
+      console.log(
+        `[authz-smoke] login_button enabled=${await loginButton.isEnabled().catch(() => false)} text=${await loginButton.textContent().catch(() => '')}`,
+      );
     }
     await clickFirst(page, appLoginButtonSelectors);
     await page.waitForURL((url) => url.toString() !== initialUrl || url.toString().includes('/realms/'), {
