@@ -313,8 +313,8 @@ jobs:
           find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
           git init "${GITHUB_WORKSPACE}"
-          git -C "${GITHUB_WORKSPACE}" remote add origin "https://github.com/${GH_REPO}.git"
-          git -C "${GITHUB_WORKSPACE}" -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth 1 origin "${GH_SHA}"
+          git -C "${GITHUB_WORKSPACE}" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          git -C "${GITHUB_WORKSPACE}" fetch --depth 1 origin "${GH_SHA}"
           git -C "${GITHUB_WORKSPACE}" checkout -B "${GITHUB_REF_NAME}" FETCH_HEAD
 
           if [[ ! -f "${GITHUB_WORKSPACE}/deploy/ubuntu/deploy-frontend.sh" ]]; then
