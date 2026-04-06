@@ -21,7 +21,7 @@ export const mockAccessRoles: AccessRole[] = [
       {
         moduleKey: 'SECURITY_CENTER',
         moduleLabel: 'Güvenlik Merkezi',
-        level: 'EDIT',
+        level: 'MANAGE',
         lastUpdatedAt: '2025-09-11T08:43:00Z',
         updatedBy: 'selim.tas'
       },
@@ -71,7 +71,7 @@ export const mockAccessRoles: AccessRole[] = [
       {
         moduleKey: 'USER_MANAGEMENT',
         moduleLabel: 'Kullanıcı Yönetimi',
-        level: 'EDIT',
+        level: 'MANAGE',
         lastUpdatedAt: '2025-09-26T09:10:00Z',
         updatedBy: 'sema.ozturk'
       },

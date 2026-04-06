@@ -25,7 +25,6 @@ const GRID_SCHEMA_VERSION = 1;
 
 const LEVEL_BADGE_VARIANT: Record<string, 'error' | 'warning' | 'info' | 'muted'> = {
   MANAGE: 'error',
-  EDIT: 'warning',
   VIEW: 'info',
   NONE: 'muted',
 };

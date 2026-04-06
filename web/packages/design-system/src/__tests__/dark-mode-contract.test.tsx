@@ -217,7 +217,13 @@ beforeAll(() => {
  * - ColorPicker uses inline background-color with rgb() for rendering actual color swatches
  *   — this is the component's functional output, not a themeable surface.
  */
-const GLOBAL_ALLOW_LIST = ['text-text-inverse', 'text-text-primary'];
+const GLOBAL_ALLOW_LIST = [
+  'text-text-inverse',
+  'text-text-primary',
+  // ECharts canvas container injects -webkit-tap-highlight-color inline — not controllable
+  '-webkit-tap-highlight-color: rgb',
+  'user-select: none',
+];
 
 /* ------------------------------------------------------------------ */
 /*  Teardown                                                           */

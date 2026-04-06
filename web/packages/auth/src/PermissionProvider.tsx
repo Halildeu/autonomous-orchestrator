@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import type { AuthzMeResponse } from './types';
+import type { AuthzMeResponse, AccessLevel, GrantResult } from './types';
 import { fetchAuthzMe } from './api';
 
 interface PermissionContextValue {
@@ -11,6 +11,18 @@ interface PermissionContextValue {
   loading: boolean;
   /** Check if user has access to a module */
   hasModule: (module: string) => boolean;
+  /** Get module access level (VIEW | MANAGE | NONE) */
+  getModuleLevel: (module: string) => AccessLevel;
+  /** Check if an action is allowed */
+  isActionAllowed: (action: string) => boolean;
+  /** Check if an action is explicitly denied */
+  isActionDenied: (action: string) => boolean;
+  /** Check if user can view a report */
+  canViewReport: (report: string) => boolean;
+  /** Check if user can access a page */
+  canAccessPage: (page: string) => boolean;
+  /** Get user's role names */
+  getUserRoles: () => string[];
   /** Check if user is superAdmin */
   isSuperAdmin: () => boolean;
   /** Check if user can access a company */
@@ -24,6 +36,12 @@ const PermissionContext = createContext<PermissionContextValue>({
   initialized: false,
   loading: false,
   hasModule: () => false,
+  getModuleLevel: () => 'NONE',
+  isActionAllowed: () => false,
+  isActionDenied: () => false,
+  canViewReport: () => false,
+  canAccessPage: () => false,
+  getUserRoles: () => [],
   isSuperAdmin: () => false,
   canAccessCompany: () => false,
   refresh: async () => {},
@@ -61,6 +79,15 @@ export function PermissionProvider({
         allowedCompanyIds: [],
         allowedProjectIds: [],
         allowedWarehouseIds: [],
+        roles: ['Süper Admin'],
+        modules: {
+          USER_MANAGEMENT: 'MANAGE', ACCESS: 'MANAGE', AUDIT: 'MANAGE',
+          REPORT: 'MANAGE', WAREHOUSE: 'MANAGE', PURCHASE: 'MANAGE', THEME: 'MANAGE',
+        },
+        actions: {},
+        reports: {},
+        pages: {},
+        scopes: { companyIds: [], projectIds: [], warehouseIds: [], branchIds: [] },
       });
       setInitialized(true);
       return;
@@ -94,8 +121,35 @@ export function PermissionProvider({
     loading,
     hasModule: (module: string) => {
       if (permitAll || authz?.superAdmin) return true;
+      // Prefer new modules map, fallback to legacy allowedModules
+      if (authz?.modules && Object.keys(authz.modules).length > 0) {
+        const level = authz.modules[module];
+        return level === 'VIEW' || level === 'MANAGE';
+      }
       return authz?.allowedModules?.includes(module) ?? false;
     },
+    getModuleLevel: (module: string): AccessLevel => {
+      if (permitAll || authz?.superAdmin) return 'MANAGE';
+      return (authz?.modules?.[module] as AccessLevel) ?? 'NONE';
+    },
+    isActionAllowed: (action: string) => {
+      if (permitAll || authz?.superAdmin) return true;
+      return authz?.actions?.[action] === 'ALLOW';
+    },
+    isActionDenied: (action: string) => {
+      return authz?.actions?.[action] === 'DENY';
+    },
+    canViewReport: (report: string) => {
+      if (permitAll || authz?.superAdmin) return true;
+      const grant = authz?.reports?.[report];
+      return grant === 'ALLOW' || grant === undefined; // undefined = not restricted
+    },
+    canAccessPage: (page: string) => {
+      if (permitAll || authz?.superAdmin) return true;
+      const grant = authz?.pages?.[page];
+      return grant === 'ALLOW' || grant === undefined;
+    },
+    getUserRoles: () => authz?.roles ?? [],
     isSuperAdmin: () => permitAll || (authz?.superAdmin ?? false),
     canAccessCompany: (companyId: number) => {
       if (permitAll || authz?.superAdmin) return true;

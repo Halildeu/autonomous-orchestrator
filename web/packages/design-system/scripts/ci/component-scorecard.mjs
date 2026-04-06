@@ -576,5 +576,15 @@ if (isCI) {
     }
     process.exit(1);
   }
-  console.log(`\n✅ SCORECARD GATE PASSED: No F-grade components. Avg: ${avgScore}/100`);
+
+  // D-grade warning (will become blocking in M5 escalation)
+  const poor = scorecards.filter(sc => sc.grade === 'D');
+  if (poor.length > 0) {
+    console.warn(`\n⚠️  SCORECARD WARNING: ${poor.length} component(s) at D grade`);
+    for (const sc of poor) {
+      console.warn(`  ${sc.totalScore} │ ${sc.path} │ ${sc.improvements[0] || ''}`);
+    }
+  }
+
+  console.log(`\n✅ SCORECARD GATE PASSED: No F-grade components. ${poor.length} D-grade warnings. Avg: ${avgScore}/100`);
 }

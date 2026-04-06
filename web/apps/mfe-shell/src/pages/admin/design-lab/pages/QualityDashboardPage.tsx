@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   _Shield,
@@ -10,6 +10,13 @@ import {
   _XCircle,
   _ArrowDown,
   Activity,
+  FlaskConical,
+  Languages,
+  ShieldCheck,
+  BookMarked,
+  Blocks,
+  FileCode2,
+  Microscope,
 } from "lucide-react";
 import { Text } from "@mfe/design-system";
 import { useDesignLab } from "../DesignLabProvider";
@@ -52,6 +59,61 @@ import { useEvidence, FALLBACK_REGISTRY } from "../evidence/useEvidence";
 /*  - Coverage gaps matrix                                             */
 /*  - Bottom-20 lowest-scoring components                              */
 /* ------------------------------------------------------------------ */
+
+/* ---- Scorecard data (CI-generated) ---- */
+
+interface ScorecardEntry {
+  name: string;
+  path: string;
+  dir: string;
+  lineCount: number;
+  scores: {
+    testDepth: number;
+    api: number;
+    a11y: number;
+    testCoverage: number;
+    accessControl: number;
+    storyCompleteness: number;
+    i18n: number;
+    documentation: number;
+  };
+  totalScore: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  improvements: string[];
+}
+
+function useScorecardData(): ScorecardEntry[] {
+  const [data, setData] = useState<ScorecardEntry[]>([]);
+  useEffect(() => {
+    // Fetch from public/scorecard.json (copied from design-system/reports/)
+    // Regenerate with: cd packages/design-system && npm run scorecard:json
+    // Then copy: cp packages/design-system/reports/scorecard.json apps/mfe-shell/public/
+    fetch('/scorecard.json')
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setData(d as ScorecardEntry[]))
+      .catch(() => setData([]));
+  }, []);
+  return data;
+}
+
+const SCORECARD_METRICS = [
+  { key: 'testDepth', label: 'Test Depth', icon: <FlaskConical className="h-3.5 w-3.5" />, color: 'text-action-primary' },
+  { key: 'api', label: 'API Quality', icon: <FileCode2 className="h-3.5 w-3.5" />, color: 'text-state-info-text' },
+  { key: 'a11y', label: 'Accessibility', icon: <ShieldCheck className="h-3.5 w-3.5" />, color: 'text-state-success-text' },
+  { key: 'testCoverage', label: 'Test Coverage', icon: <Microscope className="h-3.5 w-3.5" />, color: 'text-action-secondary' },
+  { key: 'accessControl', label: 'Access Control', icon: <_Shield className="h-3.5 w-3.5" />, color: 'text-state-warning-text' },
+  { key: 'storyCompleteness', label: 'Story Complete', icon: <Blocks className="h-3.5 w-3.5" />, color: 'text-state-error-text' },
+  { key: 'i18n', label: 'i18n Ready', icon: <Languages className="h-3.5 w-3.5" />, color: 'text-text-secondary' },
+  { key: 'documentation', label: 'Documentation', icon: <BookMarked className="h-3.5 w-3.5" />, color: 'text-action-primary' },
+] as const;
+
+const GRADE_COLORS: Record<string, string> = {
+  A: 'bg-state-success-bg text-state-success-text',
+  B: 'bg-state-info-bg text-state-info-text',
+  C: 'bg-state-warning-bg text-state-warning-text',
+  D: 'bg-state-danger-bg text-state-danger-text',
+  F: 'bg-state-danger-bg text-state-danger-text font-bold',
+};
 
 /* ---- Quality gate definitions ---- */
 
@@ -184,6 +246,7 @@ export default function QualityDashboardPage() {
   const evidenceState = useEvidence();
   const evidence = evidenceState.status === 'loaded' ? evidenceState.data : FALLBACK_REGISTRY;
   const evidenceAvailable = evidenceState.status === 'loaded';
+  const scorecardData = useScorecardData();
 
   /* ---- Compute all scores ---- */
   const scoredComponents = useMemo(() => {
@@ -237,6 +300,25 @@ export default function QualityDashboardPage() {
       }))
       .sort((a, b) => b.avgScore - a.avgScore);
   }, [scoredComponents]);
+
+  /* ---- Scorecard aggregates ---- */
+  const scorecardAgg = useMemo(() => {
+    if (scorecardData.length === 0) return null;
+    const metricKeys = ['testDepth', 'api', 'a11y', 'testCoverage', 'accessControl', 'storyCompleteness', 'i18n', 'documentation'] as const;
+    const avgs: Record<string, number> = {};
+    for (const key of metricKeys) {
+      const sum = scorecardData.reduce((s, c) => s + (c.scores[key] ?? 0), 0);
+      avgs[key] = Math.round(sum / scorecardData.length);
+    }
+    const grades: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+    for (const c of scorecardData) grades[c.grade] = (grades[c.grade] ?? 0) + 1;
+    const shallowTests = scorecardData.filter(c => c.scores.testDepth < 30).length;
+    const noStory = scorecardData.filter(c => c.scores.storyCompleteness === 0).length;
+    const noA11y = scorecardData.filter(c => c.scores.a11y === 0).length;
+    const noAccessControl = scorecardData.filter(c => c.scores.accessControl === 0).length;
+    const avgTotal = Math.round(scorecardData.reduce((s, c) => s + c.totalScore, 0) / scorecardData.length);
+    return { avgs, grades, shallowTests, noStory, noA11y, noAccessControl, avgTotal, total: scorecardData.length };
+  }, [scorecardData]);
 
   /* ---- Bottom 20 ---- */
   const bottom20 = useMemo(() => {
@@ -398,6 +480,30 @@ export default function QualityDashboardPage() {
         </div>
       </div>
 
+      {/* ─── Leadership Summary ─── */}
+      {scorecardAgg && (
+        <div className="grid grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border-subtle bg-surface-default p-4 text-center">
+            <Text className="text-3xl font-bold text-text-primary">{scorecardAgg.total}</Text>
+            <Text variant="secondary" className="text-xs">Toplam Bilesen</Text>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-surface-default p-4 text-center">
+            <Text className="text-3xl font-bold text-action-primary">{scorecardAgg.avgTotal}</Text>
+            <Text variant="secondary" className="text-xs">Ortalama Skor</Text>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-surface-default p-4 text-center">
+            <Text className={`text-3xl font-bold ${(scorecardAgg.grades.D + scorecardAgg.grades.F) > 0 ? 'text-state-danger-text' : 'text-state-success-text'}`}>
+              {scorecardAgg.grades.D + scorecardAgg.grades.F}
+            </Text>
+            <Text variant="secondary" className="text-xs">Kritik (D+F)</Text>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-surface-default p-4 text-center">
+            <Text className="text-3xl font-bold text-state-warning-text">{scorecardAgg.shallowTests}</Text>
+            <Text variant="secondary" className="text-xs">Shallow Test</Text>
+          </div>
+        </div>
+      )}
+
       {/* ─── Actionable Alerts ─── */}
       <AlertPanel alerts={alerts} />
 
@@ -411,6 +517,124 @@ export default function QualityDashboardPage() {
         </div>
         <SLOTracker metrics={sloMetrics} />
       </div>
+
+      {/* ─── CI Scorecard Metrics (8 boyut) ─── */}
+      {scorecardAgg && (
+        <div className="rounded-2xl border border-border-subtle bg-surface-default p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Microscope className="h-4 w-4 text-text-secondary" />
+              <Text as="div" className="text-sm font-semibold text-text-primary">
+                CI Scorecard — {scorecardAgg.total} Bilesen
+              </Text>
+              <DataProvenanceBadge level="ci" />
+            </div>
+            <Text as="div" className="text-2xl font-bold tabular-nums text-text-primary">
+              {scorecardAgg.avgTotal}/100
+            </Text>
+          </div>
+
+          {/* Grade Distribution */}
+          <div className="mb-4 flex items-center gap-2">
+            {(['A', 'B', 'C', 'D', 'F'] as const).map(grade => (
+              <div key={grade} className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${GRADE_COLORS[grade]}`}>
+                <span className="text-xs font-bold">{grade}</span>
+                <span className="text-[10px] font-medium">{scorecardAgg.grades[grade]}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 8 Metric Bars */}
+          <div className="grid grid-cols-4 gap-3">
+            {SCORECARD_METRICS.map(m => {
+              const val = scorecardAgg.avgs[m.key] ?? 0;
+              return (
+                <div key={m.key} className="rounded-lg border border-border-subtle/60 bg-surface-canvas/30 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <span className={m.color}>{m.icon}</span>
+                    <Text variant="secondary" className="text-[10px] font-medium">{m.label}</Text>
+                  </div>
+                  <div className="flex items-end gap-1.5">
+                    <Text className="text-lg font-bold tabular-nums text-text-primary">{val}%</Text>
+                    <div className="mb-1 h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${val >= 80 ? 'bg-state-success-text' : val >= 60 ? 'bg-state-warning-text' : 'bg-state-danger-text'}`}
+                        style={{ width: `${val}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Risk Indicators */}
+          <div className="mt-4 grid grid-cols-4 gap-2">
+            <div className="rounded-lg bg-state-danger-bg/40 p-2.5 text-center">
+              <Text className="text-lg font-bold text-state-danger-text">{scorecardAgg.shallowTests}</Text>
+              <Text variant="secondary" className="text-[10px]">Shallow Test</Text>
+            </div>
+            <div className="rounded-lg bg-state-warning-bg/40 p-2.5 text-center">
+              <Text className="text-lg font-bold text-state-warning-text">{scorecardAgg.noStory}</Text>
+              <Text variant="secondary" className="text-[10px]">Story Yok</Text>
+            </div>
+            <div className="rounded-lg bg-state-warning-bg/40 p-2.5 text-center">
+              <Text className="text-lg font-bold text-state-warning-text">{scorecardAgg.noA11y}</Text>
+              <Text variant="secondary" className="text-[10px]">A11y Yok</Text>
+            </div>
+            <div className="rounded-lg bg-state-info-bg/40 p-2.5 text-center">
+              <Text className="text-lg font-bold text-state-info-text">{scorecardAgg.noAccessControl}</Text>
+              <Text variant="secondary" className="text-[10px]">AccessControl Yok</Text>
+            </div>
+          </div>
+
+          {/* Expandable: Shallow Tests + A11y Zero Lists */}
+          {(() => {
+            const shallowList = scorecardData.filter(c => c.scores.testDepth < 30);
+            const a11yZeroList = scorecardData.filter(c => c.scores.a11y === 0);
+            return (
+              <div className="mt-4 space-y-2">
+                {shallowList.length > 0 && (
+                  <details className="rounded-lg border border-state-danger-bg bg-state-danger-bg/10 p-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-state-danger-text">
+                      Shallow Test ({shallowList.length}) — testDepth &lt; 30
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {shallowList.map(c => (
+                        <div key={c.path} className="flex items-center justify-between rounded-md bg-surface-default/60 px-2 py-1 text-[10px]">
+                          <span className="font-medium text-text-primary">{c.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-text-secondary">{c.dir}</span>
+                            <span className={`rounded-full px-1.5 py-0.5 font-bold ${GRADE_COLORS[c.grade]}`}>{c.grade}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+                {a11yZeroList.length > 0 && (
+                  <details className="rounded-lg border border-state-warning-bg bg-state-warning-bg/10 p-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-state-warning-text">
+                      A11y Skor = 0 ({a11yZeroList.length}) — erisilebilirlik destegi yok
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {a11yZeroList.map(c => (
+                        <div key={c.path} className="flex items-center justify-between rounded-md bg-surface-default/60 px-2 py-1 text-[10px]">
+                          <span className="font-medium text-text-primary">{c.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-text-secondary">{c.dir}</span>
+                            <span className="text-text-secondary">a11y:{c.scores.a11y} testDepth:{c.scores.testDepth}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ─── Benchmark Gate ─── */}
       <div className="rounded-2xl border border-border-subtle bg-surface-default p-5">
@@ -611,6 +835,14 @@ export default function QualityDashboardPage() {
                 </Text>
               </div>
               <div className="flex items-center gap-3">
+                {(() => {
+                  const sc = scorecardData.find(s => s.name === comp.item.name);
+                  return sc ? (
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${GRADE_COLORS[sc.grade]}`}>
+                      {sc.grade} ({sc.totalScore})
+                    </span>
+                  ) : null;
+                })()}
                 <Text className="text-[10px] tabular-nums text-text-secondary">
                   a11y {comp.a11yScore}%
                 </Text>

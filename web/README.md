@@ -45,8 +45,17 @@ Micro-frontend platform with shared design system, X-suite component packages, a
 
 ```bash
 pnpm install
-pnpm dev
+
+# Canonical local stack
+cd ../backend
+./scripts/run-compose-stack.sh
+
+cd ../web
+pnpm start
 ```
+
+Canonical entrypoint memory:
+- `../docs/04-operations/RUNBOOKS/RB-local-dev-stack.md`
 
 ## Verification
 

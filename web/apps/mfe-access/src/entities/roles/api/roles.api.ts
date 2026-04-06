@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { api, type ApiInstance } from '@mfe/shared-http';
 import type { AccessLevel, AccessModulePolicy, AccessRole } from '../../../features/access-management/model/access.types';
 import { getShellServices } from '../../../app/services/shell-services';
+import { mockAccessRoles } from '../../../features/access-management/lib/mock-data';
 
 type RolePolicyDto = {
   moduleKey?: string;
@@ -59,10 +60,12 @@ const resolveHttpClient = (): ApiInstance => {
   }
 };
 
+const isDevelopmentFallbackEnabled = () => process.env.NODE_ENV !== 'production';
+
 const toAccessLevel = (value?: string): AccessLevel => {
   const upper = (value || '').toUpperCase();
   if (upper === 'VIEW') return 'VIEW';
-  if (upper === 'EDIT') return 'EDIT';
+  if (upper === 'EDIT') return 'MANAGE'; // EDIT → MANAGE per STORY-0318 K1
   if (upper === 'MANAGE') return 'MANAGE';
   return 'NONE';
 };
@@ -95,6 +98,9 @@ export const getRoles = async (): Promise<{ items: AccessRole[]; total: number }
     const total = typeof res.data.total === 'number' ? res.data.total : items.length;
     return { items, total };
   } catch (err: unknown) {
+    if (isDevelopmentFallbackEnabled()) {
+      return { items: mockAccessRoles, total: mockAccessRoles.length };
+    }
     parseError(err);
   }
 };
@@ -105,6 +111,12 @@ export const getRole = async (id: string): Promise<AccessRole> => {
     const res = await client.get<RoleDto>(`/v1/roles/${encodeURIComponent(id)}`);
     return mapRole(res.data);
   } catch (err: unknown) {
+    if (isDevelopmentFallbackEnabled()) {
+      const fallback = mockAccessRoles.find((role) => role.id === id);
+      if (fallback) {
+        return fallback;
+      }
+    }
     parseError(err);
   }
 };

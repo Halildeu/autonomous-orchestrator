@@ -332,6 +332,21 @@
       "path": "web/apps/mfe-shell/src/app/shortcuts/useShellShortcuts.model.ts",
       "ux_theme_id": "task_completion_architecture",
       "ux_subtheme_id": "critical_path_minimization"
+    },
+    {
+      "path": "web/apps/mfe-shell/src/pages/unauthorized/UnauthorizedPage.ui.tsx",
+      "ux_theme_id": "feedback_state_and_visibility",
+      "ux_subtheme_id": "loading_empty_error_success_patterns"
+    },
+    {
+      "path": "web/packages/auth/src/useCheckPermission.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/auth/src/useExplainPermission.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
     }
   ]
 }

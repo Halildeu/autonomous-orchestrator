@@ -32,16 +32,17 @@
   "main": "index.js",
   "scripts": {
     "prestart": "npx kill-port 3000 3001 3002 3003 3004 3005 3006 3007 || true",
+    "dev": "pnpm start",
     "dev:remotes": "bash ./scripts/health/run-dev-servers.sh --profile remotes",
     "dev:shell": "npm start --prefix apps/mfe-shell",
     "dev:users": "npm start --prefix apps/mfe-users",
     "dev:access": "npm start --prefix apps/mfe-access",
     "dev:audit": "npm start --prefix apps/mfe-audit",
-    "dev:all:raw": "npm-run-all --parallel dev:shell dev:users dev:access dev:audit",
+    "dev:all:raw": "node -e \"console.error('[deprecated] use pnpm run dev:all');\" && pnpm run dev:all",
     "dev:all": "bash ./scripts/health/run-dev-servers.sh --profile core",
     "dev:routes:start": "WEB_RUNTIME_PROFILE=auth-business-routes WEB_RUNTIME_TAIL=0 VITE_SHELL_ENABLE_SUGGESTIONS_REMOTE=0 SHELL_ENABLE_SUGGESTIONS_REMOTE=0 VITE_SHELL_ENABLE_ETHIC_REMOTE=0 SHELL_ENABLE_ETHIC_REMOTE=0 bash ./scripts/health/run-dev-servers.sh --profile auth-business-routes",
     "dev:routes:stop": "bash ./scripts/health/stop-dev-servers.sh",
-    "start:raw": "npx concurrently \"npm start --prefix apps/mfe-shell\" \"npm start --prefix apps/mfe-suggestions\" \"npm start --prefix apps/mfe-ethic\" \"npm start --prefix apps/mfe-users\" \"npm start --prefix apps/mfe-access\" \"npm start --prefix apps/mfe-audit\" \"npm start --prefix apps/mfe-reporting\"",
+    "start:raw": "node -e \"console.error('[deprecated] use pnpm start');\" && pnpm start",
     "start": "bash ./scripts/health/run-dev-servers.sh --profile full",
     "build-storybook": "storybook build",
     "test:storybook": "test-storybook --url http://localhost:6006",
@@ -193,9 +194,9 @@
     "build:analyze": "vite build --mode analyze",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev:frontend": "bash ./scripts/dev-frontend.sh",
+    "dev:frontend": "node -e \"console.error('[deprecated] use pnpm start');\" && pnpm start",
     "stop:frontend": "bash ./scripts/stop-frontend.sh",
-    "dev:full": "cd ../backend && docker compose up -d && cd ../web && bash ./scripts/dev-frontend.sh"
+    "dev:full": "node -e \"console.error('[deprecated] use canonical backend compose + pnpm start');\" && cd ../backend && ./scripts/run-compose-stack.sh && cd ../web && pnpm start"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

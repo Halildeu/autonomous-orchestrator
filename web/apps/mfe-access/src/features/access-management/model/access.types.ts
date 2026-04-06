@@ -1,4 +1,4 @@
-export type AccessLevel = 'NONE' | 'VIEW' | 'EDIT' | 'MANAGE';
+export type AccessLevel = 'NONE' | 'VIEW' | 'MANAGE';
 
 export interface AccessModulePolicy {
   moduleKey: string;

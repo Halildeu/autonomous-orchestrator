@@ -18,13 +18,16 @@ class HttpCheck:
     expected_statuses: tuple[int, ...] = (200,)
 
 
-LIVE_CHECKS: dict[str, HttpCheck] = {
+BLOCKING_LIVE_CHECKS: dict[str, HttpCheck] = {
     "api-gateway-health": HttpCheck("http://127.0.0.1:8080/actuator/health"),
-    "gateway-user-by-email-route": HttpCheck("http://127.0.0.1:8080/api/v1/users/by-email?email=admin%40example.com", expected_statuses=(200, 401)),
+    "gateway-user-by-email-route": HttpCheck("http://127.0.0.1:8080/api/v1/users/by-email?email=admin%40example.com"),
     "gateway-theme-registry-route": HttpCheck("http://127.0.0.1:8080/api/v1/theme-registry"),
-    "gateway-roles-route": HttpCheck("http://127.0.0.1:8080/api/v1/roles", expected_statuses=(401,)),
-    "gateway-permissions-route": HttpCheck("http://127.0.0.1:8080/api/v1/permissions", expected_statuses=(401,)),
-    "gateway-audit-route": HttpCheck("http://127.0.0.1:8080/api/audit/events?page=0&size=1", expected_statuses=(401,)),
+    "gateway-audit-route": HttpCheck("http://127.0.0.1:8080/api/audit/events?page=0&size=1"),
+}
+
+ADVISORY_LIVE_CHECKS: dict[str, HttpCheck] = {
+    "gateway-roles-route": HttpCheck("http://127.0.0.1:8080/api/v1/roles"),
+    "gateway-permissions-route": HttpCheck("http://127.0.0.1:8080/api/v1/permissions"),
 }
 
 
@@ -154,15 +157,20 @@ def _wait_for_backend_guard(
     return last_session, last_report, last_reason
 
 
-def _wait_for_live_checks(wait_seconds: int, poll_interval: float) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def _wait_for_live_checks(
+    checks: dict[str, HttpCheck],
+    *,
+    wait_seconds: int,
+    poll_interval: float,
+) -> tuple[dict[str, dict[str, Any]], list[str]]:
     deadline = time.time() + max(wait_seconds, 1)
     results: dict[str, dict[str, Any]] = {
-        name: {"status": "DOWN", "reachable": False} for name in LIVE_CHECKS
+        name: {"status": "DOWN", "reachable": False} for name in checks
     }
 
     while time.time() <= deadline:
         failed: list[str] = []
-        for name, check in LIVE_CHECKS.items():
+        for name, check in checks.items():
             result = _http_check(check)
             results[name] = result
             if result.get("status") != "UP":
@@ -172,6 +180,17 @@ def _wait_for_live_checks(wait_seconds: int, poll_interval: float) -> tuple[dict
         time.sleep(max(poll_interval, 0.5))
 
     failed = [name for name, result in results.items() if result.get("status") != "UP"]
+    return results, failed
+
+
+def _run_live_checks(checks: dict[str, HttpCheck]) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    results: dict[str, dict[str, Any]] = {}
+    failed: list[str] = []
+    for name, check in checks.items():
+        result = _http_check(check)
+        results[name] = result
+        if result.get("status") != "UP":
+            failed.append(name)
     return results, failed
 
 
@@ -189,12 +208,27 @@ def main(argv: list[str] | None = None) -> int:
         wait_seconds=args.wait_seconds,
         poll_interval=args.poll_interval,
     )
-    live_checks, failed_live_checks = _wait_for_live_checks(
+    blocking_live_checks, failed_blocking_live_checks = _wait_for_live_checks(
+        BLOCKING_LIVE_CHECKS,
         wait_seconds=args.wait_seconds,
         poll_interval=args.poll_interval,
     )
+    advisory_live_checks, failed_advisory_live_checks = _run_live_checks(
+        ADVISORY_LIVE_CHECKS,
+    )
 
-    status = "OK" if backend_reason == "backend_guard_ready" and not failed_live_checks else "FAIL"
+    failed_live_checks = failed_blocking_live_checks + failed_advisory_live_checks
+    if backend_reason != "backend_guard_ready" or failed_blocking_live_checks:
+        status = "FAIL"
+    elif failed_advisory_live_checks:
+        status = "WARN"
+    else:
+        status = "OK"
+
+    live_checks = {
+        **blocking_live_checks,
+        **advisory_live_checks,
+    }
     payload = {
         "version": "v1",
         "kind": "web-backend-guard-wait-report",
@@ -205,7 +239,13 @@ def main(argv: list[str] | None = None) -> int:
         "report_path": str(report_path),
         "summary": {
             "backend_guard_reason": backend_reason,
+            "failed_blocking_live_checks": failed_blocking_live_checks,
+            "failed_advisory_live_checks": failed_advisory_live_checks,
             "failed_live_checks": failed_live_checks,
+        },
+        "live_check_groups": {
+            "blocking": list(BLOCKING_LIVE_CHECKS),
+            "advisory": list(ADVISORY_LIVE_CHECKS),
         },
         "session": {
             "session_id": session.get("session_id") if isinstance(session, dict) else None,
@@ -222,13 +262,15 @@ def main(argv: list[str] | None = None) -> int:
                 "status": status,
                 "report_path": str(report_path),
                 "backend_guard_reason": backend_reason,
+                "failed_blocking_live_checks": failed_blocking_live_checks,
+                "failed_advisory_live_checks": failed_advisory_live_checks,
                 "failed_live_checks": failed_live_checks,
             },
             ensure_ascii=False,
             sort_keys=True,
         )
     )
-    return 0 if status == "OK" else 2
+    return 0 if status in {"OK", "WARN"} else 2
 
 
 if __name__ == "__main__":

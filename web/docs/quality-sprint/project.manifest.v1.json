@@ -1,0 +1,92 @@
+{
+  "project_id": "PRJ-QUALITY-SPRINT",
+  "purpose": "Design system bilesen kalitesini sistematik olarak yukseltmek: 16 D/F bileseni düzeltmek, a11y compliance gate'i aktif etmek, CI otomasyon saglamak",
+  "version": "v1",
+  "domain_tags": ["quality", "design-system", "testing", "a11y", "ci"],
+  "target_milestones": ["M1", "M2", "M3", "M4", "M5"],
+  "success_metrics": [
+    "D+F bilesen sayisi: 16 → 0",
+    "a11y:0 bilesen sayisi: 14 → 0",
+    "Scorecard ortalamasi: 87 → 92+",
+    "CI'da otomatik scorecard raporu: aktif",
+    "Story coverage: %85 → %95",
+    "Quality gate: warn → block"
+  ],
+  "risk_category": "medium",
+  "tools": [
+    "npm run scorecard",
+    "npm run scorecard:json",
+    "node scripts/ci/test-quality-analyzer.mjs",
+    "node scripts/ci/component-audit.mjs"
+  ],
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Test Depth Sprint — 16 kritik bilesen",
+      "status": "open",
+      "target_date": "2026-04-19",
+      "dod": [
+        "ShellHeader (F) → C+ notu",
+        "ShellSidebar (D) → C+ notu",
+        "FilterBuilder 5 bilesen → C+ notu",
+        "data-grid column-system 3 bilesen → C+ notu",
+        "AppSidebar 2 bilesen → C+ notu",
+        "Gallery 3 bilesen → C+ notu",
+        "ServerPaginationFooter → C+ notu",
+        "Her bilesen icin: userEvent test, assertion density >= 3/test"
+      ],
+      "effort_estimate": "2 hafta, 1 gelistirici"
+    },
+    {
+      "id": "M2",
+      "title": "A11y Compliance Gate — CI zorunlu",
+      "status": "open",
+      "target_date": "2026-04-26",
+      "dod": [
+        "14 a11y:0 bilesene minimal aria/role eklenmis",
+        "CI gate: a11y >= 40 altinda PR bloklaniyor",
+        "Scorecard script'e gate threshold eklenmis",
+        "Sifir a11y:0 bilesen"
+      ],
+      "effort_estimate": "1 hafta"
+    },
+    {
+      "id": "M3",
+      "title": "Scorecard CI Otomasyonu",
+      "status": "open",
+      "target_date": "2026-04-26",
+      "dod": [
+        "GitHub Actions workflow: her PR'da scorecard calisir",
+        "PR'a otomatik yorum: grade dagilimi + degisen bilesenlerin skorlari",
+        "scorecard.json artifact olarak saklanir",
+        "Dashboard guncel veri gosterir"
+      ],
+      "effort_estimate": "3 gun"
+    },
+    {
+      "id": "M4",
+      "title": "Story Coverage %95",
+      "status": "open",
+      "target_date": "2026-05-03",
+      "dod": [
+        "33 eksik story tamamlanmis",
+        "storyCompleteness ortalamasi >= 95",
+        "Her story: en az 2 variant (default + edge case)"
+      ],
+      "effort_estimate": "1 hafta"
+    },
+    {
+      "id": "M5",
+      "title": "Quality Gate Escalation — Block Mode",
+      "status": "open",
+      "target_date": "2026-06-30",
+      "dod": [
+        "fail_action: warn → block degismis",
+        "D notu altindaki bilesen PR merge edilemiyor",
+        "Yeni bilesen ekleme sablonu C+ minimum ile basliyor",
+        "M1 ve M2 onkosullari tamamlanmis"
+      ],
+      "effort_estimate": "1 gun (M1+M2 sonrasi)"
+    }
+  ]
+}
