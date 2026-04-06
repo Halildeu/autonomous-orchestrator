@@ -79,6 +79,8 @@ Owner: Frontend
 - Vault KV v2 varsayılan path/key’ler (value yok):
   - `secret/<env>/web-playwright/config`:
     - `PLAYWRIGHT_BASE_URL`
+    - `PW_REAL_USER_EMAIL` (opsiyonel; `authz-zanzibar` suite için önerilir)
+    - `PW_REAL_USER_PASSWORD` (opsiyonel; `authz-zanzibar` suite için zorunlu)
   - `secret/<env>/web-playwright/keycloak`:
     - `KEYCLOAK_TOKEN_URL`
     - `KEYCLOAK_CLIENT_ID`
@@ -97,6 +99,12 @@ Owner: Frontend
   1) `vault-secrets-sync` (dry_run=true)
   2) `vault-secrets-sync` (dry_run=false)
   3) `.github/workflows/web-playwright-nightly.yml` (workflow_dispatch) ile koşumu doğrula
+
+- `authz-zanzibar` suite notu:
+  - Restricted-user smoke çalıştırılacaksa `secret/<env>/web-playwright/config`
+    altında `PW_REAL_USER_PASSWORD` tanımlı olmalıdır.
+  - `PW_REAL_USER_EMAIL` boş bırakılırsa varsayılan kullanıcı
+    `user3@example.com` kabul edilir.
 
 -------------------------------------------------------------------------------
 3.3 LOCAL INTEGRATION NIGHTLY (SELF-HOSTED)
