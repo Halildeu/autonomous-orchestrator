@@ -305,8 +305,8 @@ jobs:
 
           vault_addr="${VAULT_ADDR_SECRET:-http://127.0.0.1:8200}"
           if [ -z "${VAULT_TOKEN_SECRET:-}" ]; then
-            echo "::error title=deploy-backend::VAULT_TOKEN secret missing; cannot refresh stage backend AppRole materials."
-            exit 1
+            echo "::notice title=deploy-backend::VAULT_TOKEN secret missing; stage AppRole refresh skipped, existing backend.env bootstrap will be used."
+            exit 0
           fi
 
           ENV=stage \

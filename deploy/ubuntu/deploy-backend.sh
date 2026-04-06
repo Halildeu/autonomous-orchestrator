@@ -132,6 +132,33 @@ maybe_render_env() {
   "${SCRIPT_DIR}/render-backend-env-approle.sh"
 }
 
+bootstrap_vault_credentials_from_env_file() {
+  local file_vault_token=""
+  local file_vault_addr=""
+
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${VAULT_TOKEN:-}" ]]; then
+    file_vault_token="$(read_env_value VAULT_TOKEN)"
+    if [[ -n "${file_vault_token}" ]]; then
+      VAULT_TOKEN="${file_vault_token}"
+      export VAULT_TOKEN
+      echo "[deploy] bootstrapped VAULT_TOKEN from existing env file."
+    fi
+  fi
+
+  if [[ -z "${VAULT_ADDR:-}" ]]; then
+    file_vault_addr="$(read_env_value VAULT_URI)"
+    if [[ -n "${file_vault_addr}" ]]; then
+      VAULT_ADDR="${file_vault_addr}"
+      export VAULT_ADDR
+      echo "[deploy] bootstrapped VAULT_ADDR from existing env file."
+    fi
+  fi
+}
+
 sync_repo() {
   if [[ -d "${REPO_DIR}/.git" ]]; then
     git -C "${REPO_DIR}" fetch origin "${REPO_BRANCH}"
@@ -228,6 +255,7 @@ main() {
   require_cmd docker
 
   pre_sync_existing_repo
+  bootstrap_vault_credentials_from_env_file
   maybe_render_env
   load_env_file
   REPO_BRANCH="${PINNED_REPO_BRANCH}"
