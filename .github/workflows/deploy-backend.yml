@@ -201,6 +201,7 @@ jobs:
             REMOTE_ENV_FILE="${remote_env_file}" \
             REMOTE_REPO_DIR="${remote_repo_dir}" \
             REMOTE_COMPOSE_PROFILES="${remote_profiles}" \
+            REPO_BRANCH="${GITHUB_REF_NAME}" \
             GITHUB_ACTOR="${GITHUB_ACTOR}" \
             GITHUB_TOKEN="${GITHUB_TOKEN}" \
             TARGET_IMAGE_TAG="sha-${short_sha}" \
@@ -292,6 +293,7 @@ jobs:
           ENV_FILE="${remote_env_file}" \
           REPO_DIR="${remote_repo_dir}" \
           COMPOSE_PROFILES="${remote_profiles}" \
+          REPO_BRANCH="${GITHUB_REF_NAME}" \
           RENDER_ENV_BEFORE_DEPLOY="true" \
           DEPLOY_ENV="stage" \
           VAULT_ADDR="http://127.0.0.1:8200" \

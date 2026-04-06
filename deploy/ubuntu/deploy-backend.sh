@@ -7,6 +7,7 @@ BACKEND_DIR="${BACKEND_DIR:-${REPO_DIR}/backend}"
 ENV_FILE="${ENV_FILE:-/home/halil/platform/env/backend.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-${BACKEND_DIR}/docker-compose.prod.yml}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
+PINNED_REPO_BRANCH="${REPO_BRANCH}"
 GIT_REMOTE_URL="${GIT_REMOTE_URL:-}"
 COMPOSE_PROFILES="${COMPOSE_PROFILES:-}"
 STATE_DIR="${STATE_DIR:-/home/halil/platform/state}"
@@ -26,6 +27,32 @@ require_cmd() {
     echo "[error] required command not found: $1" >&2
     exit 1
   fi
+}
+
+print_compose_diagnostics() {
+  local compose_flags="$1"
+  local services=(
+    discovery-server
+    postgres-db
+    openfga-migrate
+    openfga
+    permission-service
+    auth-service
+    user-service
+    variant-service
+    core-data-service
+    api-gateway
+  )
+
+  echo "[diag] docker compose ps --all" >&2
+  # shellcheck disable=SC2086
+  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ${compose_flags} ps --all || true
+
+  for service in "${services[@]}"; do
+    echo "[diag] docker compose logs --tail=200 ${service}" >&2
+    # shellcheck disable=SC2086
+    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ${compose_flags} logs --no-color --tail=200 "${service}" || true
+  done
 }
 
 load_env_file() {
@@ -149,6 +176,7 @@ main() {
   pre_sync_existing_repo
   maybe_render_env
   load_env_file
+  REPO_BRANCH="${PINNED_REPO_BRANCH}"
   sync_repo
   mkdir -p "${STATE_DIR}"
 
@@ -168,6 +196,9 @@ main() {
     local rc=$?
     if [[ "${rc}" -ne 0 && "${image_tag_updated}" = "1" && -n "${original_image_tag}" ]]; then
       upsert_env_value IMAGE_TAG "${original_image_tag}"
+    fi
+    if [[ "${rc}" -ne 0 && -n "${compose_flags:-}" ]]; then
+      print_compose_diagnostics "${compose_flags}" || true
     fi
     exit "${rc}"
   }
