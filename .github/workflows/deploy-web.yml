@@ -300,10 +300,27 @@ jobs:
             echo "::notice title=deploy-web::cleanup image bulunamadi; stage workspace cleanup atlandi."
           fi
 
-      - uses: actions/checkout@v6
+      - name: Materialize stage workspace from branch SHA
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
-        with:
-          fetch-depth: 0
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+          git init "${GITHUB_WORKSPACE}"
+          git -C "${GITHUB_WORKSPACE}" remote add origin "https://github.com/${GH_REPO}.git"
+          git -C "${GITHUB_WORKSPACE}" -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth 1 origin "${GH_SHA}"
+          git -C "${GITHUB_WORKSPACE}" checkout -B "${GITHUB_REF_NAME}" FETCH_HEAD
+
+          if [[ ! -f "${GITHUB_WORKSPACE}/deploy/ubuntu/deploy-frontend.sh" ]]; then
+            echo "::error title=deploy-web::Fetched branch SHA ${GH_SHA} missing deploy script."
+            exit 1
+          fi
 
       - name: Validate stage workspace checkout
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
@@ -311,8 +328,8 @@ jobs:
         run: |
           set -euo pipefail
           repo_dir="${GITHUB_WORKSPACE}"
-          if [[ ! -d "${repo_dir}/.git" ]]; then
-            echo "::error title=deploy-web::stage workspace repo missing at ${repo_dir}"
+          if [[ ! -f "${repo_dir}/deploy/ubuntu/deploy-frontend.sh" ]]; then
+            echo "::error title=deploy-web::stage workspace deploy script missing at ${repo_dir}"
             exit 1
           fi
 
