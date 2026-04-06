@@ -188,23 +188,32 @@ jobs:
       - name: Checkout repository
         env:
           GH_REPO: ${{ github.repository }}
-          GH_REF_NAME: ${{ github.ref_name }}
           GH_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cd "${GITHUB_WORKSPACE}"
-          git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
-          git config gc.auto 0
-          git config advice.detachedHead false
-          git config remote.origin.promisor true
-          git config remote.origin.partialclonefilter blob:none
-          git sparse-checkout init --cone
-          git sparse-checkout set web
-          git fetch --no-tags --depth=1 --filter=blob:none origin "${GH_SHA}"
-          git checkout --detach FETCH_HEAD
-          git branch -f "${GH_REF_NAME}" "${GH_SHA}" || true
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "${tmpdir}"' EXIT
+          archive="${tmpdir}/repo.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/tarball/${GH_SHA}" \
+            -o "${archive}"
+
+          tar -xzf "${archive}" -C "${tmpdir}"
+          src_dir="$(find "${tmpdir}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [[ -z "${src_dir}" || ! -d "${src_dir}/web" ]]; then
+            echo "[pw-smoke] HATA: indirilen arsiv icinde web dizini bulunamadi."
+            find "${tmpdir}" -mindepth 1 -maxdepth 2 -type d | sort || true
+            exit 1
+          fi
+
+          rm -rf "${GITHUB_WORKSPACE}/web"
+          mkdir -p "${GITHUB_WORKSPACE}/web"
+          cp -R "${src_dir}/web/." "${GITHUB_WORKSPACE}/web/"
 
       - name: Validate base_url
         run: |
