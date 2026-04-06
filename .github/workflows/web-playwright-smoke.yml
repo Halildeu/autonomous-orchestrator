@@ -135,6 +135,9 @@ jobs:
       - name: Run Playwright smoke
         run: |
           set -euo pipefail
+          if [[ -n "${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN:-}" ]]; then
+            echo "[pw-smoke] chromium secure-context override: ${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN}"
+          fi
           if [ "${{ inputs.suite }}" = "authz-zanzibar" ]; then
             pnpm run pw:authz-zanzibar
           elif [ "${{ inputs.mode }}" = "nightly" ]; then
@@ -148,6 +151,7 @@ jobs:
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN: ${{ startsWith(inputs.base_url, 'http://') && inputs.base_url || '' }}
           KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
@@ -160,7 +164,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pw-reports
-          path: web/test-results/pw
+          path: web/test-results
+          if-no-files-found: warn
 
   pw-smoke-stage:
     if: ${{ inputs.env == 'stage' }}
@@ -345,6 +350,9 @@ jobs:
       - name: Run Playwright smoke
         run: |
           set -euo pipefail
+          if [[ -n "${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN:-}" ]]; then
+            echo "[pw-smoke] chromium secure-context override: ${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN}"
+          fi
           cmd="npx -y pnpm@9.15.9 run pw:ci"
           if [ "${INPUT_SUITE}" = "authz-zanzibar" ]; then
             cmd="npx -y pnpm@9.15.9 run pw:authz-zanzibar"
@@ -372,6 +380,7 @@ jobs:
             -e PNPM_HOME=/tmp/pnpm-home \
             -e PLAYWRIGHT_BASE_URL \
             -e PLAYWRIGHT_EXECUTABLE_PATH \
+            -e PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN \
             -e PW_KEYCLOAK_URL \
             -e PW_KEYCLOAK_CLIENT_ID \
             -e PW_KEYCLOAK_CLIENT_SECRET \
@@ -396,6 +405,7 @@ jobs:
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN: ${{ startsWith(inputs.base_url, 'http://') && inputs.base_url || '' }}
           PW_KEYCLOAK_CLIENT_ID: admin-cli
           PW_KEYCLOAK_CLIENT_SECRET: ''
           PW_KEYCLOAK_SCOPE: openid
@@ -411,4 +421,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pw-reports-stage
-          path: web/test-results/pw
+          path: web/test-results
+          if-no-files-found: warn
