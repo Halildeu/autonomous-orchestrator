@@ -47,6 +47,7 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
   await page.goto(`${root}/login?redirect=${encodeURIComponent('/access/roles')}`, {
     waitUntil: 'domcontentloaded',
   });
+  const initialUrl = page.url();
 
   const appLoginButtonSelectors = [
     '[data-testid="corporate-login-button"]',
@@ -56,6 +57,9 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
   ];
   if (await isVisible(page, appLoginButtonSelectors)) {
     await clickFirst(page, appLoginButtonSelectors);
+    await page.waitForURL((url) => url.toString() !== initialUrl || url.toString().includes('/realms/'), {
+      timeout: 20_000,
+    }).catch(() => undefined);
   }
 
   const keycloakUserSelectors = ['#username', 'input[name="username"]', 'input[type="email"]'];
@@ -72,6 +76,10 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
     )
     .then(() => true)
     .catch(() => false);
+
+  if (page.url() === initialUrl && !keycloakVisible) {
+    throw new Error(`Login butonu sonrası yönlendirme başlamadı. url=${page.url()}`);
+  }
 
   if (keycloakVisible) {
     await fillFirst(page, keycloakUserSelectors, email);
