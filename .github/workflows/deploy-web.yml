@@ -261,6 +261,11 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER != 'ubuntu-nginx' }}
         run: echo "::notice title=deploy-web::WEB_DEPLOY_PROVIDER!=ubuntu-nginx; skipping stage web deploy."
 
+      - uses: actions/checkout@v6
+        if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
+        with:
+          fetch-depth: 0
+
       - name: Validate stage workspace checkout
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         shell: bash
