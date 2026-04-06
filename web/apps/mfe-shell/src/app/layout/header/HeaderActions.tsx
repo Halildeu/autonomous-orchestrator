@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { LogIn } from 'lucide-react';
 import { useAppSelector } from '../../store/store.hooks';
 import { isPermitAllMode, buildAppRedirectUri } from '../../auth/auth-config';
-import { startKeycloakLogin } from '../../auth/keycloakClient';
 import { useShellCommonI18n } from '../../i18n';
 import NotificationCenter from '../NotificationCenter';
 import { ThemeRuntimePanelButton } from '../ThemeRuntimePanelButton';
@@ -27,9 +26,11 @@ export const HeaderActions: React.FC = () => {
 
   const handleLogin = useCallback(() => {
     setLoginOpen(false);
-    startKeycloakLogin({ redirectUri: buildAppRedirectUri(window.location.href) }).catch(() => {
-      setLoginOpen(true);
-    });
+    const currentPath =
+      `${window.location.pathname}${window.location.search}${window.location.hash}` || '/';
+    window.location.href = buildAppRedirectUri(
+      `/login?redirect=${encodeURIComponent(currentPath)}`,
+    );
   }, []);
 
   return (

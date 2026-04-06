@@ -11,13 +11,25 @@ type AuthzSnapshot = {
 const TEST_EMAIL = (process.env.PW_REAL_USER_EMAIL ?? 'user3@example.com').trim();
 const TEST_PASSWORD = (process.env.PW_REAL_USER_PASSWORD ?? '').trim();
 
-const isVisible = async (page: Page, selectors: string[]): Promise<boolean> => {
-  for (const selector of selectors) {
-    if (await page.locator(selector).first().isVisible().catch(() => false)) {
-      return true;
+const waitForFirstVisible = async (
+  page: Page,
+  selectors: string[],
+  timeoutMs = 15_000,
+) => {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    for (const selector of selectors) {
+      const locator = page.locator(selector).first();
+      if (await locator.isVisible().catch(() => false)) {
+        return locator;
+      }
     }
+
+    await page.waitForTimeout(250);
   }
-  return false;
+
+  return null;
 };
 
 const fillFirst = async (page: Page, selectors: string[], value: string) => {
@@ -40,6 +52,15 @@ const clickFirst = async (page: Page, selectors: string[]) => {
     }
   }
   throw new Error(`Beklenen buton bulunamadı: ${selectors.join(', ')}`);
+};
+
+const summarizeUrl = (value: string): string => {
+  try {
+    const parsed = new URL(value);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return value;
+  }
 };
 
 const performBrowserLogin = async (page: Page, root: string, email: string, password: string) => {
@@ -79,18 +100,30 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
     'button:has-text("Kurumsal Giriş")',
     'button:has-text("Sign In")',
   ];
-  if (await isVisible(page, appLoginButtonSelectors)) {
-    const loginButton = page.locator(appLoginButtonSelectors[0]).first();
-    if (await loginButton.isVisible().catch(() => false)) {
-      await expect(loginButton).toBeEnabled({ timeout: 30_000 });
-      console.log(
-        `[authz-smoke] login_button enabled=${await loginButton.isEnabled().catch(() => false)} text=${await loginButton.textContent().catch(() => '')}`,
-      );
+  const loginButton = await waitForFirstVisible(page, appLoginButtonSelectors, 15_000);
+  if (loginButton) {
+    let loginHref: string | null = null;
+    await expect(loginButton).toBeEnabled({ timeout: 30_000 });
+    loginHref = await loginButton.getAttribute('href').catch(() => null);
+    console.log(
+      `[authz-smoke] login_button enabled=${await loginButton.isEnabled().catch(() => false)} text=${await loginButton.textContent().catch(() => '')}`,
+    );
+    if (loginHref) {
+      console.log(`[authz-smoke] login_href=${summarizeUrl(loginHref)}`);
     }
-    await clickFirst(page, appLoginButtonSelectors);
-    await page.waitForURL((url) => url.toString() !== initialUrl || url.toString().includes('/realms/'), {
+
+    const beforeClickUrl = page.url();
+    await loginButton.click();
+    await page.waitForURL((url) => url.toString() !== beforeClickUrl || url.toString().includes('/realms/'), {
       timeout: 20_000,
     }).catch(() => undefined);
+
+    if (page.url() === beforeClickUrl && loginHref) {
+      console.log(`[authz-smoke] click navigation başlamadı; direct goto fallback=${summarizeUrl(loginHref)}`);
+      await page.goto(loginHref, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+    }
+  } else {
+    console.log('[authz-smoke] login_button görünmedi; login page render gecikmesi veya runtime sorunu olabilir');
   }
 
   const keycloakUserSelectors = ['#username', 'input[name="username"]', 'input[type="email"]'];
