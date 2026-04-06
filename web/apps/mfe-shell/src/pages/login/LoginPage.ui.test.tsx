@@ -105,7 +105,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(startKeycloakLogin).toHaveBeenCalledTimes(1));
     expect(startKeycloakLogin).toHaveBeenCalledWith({
-      redirectUri: 'http://localhost:3000/login?redirect=%2Faccess%2Froles',
+      redirectUri: 'http://localhost:3000/access/roles',
     });
   });
 

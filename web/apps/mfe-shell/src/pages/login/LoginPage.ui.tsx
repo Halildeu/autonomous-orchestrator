@@ -35,10 +35,7 @@ const LoginPage = () => {
     return redirect || '/';
   }, [location.search]);
 
-  const redirectUri = useMemo(
-    () => buildAppRedirectUri(`/login?redirect=${encodeURIComponent(redirectPath)}`),
-    [redirectPath],
-  );
+  const redirectUri = useMemo(() => buildAppRedirectUri(redirectPath), [redirectPath]);
 
   useEffect(() => {
     let active = true;
