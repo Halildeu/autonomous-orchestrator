@@ -143,26 +143,26 @@ STOP_INFRA=1 ./scripts/stop-services.sh
   - Given: `pnpm start` veya `run-dev-servers.sh --profile full` calisiyor
   - When: baslangic, backend guard bekleme asamasinda kalıyor veya `web_backend_guard_wait.v1.json` FAIL uretiyor
   - Then:
-    1. `.cache/reports/web_backend_guard_wait.v1.json` dosyasini ac.
-    2. Once `failed_blocking_live_checks` alanini kontrol et.
-    3. Yalniz `failed_advisory_live_checks` doluysa start devam etmelidir; bu durum ayri migration isi olarak ele alinmalidir.
-    4. `failed_blocking_live_checks` doluysa backend/runtime drift'i kapatmadan resmi akisa devam etme.
+    - `.cache/reports/web_backend_guard_wait.v1.json` dosyasini ac.
+    - Once `failed_blocking_live_checks` alanini kontrol et.
+    - Yalniz `failed_advisory_live_checks` doluysa start devam etmelidir; bu durum ayri migration isi olarak ele alinmalidir.
+    - `failed_blocking_live_checks` doluysa backend/runtime drift'i kapatmadan resmi akisa devam etme.
 
 - [ ] Ariza senaryosu 2 – portlar dolu / eski surecler yeni stack'i bozuyor
   - Given: yeni baslangicta bazi web servisleri dinlemiyor veya eski log/session gorunuyor
   - When: `3000-3008` ya da `8790` portlarinda stale surec var
   - Then:
-    1. `bash web/scripts/health/stop-dev-servers.sh` ile tum web portlarini temizle.
-    2. Compose kullaniyorsan `cd backend && docker compose down --remove-orphans` calistir.
-    3. Resmi varsayilan akisi bastan uygula.
+    - `bash web/scripts/health/stop-dev-servers.sh` ile tum web portlarini temizle.
+    - Compose kullaniyorsan `cd backend && docker compose down --remove-orphans` calistir.
+    - Resmi varsayilan akisi bastan uygula.
 
 - [ ] Ariza senaryosu 3 – eski dokuman/surface yanlis komuta yonlendiriyor
   - Given: `dev:full` veya `start:raw` gibi deprecated bir komut deneniyor
   - When: komut compatibility alias'i uzerinden warning basiyor
   - Then:
-    1. Bu runbook'a geri don.
-    2. Baslangici yalnizca "backend compose + web full" akisi ile yap.
-    3. Gerekirse stale referansi ayri doc cleanup isi olarak isaretle.
+    - Bu runbook'a geri don.
+    - Baslangici yalnizca "backend compose + web full" akisi ile yap.
+    - Gerekirse stale referansi ayri doc cleanup isi olarak isaretle.
 
 -------------------------------------------------------------------------------
 6. ÖZET
