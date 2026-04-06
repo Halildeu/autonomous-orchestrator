@@ -173,7 +173,25 @@ jobs:
         env:
           PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
 
+      - name: Detect system browser
+        run: |
+          set -euo pipefail
+          for bin in \
+            /usr/bin/google-chrome \
+            /usr/bin/google-chrome-stable \
+            /usr/bin/chromium \
+            /usr/bin/chromium-browser \
+            /snap/bin/chromium; do
+            if [ -x "${bin}" ]; then
+              echo "PLAYWRIGHT_EXECUTABLE_PATH=${bin}" >> "${GITHUB_ENV}"
+              echo "[pw-smoke] sistem tarayicisi bulundu: ${bin}"
+              exit 0
+            fi
+          done
+          echo "[pw-smoke] sistem tarayicisi bulunamadi; Docker fallback kullanilacak."
+
       - name: Pull Playwright image
+        if: ${{ env.PLAYWRIGHT_EXECUTABLE_PATH == '' }}
         run: |
           set -euo pipefail
           docker pull mcr.microsoft.com/playwright:v1.58.2-noble
@@ -188,11 +206,19 @@ jobs:
             cmd="pnpm run pw:nightly"
           fi
 
+          if [ -n "${PLAYWRIGHT_EXECUTABLE_PATH:-}" ]; then
+            cd web
+            pnpm install --frozen-lockfile
+            ${cmd}
+            exit 0
+          fi
+
           docker run --rm \
             --network host \
             --ipc=host \
             -e CI=1 \
             -e PLAYWRIGHT_BASE_URL \
+            -e PLAYWRIGHT_EXECUTABLE_PATH \
             -e PW_SOFT_MODE \
             -e PW_AUTH_MODE \
             -e PW_READONLY_ENFORCE \
@@ -210,6 +236,7 @@ jobs:
           INPUT_SUITE: ${{ inputs.suite }}
           INPUT_MODE: ${{ inputs.mode }}
           PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+          PLAYWRIGHT_EXECUTABLE_PATH: ${{ env.PLAYWRIGHT_EXECUTABLE_PATH }}
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
