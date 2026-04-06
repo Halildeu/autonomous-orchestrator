@@ -260,10 +260,36 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED != 'true' }}
         run: echo "::notice title=deploy-backend::DEPLOY_ENABLED!=true; skipping stage host deploy."
 
+      - name: Repair stage workspace ownership
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="platform-playwright-smoke:chromium-bookworm"
+          if docker image inspect "${image}" >/dev/null 2>&1; then
+            docker run --rm \
+              -v "${GITHUB_WORKSPACE}:/work" \
+              "${image}" \
+              bash -lc 'find /work -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
+          else
+            echo "::notice title=deploy-backend::cleanup image bulunamadi; stage workspace cleanup atlandi."
+          fi
+
       - uses: actions/checkout@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         with:
           fetch-depth: 0
+
+      - name: Validate stage workspace checkout
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_dir="${GITHUB_WORKSPACE}"
+          if [[ ! -d "${repo_dir}/.git" ]]; then
+            echo "::error title=deploy-backend::stage workspace repo missing at ${repo_dir}"
+            exit 1
+          fi
 
       - name: Deploy on stage host (self-hosted)
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
