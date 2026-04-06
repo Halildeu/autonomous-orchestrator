@@ -310,6 +310,11 @@ jobs:
 
             edge_origin="${public_origin:-https://ai.acik.com}"
 
+            echo "[app-authz] docker_ports_begin"
+            docker ps --format '{{.Names}}|{{.Ports}}' \
+              | awk -F'|' '/api-gateway|keycloak/ { print "[app-authz] docker_port name=" $1 " ports=" $2 }'
+            echo "[app-authz] docker_ports_end"
+
             probe_authz() {
               local label="$1"
               local url="$2"
