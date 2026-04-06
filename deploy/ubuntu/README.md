@@ -239,6 +239,7 @@ Bu akış şu anda çekirdek remote setini paketler:
 Canlı / secure-context için ek GitHub environment var'ları:
 
 - `WEB_PUBLIC_ORIGIN=https://ai.acik.com`
+- `WEB_GATEWAY_UPSTREAM=http://127.0.0.1:8082`
 - `WEB_KEYCLOAK_PUBLIC_URL=https://ai.acik.com`
 - `WEB_EDGE_SERVER_NAME=ai.acik.com`
 - `WEB_TLS_ENABLED=true`
@@ -254,3 +255,5 @@ Stage üzerinde gerçek sertifika henüz yoksa geçici self-signed fallback kull
 - `WEB_TLS_KEY_PATH=/home/halil/platform/tls/ai.acik.com/privkey.pem`
 
 Bu fallback yalnız `deploy-stage-web` self-hosted job'ında, cert dosyaları yoksa `openssl` ile 30 günlük self-signed sertifika üretir. Amaç secure-context açıp stage smoke'u tamamlamaktır; public canlı için yine geçerli CA sertifikası tercih edilmelidir.
+
+`WEB_GATEWAY_UPSTREAM` verilmezse frontend Nginx varsayılan olarak `http://127.0.0.1:8080` kullanır. Stage host'ta gateway farklı host portunda yayınlanıyorsa bu değişken zorunludur.

@@ -170,6 +170,7 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && env.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' && env.WEB_SSH_DEPLOY_ENABLED == 'true' && (github.event.inputs.env || 'stage') != 'stage' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_GATEWAY_UPSTREAM: ${{ vars.WEB_GATEWAY_UPSTREAM }}
           WEB_EDGE_SERVER_NAME: ${{ vars.WEB_EDGE_SERVER_NAME }}
           WEB_TLS_ENABLED: ${{ vars.WEB_TLS_ENABLED }}
           WEB_TLS_CERT_PATH: ${{ vars.WEB_TLS_CERT_PATH }}
@@ -245,6 +246,7 @@ jobs:
           chmod +x deploy/ubuntu/deploy-frontend.sh deploy/ubuntu/rollback-frontend.sh deploy/ubuntu/run-frontend-nginx-container.sh 2>/dev/null || true
 
           PUBLIC_ORIGIN="${PUBLIC_ORIGIN}" \
+          NGINX_GATEWAY_UPSTREAM="${WEB_GATEWAY_UPSTREAM:-http://127.0.0.1:8080}" \
           NGINX_SERVER_NAME="${WEB_EDGE_SERVER_NAME:-_}" \
           NGINX_TLS_ENABLED="${WEB_TLS_ENABLED:-false}" \
           NGINX_TLS_CERT_PATH="${WEB_TLS_CERT_PATH:-}" \
@@ -377,6 +379,7 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         env:
           WEB_PUBLIC_ORIGIN: ${{ vars.WEB_PUBLIC_ORIGIN }}
+          WEB_GATEWAY_UPSTREAM: ${{ vars.WEB_GATEWAY_UPSTREAM }}
           WEB_AUTH_MODE: ${{ vars.WEB_AUTH_MODE }}
           WEB_KEYCLOAK_PUBLIC_URL: ${{ vars.WEB_KEYCLOAK_PUBLIC_URL }}
           WEB_KEYCLOAK_REALM: ${{ vars.WEB_KEYCLOAK_REALM }}
@@ -414,6 +417,7 @@ jobs:
           KEYCLOAK_PUBLIC_URL="${WEB_KEYCLOAK_PUBLIC_URL:-${WEB_PUBLIC_ORIGIN}}" \
           KEYCLOAK_REALM="${WEB_KEYCLOAK_REALM:-serban}" \
           KEYCLOAK_CLIENT_ID="${WEB_KEYCLOAK_CLIENT_ID:-frontend}" \
+          NGINX_GATEWAY_UPSTREAM="${WEB_GATEWAY_UPSTREAM:-http://127.0.0.1:8080}" \
           NGINX_KEYCLOAK_UPSTREAM="${WEB_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8080}" \
           NGINX_SERVER_NAME="${WEB_EDGE_SERVER_NAME:-_}" \
           NGINX_TLS_ENABLED="${WEB_TLS_ENABLED:-false}" \
