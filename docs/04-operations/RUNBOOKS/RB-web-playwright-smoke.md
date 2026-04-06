@@ -92,6 +92,10 @@ Owner: Frontend
   - `env=stage` için default path’ler:
     - `stage/web-playwright/config`
     - `stage/web-playwright/keycloak`
+  - Vault path boşsa önce aynı workflow’da `mode=seed-web-playwright` çalıştır:
+    - `playwright_base_url` zorunludur.
+    - `pw_real_user_email` opsiyoneldir.
+    - `KEYCLOAK_*` değerleri mevcut GitHub repo secret’larından seed edilir.
   - Önce `dry_run=true` ile sadece FOUND/MISSING key listesini doğrula.
   - Sonra `dry_run=false` ile GitHub secrets’ları güncelle.
 

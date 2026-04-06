@@ -64,6 +64,10 @@ Owner: @team/platform
   - `vault-unseal` çalışıyorsa otomatik unseal beklenir.
   - `vault-unseal` yoksa manuel unseal gerekir (`bash backend/scripts/vault/dev_unseal.sh`).
 - SSOT seed: `bash backend/scripts/vault/seed-web-playwright-stage.sh` (Playwright staging config; opsiyonel `PW_REAL_USER_EMAIL` / `PW_REAL_USER_PASSWORD` dahil).
+- GitHub-only seed: `Vault → GitHub Secrets Sync (Manual)` workflow’unda
+  `mode=seed-web-playwright`; bu mod `playwright_base_url` input’unu ve mevcut
+  GitHub repo secret’larındaki `KEYCLOAK_*` değerlerini
+  `secret/<env>/web-playwright/{config,keycloak}` path’lerine yazar.
 - Sonra `vault-secrets-sync` workflow’unu `dry_run=true` ile çalıştırıp FOUND/MISSING kontrol et.
 - KV v2 “key kaybı” şüphesi (izleme):
   - Key list (value yok): `vault kv get -format=json secret/<env>/<path> | jq -r '.data.data | keys[]'`
