@@ -110,6 +110,28 @@ jobs:
         env:
           PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
 
+      - name: Detect stage Keycloak endpoint
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
+        run: |
+          set -euo pipefail
+          kc_container="$(docker ps --format '{{.Names}}' | awk '/keycloak/ { print; exit }')"
+          if [[ -z "${kc_container}" ]]; then
+            echo "[pw-smoke] HATA: çalışan keycloak container bulunamadı."
+            docker ps --format '{{.Names}}'
+            exit 1
+          fi
+
+          host_port="$(
+            docker inspect -f '{{range $port, $bindings := .NetworkSettings.Ports}}{{if and (eq $port "8080/tcp") $bindings}}{{(index $bindings 0).HostPort}}{{end}}{{end}}' \
+              "${kc_container}" 2>/dev/null || true
+          )"
+          if [[ -z "${host_port}" ]]; then
+            host_port="8081"
+          fi
+
+          echo "PW_KEYCLOAK_URL=http://127.0.0.1:${host_port}" >> "${GITHUB_ENV}"
+          echo "[pw-smoke] keycloak container=${kc_container} host_port=${host_port}"
+
       - name: Run Playwright smoke
         run: |
           set -euo pipefail
@@ -264,6 +286,7 @@ jobs:
             -e CI=1 \
             -e PLAYWRIGHT_BASE_URL \
             -e PLAYWRIGHT_EXECUTABLE_PATH \
+            -e PW_KEYCLOAK_URL \
             -e PW_SOFT_MODE \
             -e PW_AUTH_MODE \
             -e PW_READONLY_ENFORCE \
@@ -284,6 +307,7 @@ jobs:
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          PW_KEYCLOAK_URL: ${{ env.PW_KEYCLOAK_URL }}
           KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
