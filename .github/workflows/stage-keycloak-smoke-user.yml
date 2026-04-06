@@ -10,12 +10,14 @@ on:
         type: choice
         options:
           - inspect
+          - inspect-realm
           - inspect-client
           - inspect-app-authz
           - probe-password-grant
           - reset-password
           - seed-smoke-role
           - sync-frontend-client
+          - sync-browser-origin
       user_email:
         description: "Smoke kullanıcı e-postası"
         required: true
@@ -155,6 +157,40 @@ jobs:
           fi
 
           effective_client_id="${TARGET_CLIENT_ID:-${KC_CLIENT_ID:-}}"
+          public_origin="${PUBLIC_ORIGIN_INPUT:-https://ai.acik.com}"
+          public_origin="${public_origin%/}"
+
+          if [[ "${MODE}" == "inspect-realm" || "${MODE}" == "sync-browser-origin" ]]; then
+            if [[ -z "${public_origin}" ]]; then
+              echo "[kc] HATA: realm public_origin boş olamaz."
+              exit 1
+            fi
+
+            realm_payload="$(
+              curl -sS \
+                -H "Authorization: Bearer ${admin_token}" \
+                "${keycloak_base}/admin/realms/${REALM_NAME}"
+            )"
+
+            if [[ "${MODE}" == "sync-browser-origin" ]]; then
+              realm_payload="$(
+                printf '%s' "${realm_payload}" | PUBLIC_ORIGIN="${public_origin}" python3 -c 'import json, os, sys; realm=json.load(sys.stdin); origin=os.environ["PUBLIC_ORIGIN"].rstrip("/"); attrs=realm.get("attributes") or {}; attrs["frontendUrl"]=origin; realm["attributes"]=attrs; realm["sslRequired"]="EXTERNAL"; print(json.dumps(realm))'
+              )"
+
+              curl -sS \
+                -X PUT \
+                -H "Authorization: Bearer ${admin_token}" \
+                -H "Content-Type: application/json" \
+                "${keycloak_base}/admin/realms/${REALM_NAME}" \
+                -d "${realm_payload}" >/dev/null
+            fi
+
+            printf '%s' "${realm_payload}" | python3 -c 'import json,sys; realm=json.load(sys.stdin); attrs=realm.get("attributes") or {}; print("[kc] realm=" + str(realm.get("realm","unknown"))); print("[kc] sslRequired=" + str(realm.get("sslRequired",""))); print("[kc] frontendUrl=" + str(attrs.get("frontendUrl","")));'
+
+            if [[ "${MODE}" == "inspect-realm" ]]; then
+              exit 0
+            fi
+          fi
 
           if [[ "${MODE}" == "inspect-client" ]]; then
             if [[ -z "${effective_client_id}" ]]; then
@@ -187,10 +223,8 @@ jobs:
             exit 0
           fi
 
-          if [[ "${MODE}" == "sync-frontend-client" ]]; then
+          if [[ "${MODE}" == "sync-frontend-client" || "${MODE}" == "sync-browser-origin" ]]; then
             effective_client_id="${TARGET_CLIENT_ID:-frontend}"
-            public_origin="${PUBLIC_ORIGIN_INPUT:-https://ai.acik.com}"
-            public_origin="${public_origin%/}"
 
             if [[ -z "${public_origin}" ]]; then
               echo "[kc] HATA: sync-frontend-client için public_origin zorunlu."
