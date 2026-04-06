@@ -79,21 +79,35 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
     await clickFirst(page, keycloakSubmitSelectors);
   }
 
-  await page.waitForURL(
-    (url) => {
-      const href = url.toString();
-      return !href.includes('/realms/') && (href.includes('/access/roles') || href.includes('/login') || href.includes('/unauthorized'));
-    },
-    { timeout: 60_000 },
-  );
+  await page.waitForURL((url) => !url.toString().includes('/realms/'), { timeout: 60_000 });
+  await page.waitForFunction(() => typeof (window as any).__shellStore !== 'undefined', { timeout: 60_000 });
+  await page.waitForFunction(() => {
+    const state = (window as any).__shellStore?.getState?.()?.auth;
+    return Boolean(state?.initialized);
+  }, { timeout: 60_000 });
 };
 
 const readBrowserToken = async (page: Page): Promise<string> => {
-  await page.waitForFunction(() => {
-    const token = window.localStorage.getItem('token');
-    const stateToken = (window as any).__shellStore?.getState?.()?.auth?.token;
-    return Boolean(token || stateToken);
-  }, { timeout: 30_000 });
+  try {
+    await page.waitForFunction(() => {
+      const token = window.localStorage.getItem('token');
+      const stateToken = (window as any).__shellStore?.getState?.()?.auth?.token;
+      return Boolean(token || stateToken);
+    }, { timeout: 60_000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => {
+      const state = (window as any).__shellStore?.getState?.()?.auth;
+      return {
+        href: window.location.href,
+        initialized: Boolean(state?.initialized),
+        hasStoreToken: Boolean(state?.token),
+        hasLocalToken: Boolean(window.localStorage.getItem('token')),
+      };
+    });
+    throw new Error(
+      `Browser token beklenirken timeout. href=${diagnostic.href} initialized=${diagnostic.initialized} storeToken=${diagnostic.hasStoreToken} localToken=${diagnostic.hasLocalToken} cause=${String(error)}`,
+    );
+  }
 
   return page.evaluate(() => {
     return (
