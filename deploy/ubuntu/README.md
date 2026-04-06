@@ -246,3 +246,11 @@ Canlı / secure-context için ek GitHub environment var'ları:
 - `WEB_TLS_KEY_PATH=/etc/letsencrypt/live/ai.acik.com/privkey.pem`
 - `WEB_HTTP_PORT=80`
 - `WEB_HTTPS_PORT=443`
+
+Stage üzerinde gerçek sertifika henüz yoksa geçici self-signed fallback kullanılabilir:
+
+- `WEB_TLS_SELF_SIGNED=true`
+- `WEB_TLS_CERT_PATH=/home/halil/platform/tls/ai.acik.com/fullchain.pem`
+- `WEB_TLS_KEY_PATH=/home/halil/platform/tls/ai.acik.com/privkey.pem`
+
+Bu fallback yalnız `deploy-stage-web` self-hosted job'ında, cert dosyaları yoksa `openssl` ile 30 günlük self-signed sertifika üretir. Amaç secure-context açıp stage smoke'u tamamlamaktır; public canlı için yine geçerli CA sertifikası tercih edilmelidir.
