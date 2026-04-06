@@ -11,6 +11,7 @@ on:
         options:
           - inspect
           - inspect-client
+          - inspect-app-authz
           - probe-password-grant
           - reset-password
       user_email:
@@ -195,6 +196,55 @@ jobs:
             echo "[kc] token_status=${status}"
             if [[ "${status}" != "200" ]]; then
               exit 1
+            fi
+            exit 0
+          fi
+
+          if [[ "${MODE}" == "inspect-app-authz" ]]; then
+            effective_client_id="${TARGET_CLIENT_ID:-admin-cli}"
+            if [[ -z "${TARGET_PASSWORD:-}" ]]; then
+              echo "[kc] HATA: inspect-app-authz için stage secret PW_REAL_USER_PASSWORD zorunlu."
+              exit 1
+            fi
+
+            token_cmd=(curl -sS -w '\n%{http_code}' -X POST "${keycloak_base}/realms/${REALM_NAME}/protocol/openid-connect/token" -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=password" -d "client_id=${effective_client_id}" -d "username=${TARGET_EMAIL}" -d "password=${TARGET_PASSWORD}" -d "scope=${KC_SCOPE:-openid}")
+            if [[ -n "${KC_CLIENT_SECRET:-}" && -z "${TARGET_CLIENT_ID:-}" && "${effective_client_id}" == "${KC_CLIENT_ID:-}" ]]; then
+              token_cmd+=(-d "client_secret=${KC_CLIENT_SECRET}")
+            fi
+            token_response="$("${token_cmd[@]}")"
+            status="$(printf '%s' "${token_response}" | tail -n 1)"
+            body="$(printf '%s' "${token_response}" | sed '$d')"
+            access_token="$(printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; print(str(payload.get("access_token","")).strip())')"
+            echo "[app-authz] token_status=${status}"
+            if [[ "${status}" != "200" || -z "${access_token}" ]]; then
+              printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; print("[app-authz] token_error=" + str(payload.get("error","-"))); print("[app-authz] token_error_description=" + str(payload.get("error_description","-")));'
+              exit 1
+            fi
+
+            for path in "/v1/authz/me" "/api/v1/authz/me"; do
+              authz_response="$(
+                curl -sS -w '\n%{http_code}' \
+                  -H "Authorization: Bearer ${access_token}" \
+                  -H "Accept: application/json" \
+                  "http://127.0.0.1:5544${path}"
+              )"
+              authz_status="$(printf '%s' "${authz_response}" | tail -n 1)"
+              authz_body="$(printf '%s' "${authz_response}" | sed '$d')"
+              echo "[app-authz] path=${path} status=${authz_status}"
+              if [[ "${authz_status}" == "200" ]]; then
+                printf '%s' "${authz_body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; mods=payload.get("allowedModules") or payload.get("permissions") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods));'
+              fi
+            done
+
+            pg_container="$(docker ps --format '{{.Names}}' | awk '/postgres|postgis|db/ { print; exit }')"
+            if [[ -n "${pg_container}" ]]; then
+              email_sql="${TARGET_EMAIL//\'/''}"
+              echo "[app-authz] pg_container=${pg_container}"
+              docker exec "${pg_container}" psql -U postgres -d users -At -F '|' \
+                -c "SELECT u.id, u.email, COALESCE(string_agg(DISTINCT r.name, ',' ORDER BY r.name), '') FROM user_service.users u LEFT JOIN permission_service.user_role_assignments ura ON ura.user_id = u.id AND ura.active = true LEFT JOIN permission_service.roles r ON r.id = ura.role_id WHERE lower(u.email) = lower('${email_sql}') GROUP BY u.id, u.email;" \
+                | awk -F'|' '{ print "[app-authz] db_user_id=" $1 " email=" $2 " roles=" $3 }'
+            else
+              echo "[app-authz] WARN: postgres container bulunamadı."
             fi
             exit 0
           fi
