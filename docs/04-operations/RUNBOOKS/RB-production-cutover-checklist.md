@@ -47,6 +47,8 @@ Production promote adımları:
   - [ ] `GIT_REMOTE_URL`
   - [ ] `REPO_BRANCH`
   - [ ] `GHCR_OWNER`
+  - [ ] `GHCR_USERNAME`
+  - [ ] `GHCR_TOKEN`
   - [ ] `VAULT_URI`
   - [ ] `VAULT_TOKEN`
   - [ ] `KEYCLOAK_ISSUER_URI`
@@ -67,25 +69,29 @@ Production promote adımları:
   - [ ] `vault-secrets-sync.yml` `mode=backend-deploy`, `env=prod`, `secret_scope=environment`, `github_environment=prod`, `dry_run=true`
   - [ ] aynı workflow `dry_run=false`
   - [ ] `BACKEND_SSH_DEPLOY_ENABLED`
-  - [ ] `BACKEND_DEPLOY_SSH_HOST`
-  - [ ] `BACKEND_DEPLOY_SSH_PORT`
-  - [ ] `BACKEND_DEPLOY_SSH_USER`
-  - [ ] `BACKEND_DEPLOY_SSH_KEY`
-  - [ ] `BACKEND_DEPLOY_SSH_KNOWN_HOSTS`
+  - [ ] `BACKEND_DEPLOY_SSH_HOST` yalnız push-based prod seçildiyse
+  - [ ] `BACKEND_DEPLOY_SSH_PORT` yalnız push-based prod seçildiyse
+  - [ ] `BACKEND_DEPLOY_SSH_USER` yalnız push-based prod seçildiyse
+  - [ ] `BACKEND_DEPLOY_SSH_KEY` yalnız push-based prod seçildiyse
+  - [ ] `BACKEND_DEPLOY_SSH_KNOWN_HOSTS` yalnız push-based prod seçildiyse
   - [ ] `BACKEND_DEPLOY_REMOTE_ENV_FILE`
   - [ ] `BACKEND_DEPLOY_REMOTE_REPO_DIR`
   - [ ] `BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES`
   - [ ] `BACKEND_HEALTH_URLS`
 - Prod host hazırlığı:
   - [ ] `/home/halil/platform/repo`
-  - [ ] `/home/halil/platform/env/backend.env`
+  - [ ] `/home/halil/platform/env/backend.env.prod`
   - [ ] `/home/halil/platform/state/vault/approle/backend-deploy-prod.role-id`
   - [ ] `/home/halil/platform/state/vault/approle/backend-deploy-prod.secret-id`
   - [ ] `backend/scripts/vault/materialize-backend-deploy-approle.sh`
   - [ ] `deploy/ubuntu/render-backend-env-approle.sh`
+  - [ ] `deploy/ubuntu/pull-promote-backend.sh`
+  - [ ] pull-based model seçildiyse host cron/systemd timer kuruldu
   - [ ] `docker compose -f backend/docker-compose.prod.yml config --services`
 - Deploy ve durdurma akışı:
   - [ ] `deploy-backend.yml` workflow_dispatch `env=prod`
+  - [ ] push-based yerine pull-based model seçildiyse workflow yalnız GHCR publish için kullanılıyor
+  - [ ] host tarafında `pull-promote-backend.sh` en az bir kez başarıyla çalıştı
   - [ ] rollback gerekiyorsa `rollback.yml` workflow_dispatch `env=prod`, `confirm=ROLLBACK`
 
 -------------------------------------------------------------------------------

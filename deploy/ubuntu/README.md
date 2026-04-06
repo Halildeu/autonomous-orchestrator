@@ -97,14 +97,39 @@ Bu secret'lar elle yazılmak zorunda değil. `vault-secrets-sync.yml` artık `mo
 
 ## GHCR erişimi
 
-- Server üzerinde kalıcı `GHCR_TOKEN` tutmuyoruz.
-- `deploy-backend.yml` ve `rollback.yml`, GitHub Actions runtime token'ını SSH oturumu üzerinden `deploy-backend.sh` / `rollback-backend.sh` script'lerine ephemeral geçirir.
-- Bu yüzden `backend.env` içinde `GHCR_USERNAME` ve `GHCR_TOKEN` zorunlu değildir.
+- `stage` için self-hosted veya SSH tabanlı deploy kullanıldığında GitHub Actions runtime token'ı ephemeral geçirilebilir.
+- `prod` private network arkasındaysa önerilen model `pull-based` promote'tur.
+- `pull-based` modda host kendi `backend.env.prod` dosyasından `GHCR_USERNAME` ve `GHCR_TOKEN` okuyarak `main-stable` image setini çeker.
+- Bu nedenle production Vault config içinde `GHCR_USERNAME` ve `GHCR_TOKEN` tutulmalıdır.
+
+## Production Pull-Based Promote
+
+`prod` host GitHub-hosted runner tarafından erişilemiyorsa aşağıdaki model kullanılır:
+
+- GitHub Actions yalnız image build/push yapar.
+- `BACKEND_SSH_DEPLOY_ENABLED=false` tutulur.
+- Host tarafında `deploy/ubuntu/pull-promote-backend.sh` periyodik veya manuel çalışır.
+
+Ornek manuel promote:
+
+```bash
+ENV_FILE=/home/halil/platform/env/backend.env.prod \
+DEPLOY_ENV=prod \
+VAULT_ADDR=http://127.0.0.1:8200 \
+deploy/ubuntu/pull-promote-backend.sh
+```
+
+Ornek cron:
+
+```cron
+*/5 * * * * cd /home/halil/platform/repo && ENV_FILE=/home/halil/platform/env/backend.env.prod DEPLOY_ENV=prod VAULT_ADDR=http://127.0.0.1:8200 deploy/ubuntu/pull-promote-backend.sh >> /home/halil/platform/state/logs/prod-backend-pull.log 2>&1
+```
 
 ## Notlar
 
 - Secret değerleri repo'ya commit edilmez.
 - Host üzerindeki `backend.env` dosyası Vault kaynaklı tek materialized secret setidir.
+- Production `backend.env.prod` dosyası da aynı şekilde Vault render sonucu üretilir.
 - `IMAGE_TAG` alanı deploy/rollback sırasında script tarafından güncellenir.
 - `backend/scripts/vault/write-backend-deploy-stage.sh` ve `write-backend-deploy-prod.sh` helper script'leri ilgili Vault path'lerini doldurmak için eklendi.
 - `deploy-backend.sh`, `RENDER_ENV_BEFORE_DEPLOY=true` verildiğinde deploy öncesi `backend.env` dosyasını Vault'tan otomatik yenileyebilir.
