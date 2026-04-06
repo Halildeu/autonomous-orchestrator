@@ -36,6 +36,9 @@ const LoginPage = () => {
       navigate(redirectPath);
       return;
     }
+    if (!initialized) {
+      return;
+    }
     const redirectUri = buildAppRedirectUri(`/login?redirect=${encodeURIComponent(redirectPath)}`);
     keycloak.login({ redirectUri }).catch((err) =>
       console.error('[LoginPage] keycloak.login() failed:', err),
@@ -86,6 +89,7 @@ const LoginPage = () => {
                 className="flex w-full items-center justify-center gap-2 bg-action-primary text-action-primary-text hover:opacity-90"
                 onClick={handleLogin}
                 data-testid="corporate-login-button"
+                disabled={!initialized}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -93,6 +97,12 @@ const LoginPage = () => {
                 </svg>
                 Güvenli Kurumsal Giriş
               </Button>
+
+              {!initialized ? (
+                <p className="text-[11px] text-text-secondary" data-testid="corporate-login-pending">
+                  Kurumsal kimlik doğrulama hazırlanıyor...
+                </p>
+              ) : null}
 
               {/* Güvenlik bilgisi */}
               <div className="rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-3">

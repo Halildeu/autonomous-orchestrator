@@ -78,14 +78,50 @@ function writeManifest(origin, remotes) {
   );
 }
 
-const publicOrigin = trimTrailingSlash(process.env.WEB_PUBLIC_ORIGIN || 'http://127.0.0.1:5544');
+const publicOrigin = trimTrailingSlash(
+  process.env.WEB_PUBLIC_ORIGIN ||
+    process.env.VITE_FRONTEND_PUBLIC_ORIGIN ||
+    process.env.FRONTEND_PUBLIC_ORIGIN ||
+    'http://127.0.0.1:5544',
+);
 const remoteEntryUrlFor = (slug) => `${publicOrigin}/remotes/${slug}/remoteEntry.js`;
+const authMode =
+  process.env.VITE_AUTH_MODE || process.env.AUTH_MODE || process.env.WEB_AUTH_MODE || 'keycloak';
+const keycloakUrl = trimTrailingSlash(
+  process.env.VITE_KEYCLOAK_URL ||
+    process.env.KEYCLOAK_URL ||
+    process.env.KEYCLOAK_PUBLIC_URL ||
+    process.env.WEB_KEYCLOAK_PUBLIC_URL ||
+    publicOrigin,
+);
+const keycloakRealm =
+  process.env.VITE_KEYCLOAK_REALM ||
+  process.env.KEYCLOAK_REALM ||
+  process.env.WEB_KEYCLOAK_REALM ||
+  'serban';
+const keycloakClientId =
+  process.env.VITE_KEYCLOAK_CLIENT_ID ||
+  process.env.KEYCLOAK_CLIENT_ID ||
+  process.env.WEB_KEYCLOAK_CLIENT_ID ||
+  'frontend';
 
 const shellEnv = {
   SINGLE_DOMAIN_BUILD: '1',
   APP_BASE_PATH: '/',
   VITE_APP_BASE_PATH: '/',
+  AUTH_MODE: authMode,
+  VITE_AUTH_MODE: authMode,
   VITE_GATEWAY_URL: process.env.VITE_GATEWAY_URL || `${publicOrigin}/api`,
+  FRONTEND_PUBLIC_ORIGIN:
+    process.env.FRONTEND_PUBLIC_ORIGIN || process.env.WEB_PUBLIC_ORIGIN || publicOrigin,
+  VITE_FRONTEND_PUBLIC_ORIGIN:
+    process.env.VITE_FRONTEND_PUBLIC_ORIGIN || process.env.WEB_PUBLIC_ORIGIN || publicOrigin,
+  KEYCLOAK_URL: keycloakUrl,
+  VITE_KEYCLOAK_URL: keycloakUrl,
+  KEYCLOAK_REALM: keycloakRealm,
+  VITE_KEYCLOAK_REALM: keycloakRealm,
+  KEYCLOAK_CLIENT_ID: keycloakClientId,
+  VITE_KEYCLOAK_CLIENT_ID: keycloakClientId,
   MFE_ACCESS_URL: remoteEntryUrlFor('access'),
   VITE_MFE_ACCESS_URL: remoteEntryUrlFor('access'),
   MFE_AUDIT_URL: remoteEntryUrlFor('audit'),

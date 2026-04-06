@@ -53,6 +53,8 @@ interface PermissionProviderProps {
   httpGet: (url: string) => Promise<{ data: any }>;
   /** If true, all permissions are granted (dev/permitAll mode) */
   permitAll?: boolean;
+  /** If false, authz isteği atılmaz; token beklenir. */
+  enabled?: boolean;
   /** Cache TTL in ms (default: 60000 = 1 min) */
   cacheTtl?: number;
 }
@@ -61,6 +63,7 @@ export function PermissionProvider({
   children,
   httpGet,
   permitAll = false,
+  enabled = true,
   cacheTtl = 60_000,
 }: PermissionProviderProps) {
   const [authz, setAuthz] = useState<AuthzMeResponse | null>(null);
@@ -107,13 +110,21 @@ export function PermissionProvider({
   }, [httpGet, permitAll]);
 
   useEffect(() => {
+    if (!enabled) {
+      setAuthz(null);
+      setLoading(false);
+      setInitialized(true);
+      return undefined;
+    }
+
     loadAuthz();
 
     if (!permitAll && cacheTtl > 0) {
       const interval = setInterval(loadAuthz, cacheTtl);
       return () => clearInterval(interval);
     }
-  }, [loadAuthz, permitAll, cacheTtl]);
+    return undefined;
+  }, [loadAuthz, permitAll, enabled, cacheTtl]);
 
   const value = useMemo<PermissionContextValue>(() => ({
     authz,

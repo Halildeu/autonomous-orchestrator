@@ -10,11 +10,20 @@ on:
         type: choice
         options:
           - inspect
+          - inspect-client
+          - inspect-app-authz
+          - probe-password-grant
           - reset-password
+          - seed-smoke-role
       user_email:
         description: "Smoke kullanıcı e-postası"
         required: true
         default: "user3@example.com"
+        type: string
+      client_id:
+        description: "Override edilecek Keycloak client_id"
+        required: false
+        default: ""
         type: string
       realm:
         description: "Keycloak realm"
@@ -35,16 +44,17 @@ jobs:
     environment: stage
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
       - name: Inspect or reset smoke user
         shell: bash
         env:
           MODE: ${{ inputs.mode }}
           TARGET_EMAIL: ${{ inputs.user_email }}
+          TARGET_CLIENT_ID: ${{ inputs.client_id }}
           REALM_NAME: ${{ inputs.realm }}
           TARGET_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+          KC_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+          KC_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+          KC_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
         run: |
           set -euo pipefail
           set +x
@@ -137,6 +147,133 @@ jobs:
             exit 1
           fi
 
+          effective_client_id="${TARGET_CLIENT_ID:-${KC_CLIENT_ID:-}}"
+
+          if [[ "${MODE}" == "inspect-client" ]]; then
+            if [[ -z "${effective_client_id}" ]]; then
+              echo "[kc] HATA: inspect-client için client_id input'u veya KEYCLOAK_CLIENT_ID secret'ı zorunlu."
+              exit 1
+            fi
+
+            client_q="$(urlencode "${effective_client_id}")"
+            client_payload="$(
+              curl -sS \
+                -H "Authorization: Bearer ${admin_token}" \
+                "${keycloak_base}/admin/realms/${REALM_NAME}/clients?clientId=${client_q}"
+            )"
+
+            client_count="$(
+              printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(len(payload) if isinstance(payload,list) else 0)' 2>/dev/null || printf '0'
+            )"
+            if [[ "${client_count}" -eq 0 ]]; then
+              echo "[kc] HATA: client bulunamadı: ${effective_client_id}"
+              all_clients_payload="$(
+                curl -sS \
+                  -H "Authorization: Bearer ${admin_token}" \
+                  "${keycloak_base}/admin/realms/${REALM_NAME}/clients?max=200"
+              )"
+              printf '%s' "${all_clients_payload}" | python3 -c 'import base64,json,sys; payload=json.load(sys.stdin); ids=[str(item.get("clientId","")).strip() for item in payload if isinstance(item,dict) and str(item.get("clientId","")).strip()]; ids=ids[:60]; print("[kc] available_client_ids=" + ", ".join(ids)); print("[kc] available_client_ids_b64=" + ", ".join(base64.b64encode(item.encode("utf-8")).decode("ascii") for item in ids))'
+              exit 1
+            fi
+
+            printf '%s' "${client_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); client=payload[0] if isinstance(payload,list) and payload else {}; print("[kc] clientId=" + str(client.get("clientId","unknown"))); print("[kc] publicClient=" + str(client.get("publicClient"))); print("[kc] directAccessGrantsEnabled=" + str(client.get("directAccessGrantsEnabled"))); print("[kc] serviceAccountsEnabled=" + str(client.get("serviceAccountsEnabled"))); print("[kc] standardFlowEnabled=" + str(client.get("standardFlowEnabled")));'
+            exit 0
+          fi
+
+          if [[ "${MODE}" == "probe-password-grant" ]]; then
+            if [[ -z "${effective_client_id}" || -z "${TARGET_PASSWORD:-}" ]]; then
+              echo "[kc] HATA: probe-password-grant için client_id input'u veya KEYCLOAK_CLIENT_ID secret'ı ve PW_REAL_USER_PASSWORD zorunlu."
+              exit 1
+            fi
+
+            token_cmd=(curl -sS -w '\n%{http_code}' -X POST "${keycloak_base}/realms/${REALM_NAME}/protocol/openid-connect/token" -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=password" -d "client_id=${effective_client_id}" -d "username=${TARGET_EMAIL}" -d "password=${TARGET_PASSWORD}" -d "scope=${KC_SCOPE:-openid}")
+            if [[ -n "${KC_CLIENT_SECRET:-}" && -z "${TARGET_CLIENT_ID:-}" ]]; then
+              token_cmd+=(-d "client_secret=${KC_CLIENT_SECRET}")
+            fi
+            token_response="$("${token_cmd[@]}")"
+            status="$(printf '%s' "${token_response}" | tail -n 1)"
+            body="$(printf '%s' "${token_response}" | sed '$d')"
+            printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; error=str(payload.get("error","")).strip() or "-"; desc=str(payload.get("error_description","")).strip() or "-"; token=str(payload.get("access_token","")).strip(); print("[kc] token_error=" + error); print("[kc] token_error_description=" + desc); print("[kc] access_token_present=" + ("yes" if token else "no"))'
+            echo "[kc] token_status=${status}"
+            if [[ "${status}" != "200" ]]; then
+              exit 1
+            fi
+            exit 0
+          fi
+
+          if [[ "${MODE}" == "inspect-app-authz" ]]; then
+            effective_client_id="${TARGET_CLIENT_ID:-${KC_CLIENT_ID:-admin-cli}}"
+            if [[ -z "${TARGET_PASSWORD:-}" ]]; then
+              echo "[kc] HATA: inspect-app-authz için stage secret PW_REAL_USER_PASSWORD zorunlu."
+              exit 1
+            fi
+
+            token_cmd=(curl -sS -w '\n%{http_code}' -X POST "${keycloak_base}/realms/${REALM_NAME}/protocol/openid-connect/token" -H "Content-Type: application/x-www-form-urlencoded" -d "grant_type=password" -d "client_id=${effective_client_id}" -d "username=${TARGET_EMAIL}" -d "password=${TARGET_PASSWORD}" -d "scope=${KC_SCOPE:-openid}")
+            if [[ -n "${KC_CLIENT_SECRET:-}" && -z "${TARGET_CLIENT_ID:-}" && "${effective_client_id}" == "${KC_CLIENT_ID:-}" ]]; then
+              token_cmd+=(-d "client_secret=${KC_CLIENT_SECRET}")
+            fi
+            token_response="$("${token_cmd[@]}")"
+            status="$(printf '%s' "${token_response}" | tail -n 1)"
+            body="$(printf '%s' "${token_response}" | sed '$d')"
+            access_token="$(printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; print(str(payload.get("access_token","")).strip())')"
+            echo "[app-authz] token_status=${status}"
+            if [[ "${status}" != "200" || -z "${access_token}" ]]; then
+              printf '%s' "${body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; print("[app-authz] token_error=" + str(payload.get("error","-"))); print("[app-authz] token_error_description=" + str(payload.get("error_description","-")));'
+              exit 1
+            fi
+
+            probe_authz() {
+              local label="$1"
+              local url="$2"
+              local headers_file body_file authz_status content_type
+              headers_file="$(mktemp)"
+              body_file="$(mktemp)"
+
+              authz_status="$(
+                curl -sS \
+                  -o "${body_file}" \
+                  -D "${headers_file}" \
+                  -w '%{http_code}' \
+                  -H "Authorization: Bearer ${access_token}" \
+                  -H "Accept: application/json" \
+                  "${url}"
+              )"
+
+              content_type="$(
+                awk 'BEGIN{IGNORECASE=1} /^content-type:/ {sub(/\r$/,"",$0); sub(/^[^:]+:[[:space:]]*/,"",$0); print; exit}' "${headers_file}"
+              )"
+
+              echo "[app-authz] target=${label} url=${url} status=${authz_status} content_type=${content_type:--}"
+
+              if [[ "${content_type}" == application/json* ]]; then
+                python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")); mods=payload.get("allowedModules") or []; perms=payload.get("permissions") or []; module_map=payload.get("modules") or {}; module_keys=list(module_map.keys()) if isinstance(module_map, dict) else []; roles=payload.get("roles") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods)); print("[app-authz] permissions=" + ",".join(str(x) for x in perms)); print("[app-authz] moduleKeys=" + ",".join(str(x) for x in module_keys)); print("[app-authz] roles=" + ",".join(str(x) for x in roles))' "${body_file}"
+              else
+                body_preview="$(tr '\n' ' ' < "${body_file}" | sed 's/[[:space:]]\\+/ /g' | cut -c1-240)"
+                echo "[app-authz] body_preview=${body_preview:--}"
+              fi
+
+              rm -f "${headers_file}" "${body_file}"
+            }
+
+            probe_authz "edge-no-prefix" "http://127.0.0.1:5544/v1/authz/me"
+            probe_authz "edge" "http://127.0.0.1:5544/api/v1/authz/me"
+            probe_authz "gateway" "http://127.0.0.1:8080/api/v1/authz/me"
+            probe_authz "permission-service" "http://127.0.0.1:8090/api/v1/authz/me"
+            probe_authz "user-service" "http://127.0.0.1:8089/api/v1/authz/me"
+
+            pg_container="$(docker ps --format '{{.Names}}' | awk '/postgres|postgis|db/ { print; exit }')"
+            if [[ -n "${pg_container}" ]]; then
+              email_sql="${TARGET_EMAIL//\'/''}"
+              echo "[app-authz] pg_container=${pg_container}"
+              docker exec "${pg_container}" psql -U postgres -d users -At -F '|' \
+                -c "SELECT u.id, u.email, COALESCE(string_agg(DISTINCT r.name, ',' ORDER BY r.name), '') FROM user_service.users u LEFT JOIN permission_service.user_role_assignments ura ON ura.user_id = u.id AND ura.active = true LEFT JOIN permission_service.roles r ON r.id = ura.role_id WHERE lower(u.email) = lower('${email_sql}') GROUP BY u.id, u.email;" \
+                | awk -F'|' '{ print "[app-authz] db_user_id=" $1 " email=" $2 " roles=" $3 }'
+            else
+              echo "[app-authz] WARN: postgres container bulunamadı."
+            fi
+            exit 0
+          fi
+
           email_q="$(urlencode "${TARGET_EMAIL}")"
           user_payload="$(
             curl -sS \
@@ -198,8 +335,115 @@ jobs:
           enabled="$(
             printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; value=first.get("enabled",""); print(str(value).lower() if isinstance(value,bool) else value)' 2>/dev/null || true
           )"
+          email_verified="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; value=first.get("emailVerified",""); print(str(value).lower() if isinstance(value,bool) else value)' 2>/dev/null || true
+          )"
+          required_actions="$(
+            printf '%s' "${user_payload}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); first=payload[0] if isinstance(payload,list) and payload else {}; actions=first.get("requiredActions", []); actions=actions if isinstance(actions,list) else []; print(",".join(str(x) for x in actions))' 2>/dev/null || true
+          )"
 
-          echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown}"
+          echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown} emailVerified=${email_verified:-unknown} requiredActions=${required_actions:--}"
+
+          if [[ "${MODE}" == "seed-smoke-role" ]]; then
+            pg_container="$(docker ps --format '{{.Names}}' | awk '/postgres|postgis|db/ { print; exit }')"
+            if [[ -z "${pg_container}" ]]; then
+              echo "[seed] HATA: postgres container bulunamadı."
+              docker ps --format '{{.Names}}'
+              exit 1
+            fi
+
+            email_sql="${TARGET_EMAIL//\'/''}"
+            db_user_id="$(
+              docker exec "${pg_container}" psql -U postgres -d users -At \
+                -c "SELECT u.id FROM user_service.users u WHERE lower(u.email) = lower('${email_sql}') ORDER BY u.id LIMIT 1;"
+            )"
+
+            if [[ -z "${db_user_id}" ]]; then
+              echo "[seed] HATA: user_service.users icinde smoke kullanicisi bulunamadi: ${TARGET_EMAIL}"
+              exit 1
+            fi
+
+            seed_sql="$(
+              python3 -c "from textwrap import dedent; user_id=int('${db_user_id}'); print(dedent('''\
+            WITH target_role AS (
+              INSERT INTO permission_service.roles (name, description, created_at, updated_at)
+              VALUES ('STAGE_SMOKE_RESTRICTED', 'Restricted stage authz smoke role', NOW(), NOW())
+              ON CONFLICT (name) DO UPDATE
+                SET description = EXCLUDED.description,
+                    updated_at = NOW()
+              RETURNING id
+            ),
+            resolved_role AS (
+              SELECT id FROM target_role
+              UNION ALL
+              SELECT r.id
+              FROM permission_service.roles r
+              WHERE r.name = 'STAGE_SMOKE_RESTRICTED'
+            ),
+            target_permissions AS (
+              SELECT p.id, lower(p.code) AS code
+              FROM permission_service.permissions p
+              WHERE lower(p.code) IN ('access-read', 'audit-read', 'report_view')
+            )
+            INSERT INTO permission_service.role_permissions (
+              role_id,
+              permission_id,
+              permission_type,
+              permission_key,
+              grant_type
+            )
+            SELECT
+              rr.id,
+              tp.id,
+              'MODULE',
+              CASE tp.code
+                WHEN 'access-read' THEN 'ACCESS'
+                WHEN 'audit-read' THEN 'AUDIT'
+                WHEN 'report_view' THEN 'REPORT'
+              END,
+              'VIEW'
+            FROM (SELECT id FROM resolved_role ORDER BY id LIMIT 1) rr
+            JOIN target_permissions tp ON TRUE
+            ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+            UPDATE permission_service.user_role_assignments
+            SET active = FALSE,
+                revoked_at = NOW()
+            WHERE user_id = {user_id}
+              AND active = TRUE;
+
+            INSERT INTO permission_service.user_role_assignments (
+              user_id,
+              role_id,
+              active,
+              assigned_at
+            )
+            SELECT {user_id}, r.id, TRUE, NOW()
+            FROM permission_service.roles r
+            WHERE r.name = 'STAGE_SMOKE_RESTRICTED';
+            ''').strip().format(user_id=user_id))"
+            )"
+
+            printf '%s\n' "${seed_sql}" | docker exec -i "${pg_container}" psql -v ON_ERROR_STOP=1 -U postgres -d users
+
+            seed_summary="$(
+              docker exec "${pg_container}" psql -U postgres -d users -At -F '|' \
+                -c "SELECT u.id, u.email, COALESCE(string_agg(DISTINCT r.name, ',' ORDER BY r.name), ''), COALESCE(string_agg(DISTINCT p.code, ',' ORDER BY p.code), '') FROM user_service.users u LEFT JOIN permission_service.user_role_assignments ura ON ura.user_id = u.id AND ura.active = true LEFT JOIN permission_service.roles r ON r.id = ura.role_id LEFT JOIN permission_service.role_permissions rp ON rp.role_id = r.id LEFT JOIN permission_service.permissions p ON p.id = rp.permission_id WHERE u.id = ${db_user_id} GROUP BY u.id, u.email;"
+            )"
+
+            printf '%s\n' "${seed_summary}" | awk -F'|' '{ print "[seed] user_id=" $1 " email=" $2 " roles=" $3 " permissions=" $4 }'
+
+            seed_permissions="$(printf '%s' "${seed_summary}" | awk -F'|' '{ print $4 }')"
+            for required_permission in access-read audit-read REPORT_VIEW; do
+              if ! printf '%s' "${seed_permissions}" | grep -Eqi "(^|,)${required_permission}(,|$)"; then
+                echo "[seed] HATA: beklenen permission atanmadi: ${required_permission}"
+                exit 1
+              fi
+            done
+
+            echo "[seed] OK: restricted smoke role atandi."
+            exit 0
+          fi
 
           if [[ "${MODE}" == "inspect" ]]; then
             echo "[kc] OK: smoke kullanıcı erişilebilir."
@@ -228,4 +472,21 @@ jobs:
             exit 1
           fi
 
-          echo "[kc] OK: smoke kullanıcı parolası güncellendi."
+          user_update_payload="$(
+            TARGET_EMAIL="${TARGET_EMAIL}" python3 -c 'import json,os; email=os.environ["TARGET_EMAIL"]; print(json.dumps({"username": email, "email": email, "firstName": "Smoke", "lastName": "User", "enabled": True, "emailVerified": True, "requiredActions": []}))'
+          )"
+
+          update_status="$(
+            curl -sS -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer ${admin_token}" \
+              -H "Content-Type: application/json" \
+              -X PUT "${keycloak_base}/admin/realms/${REALM_NAME}/users/${user_id}" \
+              -d "${user_update_payload}"
+          )"
+
+          if [[ "${update_status}" != "204" ]]; then
+            echo "[kc] HATA: smoke kullanıcı durumu güncellenemedi (HTTP ${update_status})."
+            exit 1
+          fi
+
+          echo "[kc] OK: smoke kullanıcı parolası ve setup durumu güncellendi."

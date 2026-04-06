@@ -19,6 +19,12 @@ vi.mock('../../app/auth/keycloakClient', () => ({
   },
 }));
 
+vi.mock('@mfe/design-system', () => ({
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+}));
+
 vi.mock('../../app/i18n', () => ({
   useShellCommonI18n: () => ({
     t: (key: string) => key,
@@ -75,6 +81,24 @@ describe('LoginPage', () => {
 
     expect(loginSpy).toHaveBeenCalledTimes(1);
     expect(loginSpy).toHaveBeenCalledWith({ redirectUri: 'http://localhost:3000/login?redirect=%2Faccess%2Froles' });
+  });
+
+  it('keycloak init tamamlanmadan login butonunu devre disi birakir', () => {
+    authStateMock.initialized = false;
+    const loginSpy = vi.spyOn(keycloak, 'login');
+
+    render(
+      <MemoryRouter initialEntries={['/login?redirect=/access/roles']} future={routerFuture}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    const button = screen.getByTestId('corporate-login-button');
+    expect(button).toBeDisabled();
+    expect(screen.getByTestId('corporate-login-pending')).toBeInTheDocument();
+
+    fireEvent.click(button);
+    expect(loginSpy).not.toHaveBeenCalled();
   });
 
   it('shows permitAll mode with Devam Et button', () => {
