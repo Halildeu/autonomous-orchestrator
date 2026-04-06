@@ -63,6 +63,31 @@ Canonical entrypoint memory:
 pnpm run verify
 ```
 
+## Production Runtime
+
+`mfe-shell` production build'i artik remote MFE adreslerini env'den alabilir.
+
+- `VITE_GATEWAY_URL` veya same-origin `/api` proxy
+- `MFE_USERS_URL`
+- `MFE_ACCESS_URL`
+- `MFE_AUDIT_URL`
+- `MFE_REPORTING_URL`
+- `MFE_SUGGESTIONS_URL`
+- `MFE_ETHIC_URL`
+- `MFE_SCHEMA_EXPLORER_URL`
+
+Ornek:
+
+```bash
+MFE_USERS_URL=https://users.ai.acik.com/remoteEntry.js
+MFE_ACCESS_URL=https://access.ai.acik.com/remoteEntry.js
+MFE_AUDIT_URL=https://audit.ai.acik.com/remoteEntry.js
+MFE_REPORTING_URL=https://reporting.ai.acik.com/remoteEntry.js
+VITE_GATEWAY_URL=https://ai.acik.com/api
+```
+
+`VITE_MFE_*` varyantlari da desteklenir; runtime inject tarafinda `MFE_*` anahtarlari da `window.__env__` icine yazilir.
+
 ## Documentation
 
 - [Architecture Overview](./docs/architecture-overview.md)

@@ -7,7 +7,7 @@
  *   3. CSS `prefers-color-scheme: dark` media query
  *
  * Reads CSS custom properties scoped to dark mode. Falls back to
- * hardcoded dark tokens matching serban-dark preset.
+ * hardcoded dark tokens matching the design-lab dark preset.
  *
  * @see decisions/topics/chart-viz-engine-selection.v1.json (D-009)
  * @see DesignLabEChartsTheme.ts (light theme — same structure)
@@ -68,7 +68,7 @@ export function buildDesignLabEChartsDarkTheme(options?: DarkThemeOptions): Reco
     fontFamily: fontFamilyOverride,
   } = options ?? {};
 
-  // Dark mode tokens (serban-dark preset fallbacks)
+  // Dark mode tokens (design-lab dark preset fallbacks)
   const fontFamily = fontFamilyOverride ?? getCSSVar('--font-family-sans', 'Inter, system-ui, sans-serif');
   const textPrimary = getCSSVar('--text-primary', '#e5e7eb');
   const textSecondary = getCSSVar('--text-secondary', '#9ca3af');

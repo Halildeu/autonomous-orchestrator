@@ -10,6 +10,8 @@ import React, { useMemo, useCallback } from "react";
 import { cn } from "@mfe/design-system";
 import { useEChartsRenderer } from "./renderers";
 import { buildDesignLabEChartsTheme } from "./theme/DesignLabEChartsTheme";
+import { formatCompact } from "./utils/formatters";
+import { sanitizeSeries } from "./utils/data-validation";
 import type { EChartsOption } from "./renderers/echarts-imports";
 
 /* ------------------------------------------------------------------ */
@@ -112,7 +114,9 @@ export const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
     forwardedRef,
   ) {
     const height = SIZE_HEIGHT[size];
-    const isEmpty = !seriesData || seriesData.length === 0 || !labels || labels.length === 0;
+    const safeSeries = useMemo(() => sanitizeSeries(seriesData), [seriesData]);
+    const isEmpty = safeSeries.length === 0 || !labels || labels.length === 0;
+    const fmt = valueFormatter ?? formatCompact;
 
     const theme = useMemo(() => buildDesignLabEChartsTheme(), []);
 
@@ -121,7 +125,7 @@ export const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
 
       const palette = DEFAULT_PALETTE;
 
-      const echartsSeriesList = seriesData.map((s, i) => {
+      const echartsSeriesList = safeSeries.map((s, i) => {
         const color = s.color ?? palette[i % palette.length];
         return {
           type: "line" as const,
@@ -159,12 +163,10 @@ export const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
         tooltip: {
           trigger: "axis",
           confine: true,
-          valueFormatter: valueFormatter
-            ? (v: unknown) => valueFormatter(v as number)
-            : undefined,
+          valueFormatter: (v: unknown) => fmt(v as number),
         },
         legend: {
-          show: showLegend || seriesData.length > 1,
+          show: showLegend || safeSeries.length > 1,
           bottom: 0,
           icon: "roundRect",
           itemWidth: 12,
@@ -174,7 +176,7 @@ export const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
         grid: {
           top: title ? 60 : 24,
           right: 16,
-          bottom: showLegend || seriesData.length > 1 ? 48 : 24,
+          bottom: showLegend || safeSeries.length > 1 ? 48 : 24,
           left: 16,
           containLabel: true,
         },
@@ -188,7 +190,7 @@ export const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
           type: "value",
           axisLabel: {
             fontSize: 11,
-            formatter: valueFormatter ? (v: number) => valueFormatter(v) : undefined,
+            formatter: (v: number) => fmt(v),
           },
           splitLine: {
             show: showGrid,

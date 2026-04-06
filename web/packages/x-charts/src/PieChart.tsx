@@ -10,6 +10,8 @@ import React, { useMemo, useCallback } from "react";
 import { cn } from "@mfe/design-system";
 import { useEChartsRenderer } from "./renderers";
 import { buildDesignLabEChartsTheme } from "./theme/DesignLabEChartsTheme";
+import { formatCompact } from "./utils/formatters";
+import { sanitizeDataPoints } from "./utils/data-validation";
 import type { EChartsOption } from "./renderers/echarts-imports";
 
 /* ------------------------------------------------------------------ */
@@ -103,12 +105,14 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
   ) {
     const height = SIZE_HEIGHT[size];
 
+    const safeData = useMemo(() => sanitizeDataPoints(data), [data]);
     const validData = useMemo(
-      () => (data ?? []).filter((d) => d.value > 0),
-      [data],
+      () => safeData.filter((d) => d.value > 0),
+      [safeData],
     );
 
     const isEmpty = validData.length === 0;
+    const fmt = valueFormatter ?? formatCompact;
 
     const theme = useMemo(() => buildDesignLabEChartsTheme(), []);
 
@@ -143,7 +147,7 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
           confine: true,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number; percent: number };
-            const formatted = valueFormatter ? valueFormatter(p.value) : String(p.value);
+            const formatted = fmt(p.value);
             return `${escapeHtml(p.name)}: ${escapeHtml(formatted)} (${p.percent}%)`;
           },
         },

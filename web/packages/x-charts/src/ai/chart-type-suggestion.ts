@@ -145,6 +145,17 @@ export function suggestChartType(
     suggestions.push({ type: 'gauge', confidence: 0.8, reason: 'Tek değer → gösterge' });
   }
 
+  // Hierarchical data → treemap / sunburst
+  const hasNameField = shape.columns.some((c) => c.type === 'string' && ['name', 'label', 'category'].includes(c.field.toLowerCase()));
+  const hasParentField = shape.columns.some((c) => c.type === 'string' && ['parent', 'parent_id', 'parentId', 'group'].includes(c.field.toLowerCase()));
+  const hasChildrenField = data.some((r) => Array.isArray(r.children));
+  const hasValueField = numbers.length >= 1;
+
+  if ((hasNameField && hasParentField && hasValueField) || hasChildrenField) {
+    suggestions.push({ type: 'treemap', confidence: 0.8, reason: 'Hiyerarşik yapı (name+parent/children+value) → ağaç haritası' });
+    suggestions.push({ type: 'sunburst', confidence: 0.7, reason: 'Hiyerarşik yapı → güneş patlaması alternatif' });
+  }
+
   // Sort by confidence, take top N
   suggestions.sort((a, b) => b.confidence - a.confidence);
   return suggestions.slice(0, maxSuggestions);

@@ -75,11 +75,11 @@ jobs:
 
       - name: Checkout
         if: ${{ steps.resolve.outputs.mode == 'sample' || env.CANARY_ENABLED == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
         if: ${{ steps.resolve.outputs.mode == 'sample' || env.CANARY_ENABLED == 'true' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 

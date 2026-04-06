@@ -6,6 +6,10 @@ on:
     types: [completed]
   workflow_dispatch:
     inputs:
+      env:
+        description: "Rollback environment"
+        required: true
+        default: "stage"
       confirm:
         description: "Type ROLLBACK to confirm"
         required: true
@@ -24,13 +28,258 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  rollback:
+  classify-failure:
     runs-on: ubuntu-latest
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'ROLLBACK')
-      || (github.event_name == 'workflow_run' && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out'))
+      github.event_name == 'workflow_run'
+      && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out')
+    outputs:
+      rollback_backend: ${{ steps.classify.outputs.rollback_backend }}
+      rollback_web: ${{ steps.classify.outputs.rollback_web }}
+      failed_jobs: ${{ steps.classify.outputs.failed_jobs }}
+
+    steps:
+      - name: Classify post-deploy validation failure
+        id: classify
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const runId = context.payload.workflow_run.id;
+            const { owner, repo } = context.repo;
+            const badConclusions = new Set(['failure', 'timed_out', 'cancelled', 'action_required', 'startup_failure']);
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner,
+              repo,
+              run_id: runId,
+              per_page: 100,
+            });
+
+            const failedJobs = jobs.filter((job) => badConclusions.has(job.conclusion)).map((job) => job.name);
+            const rollbackBackend = failedJobs.includes('validate-stage-backend');
+            const rollbackWeb = failedJobs.includes('validate') && !rollbackBackend;
+
+            core.setOutput('rollback_backend', rollbackBackend ? 'true' : 'false');
+            core.setOutput('rollback_web', rollbackWeb ? 'true' : 'false');
+            core.setOutput('failed_jobs', failedJobs.join(','));
+
+            core.notice(`failed_jobs=${failedJobs.join(',') || 'none'}`);
+            core.notice(`rollback_backend=${rollbackBackend}`);
+            core.notice(`rollback_web=${rollbackWeb}`);
+
+  rollback-stage-auto:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    needs: classify-failure
+    environment: stage
+    if: >-
+      github.event_name == 'workflow_run'
+      && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out')
+      && needs.classify-failure.outputs.rollback_backend == 'true'
     env:
       ROLLBACK_ENABLED: ${{ secrets.ROLLBACK_ENABLED }}
+
+    steps:
+      - name: Skip if rollback disabled
+        if: ${{ env.ROLLBACK_ENABLED != 'true' }}
+        run: echo "::notice title=rollback::ROLLBACK_ENABLED!=true; skipping stage rollback."
+
+      - uses: actions/checkout@v6
+        if: ${{ env.ROLLBACK_ENABLED == 'true' }}
+        with:
+          fetch-depth: 0
+
+      - name: Rollback stage backend (self-hosted)
+        if: ${{ env.ROLLBACK_ENABLED == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+          remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+          remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+
+          if [ ! -f "${remote_env_file}" ]; then
+            echo "::error title=rollback::backend env file missing: ${remote_env_file}"
+            exit 1
+          fi
+
+          chmod +x deploy/ubuntu/deploy-backend.sh deploy/ubuntu/rollback-backend.sh
+
+          ENV_FILE="${remote_env_file}" \
+          REPO_DIR="${remote_repo_dir}" \
+          COMPOSE_PROFILES="${remote_profiles}" \
+          RENDER_ENV_BEFORE_DEPLOY="true" \
+          DEPLOY_ENV="stage" \
+          VAULT_ADDR="http://127.0.0.1:8200" \
+          GHCR_USERNAME="${GITHUB_ACTOR}" \
+          GHCR_TOKEN="${GITHUB_TOKEN}" \
+          deploy/ubuntu/rollback-backend.sh
+
+      - name: Incident comment (best-effort)
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const marker = '<!-- incident:v1 -->';
+            const run = context.payload.workflow_run || {};
+            const sha = run.head_sha || '';
+            const runUrl = run.html_url || '';
+            const rollbackEnabled = process.env.ROLLBACK_ENABLED === 'true';
+            const { owner, repo } = context.repo;
+
+            let prNumber = null;
+            if (sha) {
+              try {
+                const resp = await github.request('GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls', {
+                  owner,
+                  repo,
+                  commit_sha: sha,
+                  headers: { accept: 'application/vnd.github+json, application/vnd.github.groot-preview+json' },
+                });
+                const prs = Array.isArray(resp.data) ? resp.data : [];
+                const merged = prs.find((p) => p && p.merged_at);
+                const open = prs.find((p) => p && p.state === 'open');
+                const cand = open || merged || prs[0];
+                if (cand && Number.isInteger(cand.number)) {
+                  prNumber = cand.number;
+                }
+              } catch (e) {
+                core.notice(`PR lookup via commit->pulls failed: ${e.message}`);
+              }
+            }
+
+            if (!prNumber) {
+              core.notice('No PR found for this rollback run; skipping incident comment.');
+              return;
+            }
+
+            const body = [
+              marker,
+              '## Incident (auto)',
+              '',
+              `- Trigger: post-deploy validation failed`,
+              `- Rollback enabled: ${rollbackEnabled ? 'true' : 'false'}`,
+              `- Run: ${runUrl}`,
+              `- Head: ${String(sha).slice(0, 7)}`,
+              '',
+              `_${rollbackEnabled ? 'Rollback attempted' : 'Rollback skipped'} (best-effort). See workflow logs for details._`,
+            ].join('\n');
+
+            const comments = await github.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+              owner,
+              repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+
+            const existing = comments.find((c) => typeof c.body === 'string' && c.body.includes(marker));
+            if (existing) {
+              await github.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.notice(`Updated incident comment (id=${existing.id}).`);
+              return;
+            }
+
+            await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+              owner,
+              repo,
+              issue_number: prNumber,
+              body,
+            });
+            core.notice('Created incident comment.');
+
+  rollback-stage-manual:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.confirm == 'ROLLBACK'
+      && github.event.inputs.env == 'stage'
+    env:
+      ROLLBACK_ENABLED: ${{ secrets.ROLLBACK_ENABLED }}
+
+    steps:
+      - name: Skip if rollback disabled
+        if: ${{ env.ROLLBACK_ENABLED != 'true' }}
+        run: echo "::notice title=rollback::ROLLBACK_ENABLED!=true; skipping stage rollback."
+
+      - uses: actions/checkout@v6
+        if: ${{ env.ROLLBACK_ENABLED == 'true' }}
+        with:
+          fetch-depth: 0
+
+      - name: Rollback stage backend (self-hosted)
+        if: ${{ env.ROLLBACK_ENABLED == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          WEB_ROLLBACK_HOOK_URL: ${{ secrets.WEB_ROLLBACK_HOOK_URL }}
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+          remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+          remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+
+          if [ -n "${WEB_ROLLBACK_HOOK_URL:-}" ]; then
+            echo "::notice title=rollback::Triggering WEB rollback hook (URL hidden)."
+            curl -fsS -X POST "${WEB_ROLLBACK_HOOK_URL}"
+          else
+            echo "::notice title=rollback::WEB_ROLLBACK_HOOK_URL missing; web rollback skipped."
+          fi
+
+          if [ ! -f "${remote_env_file}" ]; then
+            echo "::error title=rollback::backend env file missing: ${remote_env_file}"
+            exit 1
+          fi
+
+          chmod +x deploy/ubuntu/deploy-backend.sh deploy/ubuntu/rollback-backend.sh
+
+          ENV_FILE="${remote_env_file}" \
+          REPO_DIR="${remote_repo_dir}" \
+          COMPOSE_PROFILES="${remote_profiles}" \
+          RENDER_ENV_BEFORE_DEPLOY="true" \
+          DEPLOY_ENV="stage" \
+          VAULT_ADDR="http://127.0.0.1:8200" \
+          GHCR_USERNAME="${GITHUB_ACTOR}" \
+          GHCR_TOKEN="${GITHUB_TOKEN}" \
+          deploy/ubuntu/rollback-backend.sh
+
+  rollback:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env || 'stage' }}
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.confirm == 'ROLLBACK'
+      && github.event.inputs.env != 'stage'
+    env:
+      ROLLBACK_ENABLED: ${{ secrets.ROLLBACK_ENABLED }}
+      BACKEND_SSH_DEPLOY_ENABLED: ${{ secrets.BACKEND_SSH_DEPLOY_ENABLED }}
 
     steps:
       - name: Skip if rollback disabled
@@ -40,8 +289,18 @@ jobs:
       - name: Rollback (required)
         if: ${{ env.ROLLBACK_ENABLED == 'true' }}
         env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
           WEB_ROLLBACK_HOOK_URL: ${{ secrets.WEB_ROLLBACK_HOOK_URL }}
           BACKEND_ROLLBACK_HOOK_URL: ${{ secrets.BACKEND_ROLLBACK_HOOK_URL }}
+          BACKEND_DEPLOY_SSH_HOST: ${{ secrets.BACKEND_DEPLOY_SSH_HOST }}
+          BACKEND_DEPLOY_SSH_PORT: ${{ secrets.BACKEND_DEPLOY_SSH_PORT }}
+          BACKEND_DEPLOY_SSH_USER: ${{ secrets.BACKEND_DEPLOY_SSH_USER }}
+          BACKEND_DEPLOY_SSH_KEY: ${{ secrets.BACKEND_DEPLOY_SSH_KEY }}
+          BACKEND_DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.BACKEND_DEPLOY_SSH_KNOWN_HOSTS }}
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
         shell: bash
         run: |
           set -euo pipefail
@@ -49,13 +308,25 @@ jobs:
 
           missing=0
 
-          if [ -z "${WEB_ROLLBACK_HOOK_URL:-}" ]; then
-            echo "::error title=rollback::WEB_ROLLBACK_HOOK_URL missing; refusing to rollback."
-            missing=1
-          fi
-
-          if [ -z "${BACKEND_ROLLBACK_HOOK_URL:-}" ]; then
-            echo "::error title=rollback::BACKEND_ROLLBACK_HOOK_URL missing; refusing to rollback."
+          backend_mode=""
+          if [ "${BACKEND_SSH_DEPLOY_ENABLED:-}" = "true" ]; then
+            required_backend_ssh=(
+              BACKEND_DEPLOY_SSH_HOST
+              BACKEND_DEPLOY_SSH_USER
+              BACKEND_DEPLOY_SSH_KEY
+              BACKEND_DEPLOY_SSH_KNOWN_HOSTS
+            )
+            for name in "${required_backend_ssh[@]}"; do
+              if [ -z "${!name:-}" ]; then
+                echo "::error title=rollback::${name} missing; refusing backend SSH rollback."
+                missing=1
+              fi
+            done
+            backend_mode="ssh"
+          elif [ -n "${BACKEND_ROLLBACK_HOOK_URL:-}" ]; then
+            backend_mode="hook"
+          else
+            echo "::error title=rollback::No backend rollback path configured (SSH or hook)."
             missing=1
           fi
 
@@ -63,15 +334,82 @@ jobs:
             exit 1
           fi
 
-          echo "::notice title=rollback::Triggering WEB rollback hook (URL hidden)."
-          curl -fsS -X POST "${WEB_ROLLBACK_HOOK_URL}"
+          if [ -n "${WEB_ROLLBACK_HOOK_URL:-}" ]; then
+            echo "::notice title=rollback::Triggering WEB rollback hook (URL hidden)."
+            curl -fsS -X POST "${WEB_ROLLBACK_HOOK_URL}"
+          else
+            echo "::notice title=rollback::WEB_ROLLBACK_HOOK_URL missing; web rollback skipped."
+          fi
 
-          echo "::notice title=rollback::Triggering BACKEND rollback hook (URL hidden)."
-          curl -fsS -X POST "${BACKEND_ROLLBACK_HOOK_URL}"
+          if [ "${backend_mode}" = "hook" ]; then
+            echo "::notice title=rollback::Triggering BACKEND rollback hook (URL hidden)."
+            curl -fsS -X POST "${BACKEND_ROLLBACK_HOOK_URL}"
+          else
+            ssh_port="${BACKEND_DEPLOY_SSH_PORT:-22}"
+            remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+            remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+            remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+
+            key_path="${RUNNER_TEMP}/backend_rollback_ssh_key"
+            known_hosts_path="${RUNNER_TEMP}/backend_known_hosts"
+
+            printf '%s' "${BACKEND_DEPLOY_SSH_KEY}" > "${key_path}"
+            chmod 600 "${key_path}"
+            printf '%s\n' "${BACKEND_DEPLOY_SSH_KNOWN_HOSTS}" > "${known_hosts_path}"
+            chmod 600 "${known_hosts_path}"
+
+            ssh_opts=(
+              -i "${key_path}"
+              -p "${ssh_port}"
+              -o BatchMode=yes
+              -o StrictHostKeyChecking=yes
+              -o UserKnownHostsFile="${known_hosts_path}"
+            )
+
+            echo "::notice title=rollback::Triggering BACKEND rollback over SSH."
+            ssh "${ssh_opts[@]}" "${BACKEND_DEPLOY_SSH_USER}@${BACKEND_DEPLOY_SSH_HOST}" \
+              REMOTE_ENV_FILE="${remote_env_file}" \
+              REMOTE_REPO_DIR="${remote_repo_dir}" \
+              REMOTE_COMPOSE_PROFILES="${remote_profiles}" \
+              GITHUB_ACTOR="${GITHUB_ACTOR}" \
+              GITHUB_TOKEN="${GITHUB_TOKEN}" \
+              'bash -se' <<'EOF'
+            set -euo pipefail
+
+            if [ ! -f "${REMOTE_ENV_FILE}" ]; then
+              echo "[error] backend env file missing: ${REMOTE_ENV_FILE}" >&2
+              exit 1
+            fi
+
+            set -a
+            # shellcheck disable=SC1090
+            . "${REMOTE_ENV_FILE}"
+            set +a
+
+            if [ ! -d "${REMOTE_REPO_DIR}/.git" ]; then
+              if [ -z "${GIT_REMOTE_URL:-}" ]; then
+                echo "[error] GIT_REMOTE_URL missing in ${REMOTE_ENV_FILE}" >&2
+                exit 1
+              fi
+              mkdir -p "$(dirname "${REMOTE_REPO_DIR}")"
+              git clone --branch "${REPO_BRANCH:-main}" --depth 1 "${GIT_REMOTE_URL}" "${REMOTE_REPO_DIR}"
+            fi
+
+            cd "${REMOTE_REPO_DIR}"
+            chmod +x deploy/ubuntu/deploy-backend.sh deploy/ubuntu/rollback-backend.sh
+
+            ENV_FILE="${REMOTE_ENV_FILE}" \
+            REPO_DIR="${REMOTE_REPO_DIR}" \
+            COMPOSE_PROFILES="${REMOTE_COMPOSE_PROFILES}" \
+            GHCR_USERNAME="${GITHUB_ACTOR}" \
+            GHCR_TOKEN="${GITHUB_TOKEN}" \
+            deploy/ubuntu/rollback-backend.sh
+            EOF
+          fi
 
       - name: Incident comment (best-effort)
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ github.token }}
           script: |

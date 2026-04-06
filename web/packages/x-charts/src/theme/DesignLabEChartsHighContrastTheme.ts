@@ -1,7 +1,7 @@
 /**
  * DesignLabEChartsHighContrastTheme — WCAG AA+ High Contrast Theme
  *
- * Designed for the serban-hc preset. All color pairs maintain ≥4.5:1
+ * Designed for the design-lab high-contrast preset. All color pairs maintain ≥4.5:1
  * contrast ratio (WCAG AA). Text on backgrounds targets ≥7:1 (AAA).
  *
  * Key differences from standard themes:

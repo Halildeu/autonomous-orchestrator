@@ -11,6 +11,7 @@ import {
   fetchDashboardList,
   type DashboardListItem,
 } from '../../modules/dashboard';
+import { reportModules } from '../../modules';
 import type { GalleryItem } from '@mfe/design-system';
 
 /* ------------------------------------------------------------------ */
@@ -142,7 +143,29 @@ export function useCatalog() {
       .filter((db) => !allRoutes.has(`dashboard-${db.key}`))
       .map(mapDashboard);
 
-    return [...staticItems, ...dynamicItems, ...dashboardItems];
+    // Extra modules registered in reportModuleMap but not in any catalog source
+    const allFinalRoutes = new Set([
+      ...staticRoutes,
+      ...dynamicItems.map((d) => d.route),
+      ...dashboardItems.map((d) => d.route),
+    ]);
+    const extraItems: CatalogItem[] = reportModules
+      .filter((m) => !allFinalRoutes.has(m.route))
+      .map((m) => ({
+        id: m.id,
+        title: m.titleKey,
+        description: m.descriptionKey ?? '',
+        group: 'Dashboard',
+        icon: '🔍',
+        tags: [],
+        badge: { label: 'Dashboard', tone: 'info' },
+        route: m.route,
+        type: 'dashboard' as const,
+        category: 'Dashboard',
+        source: 'static' as const,
+      }));
+
+    return [...staticItems, ...dynamicItems, ...dashboardItems, ...extraItems];
   }, [staticItems, dynamicReports, dashboards]);
 
   return { items, isLoading };

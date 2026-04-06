@@ -119,7 +119,6 @@ export function useEChartsRenderer(options: EChartsRendererOptions): EChartsRend
       instanceRef.current = null;
       setIsReady(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only re-init on renderer/theme change
   }, [renderer, theme]);
 
   // Option update

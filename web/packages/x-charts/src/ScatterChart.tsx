@@ -9,6 +9,8 @@
 import React, { useMemo, useCallback } from "react";
 import { cn } from "@mfe/design-system";
 import { useEChartsRenderer } from "./renderers";
+import { formatCompact } from "./utils/formatters";
+import { sanitizeNumber } from "./utils/data-validation";
 import type { EChartsOption } from "./renderers/echarts-imports";
 
 /* ------------------------------------------------------------------ */
@@ -110,7 +112,17 @@ export const ScatterChart = React.forwardRef<HTMLDivElement, ScatterChartProps>(
     forwardedRef,
   ) {
     const height = SIZE_HEIGHT[size];
-    const isEmpty = !data || data.length === 0;
+    const safeData = useMemo(() =>
+      (data ?? []).map(d => ({
+        ...d,
+        x: sanitizeNumber(d.x),
+        y: sanitizeNumber(d.y),
+        size: d.size != null ? sanitizeNumber(d.size) : undefined,
+      })),
+      [data],
+    );
+    const isEmpty = safeData.length === 0;
+    const fmt = valueFormatter ?? formatCompact;
 
     const option = useMemo((): EChartsOption | null => {
       if (isEmpty) return null;
@@ -123,7 +135,7 @@ export const ScatterChart = React.forwardRef<HTMLDivElement, ScatterChartProps>(
       const bgMuted = getCSSVar("--bg-muted", "#f9fafb");
 
       // Transform data: [x, y, size?, label?, color?]
-      const scatterData = data.map((d, i) => ({
+      const scatterData = safeData.map((d, i) => ({
         value: bubble && d.size != null ? [d.x, d.y, d.size] : [d.x, d.y],
         name: d.label ?? `Point ${i + 1}`,
         itemStyle: d.color ? { color: d.color } : undefined,
@@ -156,8 +168,8 @@ export const ScatterChart = React.forwardRef<HTMLDivElement, ScatterChartProps>(
           textStyle: { fontFamily, fontSize: 13 },
           formatter: (params: unknown) => {
             const p = params as { value: number[]; name: string };
-            const xVal = valueFormatter ? valueFormatter(p.value[0]) : String(p.value[0]);
-            const yVal = valueFormatter ? valueFormatter(p.value[1]) : String(p.value[1]);
+            const xVal = fmt(p.value[0]);
+            const yVal = fmt(p.value[1]);
             const label = p.name && !p.name.startsWith("Point ") ? ` — ${escapeHtml(p.name)}` : "";
             return `(${escapeHtml(xVal)}, ${escapeHtml(yVal)})${label}`;
           },
@@ -189,7 +201,7 @@ export const ScatterChart = React.forwardRef<HTMLDivElement, ScatterChartProps>(
             color: textSecondary,
             fontFamily,
             fontSize: 11,
-            formatter: valueFormatter ? (v: number) => valueFormatter(v) : undefined,
+            formatter: (v: number) => fmt(v),
           },
           splitLine: {
             show: showGrid,
@@ -208,7 +220,7 @@ export const ScatterChart = React.forwardRef<HTMLDivElement, ScatterChartProps>(
             color: textSecondary,
             fontFamily,
             fontSize: 11,
-            formatter: valueFormatter ? (v: number) => valueFormatter(v) : undefined,
+            formatter: (v: number) => fmt(v),
           },
           splitLine: {
             show: showGrid,

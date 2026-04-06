@@ -101,6 +101,7 @@
     "release:ui-library": "node ./scripts/ops/run-ui-library-release.mjs",
     "build:users": "npm run build --prefix apps/mfe-users",
     "build:reporting": "npm run build --prefix apps/mfe-reporting",
+    "build:ubuntu:single-domain": "node ./scripts/deploy/build-single-domain.mjs",
     "build:raw": "npm run clean && npm-run-all --parallel build:shell build:suggestions build:ethic build:access build:audit build:design-system build:users build:reporting",
     "build": "bash ./scripts/health/run-web-build-guard.sh --script build:raw",
     "test": "npm-run-all test:shell test:ethic test:access:unit test:audit test:design-system test:shared-types",
