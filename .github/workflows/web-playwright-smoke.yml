@@ -498,6 +498,9 @@ jobs:
             -e PLAYWRIGHT_BASE_URL \
             -e PLAYWRIGHT_EXECUTABLE_PATH \
             -e PW_KEYCLOAK_URL \
+            -e PW_KEYCLOAK_CLIENT_ID \
+            -e PW_KEYCLOAK_CLIENT_SECRET \
+            -e PW_KEYCLOAK_SCOPE \
             -e PW_SOFT_MODE \
             -e PW_AUTH_MODE \
             -e PW_READONLY_ENFORCE \
@@ -518,6 +521,9 @@ jobs:
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          PW_KEYCLOAK_CLIENT_ID: admin-cli
+          PW_KEYCLOAK_CLIENT_SECRET: ''
+          PW_KEYCLOAK_SCOPE: openid
           KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
