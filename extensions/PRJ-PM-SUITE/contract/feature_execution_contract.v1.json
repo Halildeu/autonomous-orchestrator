@@ -62,6 +62,7 @@
       "mobile/features/**/*",
       "mobile/services/**/*",
       "mobile/packages/**/*",
+      "web/apps/mfe-shell/src/app/auth/**",
       "web/apps/mfe-shell/src/app/auth/**/*",
       "web/apps/mfe-shell/src/app/providers/**",
       "web/apps/mfe-shell/src/features/auth/**/*",
