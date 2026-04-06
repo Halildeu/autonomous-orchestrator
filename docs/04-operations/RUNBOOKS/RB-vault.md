@@ -63,7 +63,7 @@ Owner: @team/platform
 - Dev vault restart sonrası:
   - `vault-unseal` çalışıyorsa otomatik unseal beklenir.
   - `vault-unseal` yoksa manuel unseal gerekir (`bash backend/scripts/vault/dev_unseal.sh`).
-- SSOT seed: `bash backend/scripts/vault/seed-web-playwright-stage.sh` (Playwright staging config).
+- SSOT seed: `bash backend/scripts/vault/seed-web-playwright-stage.sh` (Playwright staging config; opsiyonel `PW_REAL_USER_EMAIL` / `PW_REAL_USER_PASSWORD` dahil).
 - Sonra `vault-secrets-sync` workflow’unu `dry_run=true` ile çalıştırıp FOUND/MISSING kontrol et.
 - KV v2 “key kaybı” şüphesi (izleme):
   - Key list (value yok): `vault kv get -format=json secret/<env>/<path> | jq -r '.data.data | keys[]'`

@@ -8,9 +8,41 @@ type AuthzSnapshot = {
   superAdmin?: boolean;
 };
 
-const KEYCLOAK_URL = (process.env.PW_KEYCLOAK_URL ?? 'http://localhost:8081').trim();
-const KEYCLOAK_REALM = (process.env.PW_KEYCLOAK_REALM ?? 'serban').trim();
-const KEYCLOAK_CLIENT_ID = (process.env.PW_KEYCLOAK_CLIENT_ID ?? 'frontend').trim();
+type ParsedTokenEndpoint = {
+  baseUrl?: string;
+  realm?: string;
+};
+
+const parseKeycloakTokenUrl = (rawUrl: string): ParsedTokenEndpoint => {
+  if (!rawUrl) {
+    return {};
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    const match = url.pathname.match(/^(.*)\/realms\/([^/]+)\/protocol\/openid-connect\/token$/);
+
+    if (!match) {
+      return {};
+    }
+
+    const prefix = match[1] ?? '';
+    const realm = match[2]?.trim();
+    const baseUrl = `${url.origin}${prefix}`.replace(/\/$/, '');
+
+    return {
+      baseUrl: baseUrl || url.origin,
+      realm,
+    };
+  } catch {
+    return {};
+  }
+};
+
+const derivedKeycloak = parseKeycloakTokenUrl((process.env.KEYCLOAK_TOKEN_URL ?? '').trim());
+const KEYCLOAK_URL = (process.env.PW_KEYCLOAK_URL ?? derivedKeycloak.baseUrl ?? 'http://localhost:8081').trim();
+const KEYCLOAK_REALM = (process.env.PW_KEYCLOAK_REALM ?? derivedKeycloak.realm ?? 'serban').trim();
+const KEYCLOAK_CLIENT_ID = (process.env.PW_KEYCLOAK_CLIENT_ID ?? process.env.KEYCLOAK_CLIENT_ID ?? 'frontend').trim();
 const TEST_EMAIL = (process.env.PW_REAL_USER_EMAIL ?? 'user3@example.com').trim();
 const TEST_PASSWORD = (process.env.PW_REAL_USER_PASSWORD ?? '').trim();
 

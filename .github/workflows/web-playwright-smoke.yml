@@ -3,6 +3,14 @@ name: Web Playwright Smoke
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: "Hedef environment"
+        required: true
+        default: "stage"
+        type: choice
+        options:
+          - stage
+          - prod
       mode:
         description: "ci: Seviye 1, nightly: Seviye 1+2"
         required: true
@@ -11,6 +19,14 @@ on:
         options:
           - ci
           - nightly
+      suite:
+        description: "Çalıştırılacak test kümesi"
+        required: false
+        default: "scenario-runner"
+        type: choice
+        options:
+          - scenario-runner
+          - authz-zanzibar
       soft_mode:
         description: "1: Soft mode (job kırma yok), 0: Hard mode (FAIL -> job fail)"
         required: false
@@ -42,18 +58,25 @@ on:
 
 jobs:
   pw-smoke:
+    if: ${{ inputs.env != 'stage' }}
     runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Validate base_url
         run: |
@@ -69,20 +92,33 @@ jobs:
           fi
 
       - name: Install web dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: web
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: web
 
-      - name: Run Playwright YAML smoke
+      - name: Validate authz smoke secrets
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
         run: |
-          set -e
-          if [ "${{ inputs.mode }}" = "nightly" ]; then
-            npm run pw:nightly
+          set -euo pipefail
+          if [ -z "${PW_REAL_USER_PASSWORD:-}" ]; then
+            echo "[pw-smoke] HATA: authz-zanzibar için PW_REAL_USER_PASSWORD secret'ı zorunlu."
+            exit 1
+          fi
+        env:
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Run Playwright smoke
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.suite }}" = "authz-zanzibar" ]; then
+            pnpm run pw:authz-zanzibar
+          elif [ "${{ inputs.mode }}" = "nightly" ]; then
+            pnpm run pw:nightly
           else
-            npm run pw:ci
+            pnpm run pw:ci
           fi
         working-directory: web
         env:
@@ -94,10 +130,95 @@ jobs:
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
           KEYCLOAK_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
+          PW_REAL_USER_EMAIL: ${{ secrets.PW_REAL_USER_EMAIL }}
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
 
       - name: Upload reports (pw)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pw-reports
+          path: web/test-results/pw
+
+  pw-smoke-stage:
+    if: ${{ inputs.env == 'stage' }}
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Validate base_url
+        run: |
+          set -euo pipefail
+          BASE_URL="${{ inputs.base_url }}"
+          if [ -z "$BASE_URL" ]; then
+            echo "[pw-smoke] HATA: 'base_url' boş olamaz. Staging URL girin (örn: http://10.9.10.53:5544)."
+            exit 1
+          fi
+
+      - name: Install web dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: web
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+        working-directory: web
+
+      - name: Validate authz smoke secrets
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PW_REAL_USER_PASSWORD:-}" ]; then
+            echo "[pw-smoke] HATA: authz-zanzibar için PW_REAL_USER_PASSWORD secret'ı zorunlu."
+            exit 1
+          fi
+        env:
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Run Playwright smoke
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.suite }}" = "authz-zanzibar" ]; then
+            pnpm run pw:authz-zanzibar
+          elif [ "${{ inputs.mode }}" = "nightly" ]; then
+            pnpm run pw:nightly
+          else
+            pnpm run pw:ci
+          fi
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+          PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
+          PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
+          PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
+          KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+          KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+          KEYCLOAK_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
+          PW_REAL_USER_EMAIL: ${{ secrets.PW_REAL_USER_EMAIL }}
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Upload reports (pw)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-reports-stage
           path: web/test-results/pw
