@@ -42,6 +42,15 @@ const clickFirst = async (page: Page, selectors: string[]) => {
   throw new Error(`Beklenen buton bulunamadı: ${selectors.join(', ')}`);
 };
 
+const summarizeUrl = (value: string): string => {
+  try {
+    const parsed = new URL(value);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return value;
+  }
+};
+
 const performBrowserLogin = async (page: Page, root: string, email: string, password: string) => {
   page.on('console', (msg) => {
     const text = msg.text();
@@ -81,16 +90,26 @@ const performBrowserLogin = async (page: Page, root: string, email: string, pass
   ];
   if (await isVisible(page, appLoginButtonSelectors)) {
     const loginButton = page.locator(appLoginButtonSelectors[0]).first();
+    let loginHref: string | null = null;
     if (await loginButton.isVisible().catch(() => false)) {
       await expect(loginButton).toBeEnabled({ timeout: 30_000 });
+      loginHref = await loginButton.getAttribute('href').catch(() => null);
       console.log(
         `[authz-smoke] login_button enabled=${await loginButton.isEnabled().catch(() => false)} text=${await loginButton.textContent().catch(() => '')}`,
       );
+      if (loginHref) {
+        console.log(`[authz-smoke] login_href=${summarizeUrl(loginHref)}`);
+      }
     }
     await clickFirst(page, appLoginButtonSelectors);
     await page.waitForURL((url) => url.toString() !== initialUrl || url.toString().includes('/realms/'), {
       timeout: 20_000,
     }).catch(() => undefined);
+
+    if (page.url() === initialUrl && loginHref) {
+      console.log(`[authz-smoke] click navigation başlamadı; direct goto fallback=${summarizeUrl(loginHref)}`);
+      await page.goto(loginHref, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+    }
   }
 
   const keycloakUserSelectors = ['#username', 'input[name="username"]', 'input[type="email"]'];
