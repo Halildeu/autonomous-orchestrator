@@ -190,9 +190,28 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
+          INPUT_SUITE: ${{ inputs.suite }}
         run: |
           set -euo pipefail
           cd "${GITHUB_WORKSPACE}"
+          if [[ -d "/home/halil/platform/repo/web" ]]; then
+            echo "[pw-smoke] host checkout bulundu; temel web agaci lokal repo uzerinden kopyalaniyor."
+            rm -rf "${GITHUB_WORKSPACE}/web"
+            mkdir -p "${GITHUB_WORKSPACE}/web"
+            cp -R "/home/halil/platform/repo/web/." "${GITHUB_WORKSPACE}/web/"
+
+            if [[ "${INPUT_SUITE}" == "authz-zanzibar" ]]; then
+              echo "[pw-smoke] authz suite icin branch spec SHA bazli indiriliyor."
+              mkdir -p "${GITHUB_WORKSPACE}/web/tests/playwright"
+              curl -fsSL --connect-timeout 20 --max-time 120 \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github.raw" \
+                "https://api.github.com/repos/${GH_REPO}/contents/web/tests/playwright/authz.zanzibar.spec.ts?ref=${GH_SHA}" \
+                -o "${GITHUB_WORKSPACE}/web/tests/playwright/authz.zanzibar.spec.ts"
+            fi
+            exit 0
+          fi
+
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "${tmpdir}"' EXIT
           archive="${tmpdir}/repo.tar.gz"
