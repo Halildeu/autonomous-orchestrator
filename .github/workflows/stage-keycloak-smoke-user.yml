@@ -202,7 +202,7 @@ jobs:
           fi
 
           if [[ "${MODE}" == "inspect-app-authz" ]]; then
-            effective_client_id="${TARGET_CLIENT_ID:-admin-cli}"
+            effective_client_id="${TARGET_CLIENT_ID:-${KC_CLIENT_ID:-admin-cli}}"
             if [[ -z "${TARGET_PASSWORD:-}" ]]; then
               echo "[kc] HATA: inspect-app-authz için stage secret PW_REAL_USER_PASSWORD zorunlu."
               exit 1
