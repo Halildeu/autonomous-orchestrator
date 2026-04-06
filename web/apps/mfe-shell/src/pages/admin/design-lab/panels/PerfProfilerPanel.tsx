@@ -4,10 +4,10 @@ import {
   ChevronDown,
   ChevronRight,
   Timer,
-  _Zap,
+  Zap as _Zap,
   AlertTriangle,
   RotateCcw,
-  _TrendingUp,
+  TrendingUp as _TrendingUp,
 } from "lucide-react";
 import { Text } from "@mfe/design-system";
 

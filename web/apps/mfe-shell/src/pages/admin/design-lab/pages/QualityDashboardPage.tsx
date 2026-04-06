@@ -1,14 +1,14 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  _Shield,
+  Shield as _Shield,
   Award,
   TrendingUp,
   AlertTriangle,
   BarChart3,
   CheckCircle2,
-  _XCircle,
-  _ArrowDown,
+  XCircle as _XCircle,
+  ArrowDown as _ArrowDown,
   Activity,
   FlaskConical,
   Languages,
