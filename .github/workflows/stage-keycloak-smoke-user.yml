@@ -221,20 +221,43 @@ jobs:
               exit 1
             fi
 
-            for path in "/v1/authz/me" "/api/v1/authz/me"; do
-              authz_response="$(
-                curl -sS -w '\n%{http_code}' \
+            probe_authz() {
+              local label="$1"
+              local url="$2"
+              local headers_file body_file authz_status content_type
+              headers_file="$(mktemp)"
+              body_file="$(mktemp)"
+
+              authz_status="$(
+                curl -sS \
+                  -o "${body_file}" \
+                  -D "${headers_file}" \
+                  -w '%{http_code}' \
                   -H "Authorization: Bearer ${access_token}" \
                   -H "Accept: application/json" \
-                  "http://127.0.0.1:5544${path}"
+                  "${url}"
               )"
-              authz_status="$(printf '%s' "${authz_response}" | tail -n 1)"
-              authz_body="$(printf '%s' "${authz_response}" | sed '$d')"
-              echo "[app-authz] path=${path} status=${authz_status}"
-              if [[ "${authz_status}" == "200" ]]; then
-                printf '%s' "${authz_body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; mods=payload.get("allowedModules") or payload.get("permissions") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods));'
+
+              content_type="$(
+                awk 'BEGIN{IGNORECASE=1} /^content-type:/ {sub(/\r$/,"",$0); sub(/^[^:]+:[[:space:]]*/,"",$0); print; exit}' "${headers_file}"
+              )"
+
+              echo "[app-authz] target=${label} url=${url} status=${authz_status} content_type=${content_type:--}"
+
+              if [[ "${content_type}" == application/json* ]]; then
+                python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")); mods=payload.get("allowedModules") or payload.get("permissions") or []; print("[app-authz] userId=" + str(payload.get("userId","-"))); print("[app-authz] superAdmin=" + str(payload.get("superAdmin","-"))); print("[app-authz] allowedModules=" + ",".join(str(x) for x in mods))' "${body_file}"
+              else
+                body_preview="$(tr '\n' ' ' < "${body_file}" | sed 's/[[:space:]]\\+/ /g' | cut -c1-240)"
+                echo "[app-authz] body_preview=${body_preview:--}"
               fi
-            done
+
+              rm -f "${headers_file}" "${body_file}"
+            }
+
+            probe_authz "edge-no-prefix" "http://127.0.0.1:5544/v1/authz/me"
+            probe_authz "edge" "http://127.0.0.1:5544/api/v1/authz/me"
+            probe_authz "gateway" "http://127.0.0.1:8080/api/v1/authz/me"
+            probe_authz "user-service" "http://127.0.0.1:8089/api/v1/authz/me"
 
             pg_container="$(docker ps --format '{{.Names}}' | awk '/postgres|postgis|db/ { print; exit }')"
             if [[ -n "${pg_container}" ]]; then
