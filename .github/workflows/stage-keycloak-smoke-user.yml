@@ -1,0 +1,185 @@
+name: Stage Keycloak Smoke User
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "İşlem modu"
+        required: true
+        default: "inspect"
+        type: choice
+        options:
+          - inspect
+          - reset-password
+      user_email:
+        description: "Smoke kullanıcı e-postası"
+        required: true
+        default: "user3@example.com"
+        type: string
+      realm:
+        description: "Keycloak realm"
+        required: false
+        default: "serban"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  manage-smoke-user:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Inspect or reset smoke user
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          TARGET_EMAIL: ${{ inputs.user_email }}
+          REALM_NAME: ${{ inputs.realm }}
+          TARGET_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          require_cmd() {
+            if ! command -v "$1" >/dev/null 2>&1; then
+              echo "[kc] HATA: '$1' komutu bulunamadı."
+              exit 1
+            fi
+          }
+
+          require_cmd docker
+          require_cmd curl
+          require_cmd jq
+          require_cmd python3
+
+          urlencode() {
+            python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$1"
+          }
+
+          kc_container="$(docker ps --format '{{.Names}}' | awk '/keycloak/ { print; exit }')"
+          if [[ -z "${kc_container}" ]]; then
+            echo "[kc] HATA: çalışan keycloak container bulunamadı."
+            docker ps --format '{{.Names}}'
+            exit 1
+          fi
+
+          echo "[kc] container=${kc_container}"
+
+          host_port="$(
+            docker inspect -f '{{range $port, $bindings := .NetworkSettings.Ports}}{{if and (eq $port "8080/tcp") $bindings}}{{(index $bindings 0).HostPort}}{{end}}{{end}}' \
+              "${kc_container}" 2>/dev/null || true
+          )"
+          if [[ -z "${host_port}" ]]; then
+            host_port="8081"
+          fi
+
+          keycloak_base="http://127.0.0.1:${host_port}"
+          admin_user=""
+          admin_pass=""
+
+          load_env_pair() {
+            local pair="$1"
+            case "${pair}" in
+              KEYCLOAK_ADMIN=*) admin_user="${pair#*=}" ;;
+              KC_ADMIN=*) admin_user="${pair#*=}" ;;
+              KEYCLOAK_USER=*) admin_user="${pair#*=}" ;;
+              KEYCLOAK_ADMIN_PASSWORD=*) admin_pass="${pair#*=}" ;;
+              KC_ADMIN_PASSWORD=*) admin_pass="${pair#*=}" ;;
+              KEYCLOAK_PASSWORD=*) admin_pass="${pair#*=}" ;;
+            esac
+          }
+
+          if [[ -f /opt/app/.env ]]; then
+            while IFS= read -r line; do
+              [[ -n "${line}" ]] || continue
+              load_env_pair "${line}"
+            done < /opt/app/.env
+          fi
+
+          if [[ -z "${admin_user}" || -z "${admin_pass}" ]]; then
+            while IFS= read -r env_line; do
+              load_env_pair "${env_line}"
+            done < <(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${kc_container}")
+          fi
+
+          if [[ -z "${admin_user}" ]]; then
+            admin_user="admin"
+          fi
+          if [[ -z "${admin_pass}" ]]; then
+            admin_pass="admin"
+          fi
+
+          echo "::add-mask::${admin_user}"
+          echo "::add-mask::${admin_pass}"
+          if [[ -n "${TARGET_PASSWORD:-}" ]]; then
+            echo "::add-mask::${TARGET_PASSWORD}"
+          fi
+
+          admin_token="$(
+            curl -sS -X POST "${keycloak_base}/realms/master/protocol/openid-connect/token" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -d "grant_type=password" \
+              -d "client_id=admin-cli" \
+              -d "username=${admin_user}" \
+              -d "password=${admin_pass}" | jq -r '.access_token // empty'
+          )"
+
+          if [[ -z "${admin_token}" ]]; then
+            echo "[kc] HATA: admin token alınamadı."
+            exit 1
+          fi
+
+          email_q="$(urlencode "${TARGET_EMAIL}")"
+          user_payload="$(
+            curl -sS \
+              -H "Authorization: Bearer ${admin_token}" \
+              "${keycloak_base}/admin/realms/${REALM_NAME}/users?email=${email_q}"
+          )"
+
+          user_count="$(jq 'length' <<<"${user_payload}")"
+          echo "[kc] realm=${REALM_NAME} user_count=${user_count}"
+
+          if [[ "${user_count}" -eq 0 ]]; then
+            echo "[kc] HATA: smoke kullanıcı bulunamadı: ${TARGET_EMAIL}"
+            exit 1
+          fi
+
+          user_id="$(jq -r '.[0].id // empty' <<<"${user_payload}")"
+          username="$(jq -r '.[0].username // empty' <<<"${user_payload}")"
+          enabled="$(jq -r '.[0].enabled // empty' <<<"${user_payload}")"
+
+          echo "[kc] user=${username:-unknown} enabled=${enabled:-unknown}"
+
+          if [[ "${MODE}" == "inspect" ]]; then
+            echo "[kc] OK: smoke kullanıcı erişilebilir."
+            exit 0
+          fi
+
+          if [[ -z "${TARGET_PASSWORD:-}" ]]; then
+            echo "[kc] HATA: reset-password için stage secret PW_REAL_USER_PASSWORD zorunlu."
+            exit 1
+          fi
+
+          curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${admin_token}" \
+            -H "Content-Type: application/json" \
+            -X PUT "${keycloak_base}/admin/realms/${REALM_NAME}/users/${user_id}/reset-password" \
+            -d "$(jq -n --arg value "${TARGET_PASSWORD}" '{type:"password", temporary:false, value:$value}')" \
+            | {
+              read -r status
+              if [[ "${status}" != "204" ]]; then
+                echo "[kc] HATA: parola reset başarısız (HTTP ${status})."
+                exit 1
+              fi
+            }
+
+          echo "[kc] OK: smoke kullanıcı parolası güncellendi."
