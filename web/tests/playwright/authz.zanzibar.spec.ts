@@ -43,16 +43,23 @@ const derivedKeycloak = parseKeycloakTokenUrl((process.env.KEYCLOAK_TOKEN_URL ??
 const KEYCLOAK_URL = (process.env.PW_KEYCLOAK_URL ?? derivedKeycloak.baseUrl ?? 'http://localhost:8081').trim();
 const KEYCLOAK_REALM = (process.env.PW_KEYCLOAK_REALM ?? derivedKeycloak.realm ?? 'serban').trim();
 const KEYCLOAK_CLIENT_ID = (process.env.PW_KEYCLOAK_CLIENT_ID ?? process.env.KEYCLOAK_CLIENT_ID ?? 'frontend').trim();
+const KEYCLOAK_CLIENT_SECRET = (process.env.PW_KEYCLOAK_CLIENT_SECRET ?? process.env.KEYCLOAK_CLIENT_SECRET ?? '').trim();
+const KEYCLOAK_SCOPE = (process.env.PW_KEYCLOAK_SCOPE ?? process.env.KEYCLOAK_SCOPE ?? 'openid').trim();
 const TEST_EMAIL = (process.env.PW_REAL_USER_EMAIL ?? 'user3@example.com').trim();
 const TEST_PASSWORD = (process.env.PW_REAL_USER_PASSWORD ?? '').trim();
 
 const issuePasswordGrantToken = async (email: string, password: string): Promise<string> => {
-  const body = new URLSearchParams({
-    grant_type: 'password',
-    client_id: KEYCLOAK_CLIENT_ID,
-    username: email,
-    password,
-  });
+  const body = new URLSearchParams();
+  body.set('grant_type', 'password');
+  body.set('client_id', KEYCLOAK_CLIENT_ID);
+  body.set('username', email);
+  body.set('password', password);
+  if (KEYCLOAK_CLIENT_SECRET) {
+    body.set('client_secret', KEYCLOAK_CLIENT_SECRET);
+  }
+  if (KEYCLOAK_SCOPE) {
+    body.set('scope', KEYCLOAK_SCOPE);
+  }
 
   const response = await fetch(
     `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
