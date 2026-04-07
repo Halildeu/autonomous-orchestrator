@@ -37,6 +37,14 @@ Local SSOT prensibiyle PR’ı uçtan uca sonuçlandırmak:
 
 ### 3.1 Ön koşullar (kopyasız auth)
 
+Canonical local gate entry points:
+- Local gate adı: `local-gate-chain`
+- Runner: `scripts/run_local_gate_chain.sh`
+- Guard: `scripts/require_local_gate.sh`
+- Hook installer: `scripts/setup_local_git_hooks.sh`
+- Hook enforce: `.githooks/pre-commit`, `.githooks/pre-push`
+- PASS artifact: `.cache/reports/local-gate-chain/status.json`
+
 1) GH auth (SSOT):
 - `bash scripts/ops/gh_token_preflight.sh` PASS olmalı (kopyasız; token yazdırılmaz).
 - Opsiyonel (persist login): `bash scripts/ops/gh_auth_with_token.sh`

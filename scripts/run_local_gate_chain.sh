@@ -15,6 +15,8 @@ mkdir -p "${LOG_DIR}/logs"
 declare -a STEP_RESULTS=()
 OVERALL_STATUS="RUNNING"
 RUN_STARTED_AT_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+LOCAL_GATE_DEPENDENCY_SCAN_MODE="${LOCAL_GATE_DEPENDENCY_SCAN_MODE:-cache-only}"
+LOCAL_GATE_DEPENDENCY_SCAN_ALLOW_BOOTSTRAP_ON_CACHE_MISS="${LOCAL_GATE_DEPENDENCY_SCAN_ALLOW_BOOTSTRAP_ON_CACHE_MISS:-true}"
 
 if [[ -f "${SCRIPT_DIR}/ops/load_local_env.sh" ]]; then
   # shellcheck source=/dev/null
@@ -128,6 +130,7 @@ write_status_artifacts() {
     printf 'finished_at_utc=%s\n' "${finished_at}"
     printf 'overall_status=%s\n' "${OVERALL_STATUS}"
     printf 'nvd_api_key_loaded=%s\n' "$([[ -n "${NVD_API_KEY:-}" ]] && printf yes || printf no)"
+    printf 'dependency_scan_mode=%s\n' "${LOCAL_GATE_DEPENDENCY_SCAN_MODE}"
     printf 'gitleaks_mode=%s\n' "$([[ -n "${secrets_range:-}" ]] && printf git-range || printf full-detect)"
     for row in "${STEP_RESULTS[@]}"; do
       IFS='|' read -r status step log_path <<<"${row}"
@@ -313,7 +316,7 @@ set -euo pipefail
 python3 scripts/check_security_all.py
 python3 scripts/check_live_release_provisioning_contract.py
 bash backend/scripts/ci/security/run-sast.sh
-bash backend/scripts/ci/security/run-dependency-scan.sh
+DEPENDENCY_CHECK_MODE='"${LOCAL_GATE_DEPENDENCY_SCAN_MODE}"' DEPENDENCY_CHECK_ALLOW_BOOTSTRAP_ON_CACHE_MISS='"${LOCAL_GATE_DEPENDENCY_SCAN_ALLOW_BOOTSTRAP_ON_CACHE_MISS}"' bash backend/scripts/ci/security/run-dependency-scan.sh
 bash backend/scripts/ci/security/generate-sbom-and-sign.sh
 ruby backend/scripts/ci/security/export-flag-health.rb
 python3 scripts/check_security_remediation_contract.py

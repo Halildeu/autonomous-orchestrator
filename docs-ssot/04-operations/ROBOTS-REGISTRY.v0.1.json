@@ -615,6 +615,7 @@
       ],
       "side_effects": [
         "workflow_dispatch(security-guardrails)",
+        "schedule(security-guardrails nightly-full-refresh)",
         "pull_request_gate(security-guardrails)"
       ],
       "required_auth_refs": [

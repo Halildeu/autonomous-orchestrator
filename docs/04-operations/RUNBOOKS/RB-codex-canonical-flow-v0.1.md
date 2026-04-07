@@ -35,11 +35,22 @@ Owner: @team/platform
    - MODE != PLAN iken plan dili görünmez; “Planlanan Değişiklikler” yazılmaz.
    - MODE = PLAN iken “Uygulanan Değişiklikler” yazılmaz.
 
+0.5) **Canonical Git Öncesi Gate Entry Points**
+   - Local gate adı: `local-gate-chain`
+   - Runner: `scripts/run_local_gate_chain.sh`
+   - Guard: `scripts/require_local_gate.sh`
+   - Hook installer: `scripts/setup_local_git_hooks.sh`
+   - Hook enforce: `.githooks/pre-commit`, `.githooks/pre-push`
+   - PASS artifact: `.cache/reports/local-gate-chain/status.json`
+
 1) **WORK LOG – UI Mirror**
    - `Ran/Edited/Reviewed/Considering` satırları ile yapılan işleri ham şekilde yansıt.
 
 2) **Local Gate (Zorunlu)**
-   - `python3 scripts/run_doc_qa_execution_log_local.py --out-dir .autopilot-tmp/execution-log`
+   - `bash scripts/setup_local_git_hooks.sh`
+   - `bash scripts/run_local_gate_chain.sh`
+   - Git geçişi sırasında `scripts/require_local_gate.sh --auto-run` hook içinden
+     zorunlu çağrılır; PASS artifact yoksa commit/push durur.
 
 3) **RESULT**
    - “Ne çıktı?” (1–5 madde, geçmiş zaman).
@@ -78,8 +89,9 @@ Owner: @team/platform
 -------------------------------------------------------------------------------
 
 - Local gate kanıtı:
-  - `.autopilot-tmp/execution-log/execution-log.md`
-  - `.autopilot-tmp/execution-log/checks.json`
+  - `.cache/reports/local-gate-chain/status.json`
+  - `.cache/reports/local-gate-chain/summary.txt`
+  - `.cache/reports/local-gate-chain/logs/*`
 - Local chat transcript:
   - `.autopilot-tmp/codex-chatlog/latest.md`
   - `.autopilot-tmp/codex-chatlog/YYYYMMDD.md`
@@ -94,19 +106,20 @@ Owner: @team/platform
 -------------------------------------------------------------------------------
 
 - [ ] Arıza senaryosu 1 – Gate FAIL
-  - Given: `EVIDENCE POINTERS` içinde `gate: FAIL`
-  - When: `.autopilot-tmp/execution-log/execution-log.md` içinde failing check görülür
+  - Given: local gate FAIL
+  - When: `.cache/reports/local-gate-chain/summary.txt` içinde failing step görülür
   - Then:
-    1) İlk failing check’in log’unu aç: `.autopilot-tmp/execution-log/raw/*`
+    1) İlk failing step log’unu aç: `.cache/reports/local-gate-chain/logs/*`
     2) Hedefli düzeltmeyi yap (docs/scripts).
-    3) Local gate’i tekrar koş: `python3 scripts/run_doc_qa_execution_log_local.py --out-dir .autopilot-tmp/execution-log`
+    3) Local gate’i tekrar koş: `bash scripts/run_local_gate_chain.sh`
 
 -------------------------------------------------------------------------------
 6. ÖZET
 -------------------------------------------------------------------------------
 
 - Standart akış: WORK LOG → local gate → RESULT → EVIDENCE → change-log → NEXT → commit/push.
-- Kanıt dosyaları repoya girmez: `.autopilot-tmp/**` gitignored.
+- Git öncesi zorunlu eşik: `.cache/reports/local-gate-chain/status.json` PASS olmadan commit/push yok.
+- Kanıt dosyaları repoya girmez: `.autopilot-tmp/**` ve `.cache/reports/local-gate-chain/**` gitignored.
 
 -------------------------------------------------------------------------------
 7. LİNKLER (İSTEĞE BAĞLI)
@@ -115,10 +128,13 @@ Owner: @team/platform
 - SSOT: `docs/OPERATIONS/OPO-AUTHORITY-MAP.v1.md`
 - Transition-active guide: `AGENT-CODEX.core.md`
 - Runbook: `docs/04-operations/RUNBOOKS/RB-codex-chat-transcript.md`
-- Script: `scripts/run_doc_qa_execution_log_local.py`
+- Script: `scripts/setup_local_git_hooks.sh`
+- Script: `scripts/run_local_gate_chain.sh`
+- Script: `scripts/require_local_gate.sh`
 - Script: `scripts/ops/analyze_codex_flow.py`
 - Local outputs:
-  - `.autopilot-tmp/execution-log/execution-log.md`
+  - `.cache/reports/local-gate-chain/status.json`
+  - `.cache/reports/local-gate-chain/summary.txt`
   - `.autopilot-tmp/flow-mining/flow-report.md`
 
 -------------------------------------------------------------------------------
