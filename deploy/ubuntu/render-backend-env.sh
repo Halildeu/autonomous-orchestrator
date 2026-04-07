@@ -45,6 +45,36 @@ json_get() {
   python3 -c 'import json, sys; payload = json.load(sys.stdin); print(payload.get("data", {}).get("data", {}).get(sys.argv[1], ""), end="")' "$key"
 }
 
+derive_public_issuer() {
+  local issuer="$1"
+  local web_origin="$2"
+
+  python3 - "$issuer" "$web_origin" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+issuer = (sys.argv[1] or "").strip().rstrip("/")
+web_origin = (sys.argv[2] or "").strip().rstrip("/")
+
+if not issuer or not web_origin:
+    raise SystemExit(0)
+
+marker = "/realms/"
+if marker not in issuer:
+    raise SystemExit(0)
+
+realm = issuer.split(marker, 1)[1].strip("/")
+if not realm:
+    raise SystemExit(0)
+
+parsed = urlparse(web_origin)
+if not parsed.scheme or not parsed.netloc:
+    raise SystemExit(0)
+
+print(f"{parsed.scheme}://{parsed.netloc}/realms/{realm}", end="")
+PY
+}
+
 write_kv() {
   local file="$1"
   local key="$2"
@@ -115,6 +145,7 @@ main() {
     VAULT_FAIL_FAST
     KEYCLOAK_ISSUER_URI
     KEYCLOAK_JWKS_URI
+    KEYCLOAK_PUBLIC_ISSUER_URI
     WEB_ORIGIN
     AUTH_VERIFICATION_BASE_URL
     AUTH_RESET_BASE_URL
@@ -158,6 +189,9 @@ main() {
   )
   local key
   local value
+  local keycloak_issuer_uri
+  local keycloak_public_issuer_uri
+  local web_origin
 
   mount="${VAULT_KV_MOUNT#/}"
   mount="${mount%/}"
@@ -202,6 +236,16 @@ main() {
       write_kv "${tmp_file}" "${key}" "${value}"
     fi
   done
+
+  keycloak_issuer_uri="$(printf '%s' "${payload}" | json_get "KEYCLOAK_ISSUER_URI")"
+  keycloak_public_issuer_uri="$(printf '%s' "${payload}" | json_get "KEYCLOAK_PUBLIC_ISSUER_URI")"
+  web_origin="$(printf '%s' "${payload}" | json_get "WEB_ORIGIN")"
+  if [[ -z "${keycloak_public_issuer_uri}" ]]; then
+    keycloak_public_issuer_uri="$(derive_public_issuer "${keycloak_issuer_uri}" "${web_origin}")"
+    if [[ -n "${keycloak_public_issuer_uri}" ]]; then
+      write_kv "${tmp_file}" "KEYCLOAK_PUBLIC_ISSUER_URI" "${keycloak_public_issuer_uri}"
+    fi
+  fi
 
   write_kv "${tmp_file}" AUTH_SERVICE_DB_URL "$(kv_get_value "${auth_db_payload}" url)"
   write_kv "${tmp_file}" AUTH_SERVICE_DB_USERNAME "$(kv_get_value "${auth_db_payload}" user)"
