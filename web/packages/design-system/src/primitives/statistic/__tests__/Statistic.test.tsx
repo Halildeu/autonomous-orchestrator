@@ -41,3 +41,25 @@ describe('Statistic — loading', () => {
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 });
+
+describe('Statistic — edge cases', () => {
+  it('value=0 "0" olarak gosterir (bos string degil)', () => {
+    render(<Statistic value={0} />);
+    expect(screen.getByText('0')).toBeInTheDocument();
+  });
+  it('negatif value gosterir', () => {
+    render(<Statistic value={-42} />);
+    expect(screen.getByText('-42')).toBeInTheDocument();
+  });
+  it('trend yoksa ok gostermez', () => {
+    const { container } = render(<Statistic value={100} />);
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
+  });
+});
+
+describe('Statistic — a11y', () => {
+  it('data-component attribute vardir', () => {
+    const { container } = render(<Statistic value={100} />);
+    expect(container.querySelector('[data-component="statistic"]')).toBeInTheDocument();
+  });
+});

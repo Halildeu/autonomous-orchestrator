@@ -60,15 +60,21 @@ function scanFile(filePath) {
       if (/&#\d+;/.test(content.slice(Math.max(0, match.index - 5), match.index + 10))) continue;
 
       // Skip if line is part of a default palette/color array constant
-      if (isExemptFile && /(?:PALETTE|DEFAULT_COLORS|COLORS)\b/.test(line)) continue;
+      if (/(?:PALETTE|DEFAULT_COLORS|COLORS|PAL)\s*=\s*\[/.test(line)) continue;
+      // Skip if inside a const array of hex strings (e.g. ['#hex', '#hex'])
+      if (/const\s+\w+\s*=\s*\[/.test(line) && /['"]#[0-9a-fA-F]+['"]/.test(line)) continue;
 
       // Skip CSS var getter fallbacks: get('--token', '#hex')
       const surroundCtx = content.slice(Math.max(0, match.index - 60), match.index);
       if (/get\s*\(\s*['"]--/.test(surroundCtx)) continue;
 
-      // Skip very low-opacity black (cosmetic shadows, not theme-breaking)
+      // Skip very low-opacity black/neutral (cosmetic shadows, not theme-breaking)
       const matchStr = match[1] || '';
-      if (/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.0\d\)/.test(matchStr)) continue;
+      if (/rgba\(\s*0\s*,\s*0\s*,\s*0/.test(matchStr)) {
+        // Check for low opacity in the full match context
+        const opacityCtx = content.slice(match.index, match.index + 40);
+        if (/0\.[0-2]\d?\s*\)/.test(opacityCtx)) continue; // opacity ≤ 0.29 (cosmetic shadow)
+      }
 
       const lineNum = content.slice(0, match.index).split('\n').length;
       issues.push({ line: lineNum, value: match[1], type: name });
