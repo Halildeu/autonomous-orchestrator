@@ -95,7 +95,7 @@ jobs:
       - uses: actions/setup-node@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
@@ -336,7 +336,7 @@ jobs:
       - uses: actions/setup-node@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: pnpm/action-setup@v4
         if: ${{ env.DEPLOY_ENABLED == 'true' && vars.WEB_DEPLOY_PROVIDER == 'ubuntu-nginx' }}
