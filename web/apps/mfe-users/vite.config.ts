@@ -64,18 +64,40 @@ function normalizeBasePath(value: string): string {
 
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 const deps = pkg.dependencies as Record<string, string>;
-const singleton = (name: string, fallback: string | boolean = false) => ({
+const singleton = (
+  shareKey: string,
+  versionKey: string = shareKey,
+  fallback: string | boolean = false,
+  extra: Record<string, boolean | string> = {},
+) => ({
   singleton: true,
-  requiredVersion: deps[name] ?? fallback,
+  requiredVersion: deps[versionKey] ?? fallback,
+  ...extra,
 });
+const hostSingleton = (shareKey: string, versionKey: string = shareKey, fallback: string | boolean = false) =>
+  singleton(shareKey, versionKey, fallback, { import: false });
 const sharedCore = {
   react: singleton('react'),
+  'react/jsx-runtime': singleton('react/jsx-runtime', 'react'),
+  'react/jsx-dev-runtime': singleton('react/jsx-dev-runtime', 'react'),
   'react-dom': singleton('react-dom'),
+  'react-dom/client': singleton('react-dom/client', 'react-dom'),
   'react-router': singleton('react-router'),
   'react-router-dom': singleton('react-router-dom'),
   'react-redux': singleton('react-redux'),
   '@reduxjs/toolkit': singleton('@reduxjs/toolkit'),
   '@tanstack/react-query': singleton('@tanstack/react-query'),
+};
+const sharedSingleDomainCore = {
+  react: hostSingleton('react'),
+  'react/jsx-runtime': hostSingleton('react/jsx-runtime', 'react'),
+  'react/jsx-dev-runtime': hostSingleton('react/jsx-dev-runtime', 'react'),
+  'react-dom': hostSingleton('react-dom'),
+  'react-dom/client': hostSingleton('react-dom/client', 'react-dom'),
+  'react-router': hostSingleton('react-router'),
+  'react-router-dom': hostSingleton('react-router-dom'),
+  'react-redux': hostSingleton('react-redux'),
+  '@reduxjs/toolkit': hostSingleton('@reduxjs/toolkit'),
 };
 const sharedProdOnly = {
   'ag-grid-react': singleton('ag-grid-react'),
@@ -125,12 +147,15 @@ export default defineConfig(({ mode }) => {
         shared: {
           ...(isSingleDomainBuild
             ? {
-                react: sharedCore.react,
-                'react-dom': sharedCore['react-dom'],
-                'react-router': sharedCore['react-router'],
-                'react-router-dom': sharedCore['react-router-dom'],
-                'react-redux': sharedCore['react-redux'],
-                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
+                react: sharedSingleDomainCore.react,
+                'react/jsx-runtime': sharedSingleDomainCore['react/jsx-runtime'],
+                'react/jsx-dev-runtime': sharedSingleDomainCore['react/jsx-dev-runtime'],
+                'react-dom': sharedSingleDomainCore['react-dom'],
+                'react-dom/client': sharedSingleDomainCore['react-dom/client'],
+                'react-router': sharedSingleDomainCore['react-router'],
+                'react-router-dom': sharedSingleDomainCore['react-router-dom'],
+                'react-redux': sharedSingleDomainCore['react-redux'],
+                '@reduxjs/toolkit': sharedSingleDomainCore['@reduxjs/toolkit'],
               }
             : {
                 ...sharedCore,
