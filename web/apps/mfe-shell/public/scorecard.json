@@ -1,0 +1,4333 @@
+[
+  {
+    "name": "ShellHeader",
+    "path": "patterns/shell-header/ShellHeader.tsx",
+    "dir": "patterns",
+    "lineCount": 141,
+    "scores": {
+      "api": 20,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 12,
+    "grade": "F",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "ShellSidebar",
+    "path": "patterns/shell-sidebar/ShellSidebar.tsx",
+    "dir": "patterns",
+    "lineCount": 298,
+    "scores": {
+      "api": 45,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 17,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "presets",
+    "path": "advanced/data-grid/column-system/presets.tsx",
+    "dir": "advanced",
+    "lineCount": 371,
+    "scores": {
+      "api": 55,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 20,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 40,
+      "documentation": 30
+    },
+    "totalScore": 17,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Extract hardcoded strings to props (+3 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "conditional",
+    "path": "advanced/data-grid/column-system/conditional.tsx",
+    "dir": "advanced",
+    "lineCount": 110,
+    "scores": {
+      "api": 55,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 30
+    },
+    "totalScore": 18,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "detail-renderer",
+    "path": "advanced/data-grid/column-system/detail-renderer.tsx",
+    "dir": "advanced",
+    "lineCount": 210,
+    "scores": {
+      "api": 60,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 70,
+      "documentation": 40
+    },
+    "totalScore": 18,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Extract hardcoded strings to props (+3 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "FilterCombinatorRow",
+    "path": "advanced/data-grid/filter-builder/FilterCombinatorRow.tsx",
+    "dir": "advanced",
+    "lineCount": 51,
+    "scores": {
+      "api": 80,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 5
+    },
+    "totalScore": 21,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add JSDoc to component/props (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "FilterConditionRow",
+    "path": "advanced/data-grid/filter-builder/FilterConditionRow.tsx",
+    "dir": "advanced",
+    "lineCount": 240,
+    "scores": {
+      "api": 80,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 0
+    },
+    "totalScore": 21,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add JSDoc to component/props (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "FilterGroupNode",
+    "path": "advanced/data-grid/filter-builder/FilterGroupNode.tsx",
+    "dir": "advanced",
+    "lineCount": 293,
+    "scores": {
+      "api": 80,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 0
+    },
+    "totalScore": 21,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add JSDoc to component/props (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "FilterValueEditor",
+    "path": "advanced/data-grid/filter-builder/FilterValueEditor.tsx",
+    "dir": "advanced",
+    "lineCount": 350,
+    "scores": {
+      "api": 80,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 0
+    },
+    "totalScore": 21,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add JSDoc to component/props (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "FilterBuilderPanel",
+    "path": "advanced/data-grid/filter-builder/FilterBuilderPanel.tsx",
+    "dir": "advanced",
+    "lineCount": 254,
+    "scores": {
+      "api": 85,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 0
+    },
+    "totalScore": 22,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add JSDoc to component/props (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "ServerPaginationFooter",
+    "path": "advanced/data-grid/ServerPaginationFooter.tsx",
+    "dir": "advanced",
+    "lineCount": 261,
+    "scores": {
+      "api": 85,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 50
+    },
+    "totalScore": 25,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "AppSidebarFooterStatus",
+    "path": "components/app-sidebar/AppSidebarFooterStatus.tsx",
+    "dir": "components",
+    "lineCount": 81,
+    "scores": {
+      "api": 85,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 80
+    },
+    "totalScore": 26,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "AppSidebarFooterAction",
+    "path": "components/app-sidebar/AppSidebarFooterAction.tsx",
+    "dir": "components",
+    "lineCount": 165,
+    "scores": {
+      "api": 85,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 27,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "GalleryCard",
+    "path": "components/grouped-card-gallery/GalleryCard.tsx",
+    "dir": "components",
+    "lineCount": 106,
+    "scores": {
+      "api": 40,
+      "testDepth": 0,
+      "a11y": 50,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 50
+    },
+    "totalScore": 27,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "GalleryGroup",
+    "path": "components/grouped-card-gallery/GalleryGroup.tsx",
+    "dir": "components",
+    "lineCount": 121,
+    "scores": {
+      "api": 40,
+      "testDepth": 0,
+      "a11y": 50,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 50
+    },
+    "totalScore": 27,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "GallerySearchBar",
+    "path": "components/grouped-card-gallery/GallerySearchBar.tsx",
+    "dir": "components",
+    "lineCount": 103,
+    "scores": {
+      "api": 40,
+      "testDepth": 0,
+      "a11y": 50,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 50
+    },
+    "totalScore": 27,
+    "grade": "D",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "HoverDescription",
+    "path": "primitives/hover-description/HoverDescription.tsx",
+    "dir": "primitives",
+    "lineCount": 97,
+    "scores": {
+      "api": 70,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 100,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 30
+    },
+    "totalScore": 31,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "CommandPaletteTrigger",
+    "path": "primitives/command-palette-trigger/CommandPaletteTrigger.tsx",
+    "dir": "primitives",
+    "lineCount": 95,
+    "scores": {
+      "api": 65,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 100,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 70
+    },
+    "totalScore": 32,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "HeaderBar",
+    "path": "primitives/header-bar/HeaderBar.tsx",
+    "dir": "primitives",
+    "lineCount": 116,
+    "scores": {
+      "api": 65,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 100,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 75
+    },
+    "totalScore": 32,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "FullscreenToggle",
+    "path": "primitives/fullscreen-toggle/FullscreenToggle.tsx",
+    "dir": "primitives",
+    "lineCount": 161,
+    "scores": {
+      "api": 75,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 100,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 80
+    },
+    "totalScore": 34,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "StatusIndicator",
+    "path": "primitives/status-indicator/StatusIndicator.tsx",
+    "dir": "primitives",
+    "lineCount": 115,
+    "scores": {
+      "api": 75,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 0,
+      "accessControl": 100,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 75
+    },
+    "totalScore": 34,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "GroupedCardGallery",
+    "path": "components/grouped-card-gallery/GroupedCardGallery.tsx",
+    "dir": "components",
+    "lineCount": 341,
+    "scores": {
+      "api": 55,
+      "testDepth": 46,
+      "a11y": 50,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 0,
+      "i18n": 100,
+      "documentation": 50
+    },
+    "totalScore": 42,
+    "grade": "C",
+    "improvements": [
+      "Create Storybook story (+10 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "Result",
+    "path": "patterns/result/Result.tsx",
+    "dir": "patterns",
+    "lineCount": 134,
+    "scores": {
+      "api": 90,
+      "testDepth": 7,
+      "a11y": 0,
+      "testCoverage": 60,
+      "accessControl": 0,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 80
+    },
+    "totalScore": 43,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "BottomNavigation",
+    "path": "components/bottom-navigation/BottomNavigation.tsx",
+    "dir": "components",
+    "lineCount": 194,
+    "scores": {
+      "api": 90,
+      "testDepth": 21,
+      "a11y": 20,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 67,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 45,
+    "grade": "C",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "Container",
+    "path": "primitives/container/Container.tsx",
+    "dir": "primitives",
+    "lineCount": 83,
+    "scores": {
+      "api": 90,
+      "testDepth": 19,
+      "a11y": 0,
+      "testCoverage": 40,
+      "accessControl": 100,
+      "storyCompleteness": 57,
+      "i18n": 100,
+      "documentation": 80
+    },
+    "totalScore": 51,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "TreeSelect",
+    "path": "components/tree-select/TreeSelect.tsx",
+    "dir": "components",
+    "lineCount": 396,
+    "scores": {
+      "api": 95,
+      "testDepth": 31,
+      "a11y": 20,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 79,
+      "i18n": 100,
+      "documentation": 85
+    },
+    "totalScore": 51,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+9 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "Statistic",
+    "path": "primitives/statistic/Statistic.tsx",
+    "dir": "primitives",
+    "lineCount": 258,
+    "scores": {
+      "api": 100,
+      "testDepth": 0,
+      "a11y": 0,
+      "testCoverage": 40,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 85
+    },
+    "totalScore": 52,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "SpeedDial",
+    "path": "components/speed-dial/SpeedDial.tsx",
+    "dir": "components",
+    "lineCount": 213,
+    "scores": {
+      "api": 95,
+      "testDepth": 33,
+      "a11y": 20,
+      "testCoverage": 40,
+      "accessControl": 0,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 85
+    },
+    "totalScore": 53,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+7 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)",
+      "Implement AccessControlledProps (+10 pts)"
+    ]
+  },
+  {
+    "name": "Flex",
+    "path": "primitives/flex/Flex.tsx",
+    "dir": "primitives",
+    "lineCount": 141,
+    "scores": {
+      "api": 100,
+      "testDepth": 16,
+      "a11y": 0,
+      "testCoverage": 40,
+      "accessControl": 100,
+      "storyCompleteness": 79,
+      "i18n": 100,
+      "documentation": 85
+    },
+    "totalScore": 55,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "Grid",
+    "path": "primitives/grid/Grid.tsx",
+    "dir": "primitives",
+    "lineCount": 249,
+    "scores": {
+      "api": 100,
+      "testDepth": 14,
+      "a11y": 0,
+      "testCoverage": 60,
+      "accessControl": 100,
+      "storyCompleteness": 79,
+      "i18n": 100,
+      "documentation": 85
+    },
+    "totalScore": 57,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)"
+    ]
+  },
+  {
+    "name": "Image",
+    "path": "primitives/image/Image.tsx",
+    "dir": "primitives",
+    "lineCount": 306,
+    "scores": {
+      "api": 100,
+      "testDepth": 15,
+      "a11y": 20,
+      "testCoverage": 40,
+      "accessControl": 100,
+      "storyCompleteness": 79,
+      "i18n": 100,
+      "documentation": 85
+    },
+    "totalScore": 58,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+15 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "Progress",
+    "path": "primitives/progress/Progress.tsx",
+    "dir": "primitives",
+    "lineCount": 263,
+    "scores": {
+      "api": 100,
+      "testDepth": 15,
+      "a11y": 35,
+      "testCoverage": 40,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 85
+    },
+    "totalScore": 61,
+    "grade": "B",
+    "improvements": [
+      "Add userEvent interaction tests (+15 pts)",
+      "Add expectNoA11yViolations + role queries (+5 pts)",
+      "Add contract test or visual test (+5 pts)"
+    ]
+  },
+  {
+    "name": "AppSidebarHeader",
+    "path": "components/app-sidebar/AppSidebarHeader.tsx",
+    "dir": "components",
+    "lineCount": 78,
+    "scores": {
+      "api": 100,
+      "testDepth": 60,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 87,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AreaChart",
+    "path": "components/charts/AreaChart.tsx",
+    "dir": "components",
+    "lineCount": 47,
+    "scores": {
+      "api": 75,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 20
+    },
+    "totalScore": 88,
+    "grade": "A",
+    "improvements": [
+      "Add JSDoc to component/props (+10 pts)"
+    ]
+  },
+  {
+    "name": "BarChart",
+    "path": "components/charts/BarChart.tsx",
+    "dir": "components",
+    "lineCount": 69,
+    "scores": {
+      "api": 75,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 20
+    },
+    "totalScore": 88,
+    "grade": "A",
+    "improvements": [
+      "Add JSDoc to component/props (+10 pts)"
+    ]
+  },
+  {
+    "name": "LineChart",
+    "path": "components/charts/LineChart.tsx",
+    "dir": "components",
+    "lineCount": 48,
+    "scores": {
+      "api": 75,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 20
+    },
+    "totalScore": 88,
+    "grade": "A",
+    "improvements": [
+      "Add JSDoc to component/props (+10 pts)"
+    ]
+  },
+  {
+    "name": "PieChart",
+    "path": "components/charts/PieChart.tsx",
+    "dir": "components",
+    "lineCount": 50,
+    "scores": {
+      "api": 75,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 20
+    },
+    "totalScore": 88,
+    "grade": "A",
+    "improvements": [
+      "Add JSDoc to component/props (+10 pts)"
+    ]
+  },
+  {
+    "name": "AppSidebarFooter",
+    "path": "components/app-sidebar/AppSidebarFooter.tsx",
+    "dir": "components",
+    "lineCount": 47,
+    "scores": {
+      "api": 100,
+      "testDepth": 65,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 89,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarSection",
+    "path": "components/app-sidebar/AppSidebarSection.tsx",
+    "dir": "components",
+    "lineCount": 89,
+    "scores": {
+      "api": 100,
+      "testDepth": 68,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 89,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarGroup",
+    "path": "components/app-sidebar/AppSidebarGroup.tsx",
+    "dir": "components",
+    "lineCount": 154,
+    "scores": {
+      "api": 100,
+      "testDepth": 66,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 90,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarNavItem",
+    "path": "components/app-sidebar/AppSidebarNavItem.tsx",
+    "dir": "components",
+    "lineCount": 174,
+    "scores": {
+      "api": 100,
+      "testDepth": 75,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 90,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "GaugeChart",
+    "path": "enterprise/GaugeChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 377,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 91,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "OrgChart",
+    "path": "enterprise/OrgChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 434,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 91,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarNav",
+    "path": "components/app-sidebar/AppSidebarNav.tsx",
+    "dir": "components",
+    "lineCount": 46,
+    "scores": {
+      "api": 100,
+      "testDepth": 75,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 92,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarSearch",
+    "path": "components/app-sidebar/AppSidebarSearch.tsx",
+    "dir": "components",
+    "lineCount": 139,
+    "scores": {
+      "api": 100,
+      "testDepth": 74,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 92,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "CommentThread",
+    "path": "enterprise/CommentThread.tsx",
+    "dir": "enterprise",
+    "lineCount": 540,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 70,
+      "documentation": 90
+    },
+    "totalScore": 92,
+    "grade": "A",
+    "improvements": [
+      "Extract hardcoded strings to props (+3 pts)"
+    ]
+  },
+  {
+    "name": "FlowBuilder",
+    "path": "enterprise/FlowBuilder.tsx",
+    "dir": "enterprise",
+    "lineCount": 1285,
+    "scores": {
+      "api": 100,
+      "testDepth": 82,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 85,
+      "documentation": 85
+    },
+    "totalScore": 92,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "PivotTable",
+    "path": "enterprise/PivotTable.tsx",
+    "dir": "enterprise",
+    "lineCount": 510,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 92,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarTrigger",
+    "path": "components/app-sidebar/AppSidebarTrigger.tsx",
+    "dir": "components",
+    "lineCount": 98,
+    "scores": {
+      "api": 100,
+      "testDepth": 78,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "MasterDetail",
+    "path": "patterns/master-detail/MasterDetail.tsx",
+    "dir": "patterns",
+    "lineCount": 160,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ActivityFeed",
+    "path": "enterprise/ActivityFeed.tsx",
+    "dir": "enterprise",
+    "lineCount": 399,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "BoxPlot",
+    "path": "enterprise/BoxPlot.tsx",
+    "dir": "enterprise",
+    "lineCount": 583,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ControlChart",
+    "path": "enterprise/ControlChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 568,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FileUploadZone",
+    "path": "enterprise/FileUploadZone.tsx",
+    "dir": "enterprise",
+    "lineCount": 391,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "HistogramChart",
+    "path": "enterprise/HistogramChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 509,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 93,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ThemePresetGallery",
+    "path": "components/theme-preset/ThemePresetGallery.tsx",
+    "dir": "components",
+    "lineCount": 578,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 80
+    },
+    "totalScore": 94,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "InlineEdit",
+    "path": "enterprise/InlineEdit.tsx",
+    "dir": "enterprise",
+    "lineCount": 297,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 40,
+      "documentation": 100
+    },
+    "totalScore": 94,
+    "grade": "A",
+    "improvements": [
+      "Extract hardcoded strings to props (+3 pts)"
+    ]
+  },
+  {
+    "name": "MetricComparisonCard",
+    "path": "enterprise/MetricComparisonCard.tsx",
+    "dir": "enterprise",
+    "lineCount": 298,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 94,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SWOTMatrix",
+    "path": "enterprise/SWOTMatrix.tsx",
+    "dir": "enterprise",
+    "lineCount": 356,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 94,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebar",
+    "path": "components/app-sidebar/AppSidebar.tsx",
+    "dir": "components",
+    "lineCount": 245,
+    "scores": {
+      "api": 100,
+      "testDepth": 88,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarResizer",
+    "path": "components/app-sidebar/AppSidebarResizer.tsx",
+    "dir": "components",
+    "lineCount": 98,
+    "scores": {
+      "api": 100,
+      "testDepth": 88,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AppSidebarSeparator",
+    "path": "components/app-sidebar/AppSidebarSeparator.tsx",
+    "dir": "components",
+    "lineCount": 52,
+    "scores": {
+      "api": 100,
+      "testDepth": 87,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 60
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Autocomplete",
+    "path": "components/autocomplete/Autocomplete.tsx",
+    "dir": "components",
+    "lineCount": 396,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Breadcrumb",
+    "path": "components/breadcrumb/Breadcrumb.tsx",
+    "dir": "components",
+    "lineCount": 122,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Descriptions",
+    "path": "components/descriptions/Descriptions.tsx",
+    "dir": "components",
+    "lineCount": 180,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Mentions",
+    "path": "components/mentions/Mentions.tsx",
+    "dir": "components",
+    "lineCount": 368,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Pagination",
+    "path": "components/pagination/Pagination.tsx",
+    "dir": "components",
+    "lineCount": 202,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SearchInput",
+    "path": "components/search-input/SearchInput.tsx",
+    "dir": "components",
+    "lineCount": 162,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ThemePreviewCard",
+    "path": "components/theme-preview-card/ThemePreviewCard.tsx",
+    "dir": "components",
+    "lineCount": 331,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 88,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DetailDrawer",
+    "path": "patterns/detail-drawer/DetailDrawer.tsx",
+    "dir": "patterns",
+    "lineCount": 216,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FilterBar",
+    "path": "patterns/filter-bar/FilterBar.tsx",
+    "dir": "patterns",
+    "lineCount": 150,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FormDrawer",
+    "path": "patterns/form-drawer/FormDrawer.tsx",
+    "dir": "patterns",
+    "lineCount": 195,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DecisionMatrix",
+    "path": "enterprise/DecisionMatrix.tsx",
+    "dir": "enterprise",
+    "lineCount": 336,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 90,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ExecutiveKPIStrip",
+    "path": "enterprise/ExecutiveKPIStrip.tsx",
+    "dir": "enterprise",
+    "lineCount": 282,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 70,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "HeatmapCalendar",
+    "path": "enterprise/HeatmapCalendar.tsx",
+    "dir": "enterprise",
+    "lineCount": 408,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ParetoChart",
+    "path": "enterprise/ParetoChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 389,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "RiskMatrix",
+    "path": "enterprise/RiskMatrix.tsx",
+    "dir": "enterprise",
+    "lineCount": 300,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 70,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "WaterfallChart",
+    "path": "enterprise/WaterfallChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 314,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 95,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Spinner",
+    "path": "primitives/spinner/Spinner.tsx",
+    "dir": "primitives",
+    "lineCount": 103,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 70,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": [
+      "Extract hardcoded strings to props (+3 pts)"
+    ]
+  },
+  {
+    "name": "Cascader",
+    "path": "components/cascader/Cascader.tsx",
+    "dir": "components",
+    "lineCount": 552,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 88,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "CommandPalette",
+    "path": "components/command-palette/CommandPalette.tsx",
+    "dir": "components",
+    "lineCount": 345,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "EmptyErrorLoading",
+    "path": "components/empty-error-loading/EmptyErrorLoading.tsx",
+    "dir": "components",
+    "lineCount": 133,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "EmptyState",
+    "path": "components/empty-state/EmptyState.tsx",
+    "dir": "components",
+    "lineCount": 110,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 70,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ApprovalWorkflow",
+    "path": "enterprise/ApprovalWorkflow.tsx",
+    "dir": "enterprise",
+    "lineCount": 447,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 70,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FilterPresets",
+    "path": "enterprise/FilterPresets.tsx",
+    "dir": "enterprise",
+    "lineCount": 346,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 55,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": [
+      "Extract hardcoded strings to props (+3 pts)"
+    ]
+  },
+  {
+    "name": "VariantIntegration",
+    "path": "advanced/data-grid/VariantIntegration.tsx",
+    "dir": "advanced",
+    "lineCount": 1033,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 25,
+      "documentation": 100
+    },
+    "totalScore": 96,
+    "grade": "A",
+    "improvements": [
+      "Extract hardcoded strings to props (+3 pts)"
+    ]
+  },
+  {
+    "name": "Alert",
+    "path": "primitives/alert/Alert.tsx",
+    "dir": "primitives",
+    "lineCount": 159,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Dialog",
+    "path": "primitives/dialog/Dialog.tsx",
+    "dir": "primitives",
+    "lineCount": 189,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Input",
+    "path": "primitives/input/Input.tsx",
+    "dir": "primitives",
+    "lineCount": 284,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Textarea",
+    "path": "primitives/input/Textarea.tsx",
+    "dir": "primitives",
+    "lineCount": 294,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AIGuidedAuthoring",
+    "path": "components/ai-guided-authoring/AIGuidedAuthoring.tsx",
+    "dir": "components",
+    "lineCount": 229,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Combobox",
+    "path": "components/combobox/Combobox.tsx",
+    "dir": "components",
+    "lineCount": 1048,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConfidenceBadge",
+    "path": "components/confidence-badge/ConfidenceBadge.tsx",
+    "dir": "components",
+    "lineCount": 100,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ContextMenu",
+    "path": "components/context-menu/ContextMenu.tsx",
+    "dir": "components",
+    "lineCount": 269,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DatePicker",
+    "path": "components/date-picker/DatePicker.tsx",
+    "dir": "components",
+    "lineCount": 177,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FormField",
+    "path": "components/form-field/FormField.tsx",
+    "dir": "components",
+    "lineCount": 146,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "InputNumber",
+    "path": "components/input-number/InputNumber.tsx",
+    "dir": "components",
+    "lineCount": 371,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "QRCode",
+    "path": "components/qr-code/QRCode.tsx",
+    "dir": "components",
+    "lineCount": 688,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Rating",
+    "path": "components/rating/Rating.tsx",
+    "dir": "components",
+    "lineCount": 392,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "RecommendationCard",
+    "path": "components/recommendation-card/RecommendationCard.tsx",
+    "dir": "components",
+    "lineCount": 204,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Segmented",
+    "path": "components/segmented/Segmented.tsx",
+    "dir": "components",
+    "lineCount": 482,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Steps",
+    "path": "components/steps/Steps.tsx",
+    "dir": "components",
+    "lineCount": 287,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Tabs",
+    "path": "components/tabs/Tabs.tsx",
+    "dir": "components",
+    "lineCount": 279,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ThemePresetCompare",
+    "path": "components/theme-preset/ThemePresetCompare.tsx",
+    "dir": "components",
+    "lineCount": 467,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TimePicker",
+    "path": "components/time-picker/TimePicker.tsx",
+    "dir": "components",
+    "lineCount": 164,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Toast",
+    "path": "components/toast/Toast.tsx",
+    "dir": "components",
+    "lineCount": 267,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TourCoachmarks",
+    "path": "components/tour-coachmarks/TourCoachmarks.tsx",
+    "dir": "components",
+    "lineCount": 302,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Upload",
+    "path": "components/upload/Upload.tsx",
+    "dir": "components",
+    "lineCount": 237,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Watermark",
+    "path": "components/watermark/Watermark.tsx",
+    "dir": "components",
+    "lineCount": 285,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "PageHeader",
+    "path": "patterns/page-header/PageHeader.tsx",
+    "dir": "patterns",
+    "lineCount": 192,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "PageLayout",
+    "path": "patterns/page-layout/PageLayout.tsx",
+    "dir": "patterns",
+    "lineCount": 512,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 80,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ReportFilterPanel",
+    "path": "patterns/report-filter-panel/ReportFilterPanel.tsx",
+    "dir": "patterns",
+    "lineCount": 147,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 82,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SummaryStrip",
+    "path": "patterns/summary-strip/SummaryStrip.tsx",
+    "dir": "patterns",
+    "lineCount": 138,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AgingBuckets",
+    "path": "enterprise/AgingBuckets.tsx",
+    "dir": "enterprise",
+    "lineCount": 188,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "BulletChart",
+    "path": "enterprise/BulletChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 320,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FunnelChart",
+    "path": "enterprise/FunnelChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 296,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "MicroChart",
+    "path": "enterprise/MicroChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 366,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "StatusTimeline",
+    "path": "enterprise/StatusTimeline.tsx",
+    "dir": "enterprise",
+    "lineCount": 303,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ThemeLayout",
+    "path": "enterprise/ThemeLayout.tsx",
+    "dir": "enterprise",
+    "lineCount": 257,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TreemapChart",
+    "path": "enterprise/TreemapChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 352,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "GridToolbar",
+    "path": "advanced/data-grid/GridToolbar.tsx",
+    "dir": "advanced",
+    "lineCount": 322,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "aria-live",
+    "path": "internal/overlay-engine/aria-live.tsx",
+    "dir": "internal",
+    "lineCount": 157,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "focus-trap",
+    "path": "internal/overlay-engine/focus-trap.tsx",
+    "dir": "internal",
+    "lineCount": 215,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ThemeProvider",
+    "path": "providers/ThemeProvider.tsx",
+    "dir": "providers",
+    "lineCount": 142,
+    "scores": {
+      "api": 90,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 97,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Avatar",
+    "path": "primitives/avatar/Avatar.tsx",
+    "dir": "primitives",
+    "lineCount": 109,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 95,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Badge",
+    "path": "primitives/badge/Badge.tsx",
+    "dir": "primitives",
+    "lineCount": 144,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 95
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Checkbox",
+    "path": "primitives/checkbox/Checkbox.tsx",
+    "dir": "primitives",
+    "lineCount": 273,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Divider",
+    "path": "primitives/divider/Divider.tsx",
+    "dir": "primitives",
+    "lineCount": 117,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 88,
+      "i18n": 100,
+      "documentation": 95
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Drawer",
+    "path": "primitives/drawer/Drawer.tsx",
+    "dir": "primitives",
+    "lineCount": 246,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "IconButton",
+    "path": "primitives/icon-button/IconButton.tsx",
+    "dir": "primitives",
+    "lineCount": 128,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "LinkInline",
+    "path": "primitives/link-inline/LinkInline.tsx",
+    "dir": "primitives",
+    "lineCount": 213,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Tag",
+    "path": "primitives/tag/Tag.tsx",
+    "dir": "primitives",
+    "lineCount": 157,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Tooltip",
+    "path": "primitives/tooltip/Tooltip.tsx",
+    "dir": "primitives",
+    "lineCount": 202,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AnchorToc",
+    "path": "components/anchor-toc/AnchorToc.tsx",
+    "dir": "components",
+    "lineCount": 226,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ApprovalCheckpoint",
+    "path": "components/approval-checkpoint/ApprovalCheckpoint.tsx",
+    "dir": "components",
+    "lineCount": 270,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ApprovalReview",
+    "path": "components/approval-review/ApprovalReview.tsx",
+    "dir": "components",
+    "lineCount": 163,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "CitationPanel",
+    "path": "components/citation-panel/CitationPanel.tsx",
+    "dir": "components",
+    "lineCount": 190,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ColorPicker",
+    "path": "components/color-picker/ColorPicker.tsx",
+    "dir": "components",
+    "lineCount": 546,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 88,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SectionTabs",
+    "path": "components/detail-section-tabs/SectionTabs.tsx",
+    "dir": "components",
+    "lineCount": 343,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "NavigationRail",
+    "path": "components/navigation-rail/NavigationRail.tsx",
+    "dir": "components",
+    "lineCount": 641,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 88,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Transfer",
+    "path": "components/transfer/Transfer.tsx",
+    "dir": "components",
+    "lineCount": 649,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 88,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "EntitySummaryBlock",
+    "path": "patterns/entity-summary-block/EntitySummaryBlock.tsx",
+    "dir": "patterns",
+    "lineCount": 126,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ComparisonTable",
+    "path": "enterprise/ComparisonTable.tsx",
+    "dir": "enterprise",
+    "lineCount": 314,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FineKinney",
+    "path": "enterprise/FineKinney.tsx",
+    "dir": "enterprise",
+    "lineCount": 500,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 88,
+      "i18n": 100,
+      "documentation": 90
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "GanttTimeline",
+    "path": "enterprise/GanttTimeline.tsx",
+    "dir": "enterprise",
+    "lineCount": 446,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "RadarChart",
+    "path": "enterprise/RadarChart.tsx",
+    "dir": "enterprise",
+    "lineCount": 358,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SankeyDiagram",
+    "path": "enterprise/SankeyDiagram.tsx",
+    "dir": "enterprise",
+    "lineCount": 446,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TrainingTracker",
+    "path": "enterprise/TrainingTracker.tsx",
+    "dir": "enterprise",
+    "lineCount": 271,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConnectedFormField",
+    "path": "form/ConnectedFormField.tsx",
+    "dir": "form",
+    "lineCount": 97,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FormContext",
+    "path": "form/FormContext.tsx",
+    "dir": "form",
+    "lineCount": 79,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConnectedCheckbox",
+    "path": "form/connected/ConnectedCheckbox.tsx",
+    "dir": "form",
+    "lineCount": 65,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConnectedInput",
+    "path": "form/connected/ConnectedInput.tsx",
+    "dir": "form",
+    "lineCount": 67,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConnectedRadio",
+    "path": "form/connected/ConnectedRadio.tsx",
+    "dir": "form",
+    "lineCount": 60,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConnectedSelect",
+    "path": "form/connected/ConnectedSelect.tsx",
+    "dir": "form",
+    "lineCount": 65,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ConnectedTextarea",
+    "path": "form/connected/ConnectedTextarea.tsx",
+    "dir": "form",
+    "lineCount": 68,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AnimatePresence",
+    "path": "motion/AnimatePresence.tsx",
+    "dir": "motion",
+    "lineCount": 111,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Transition",
+    "path": "motion/Transition.tsx",
+    "dir": "motion",
+    "lineCount": 124,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "MenuSurface",
+    "path": "internal/MenuSurface.tsx",
+    "dir": "internal",
+    "lineCount": 734,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DirectionProvider",
+    "path": "providers/DirectionProvider.tsx",
+    "dir": "providers",
+    "lineCount": 47,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "LocaleProvider",
+    "path": "providers/LocaleProvider.tsx",
+    "dir": "providers",
+    "lineCount": 69,
+    "scores": {
+      "api": 95,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "LazyComponent",
+    "path": "performance/LazyComponent.tsx",
+    "dir": "performance",
+    "lineCount": 181,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "VirtualList",
+    "path": "performance/VirtualList.tsx",
+    "dir": "performance",
+    "lineCount": 255,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 85,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 98,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FieldControlPrimitives",
+    "path": "primitives/_shared/FieldControlPrimitives.tsx",
+    "dir": "primitives",
+    "lineCount": 217,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Slot",
+    "path": "primitives/_shared/Slot.tsx",
+    "dir": "primitives",
+    "lineCount": 155,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Button",
+    "path": "primitives/button/Button.tsx",
+    "dir": "primitives",
+    "lineCount": 269,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Card",
+    "path": "primitives/card/Card.tsx",
+    "dir": "primitives",
+    "lineCount": 200,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Dropdown",
+    "path": "primitives/dropdown/Dropdown.tsx",
+    "dir": "primitives",
+    "lineCount": 229,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Modal",
+    "path": "primitives/modal/Modal.tsx",
+    "dir": "primitives",
+    "lineCount": 307,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Popover",
+    "path": "primitives/popover/Popover.tsx",
+    "dir": "primitives",
+    "lineCount": 546,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Radio",
+    "path": "primitives/radio/Radio.tsx",
+    "dir": "primitives",
+    "lineCount": 271,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Select",
+    "path": "primitives/select/Select.tsx",
+    "dir": "primitives",
+    "lineCount": 226,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Skeleton",
+    "path": "primitives/skeleton/Skeleton.tsx",
+    "dir": "primitives",
+    "lineCount": 101,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 95
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Stack",
+    "path": "primitives/stack/Stack.tsx",
+    "dir": "primitives",
+    "lineCount": 128,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Switch",
+    "path": "primitives/switch/Switch.tsx",
+    "dir": "primitives",
+    "lineCount": 254,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Text",
+    "path": "primitives/text/Text.tsx",
+    "dir": "primitives",
+    "lineCount": 167,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 95
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Accordion",
+    "path": "components/accordion/Accordion.tsx",
+    "dir": "components",
+    "lineCount": 604,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AdaptiveForm",
+    "path": "components/adaptive-form/AdaptiveForm.tsx",
+    "dir": "components",
+    "lineCount": 571,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AIActionAuditTimeline",
+    "path": "components/ai-action-audit-timeline/AIActionAuditTimeline.tsx",
+    "dir": "components",
+    "lineCount": 226,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AILayoutBuilder",
+    "path": "components/ai-layout-builder/AILayoutBuilder.tsx",
+    "dir": "components",
+    "lineCount": 392,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AvatarGroup",
+    "path": "components/avatar-group/AvatarGroup.tsx",
+    "dir": "components",
+    "lineCount": 188,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Calendar",
+    "path": "components/calendar/Calendar.tsx",
+    "dir": "components",
+    "lineCount": 807,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Carousel",
+    "path": "components/carousel/Carousel.tsx",
+    "dir": "components",
+    "lineCount": 318,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DetailSectionTabs",
+    "path": "components/detail-section-tabs/DetailSectionTabs.tsx",
+    "dir": "components",
+    "lineCount": 120,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ErrorBoundary",
+    "path": "components/error-boundary/ErrorBoundary.tsx",
+    "dir": "components",
+    "lineCount": 162,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "FloatButton",
+    "path": "components/float-button/FloatButton.tsx",
+    "dir": "components",
+    "lineCount": 349,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 94,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "JsonViewer",
+    "path": "components/json-viewer/JsonViewer.tsx",
+    "dir": "components",
+    "lineCount": 269,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "List",
+    "path": "components/list/List.tsx",
+    "dir": "components",
+    "lineCount": 275,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "MenuBar",
+    "path": "components/menu-bar/MenuBar.tsx",
+    "dir": "components",
+    "lineCount": 1465,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "NotificationDrawer",
+    "path": "components/notification-drawer/NotificationDrawer.tsx",
+    "dir": "components",
+    "lineCount": 134,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "NotificationItemCard",
+    "path": "components/notification-drawer/NotificationItemCard.tsx",
+    "dir": "components",
+    "lineCount": 285,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "NotificationPanel",
+    "path": "components/notification-drawer/NotificationPanel.tsx",
+    "dir": "components",
+    "lineCount": 700,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "PromptComposer",
+    "path": "components/prompt-composer/PromptComposer.tsx",
+    "dir": "components",
+    "lineCount": 271,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SearchFilterListing",
+    "path": "components/search-filter-listing/SearchFilterListing.tsx",
+    "dir": "components",
+    "lineCount": 548,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Slider",
+    "path": "components/slider/Slider.tsx",
+    "dir": "components",
+    "lineCount": 202,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "SmartDashboard",
+    "path": "components/smart-dashboard/SmartDashboard.tsx",
+    "dir": "components",
+    "lineCount": 455,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TableSimple",
+    "path": "components/table-simple/TableSimple.tsx",
+    "dir": "components",
+    "lineCount": 306,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Timeline",
+    "path": "components/timeline/Timeline.tsx",
+    "dir": "components",
+    "lineCount": 448,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "Tree",
+    "path": "components/tree/Tree.tsx",
+    "dir": "components",
+    "lineCount": 314,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TreeTable",
+    "path": "components/tree-table/TreeTable.tsx",
+    "dir": "components",
+    "lineCount": 395,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DetailSummary",
+    "path": "patterns/detail-summary/DetailSummary.tsx",
+    "dir": "patterns",
+    "lineCount": 222,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DataExportDialog",
+    "path": "enterprise/DataExportDialog.tsx",
+    "dir": "enterprise",
+    "lineCount": 353,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 85,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DateRangePicker",
+    "path": "enterprise/DateRangePicker.tsx",
+    "dir": "enterprise",
+    "lineCount": 395,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "EmptyStateBuilder",
+    "path": "enterprise/EmptyStateBuilder.tsx",
+    "dir": "enterprise",
+    "lineCount": 253,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "GovernanceBoard",
+    "path": "enterprise/GovernanceBoard.tsx",
+    "dir": "enterprise",
+    "lineCount": 275,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "NotificationCenter",
+    "path": "enterprise/NotificationCenter.tsx",
+    "dir": "enterprise",
+    "lineCount": 403,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ProcessFlow",
+    "path": "enterprise/ProcessFlow.tsx",
+    "dir": "enterprise",
+    "lineCount": 476,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "ValueStream",
+    "path": "enterprise/ValueStream.tsx",
+    "dir": "enterprise",
+    "lineCount": 300,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 95
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "AgGridServer",
+    "path": "advanced/data-grid/AgGridServer.tsx",
+    "dir": "advanced",
+    "lineCount": 172,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "EntityGridTemplate",
+    "path": "advanced/data-grid/EntityGridTemplate.tsx",
+    "dir": "advanced",
+    "lineCount": 662,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "GridShell",
+    "path": "advanced/data-grid/GridShell.tsx",
+    "dir": "advanced",
+    "lineCount": 354,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "TablePagination",
+    "path": "advanced/data-grid/TablePagination.tsx",
+    "dir": "advanced",
+    "lineCount": 564,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "StaggerGroup",
+    "path": "motion/StaggerGroup.tsx",
+    "dir": "motion",
+    "lineCount": 76,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "OverlaySurface",
+    "path": "internal/OverlaySurface.tsx",
+    "dir": "internal",
+    "lineCount": 161,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "PortalProvider",
+    "path": "internal/overlay-engine/PortalProvider.tsx",
+    "dir": "internal",
+    "lineCount": 77,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "portal",
+    "path": "internal/overlay-engine/portal.tsx",
+    "dir": "internal",
+    "lineCount": 94,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "roving-tabindex",
+    "path": "internal/overlay-engine/roving-tabindex.tsx",
+    "dir": "internal",
+    "lineCount": 223,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "usePortal",
+    "path": "internal/overlay-engine/usePortal.tsx",
+    "dir": "internal",
+    "lineCount": 92,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  },
+  {
+    "name": "DesignSystemProvider",
+    "path": "providers/DesignSystemProvider.tsx",
+    "dir": "providers",
+    "lineCount": 56,
+    "scores": {
+      "api": 100,
+      "testDepth": 97,
+      "a11y": 100,
+      "testCoverage": 100,
+      "accessControl": 100,
+      "storyCompleteness": 100,
+      "i18n": 100,
+      "documentation": 100
+    },
+    "totalScore": 99,
+    "grade": "A",
+    "improvements": []
+  }
+]

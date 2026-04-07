@@ -8,6 +8,7 @@ import { monthlyLoginModule } from './monthly-login-summary';
 import { weeklyAuditDigestModule } from './weekly-audit-digest';
 import { hrCompensationModule } from './hr-compensation-report';
 import { hrExecutiveSummaryModule } from './hr-executive-summary';
+import { contextHealthModule } from './context-health';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyReportModule = ReportModule<any, any>;
@@ -20,6 +21,7 @@ const reportModuleMap = new Map<string, AnyReportModule>([
   [weeklyAuditDigestModule.id, weeklyAuditDigestModule as AnyReportModule],
   [hrCompensationModule.id, hrCompensationModule as AnyReportModule],
   [hrExecutiveSummaryModule.id, hrExecutiveSummaryModule as AnyReportModule],
+  [contextHealthModule.id, contextHealthModule as AnyReportModule],
 ]);
 
 const catalogModules = listSharedReportsForChannel('web')

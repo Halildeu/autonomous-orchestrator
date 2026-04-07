@@ -4,6 +4,25 @@ on:
   workflow_run:
     workflows: ["deploy-web", "deploy-backend"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Validation environment"
+        required: true
+        default: "stage"
+        type: choice
+        options:
+          - stage
+          - prod
+      target:
+        description: "Validation target"
+        required: true
+        default: "backend"
+        type: choice
+        options:
+          - backend
+          - web
+          - all
 
 permissions:
   contents: read
@@ -17,6 +36,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    environment: stage
     if: >-
       github.event.workflow_run.conclusion == 'success'
       && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
@@ -31,6 +51,7 @@ jobs:
       - name: Validate (required)
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         env:
+          TRIGGER_WORKFLOW: ${{ github.event.workflow_run.name }}
           WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
           BACKEND_HEALTH_URLS: ${{ secrets.BACKEND_HEALTH_URLS }}
         shell: bash
@@ -38,24 +59,193 @@ jobs:
           set -euo pipefail
           set +x
 
-          if [ -z "${WEB_SMOKE_URL:-}" ]; then
-            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate."
-            exit 1
-          fi
-
-          if [ -z "${BACKEND_HEALTH_URLS:-}" ]; then
-            echo "::error title=post-deploy-validate::BACKEND_HEALTH_URLS missing; refusing to validate."
-            exit 1
-          fi
-
           echo "::warning title=post-deploy-validate::Guardrail metrics not configured (v0.1); skipping."
 
           fail=0
+          validate_web=0
+          validate_backend=0
 
-          echo "::group::web smoke"
-          curl -fsS "${WEB_SMOKE_URL}" >/dev/null || fail=1
-          echo "::endgroup::"
+          case "${TRIGGER_WORKFLOW}" in
+            deploy-web)
+              echo "::notice title=post-deploy-validate::Stage web validation delegated to stage self-hosted runner."
+              ;;
+            deploy-backend)
+              echo "::notice title=post-deploy-validate::Backend validation delegated to stage self-hosted runner."
+              ;;
+            *)
+              [ -n "${WEB_SMOKE_URL:-}" ] && validate_web=1
+              [ -n "${BACKEND_HEALTH_URLS:-}" ] && validate_backend=1
+              ;;
+          esac
 
+          if [ "${validate_web}" = "1" ] && [ -z "${WEB_SMOKE_URL:-}" ]; then
+            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate web deploy."
+            exit 1
+          fi
+
+          if [ "${validate_backend}" = "1" ] && [ -z "${BACKEND_HEALTH_URLS:-}" ]; then
+            echo "::error title=post-deploy-validate::BACKEND_HEALTH_URLS missing; refusing to validate backend deploy."
+            exit 1
+          fi
+
+          if [ "${validate_web}" = "1" ]; then
+            echo "::group::web smoke"
+            curl -fsS "${WEB_SMOKE_URL}" >/dev/null || fail=1
+            echo "::endgroup::"
+          else
+            echo "::notice title=post-deploy-validate::Web validation skipped for ${TRIGGER_WORKFLOW}."
+          fi
+
+          if [ "${validate_backend}" = "1" ]; then
+            echo "::group::backend healthchecks"
+            IFS=',' read -r -a urls <<< "${BACKEND_HEALTH_URLS}"
+            for u in "${urls[@]}"; do
+              u="$(echo "${u}" | xargs)"
+              [ -n "${u}" ] || continue
+              curl -fsS "${u}" >/dev/null || fail=1
+            done
+            echo "::endgroup::"
+          else
+            echo "::notice title=post-deploy-validate::Backend validation skipped for ${TRIGGER_WORKFLOW}."
+          fi
+
+          if [ "${fail}" = "1" ]; then
+            echo "::error title=post-deploy-validate::Validation failed."
+            exit 1
+          fi
+
+          echo "::notice title=post-deploy-validate::PASS"
+
+  validate-manual:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env || 'stage' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping manual validation."
+
+      - name: Validate manually
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          MANUAL_ENV: ${{ github.event.inputs.env }}
+          TARGET: ${{ github.event.inputs.target }}
+          WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+          BACKEND_HEALTH_URLS: ${{ secrets.BACKEND_HEALTH_URLS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          fail=0
+          validate_web=0
+          validate_backend=0
+
+          case "${TARGET}" in
+            web)
+              if [ "${MANUAL_ENV}" = "stage" ]; then
+                echo "::notice title=post-deploy-validate::Stage web manual validation runs on the stage self-hosted job."
+              else
+                validate_web=1
+              fi
+              ;;
+            backend)
+              if [ "${MANUAL_ENV}" = "stage" ]; then
+                echo "::notice title=post-deploy-validate::Stage backend manual validation runs on the stage self-hosted job."
+              else
+                validate_backend=1
+              fi
+              ;;
+            all)
+              if [ "${MANUAL_ENV}" = "stage" ]; then
+                echo "::notice title=post-deploy-validate::Stage web manual validation runs on the stage self-hosted job."
+                echo "::notice title=post-deploy-validate::Stage backend manual validation runs on the stage self-hosted job."
+              else
+                validate_web=1
+                validate_backend=1
+              fi
+              ;;
+            *)
+              echo "::error title=post-deploy-validate::Unsupported target=${TARGET}"
+              exit 1
+              ;;
+          esac
+
+          if [ "${validate_web}" = "1" ] && [ -z "${WEB_SMOKE_URL:-}" ]; then
+            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate web deploy."
+            exit 1
+          fi
+
+          if [ "${validate_backend}" = "1" ] && [ -z "${BACKEND_HEALTH_URLS:-}" ]; then
+            echo "::error title=post-deploy-validate::BACKEND_HEALTH_URLS missing; refusing to validate backend deploy."
+            exit 1
+          fi
+
+          if [ "${validate_web}" = "1" ]; then
+            echo "::group::web smoke"
+            curl -fsS "${WEB_SMOKE_URL}" >/dev/null || fail=1
+            echo "::endgroup::"
+          else
+            echo "::notice title=post-deploy-validate::Web validation skipped for target=${TARGET}."
+          fi
+
+          if [ "${validate_backend}" = "1" ]; then
+            echo "::group::backend healthchecks"
+            IFS=',' read -r -a urls <<< "${BACKEND_HEALTH_URLS}"
+            for u in "${urls[@]}"; do
+              u="$(echo "${u}" | xargs)"
+              [ -n "${u}" ] || continue
+              curl -fsS "${u}" >/dev/null || fail=1
+            done
+            echo "::endgroup::"
+          else
+            echo "::notice title=post-deploy-validate::Backend validation skipped for env=${MANUAL_ENV}, target=${TARGET}."
+          fi
+
+          if [ "${fail}" = "1" ]; then
+            echo "::error title=post-deploy-validate::Validation failed."
+            exit 1
+          fi
+
+          echo "::notice title=post-deploy-validate::PASS"
+
+  validate-stage-backend:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.name == 'deploy-backend'
+      && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping stage backend validation."
+
+      - name: Validate stage backend (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          BACKEND_HEALTH_URLS: ${{ secrets.BACKEND_HEALTH_URLS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${BACKEND_HEALTH_URLS:-}" ]; then
+            echo "::error title=post-deploy-validate::BACKEND_HEALTH_URLS missing; refusing to validate backend deploy."
+            exit 1
+          fi
+
+          fail=0
           echo "::group::backend healthchecks"
           IFS=',' read -r -a urls <<< "${BACKEND_HEALTH_URLS}"
           for u in "${urls[@]}"; do
@@ -69,5 +259,143 @@ jobs:
             echo "::error title=post-deploy-validate::Validation failed."
             exit 1
           fi
+
+          echo "::notice title=post-deploy-validate::PASS"
+
+  validate-stage-web:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.name == 'deploy-web'
+      && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping stage web validation."
+
+      - name: Validate stage web (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+          WEB_TLS_SELF_SIGNED: ${{ vars.WEB_TLS_SELF_SIGNED }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${WEB_SMOKE_URL:-}" ]; then
+            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate web deploy."
+            exit 1
+          fi
+
+          echo "::group::web smoke"
+          curl_args=(-fsS)
+          if [ "${WEB_TLS_SELF_SIGNED:-false}" = "true" ]; then
+            curl_args=(-k "${curl_args[@]}")
+          fi
+          curl "${curl_args[@]}" "${WEB_SMOKE_URL}" >/dev/null
+          echo "::endgroup::"
+
+          echo "::notice title=post-deploy-validate::PASS"
+
+  validate-manual-stage-backend:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.env == 'stage'
+      && (github.event.inputs.target == 'backend' || github.event.inputs.target == 'all')
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping manual stage backend validation."
+
+      - name: Validate stage backend manually (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          BACKEND_HEALTH_URLS: ${{ secrets.BACKEND_HEALTH_URLS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${BACKEND_HEALTH_URLS:-}" ]; then
+            echo "::error title=post-deploy-validate::BACKEND_HEALTH_URLS missing; refusing to validate backend deploy."
+            exit 1
+          fi
+
+          fail=0
+          echo "::group::backend healthchecks"
+          IFS=',' read -r -a urls <<< "${BACKEND_HEALTH_URLS}"
+          for u in "${urls[@]}"; do
+            u="$(echo "${u}" | xargs)"
+            [ -n "${u}" ] || continue
+            curl -fsS "${u}" >/dev/null || fail=1
+          done
+          echo "::endgroup::"
+
+          if [ "${fail}" = "1" ]; then
+            echo "::error title=post-deploy-validate::Validation failed."
+            exit 1
+          fi
+
+          echo "::notice title=post-deploy-validate::PASS"
+
+  validate-manual-stage-web:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.env == 'stage'
+      && (github.event.inputs.target == 'web' || github.event.inputs.target == 'all')
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=post-deploy-validate::DEPLOY_ENABLED!=true; skipping manual stage web validation."
+
+      - name: Validate stage web manually (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+          WEB_TLS_SELF_SIGNED: ${{ vars.WEB_TLS_SELF_SIGNED }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          if [ -z "${WEB_SMOKE_URL:-}" ]; then
+            echo "::error title=post-deploy-validate::WEB_SMOKE_URL missing; refusing to validate web deploy."
+            exit 1
+          fi
+
+          echo "::group::web smoke"
+          curl_args=(-fsS)
+          if [ "${WEB_TLS_SELF_SIGNED:-false}" = "true" ]; then
+            curl_args=(-k "${curl_args[@]}")
+          fi
+          curl "${curl_args[@]}" "${WEB_SMOKE_URL}" >/dev/null
+          echo "::endgroup::"
 
           echo "::notice title=post-deploy-validate::PASS"

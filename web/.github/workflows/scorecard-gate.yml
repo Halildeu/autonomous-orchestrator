@@ -1,0 +1,89 @@
+name: Component Scorecard Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/design-system/src/**'
+      - 'packages/design-system/scripts/ci/**'
+
+jobs:
+  scorecard:
+    name: Component Quality Scorecard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run scorecard
+        id: scorecard
+        run: |
+          cd packages/design-system
+          node scripts/ci/component-scorecard.mjs --json 2>&1 | tee /tmp/scorecard-output.txt
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          tail -30 /tmp/scorecard-output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check for F grades (gate)
+        run: |
+          cd packages/design-system
+          F_COUNT=$(node -e "const d=require('./reports/scorecard.json');console.log(d.filter(c=>c.grade==='F').length)")
+          echo "F-grade components: $F_COUNT"
+          if [ "$F_COUNT" -gt "0" ]; then
+            echo "::error::$F_COUNT component(s) have F grade — merge blocked"
+            exit 1
+          fi
+
+      - name: Upload scorecard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-report
+          path: packages/design-system/reports/scorecard.json
+          retention-days: 30
+
+      - name: Comment PR with scorecard summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('packages/design-system/reports/scorecard.json', 'utf8'));
+            const total = data.length;
+            const avg = Math.round(data.reduce((s, c) => s + c.totalScore, 0) / total);
+            const grades = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+            data.forEach(c => grades[c.grade]++);
+            const dList = data.filter(c => c.grade === 'D' || c.grade === 'F')
+              .map(c => `| ${c.grade} | ${c.totalScore} | ${c.name} | ${c.improvements[0] || ''} |`).join('\n');
+
+            const body = `## 📊 Component Scorecard
+
+            | Metric | Value |
+            |--------|-------|
+            | Components | ${total} |
+            | Average | **${avg}/100** |
+            | A | ${grades.A} (${Math.round(grades.A/total*100)}%) |
+            | B | ${grades.B} |
+            | C | ${grades.C} |
+            | D | ${grades.D} |
+            | F | ${grades.F} |
+
+            ${dList ? `### ⚠️ Needs Attention\n| Grade | Score | Component | Top Fix |\n|-------|-------|-----------|---------|` + '\n' + dList : '✅ No D/F components'}
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body.split('\n').map(l => l.trim()).join('\n'),
+            });

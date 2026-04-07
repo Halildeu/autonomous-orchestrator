@@ -434,6 +434,7 @@ if [[ -z "${PR_NUMBER}" ]]; then
 fi
 if [[ -z "${PR_NUMBER}" ]]; then
   echo "[local-e2e] no open PR for head=${HEAD_BRANCH}; creating..."
+  bash scripts/require_local_gate.sh --auto-run --caller local-merge-deploy-orchestrator
   pr_create "${REPO}" "${BASE_BRANCH}" "${HEAD_BRANCH}" "${HEAD_BRANCH}" "${PR_BODY_FILE:-}"
   PR_NUMBER="$(pr_find_open_for_head "${REPO}" "${HEAD_BRANCH}")"
 fi

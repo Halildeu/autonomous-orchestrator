@@ -1,0 +1,34 @@
+{
+  "version": "v1",
+  "kind": "prod-public-edge-map",
+  "environment": "prod",
+  "notes": [
+    "Bu dosya production public routing hedeflerini ve host bazli yonlendirme beklentisini tanimlar.",
+    "Ayni public edge IP uzerinde birden fazla site publish edilebilecegi icin host binding zorunludur.",
+    "DNS tek basina yeterli degildir; host header ve TLS sertifika eslesmesi de gereklidir."
+  ],
+  "public_hosts": [
+    {
+      "host": "ai.acik.com",
+      "protocols": ["http", "https"],
+      "dns_record_type": "A",
+      "public_edge_ip": "31.145.18.18",
+      "target_type": "reverse-proxy",
+      "backend_upstream": {
+        "host": "10.9.10.53",
+        "port": 8082,
+        "scheme": "http"
+      },
+      "health_checks": [
+        "https://ai.acik.com/actuator/health",
+        "http://10.9.10.53:8082/actuator/health"
+      ],
+      "requirements": [
+        "DNS A kaydi ai.acik.com -> 31.145.18.18",
+        "Edge uzerinde Host: ai.acik.com binding veya route",
+        "TLS sertifikasi ai.acik.com icin aktif",
+        "Yanlis vhost veya default site'ye dusmeme kontrolu"
+      ]
+    }
+  ]
+}

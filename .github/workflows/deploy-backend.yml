@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "deploy/ubuntu/**"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
     inputs:
@@ -24,21 +25,25 @@ concurrency:
 jobs:
   deploy-backend:
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.env || 'stage' }}
     env:
       DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      BACKEND_SSH_DEPLOY_ENABLED: ${{ secrets.BACKEND_SSH_DEPLOY_ENABLED }}
 
     steps:
       - name: Skip if deploy disabled
         if: ${{ env.DEPLOY_ENABLED != 'true' }}
         run: echo "::notice title=deploy-backend::DEPLOY_ENABLED!=true; skipping."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         with:
           python-version: "3.11"
@@ -86,6 +91,8 @@ jobs:
           GHCR_OWNER: ${{ github.repository_owner }}
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF: ${{ github.ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -94,14 +101,23 @@ jobs:
           echo "::add-mask::${GH_TOKEN}"
           echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
+          ghcr_owner="$(printf '%s' "${GHCR_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          if [ -z "${ghcr_owner}" ]; then
+            echo "::error title=deploy-backend::Unable to resolve lowercase GHCR owner."
+            exit 1
+          fi
+
           echo "::group::docker compose build (backend/docker-compose.yml)"
           docker compose -f backend/docker-compose.yml build
           echo "::endgroup::"
 
           short_sha="${SHA:0:7}"
-          stable_tag="main-stable"
+          stable_tag=""
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            stable_tag="main-stable"
+          fi
 
-          echo "::group::tag + push (serban-* -> ghcr.io/${GHCR_OWNER}/...)"
+          echo "::group::tag + push (serban-* -> ghcr.io/${ghcr_owner}/...)"
           images="$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E '^serban-' || true)"
           if [ -z "${images}" ]; then
             echo "::error title=deploy-backend::No serban-* images found; failing deploy-backend."
@@ -111,11 +127,268 @@ jobs:
           while IFS= read -r img; do
             name="${img%%:*}"
             svc="${name#serban-}"
-            target="ghcr.io/${GHCR_OWNER}/platform-ssot-${svc}"
+            target="ghcr.io/${ghcr_owner}/platform-ssot-${svc}"
 
             docker tag "${img}" "${target}:sha-${short_sha}"
-            docker tag "${img}" "${target}:${stable_tag}"
             docker push "${target}:sha-${short_sha}"
-            docker push "${target}:${stable_tag}"
+            if [ -n "${stable_tag}" ]; then
+              docker tag "${img}" "${target}:${stable_tag}"
+              docker push "${target}:${stable_tag}"
+            fi
           done <<< "${images}"
           echo "::endgroup::"
+
+      - name: Deploy to Ubuntu via SSH (required)
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.BACKEND_SSH_DEPLOY_ENABLED == 'true' && (github.event.inputs.env || 'stage') != 'stage' }}
+        env:
+          SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          BACKEND_DEPLOY_SSH_HOST: ${{ secrets.BACKEND_DEPLOY_SSH_HOST }}
+          BACKEND_DEPLOY_SSH_PORT: ${{ secrets.BACKEND_DEPLOY_SSH_PORT }}
+          BACKEND_DEPLOY_SSH_USER: ${{ secrets.BACKEND_DEPLOY_SSH_USER }}
+          BACKEND_DEPLOY_SSH_KEY: ${{ secrets.BACKEND_DEPLOY_SSH_KEY }}
+          BACKEND_DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.BACKEND_DEPLOY_SSH_KNOWN_HOSTS }}
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_REPO_DIR: ${{ secrets.BACKEND_DEPLOY_REMOTE_REPO_DIR }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          required_vars=(
+            BACKEND_DEPLOY_SSH_HOST
+            BACKEND_DEPLOY_SSH_USER
+            BACKEND_DEPLOY_SSH_KEY
+            BACKEND_DEPLOY_SSH_KNOWN_HOSTS
+          )
+
+          missing=0
+          for name in "${required_vars[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=deploy-backend::${name} missing; refusing SSH deploy."
+              missing=1
+            fi
+          done
+
+          if [ "${missing}" = "1" ]; then
+            exit 1
+          fi
+
+          short_sha="${SHA:0:7}"
+          remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+          remote_repo_dir="${BACKEND_DEPLOY_REMOTE_REPO_DIR:-/home/halil/platform/repo}"
+          remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+          ssh_port="${BACKEND_DEPLOY_SSH_PORT:-22}"
+
+          key_path="${RUNNER_TEMP}/backend_deploy_ssh_key"
+          known_hosts_path="${RUNNER_TEMP}/backend_known_hosts"
+
+          printf '%s' "${BACKEND_DEPLOY_SSH_KEY}" > "${key_path}"
+          chmod 600 "${key_path}"
+          printf '%s\n' "${BACKEND_DEPLOY_SSH_KNOWN_HOSTS}" > "${known_hosts_path}"
+          chmod 600 "${known_hosts_path}"
+
+          ssh_opts=(
+            -i "${key_path}"
+            -p "${ssh_port}"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="${known_hosts_path}"
+          )
+
+          echo "::notice title=deploy-backend::Deploying sha-${short_sha} to ${BACKEND_DEPLOY_SSH_HOST}."
+          ssh "${ssh_opts[@]}" "${BACKEND_DEPLOY_SSH_USER}@${BACKEND_DEPLOY_SSH_HOST}" \
+            REMOTE_ENV_FILE="${remote_env_file}" \
+            REMOTE_REPO_DIR="${remote_repo_dir}" \
+            REMOTE_COMPOSE_PROFILES="${remote_profiles}" \
+            REPO_BRANCH="${GITHUB_REF_NAME}" \
+            GITHUB_ACTOR="${GITHUB_ACTOR}" \
+            GITHUB_TOKEN="${GITHUB_TOKEN}" \
+            TARGET_IMAGE_TAG="sha-${short_sha}" \
+            'bash -se' <<'EOF'
+          set -euo pipefail
+
+          if [ ! -f "${REMOTE_ENV_FILE}" ]; then
+            echo "[error] backend env file missing: ${REMOTE_ENV_FILE}" >&2
+            exit 1
+          fi
+
+          set -a
+          # shellcheck disable=SC1090
+          . "${REMOTE_ENV_FILE}"
+          set +a
+
+          if [ ! -d "${REMOTE_REPO_DIR}/.git" ]; then
+            if [ -z "${GIT_REMOTE_URL:-}" ]; then
+              echo "[error] GIT_REMOTE_URL missing in ${REMOTE_ENV_FILE}" >&2
+              exit 1
+            fi
+            mkdir -p "$(dirname "${REMOTE_REPO_DIR}")"
+            git clone --branch "${REPO_BRANCH:-main}" --depth 1 "${GIT_REMOTE_URL}" "${REMOTE_REPO_DIR}"
+          fi
+
+          cd "${REMOTE_REPO_DIR}"
+          chmod +x deploy/ubuntu/deploy-backend.sh deploy/ubuntu/rollback-backend.sh
+
+          ENV_FILE="${REMOTE_ENV_FILE}" \
+          REPO_DIR="${REMOTE_REPO_DIR}" \
+          COMPOSE_PROFILES="${REMOTE_COMPOSE_PROFILES}" \
+          GHCR_USERNAME="${GITHUB_ACTOR}" \
+          GHCR_TOKEN="${GITHUB_TOKEN}" \
+          TARGET_IMAGE_TAG="${TARGET_IMAGE_TAG}" \
+          deploy/ubuntu/deploy-backend.sh
+          EOF
+
+      - name: Backend host deploy skipped
+        if: ${{ env.DEPLOY_ENABLED == 'true' && env.BACKEND_SSH_DEPLOY_ENABLED != 'true' && (github.event.inputs.env || 'stage') != 'stage' }}
+        run: echo "::notice title=deploy-backend::Images pushed to GHCR; SSH host deploy skipped because BACKEND_SSH_DEPLOY_ENABLED!=true."
+
+  deploy-stage-host:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    needs: deploy-backend
+    if: ${{ needs.deploy-backend.result == 'success' && (github.event.inputs.env || 'stage') == 'stage' }}
+    environment: stage
+    env:
+      DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
+
+    steps:
+      - name: Skip if deploy disabled
+        if: ${{ env.DEPLOY_ENABLED != 'true' }}
+        run: echo "::notice title=deploy-backend::DEPLOY_ENABLED!=true; skipping stage host deploy."
+
+      - name: Repair stage workspace ownership
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="platform-playwright-smoke:chromium-bookworm"
+          if docker image inspect "${image}" >/dev/null 2>&1; then
+            docker run --rm \
+              -v "${GITHUB_WORKSPACE}:/work" \
+              "${image}" \
+              bash -lc 'find /work -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
+          else
+            echo "::notice title=deploy-backend::cleanup image bulunamadi; stage workspace cleanup atlandi."
+          fi
+
+      - uses: actions/checkout@v6
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        with:
+          fetch-depth: 0
+
+      - name: Validate stage workspace checkout
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_dir="${GITHUB_WORKSPACE}"
+          if [[ ! -d "${repo_dir}/.git" ]]; then
+            echo "::error title=deploy-backend::stage workspace repo missing at ${repo_dir}"
+            exit 1
+          fi
+
+      - name: Refresh stage backend AppRole materials
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          VAULT_ADDR_SECRET: ${{ env.VAULT_ADDR }}
+          VAULT_TOKEN_SECRET: ${{ env.VAULT_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          vault_addr="${VAULT_ADDR_SECRET:-http://127.0.0.1:8200}"
+          if [ -z "${VAULT_TOKEN_SECRET:-}" ]; then
+            echo "::notice title=deploy-backend::VAULT_TOKEN secret missing; stage AppRole refresh skipped, existing backend.env bootstrap will be used."
+            exit 0
+          fi
+
+          ENV=stage \
+          VAULT_ADDR="${vault_addr}" \
+          VAULT_TOKEN="${VAULT_TOKEN_SECRET}" \
+          bash backend/scripts/vault/materialize-backend-deploy-approle.sh
+
+      - name: Deploy on stage host (self-hosted)
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+
+          short_sha="${GITHUB_SHA:0:7}"
+          remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+          remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+          repo_dir="${GITHUB_WORKSPACE}"
+          vault_addr="${VAULT_ADDR:-http://127.0.0.1:8200}"
+
+          if [ ! -f "${remote_env_file}" ]; then
+            echo "::error title=deploy-backend::backend env file missing: ${remote_env_file}"
+            exit 1
+          fi
+
+          chmod +x deploy/ubuntu/deploy-backend.sh deploy/ubuntu/rollback-backend.sh
+
+          ENV_FILE="${remote_env_file}" \
+          REPO_DIR="${repo_dir}" \
+          COMPOSE_PROFILES="${remote_profiles}" \
+          REPO_BRANCH="${GITHUB_REF_NAME}" \
+          RENDER_ENV_BEFORE_DEPLOY="true" \
+          DEPLOY_ENV="stage" \
+          VAULT_ADDR="${vault_addr}" \
+          GHCR_USERNAME="${GITHUB_ACTOR}" \
+          GHCR_TOKEN="${GITHUB_TOKEN}" \
+          TARGET_IMAGE_TAG="sha-${short_sha}" \
+          deploy/ubuntu/deploy-backend.sh
+
+      - name: Collect stage backend diagnostics on failure
+        if: ${{ failure() && env.DEPLOY_ENABLED == 'true' }}
+        env:
+          BACKEND_DEPLOY_REMOTE_ENV_FILE: ${{ secrets.BACKEND_DEPLOY_REMOTE_ENV_FILE }}
+          BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES: ${{ secrets.BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          remote_env_file="${BACKEND_DEPLOY_REMOTE_ENV_FILE:-/home/halil/platform/env/backend.env}"
+          remote_repo_dir="${GITHUB_WORKSPACE}"
+          remote_profiles="${BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES:-}"
+          compose_file="${remote_repo_dir}/backend/docker-compose.prod.yml"
+
+          compose_flags=()
+          if [ -n "${remote_profiles}" ]; then
+            IFS=',' read -r -a raw_profiles <<< "${remote_profiles}"
+            for profile in "${raw_profiles[@]}"; do
+              profile="$(echo "${profile}" | xargs)"
+              [ -n "${profile}" ] || continue
+              compose_flags+=(--profile "${profile}")
+            done
+          fi
+
+          echo "::group::docker ps -a"
+          docker ps -a || true
+          echo "::endgroup::"
+
+          echo "::group::docker compose ps --all"
+          docker compose --env-file "${remote_env_file}" -f "${compose_file}" "${compose_flags[@]}" ps --all || true
+          echo "::endgroup::"
+
+          for service in discovery-server permission-service auth-service user-service variant-service core-data-service api-gateway openfga postgres-db; do
+            echo "::group::docker inspect ${service}"
+            docker inspect "platform-${service}-1" || true
+            echo "::endgroup::"
+
+            echo "::group::docker logs ${service}"
+            docker logs --tail 200 "platform-${service}-1" || true
+            echo "::endgroup::"
+          done

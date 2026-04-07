@@ -176,9 +176,21 @@ export class AGGridAdapter implements GridAdapter {
   }
 
   getSortModel(): GridSortEntry[] {
-    // AG Grid stores sort in column state, not a direct getter
-    // For now, return empty — full implementation needs columnApi
-    return [];
+    // AG Grid v34+ stores sort in column state via getColumnDefs
+    const defs = this.api.getColumnDefs() ?? [];
+    const entries: GridSortEntry[] = [];
+    for (const def of defs) {
+      const d = def as Record<string, unknown>;
+      if (d.sort && d.field) {
+        entries.push({
+          field: d.field as string,
+          direction: d.sort === 'desc' ? 'desc' : 'asc',
+          sortIndex: typeof d.sortIndex === 'number' ? d.sortIndex : entries.length,
+        });
+      }
+    }
+    entries.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
+    return entries;
   }
 
   onFilterChange(callback: (filters: GridFilterEntry[]) => void): () => void {

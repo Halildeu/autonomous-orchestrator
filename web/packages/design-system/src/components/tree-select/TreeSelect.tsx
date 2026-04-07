@@ -154,7 +154,7 @@ const TreeNode: React.FC<{
         aria-disabled={isDisabled}
       >
         {hasChildren ? (
-          <span className="shrink-0 text-text-secondary" onClick={(e) => { e.stopPropagation(); onToggleExpand(node.value); }}>
+          <span className="shrink-0 text-text-secondary cursor-pointer" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onToggleExpand(node.value); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onToggleExpand(node.value); } }} aria-label={isExpanded ? 'Collapse' : 'Expand'}>
             {isExpanded ? <ChevronDownIcon className="h-3.5 w-3.5" /> : <ChevronRightIcon className="h-3.5 w-3.5" />}
           </span>
         ) : (
@@ -315,7 +315,17 @@ export const TreeSelect = forwardRef<HTMLDivElement, TreeSelectProps>(
         {/* Trigger */}
         <div
           ref={triggerRef}
+          role="combobox"
+          tabIndex={disabled ? -1 : 0}
+          aria-expanded={isOpen}
+          aria-haspopup="tree"
+          aria-disabled={disabled || undefined}
           onClick={() => !disabled && setIsOpen(!isOpen)}
+          onKeyDown={(e) => {
+            if (disabled) return;
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsOpen(!isOpen); }
+            if (e.key === 'Escape' && isOpen) { e.preventDefault(); setIsOpen(false); }
+          }}
           className={cn(
             'flex w-full cursor-pointer items-center gap-1.5 rounded-lg border px-3 transition-colors',
             styles.trigger,

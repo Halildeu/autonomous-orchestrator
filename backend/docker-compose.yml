@@ -61,6 +61,10 @@ services:
       # Service token doğrulaması için auth-service JWKS (lokal senaryo)
       SERVICE_AUTH_JWK_SET_URI: ${SERVICE_AUTH_JWK_SET_URI:-http://auth-service:8088/oauth2/jwks}
       SERVICE_AUTH_ISSUER: ${SERVICE_AUTH_ISSUER:-auth-service}
+      ERP_OPENFGA_ENABLED: ${ERP_OPENFGA_ENABLED:-false}
+      ERP_OPENFGA_API_URL: ${ERP_OPENFGA_API_URL:-http://openfga:8080}
+      ERP_OPENFGA_STORE_ID: ${ERP_OPENFGA_STORE_ID:-}
+      ERP_OPENFGA_MODEL_ID: ${ERP_OPENFGA_MODEL_ID:-}
       # Ek issuer/JWKS listesi Keycloak serban realm'ini işaret eder
       SECURITY_JWT_JWK_SET_URIS: http://keycloak:8080/realms/serban/protocol/openid-connect/certs
       SECURITY_JWT_ISSUERS: http://keycloak:8080/realms/serban,http://localhost:8081/realms/serban
@@ -181,7 +185,7 @@ services:
       postgres-db:
         condition: service_healthy
       openfga:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
       interval: 30s
@@ -201,7 +205,7 @@ services:
       - SECURITY_JWT_ISSUER=http://keycloak:8080/realms/serban
       - SECURITY_JWT_AUDIENCE=user-service,permission-service,variant-service,core-data-service
       # Ek issuer: Keycloak (lokal dev)
-      - SECURITY_JWT_JWK_SET_URIS=http://keycloak:8080/realms/serban/protocol/openid-connect/certs
+      - SECURITY_JWT_JWK_SET_URIS=http://keycloak:8080/realms/serban/protocol/openid-connect/certs,http://keycloak:8080/realms/serban/protocol/openid-connect/certs
       - SECURITY_JWT_ISSUERS=http://keycloak:8080/realms/serban,http://localhost:8081/realms/serban
       - SECURITY_JWT_SECONDARY_ISSUER=http://localhost:8081/realms/serban
       - SECURITY_JWT_SECONDARY_JWK_SET_URI=http://keycloak:8080/realms/serban/protocol/openid-connect/certs
@@ -237,6 +241,9 @@ services:
       # v26: KC_HOSTNAME_STRICT replaced by KC_HOSTNAME
       # start-dev modunda hostname kontrolü otomatik kapalı
       - KC_HTTP_ENABLED=true
+      - KC_PROXY_HEADERS=${KC_PROXY_HEADERS:-xforwarded}
+      - KC_HOSTNAME=${KC_HOSTNAME:-https://ai.acik.com}
+      - KC_HOSTNAME_BACKCHANNEL_DYNAMIC=${KC_HOSTNAME_BACKCHANNEL_DYNAMIC:-true}
       - KC_HOSTNAME_DEBUG=true
     ports:
       - "8081:8080"
@@ -335,7 +342,9 @@ services:
 
   permission-service:
     # profiles: ["legacy"]  # Re-enabled: roles CRUD still lives here, synced with OpenFGA
-    build: ./permission-service
+    build:
+      context: .
+      dockerfile: ./permission-service/Dockerfile
     ports:
       - "8090:8084"
     networks:
@@ -368,6 +377,10 @@ services:
       - SECURITY_JWT_SECONDARY_JWK_SET_URI=http://keycloak:8080/realms/serban/protocol/openid-connect/certs
       - SECURITY_JWT_SECONDARY_ISSUER=http://localhost:8081/realms/serban
       - SECURITY_JWT_SECONDARY_AUDIENCE=permission-service
+      - ERP_OPENFGA_ENABLED=${ERP_OPENFGA_ENABLED:-false}
+      - ERP_OPENFGA_API_URL=${ERP_OPENFGA_API_URL:-http://openfga:8080}
+      - ERP_OPENFGA_STORE_ID=${ERP_OPENFGA_STORE_ID:-}
+      - ERP_OPENFGA_MODEL_ID=${ERP_OPENFGA_MODEL_ID:-}
       - PERMISSION_BOOTSTRAP_DEFAULT_ADMIN_ASSIGNMENTS_USER_TABLE=${PERMISSION_BOOTSTRAP_DEFAULT_ADMIN_ASSIGNMENTS_USER_TABLE:-user_service.users}
       - PERMISSION_AUTHZ_USER_TABLE=${PERMISSION_AUTHZ_USER_TABLE:-user_service.users}
     depends_on:
@@ -404,10 +417,21 @@ services:
       - SECURITY_JWT_ISSUER=http://keycloak:8080/realms/serban
       - SECURITY_JWT_AUDIENCE=report-service,account,frontend
       - PERMISSION_SERVICE_INTERNAL_API_KEY=${PERMISSION_SERVICE_INTERNAL_API_KEY:-dev-local-audit-mirror-key}
+      # PostgreSQL — Docker network hostname
+      - REPORT_PG_HOST=postgres-db
+      - REPORT_PG_PORT=5432
+      - REPORT_PG_DB=${POSTGRES_DB:-users}
       # SQL Server baglantisi optional — erisim yoksa servis yine de baslar
       - SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=-1
       # DB health indicator'u devre disi birak (SQL Server ulasılamaz oldugunda timeout yapar)
       - MANAGEMENT_HEALTH_DB_ENABLED=false
+      # Context Health Dashboard — orchestrator JSON dosyalarini okur
+      - CONTEXT_HEALTH_ENABLED=${CONTEXT_HEALTH_ENABLED:-false}
+      - CONTEXT_HEALTH_DATA_DIR=/opt/context-health/reports
+      - CONTEXT_HEALTH_INDEX_DIR=/opt/context-health/index
+    volumes:
+      - ${CONTEXT_HEALTH_HOST_REPORTS:-/dev/null}:/opt/context-health/reports:ro
+      - ${CONTEXT_HEALTH_HOST_INDEX:-/dev/null}:/opt/context-health/index:ro
     depends_on:
       discovery-server:
         condition: service_healthy

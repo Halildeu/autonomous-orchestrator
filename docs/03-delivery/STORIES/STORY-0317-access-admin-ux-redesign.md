@@ -1,282 +1,182 @@
-# STORY-0317: Access Admin UX Redesign — Sifirdan Tasarim
+# STORY-0317: Access Admin UX Redesign - Sifirdan Tasarim
 
-## Problem
+ID: STORY-0317
 
-Mevcut access admin sayfasi (`/access/roles`) yamali bir yapida:
-- Filtre bar + variant toolbar + tab bar + action butonlari + grid + registry hepsi tek sayfada
-- Gorsel hiyerarsi yok — her sey ayni agirlikta
-- Permission atama mantigi karisik (policy kartlari + checkbox listesi)
-- Graph/Matrix/Explain gibi ileri ozellikler tab olarak eklenmis ama organik degil
+1. AMAÇ
 
-## Rakip Analizi Ozeti
+Access admin deneyimini tek ekranda yamanmis bir panel olmaktan cikarip,
+rol yonetimi, yetki matrisi, iliski analizi ve audit akislarini ayri ama
+birbiriyle tutarli yuzeylere bolmek.
 
-| Urun | En Iyi Yani | Bizim Icin Uygulanabilir |
-|------|------------|--------------------------|
-| **Permit.io** | Block/Grid dual view, checkbox matrix, embeddable | Grid view permission matrix |
-| **Clerk** | Feature-based permission gruplama | Modul bazli permission gruplama (zaten var) |
-| **Linear** | Hover-to-reveal, minimalizm, Cmd+K | Temiz liste, progressive disclosure |
-| **Vercel** | Contributor + progressive disclosure, invitation flow | Scope atama progressive disclosure |
-| **Auth0** | Iki yonlu navigasyon (rol→kullanici, kullanici→rol) | Drawer'dan her iki yone erisim |
-| **Stripe** | Preset roller, IAM Admin ayirimi, basitlik | System role vurgulama |
-| **WorkOS** | Immutable slug, environment-level config | Slug bazli rol ID |
+2. TANIM
 
-## Onerilen Mimari: 4 Sayfa + Drawer Sistemi
+## 2.1 Problem
 
-Mevcut tek sayfa yerine, **4 ayri sayfa + ortak drawer** yapisi:
+Mevcut access admin sayfasi (`/access/roles`) cok fazla isi tek yuzeyde
+topluyor:
 
-```
+- Filtre bar, variant toolbar, tab bar, action butonlari ve grid ayni alanda.
+- Gorsel hiyerarsi zayif; birincil ve ikincil aksiyonlar ayrismiyor.
+- Permission atama mantigi policy kartlari ve checkbox listeleri yuzunden zor
+  izleniyor.
+- Graph, Matrix ve Explain gibi ileri ozellikler ana is akisinin icinde
+  organik olmayan sekilde gorunuyor.
+
+## 2.2 Rakip analizi ozeti
+
+| Urun | En guclu taraf | Bu hikaye icin alinacak ders |
+|------|----------------|------------------------------|
+| Permit.io | Grid/matrix gorunumu | Yetki matrisi ve hucre bazli duzenleme |
+| Clerk | Feature-based grouping | Modul bazli yetki gruplama |
+| Linear | Minimal liste ve progressive disclosure | Hover ile aksiyon gosteren rol kartlari |
+| Vercel | Uye/katilim akislarinda sadelik | Drawer tabanli rol detay ve uye gorunumu |
+| Auth0 | Rol-kullanici iki yonlu gezinti | Rol drawer icinde atanmis kullanicilar |
+| Stripe | Sistem rolleri vurgusu | System role badge ve sade yetki seviyesi |
+| WorkOS | Stabil slug/ID mantigi | Rol kimligini slug ile koruma |
+
+## 2.3 Onerilen bilgi mimarisi
+
+Tek sayfa yerine dort route ve ortak drawer modeli kullanilir:
+
+```text
 /access
-  ├── /access/roles          → Rol Yonetimi (ana sayfa)
-  ├── /access/matrix         → Yetki Matrisi (Permit.io grid view)
-  ├── /access/graph          → Iliski Haritasi (FlowBuilder)
-  └── /access/audit          → Yetki Degisiklik Gecmisi
+  /roles   -> Rol yonetimi
+  /matrix  -> Yetki matrisi
+  /graph   -> Iliski haritasi
+  /audit   -> Yetki audit gecmisi
 ```
 
-**Sidebar navigasyon** (sol sidebar'da "Erisim" grubu altinda) — tab degil, route bazli.
+Sidebar icinde "Erisim" grubu route bazli calisir; tab bazli gecis
+kullanilmaz.
 
-## Sayfa 1: Rol Yonetimi (`/access/roles`)
+## 2.4 Sayfa tanimlari
 
-**Referans:** Linear members + Vercel team management
+### Rol Yonetimi (`/access/roles`)
 
-### Layout
-```
-┌─────────────────────────────────────────────────┐
-│ [Breadcrumb: Yonetim > Erisim > Roller]         │
-│                                                   │
-│ Rol Yonetimi                    [+ Yeni Rol]     │
-│ 12 aktif rol                                      │
-├─────────────────────────────────────────────────┤
-│ [Arama...]          [Modul: Tumu ▼]  [Sifirla]  │
-├─────────────────────────────────────────────────┤
-│                                                   │
-│  ○ Admin                    3 uye    MANAGE ████  │
-│    Tam yetki, tum modullere erisim                │
-│                                                   │
-│  ○ Editor                   8 uye    EDIT   ███░  │
-│    Duzenleme yetkisi, silme haric                 │
-│                                                   │
-│  ○ Viewer                  15 uye    VIEW   ██░░  │
-│    Salt okunur erisim                             │
-│                                                   │
-│  ○ Operasyon Admin (EMEA)   2 uye    MANAGE ████  │
-│    EMEA bolgesi operasyon yetkisi    [system]     │
-│                                                   │
-└─────────────────────────────────────────────────┘
-```
-
-### UX Kararlari
-
-1. **Kart bazli rol listesi** (AG Grid yerine) — Her rol bir kart:
-   - Sol: Rol adi + aciklama (bir satir)
-   - Orta: Uye sayisi badge
-   - Sag: En yuksek yetki seviyesi gorsel bar (NONE=bos, VIEW=1/4, EDIT=2/4, MANAGE=4/4)
-   - System role icin `[system]` badge
-   - **Hover:** Klonla, Sil, Duzenle butonlari gorunur (Linear pattern)
-
-2. **Filtre:** Sadece arama + modul dropdown — Segmented level kaldirilsin (karisiklik)
-
-3. **"+ Yeni Rol" butonu:** Sag ust, primary — Permit.io/Auth0 pattern
-
-4. **Kart tiklandiginda:** Sag drawer acilir (detay + permission duzenleme)
+- Kart bazli rol listesi kullanilir.
+- Kartta rol adi, aciklama, uye sayisi ve en yuksek yetki seviyesi gorunur.
+- Hover durumunda `Klonla`, `Sil`, `Duzenle` aksiyonlari acilir.
+- `+ Yeni Rol` butonu primary aksiyon olarak sag ustte yer alir.
+- Kart tiklandiginda rol detay drawer'i acilir.
 
 ### Rol Detay Drawer
 
-**Referans:** Auth0 role detail + Vercel member management
+- Genel alan: uye sayisi, olusturma tarihi, son guncelleme, sistem rolu.
+- Modul yetkileri accordion yapisinda gosterilir.
+- Modul bazinda seviye secimi `Yok / Oku / Duz. / Yonet` olarak sunulur.
+- Gerektiginde tekil permission override yapilabilir.
+- Atanmis kullanicilar drawer icinde kisa liste olarak gorunur.
+- Dirty state varken kaydet butonu aktif olur; cikista uyari verilir.
 
-```
-┌──────────────────────────────────┐
-│ Admin                    [×]     │
-│ Tam yetki, tum modullere erisim  │
-│ ─────────────────────────────── │
-│                                  │
-│ GENEL                            │
-│ Uye sayisi         3             │
-│ Olusturulma        2026-01-15    │
-│ Son guncelleme     2026-04-04    │
-│ Sistem rolu        Evet          │
-│                                  │
-│ MODUL YETKILERI                  │
-│ ┌──────────────────────────────┐│
-│ │ Kullanici Yonetimi   [Yonet]▼││
-│ │  ☑ VIEW_USERS                ││
-│ │  ☑ MANAGE_USERS              ││
-│ │  ☑ RESET_PASSWORD            ││
-│ ├──────────────────────────────┤│
-│ │ Erisim Yonetimi      [Yonet]▼││
-│ │  ☑ VIEW_ACCESS               ││
-│ │  ☑ MANAGE_ACCESS             ││
-│ ├──────────────────────────────┤│
-│ │ Denetim               [Oku] ▼││
-│ │  ☑ VIEW_AUDIT                ││
-│ └──────────────────────────────┘│
-│                                  │
-│ ATANMIS KULLANICILAR (3)         │
-│ ┌──────────────────────────────┐│
-│ │ ● Ahmet Yilmaz  admin@...   ││
-│ │ ● Mehmet Kaya   ops@...     ││
-│ │ ● Ayse Demir    hr@...      ││
-│ └──────────────────────────────┘│
-│                                  │
-│ [Kaydet]              [Vazgec]  │
-└──────────────────────────────────┘
-```
+### Yetki Matrisi (`/access/matrix`)
 
-### UX Kararlari (Drawer)
+- Roller satir, moduller sutun olacak sekilde matrix gorunumu sunulur.
+- Hucreler tiklanabilir ve 4 seviyeli dropdown ile degistirilebilir.
+- Renk kodlamasi kullanilir:
+  - `Yonet` koyu mavi
+  - `Duz.` acik mavi
+  - `Oku` gri
+  - `Yok` bos
+- Degisiklikler batch save ile kaydedilir.
 
-1. **Modul bazli gruplama** — Her modul bir accordion kart (Clerk feature-based pattern)
-2. **Level dropdown** per modul: `[Yonet] ▼` — Select component, 4 secenekli (Yok/Oku/Duz./Yonet)
-3. **Altindaki permission'lar** otomatik secilir/kaldirilir (level'a gore)
-4. **Manuel override:** Tek tek permission toggle da yapilabilir (Switch component)
-5. **Atanmis kullanicilar:** Drawer'da kucuk liste (Auth0 iki yonlu navigasyon)
-6. **Dirty state:** Kaydet butonu sadece degisiklik varken aktif, cikmada uyari
+### Iliski Haritasi (`/access/graph`)
 
-## Sayfa 2: Yetki Matrisi (`/access/matrix`)
+- Varsayilan gorunum agac yapisidir.
+- Opsiyonel grafik gorunumu FlowBuilder tabanli olabilir.
+- Ayni sayfada "Erisimi Kontrol Et" yuzeyi bulunur.
+- Kullanici secimi sayfa basindan yapilir.
 
-**Referans:** Permit.io grid view + Cerbos Hub matrix
+### Yetki Audit (`/access/audit`)
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ Yetki Matrisi                              [Kaydet (3)]  │
-├──────────┬──────────┬──────────┬──────────┬─────────────┤
-│          │ Kullanici│ Erisim   │ Denetim  │ Raporlama   │
-│          │ Yonetimi │ Yonetimi │          │             │
-├──────────┼──────────┼──────────┼──────────┼─────────────┤
-│ Admin    │ ● Yonet  │ ● Yonet  │ ● Yonet  │ ● Yonet     │
-│ Editor   │ ● Duz.   │ ○ Yok    │ ● Oku    │ ● Duz.      │
-│ Viewer   │ ● Oku    │ ○ Yok    │ ● Oku    │ ● Oku       │
-│ Support  │ ● Oku    │ ○ Yok    │ ○ Yok    │ ○ Yok       │
-└──────────┴──────────┴──────────┴──────────┴─────────────┘
-```
+- Yetki degisiklikleri timeline olarak gosterilir.
+- Kim, ne zaman, hangi rolu degistirdi bilgisi saklanir.
+- Before/after farki okunabilir sekilde sunulur.
+- Kullanici, rol ve tarih araligi filtreleri desteklenir.
 
-### UX Kararlari
+3. KAPSAM VE SINIRLAR
 
-1. **Renk kodlu hucreler:** Yonet=koyu mavi, Duz.=acik mavi, Oku=gri, Yok=bos
-2. **Tiklanabilir hucreler** — Hucreye tikla, 4'lu dropdown acilir (Permit.io pattern)
-3. **Batch save** — Degisiklikler sayilir, tek "Kaydet" butonu
-4. **Sticky ilk sutun** — Rol adlari scroll'da sabit
-5. **Riskli izinler vurgulu** — "Yonet" seviyesi sari/turuncu arka plan (risk highlighting)
+## 3.1 Teknik yaklasim
 
-## Sayfa 3: Iliski Haritasi (`/access/graph`)
+Silinecek veya buyuk oranda yeniden yazilacak yuzeyler:
 
-**Referans:** Permit.io ReBAC graph + OpenFGA Playground
+- `AccessPage.ui.tsx`
+- `AccessFilterBar.ui.tsx`
+- `AccessGrid.ui.tsx`
+- `AccessRoleDrawer.ui.tsx`
+- `PermissionMatrix.ui.tsx`
+- `RelationshipGraph.ui.tsx`
+- `RelationshipTreeView.ui.tsx`
+- `ExplainPanel.ui.tsx`
+- `ScopeAssignmentPanel.ui.tsx`
 
-```
-┌──────────────────────────────────────────────┐
-│ Iliski Haritasi          [Agac ▪ Grafik]     │
-├──────────────────────────────────────────────┤
-│                                              │
-│    [User: Ahmet]                             │
-│        │                                     │
-│        ├── admin ──→ [Organization: Default] │
-│        │                    │                │
-│        │                    ├── [Company: A]  │
-│        │                    │      ├── viewer │
-│        │                    │      └── [Prj]  │
-│        │                    └── [Company: B]  │
-│        │                         └── admin    │
-│        │                                     │
-│        └── can_view ──→ [Module: USER_MGMT]  │
-│                                              │
-│ [Erisimi Kontrol Et]                        │
-│ ┌────────────────────────────────────────┐   │
-│ │ Iliski: [can_view ▼]                   │   │
-│ │ Kaynak: [module ▼]  ID: [USER_MGMT ▼] │   │
-│ │                          [Kontrol Et]  │   │
-│ │                                        │   │
-│ │ ✅ Erisim VAR — admin → org → company  │   │
-│ │    → module inheritance                │   │
-│ └────────────────────────────────────────┘   │
-└──────────────────────────────────────────────┘
-```
+Korunacak uygulama omurgasi:
 
-### UX Kararlari
+- `roles.api.ts`
+- `permissions.api.ts`
+- `scopes.api.ts`
+- `companies.api.ts`
+- `authz.api.ts`
+- `use-access-roles.model.ts`
+- `use-relationship-data.model.ts`
+- `access.types.ts`
+- mevcut backend endpoint'leri
 
-1. **Varsayilan: Agac gorunumu** (daha okunabilir, daha az performans maliyeti)
-2. **Toggle: Grafik gorunumu** — FlowBuilder ile (isteyen icin)
-3. **Erisimi Kontrol Et** ayni sayfa icinde, altta — ayri drawer degil
-4. **Kullanici secici:** Sayfa basinda dropdown — kimin iliskilerini goruyorsun?
+## 3.2 Hedef dosya yapisi
 
-## Sayfa 4: Yetki Audit (`/access/audit`)
-
-**Referans:** Permit.io Audit Logs embeddable
-
-- Son yetki degisiklikleri timeline
-- Kim, ne zaman, hangi rolu degistirdi
-- Before/After karsilastirma
-- Filtre: Kullanici, rol, tarih araligi
-
-## Sidebar Navigasyon Yapisi
-
-```
-Yonetim
-  ├── Erisim
-  │     ├── Roller          (/access/roles)
-  │     ├── Yetki Matrisi   (/access/matrix)
-  │     ├── Iliskiler        (/access/graph)
-  │     └── Audit            (/access/audit)
-  ├── Kullanicilar           (/users)
-  └── Denetim                (/audit)
-```
-
-## Teknik Yaklasim
-
-### Silinecekler (mevcut)
-- `AccessPage.ui.tsx` — tamamen yeniden yazilacak
-- `AccessFilterBar.ui.tsx` — basitlestirilecek
-- `AccessGrid.ui.tsx` — kart bazli listeye donusecek
-- `AccessRoleDrawer.ui.tsx` — yeniden yazilacak
-- `PermissionMatrix.ui.tsx` — yeniden yazilacak
-- `RelationshipGraph.ui.tsx` / `RelationshipTreeView.ui.tsx` — birlesitirilecek
-- `ExplainPanel.ui.tsx` — graph sayfasina entegre edilecek
-- `ScopeAssignmentPanel.ui.tsx` — drawer'a entegre edilecek
-
-### Korunacaklar
-- `roles.api.ts`, `permissions.api.ts`, `scopes.api.ts`, `companies.api.ts`, `authz.api.ts` — API katmani aynen kalir
-- `use-access-roles.model.ts` — query/mutation'lar aynen kalir
-- `use-relationship-data.model.ts` — data model aynen kalir
-- `access.types.ts` — tipler aynen kalir
-- Backend endpoint'ler — degisiklik yok
-
-### Yeni Dosya Yapisi
-
-```
+```text
 src/
-├── pages/
-│   ├── roles/
-│   │   └── RolesPage.ui.tsx        — Rol listesi (kart bazli)
-│   ├── matrix/
-│   │   └── MatrixPage.ui.tsx       — Yetki matrisi
-│   ├── graph/
-│   │   └── GraphPage.ui.tsx        — Iliski haritasi + explain
-│   └── audit/
-│       └── AuditPage.ui.tsx        — Yetki audit
-├── widgets/
-│   ├── role-card/
-│   │   └── RoleCard.ui.tsx         — Tek rol karti
-│   ├── role-drawer/
-│   │   └── RoleDrawer.ui.tsx       — Rol detay/duzenleme drawer
-│   ├── matrix-cell/
-│   │   └── MatrixCell.ui.tsx       — Matris hucresi (tiklanabilir)
-│   ├── relationship-tree/
-│   │   └── RelationshipTree.ui.tsx — Agac gorunumu
-│   └── explain-check/
-│       └── ExplainCheck.ui.tsx     — Erisim kontrol formu
-└── shared/
-    └── AccessNav.ui.tsx            — 4 sayfa arasi navigasyon
+  pages/
+    roles/RolesPage.ui.tsx
+    matrix/MatrixPage.ui.tsx
+    graph/GraphPage.ui.tsx
+    audit/AuditPage.ui.tsx
+  widgets/
+    role-card/RoleCard.ui.tsx
+    role-drawer/RoleDrawer.ui.tsx
+    matrix-cell/MatrixCell.ui.tsx
+    relationship-tree/RelationshipTree.ui.tsx
+    explain-check/ExplainCheck.ui.tsx
+  shared/
+    AccessNav.ui.tsx
 ```
 
-## Uygulama Sirasi
+## 3.3 Sinirlar
 
-1. **P0: Rol sayfasi** — RolesPage + RoleCard + RoleDrawer (ana deneyim)
-2. **P1: Matris sayfasi** — MatrixPage + MatrixCell (toplu yetki gorunumu)
-3. **P2: Iliski sayfasi** — GraphPage + Tree + Explain (gorsel analiz)
-4. **P3: Audit sayfasi** — AuditPage (gecmis takibi)
+- Bu hikaye backend endpoint semantigini degistirmez.
+- Ilk fazda odak admin deneyimidir; yeni auth modeli tanimlamaz.
+- Drawer ve matrix davranisi mevcut API kontratlariyla calismalidir.
 
-## Basari Kriterleri
+4. ACCEPTANCE KRİTERLERİ
 
-- [ ] Sayfa yuklenmesi < 1s (lazy load ile)
-- [ ] Rol olusturma 3 tikta tamamlanir (buton → form → kaydet)
-- [ ] Permission degisikligi 2 tikta tamamlanir (drawer → level dropdown)
-- [ ] Hicbir raw i18n key gorulmez
-- [ ] Tum sayfalar 768px'te responsive
-- [ ] 12/12+ test gecmeli
+- [ ] Rol yonetimi sayfasi kart bazli liste ile acilir.
+- [ ] Yeni rol olusturma en fazla uc etkileşim adiminda tamamlanir.
+- [ ] Rol drawer'inda modul bazli seviye secimi ve tekil override birlikte
+  calisir.
+- [ ] Yetki matrisi hucre bazli duzenleme ve toplu kaydetme sunar.
+- [ ] Iliski sayfasi en az bir kullanici icin agac gorunumu ve erisim kontrolu
+  yuzeyini gosterir.
+- [ ] Audit sayfasi tarih/rol/kullanici filtreleri ile degisiklik kaydini listeler.
+- [ ] Ham i18n key'leri son kullaniciya gosterilmez.
+- [ ] Sayfalar 768px ve ustu ekranlarda kullanilabilir kalir.
+- [ ] Lazy load ile ilk sayfa yukleme deneyimi hedeflenen hizda kalir.
+
+5. BAĞIMLILIKLAR
+
+- Access API katmani ve mevcut authz endpoint'leri
+- `mfe-access` icindeki router ve drawer altyapisi
+- Tasarim sistemi kart, drawer, accordion, dropdown ve badge bilesenleri
+- Gerekirse iliski grafigi icin mevcut FlowBuilder entegrasyonu
+- Ilgili kabul ve test plan dokumanlari
+
+6. ÖZET
+
+Bu hikaye access admin deneyimini tek sayfali kalabalik bir yapidan cikarip,
+roller, matrix, graph ve audit olarak ayrisan daha okunabilir bir bilgi
+mimarisine tasir. Teknik sinir, backend kontratlarini degistirmeden mevcut API
+omurgasi uzerinde sade ve hizli bir yonetim deneyimi kurmaktir.
+
+7. LİNKLER (İSTEĞE BAĞLI)
+
+- `docs/03-delivery/ACCEPTANCE/AC-0316-cross-plane-auth-session-audit-foundation.md`
+- `docs/03-delivery/TEST-PLANS/TP-0316-cross-plane-auth-session-audit-foundation.md`
+- `docs/04-operations/RUNBOOKS/RB-mfe-access.md`

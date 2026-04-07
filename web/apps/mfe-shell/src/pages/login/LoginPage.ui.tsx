@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@mfe/design-system';
 import { useShellCommonI18n } from '../../app/i18n';
-import keycloak from '../../app/auth/keycloakClient';
+import { resolveKeycloakLoginUrl, startKeycloakLogin } from '../../app/auth/keycloakClient';
 import { buildAppRedirectUri, isPermitAllMode } from '../../app/auth/auth-config';
 import { useAppSelector } from '../../app/store/store.hooks';
 
@@ -24,6 +24,10 @@ const LoginPage = () => {
   const { t } = useShellCommonI18n();
   const permitAllMode = isPermitAllMode();
   const { token, initialized } = useAppSelector((state) => state.auth);
+  const [loginHref, setLoginHref] = useState<string | null>(null);
+  const [loginHrefReady, setLoginHrefReady] = useState(false);
+  const loginButtonClassName =
+    'flex w-full items-center justify-center gap-2 rounded-lg bg-action-primary text-action-primary-text shadow-xs hover:opacity-90';
 
   const redirectPath = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -31,14 +35,59 @@ const LoginPage = () => {
     return redirect || '/';
   }, [location.search]);
 
+  const redirectUri = useMemo(() => buildAppRedirectUri(redirectPath), [redirectPath]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (permitAllMode || !initialized) {
+      setLoginHref(null);
+      setLoginHrefReady(initialized);
+      return () => {
+        active = false;
+      };
+    }
+
+    setLoginHrefReady(false);
+    resolveKeycloakLoginUrl({ redirectUri })
+      .then((value) => {
+        if (!active) {
+          return;
+        }
+        setLoginHref(value);
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+        console.error('[LoginPage] resolveKeycloakLoginUrl() failed:', error);
+        setLoginHref(null);
+      })
+      .finally(() => {
+        if (active) {
+          setLoginHrefReady(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [initialized, permitAllMode, redirectUri]);
+
   const handleLogin = () => {
     if (permitAllMode) {
       navigate(redirectPath);
       return;
     }
-    const redirectUri = buildAppRedirectUri(`/login?redirect=${encodeURIComponent(redirectPath)}`);
-    keycloak.login({ redirectUri }).catch((err) =>
-      console.error('[LoginPage] keycloak.login() failed:', err),
+    if (!initialized) {
+      return;
+    }
+    if (loginHref) {
+      window.location.assign(loginHref);
+      return;
+    }
+    startKeycloakLogin({ redirectUri }).catch((err) =>
+      console.error('[LoginPage] startKeycloakLogin() failed:', err),
     );
   };
 
@@ -81,18 +130,40 @@ const LoginPage = () => {
           ) : (
             <div className="flex flex-col gap-4">
               {/* Güvenli SSO Login */}
-              <Button
-                type="button"
-                className="flex w-full items-center justify-center gap-2 bg-action-primary text-action-primary-text hover:opacity-90"
-                onClick={handleLogin}
-                data-testid="corporate-login-button"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                Güvenli Kurumsal Giriş
-              </Button>
+              {loginHref ? (
+                <a
+                  href={loginHref}
+                  className={loginButtonClassName}
+                  onClick={handleLogin}
+                  data-testid="corporate-login-button"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  Güvenli Kurumsal Giriş
+                </a>
+              ) : (
+                <Button
+                  type="button"
+                  className={loginButtonClassName}
+                  onClick={handleLogin}
+                  data-testid="corporate-login-button"
+                  disabled={!initialized || !loginHrefReady}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  Güvenli Kurumsal Giriş
+                </Button>
+              )}
+
+              {!initialized || !loginHrefReady ? (
+                <p className="text-[11px] text-text-secondary" data-testid="corporate-login-pending">
+                  Kurumsal kimlik doğrulama hazırlanıyor...
+                </p>
+              ) : null}
 
               {/* Güvenlik bilgisi */}
               <div className="rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-3">

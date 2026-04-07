@@ -50,7 +50,7 @@
     ],
     "notes": [
       "Repo bazlı lane command override izinlidir.",
-      "Zorunlu lane sırası backend->frontend->integration->e2e korunur.",
+      "Unit preflight sonrası database, api ve frontend contract lane'leri paralel koşabilir; integration ve e2e ardışık kalır.",
       "merge_requires_all_green=true kalmalıdır."
     ]
   },

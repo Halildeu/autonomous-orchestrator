@@ -1,5 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const executablePath = (process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? '').trim();
+const treatInsecureOriginAsSecure = (
+  process.env.PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN ?? ''
+).trim();
+const chromiumArgs = treatInsecureOriginAsSecure
+  ? [`--unsafely-treat-insecure-origin-as-secure=${treatInsecureOriginAsSecure}`]
+  : [];
+
 export default defineConfig({
   testDir: __dirname,
   timeout: 60 * 1000,
@@ -20,7 +28,17 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...((executablePath || chromiumArgs.length > 0)
+          ? {
+              launchOptions: {
+                ...(executablePath ? { executablePath } : {}),
+                ...(chromiumArgs.length > 0 ? { args: chromiumArgs } : {}),
+              },
+            }
+          : {}),
+      },
     },
     {
       name: 'firefox',

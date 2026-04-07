@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const routerFuture = {
@@ -12,11 +12,23 @@ const routerFuture = {
 
 const authModeMock = { permitAll: false };
 const authStateMock = { token: null as string | null, initialized: true };
+const { startKeycloakLoginMock, resolveKeycloakLoginUrlMock } = vi.hoisted(() => ({
+  startKeycloakLoginMock: vi.fn().mockResolvedValue(undefined),
+  resolveKeycloakLoginUrlMock: vi.fn().mockResolvedValue('https://ai.acik.com/realms/serban/protocol/openid-connect/auth'),
+}));
 
 vi.mock('../../app/auth/keycloakClient', () => ({
   default: {
     login: vi.fn().mockResolvedValue(undefined),
   },
+  startKeycloakLogin: startKeycloakLoginMock,
+  resolveKeycloakLoginUrl: resolveKeycloakLoginUrlMock,
+}));
+
+vi.mock('@mfe/design-system', () => ({
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
 }));
 
 vi.mock('../../app/i18n', () => ({
@@ -35,7 +47,7 @@ vi.mock('../../app/store/store.hooks', () => ({
     selector({ auth: authStateMock }),
 }));
 
-import keycloak from '../../app/auth/keycloakClient';
+import { startKeycloakLogin } from '../../app/auth/keycloakClient';
 import LoginPage from './LoginPage.ui';
 
 describe('LoginPage', () => {
@@ -44,6 +56,7 @@ describe('LoginPage', () => {
     authModeMock.permitAll = false;
     authStateMock.token = null;
     authStateMock.initialized = true;
+    resolveKeycloakLoginUrlMock.mockResolvedValue('https://ai.acik.com/realms/serban/protocol/openid-connect/auth');
   });
 
   afterEach(() => {
@@ -62,8 +75,43 @@ describe('LoginPage', () => {
     expect(button).toHaveTextContent('Güvenli Kurumsal Giriş');
   });
 
-  it('calls keycloak.login on click with redirect', async () => {
-    const loginSpy = vi.spyOn(keycloak, 'login');
+  it('hazirlanan login href bilgisini butona baglar', async () => {
+    render(
+      <MemoryRouter initialEntries={['/login?redirect=/access/roles']} future={routerFuture}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('corporate-login-button')).toHaveAttribute(
+        'href',
+        'https://ai.acik.com/realms/serban/protocol/openid-connect/auth',
+      ),
+    );
+  });
+
+  it('login href hazirlanamazsa startKeycloakLogin fallbackini kullanir', async () => {
+    resolveKeycloakLoginUrlMock.mockResolvedValueOnce(null);
+
+    render(
+      <MemoryRouter initialEntries={['/login?redirect=/access/roles']} future={routerFuture}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    const button = await screen.findByTestId('corporate-login-button');
+    await waitFor(() => expect(button).not.toBeDisabled());
+    fireEvent.click(button);
+
+    await waitFor(() => expect(startKeycloakLogin).toHaveBeenCalledTimes(1));
+    expect(startKeycloakLogin).toHaveBeenCalledWith({
+      redirectUri: 'http://localhost:3000/access/roles',
+    });
+  });
+
+  it('keycloak init tamamlanmadan login butonunu devre disi birakir', () => {
+    authStateMock.initialized = false;
+
     render(
       <MemoryRouter initialEntries={['/login?redirect=/access/roles']} future={routerFuture}>
         <LoginPage />
@@ -71,10 +119,11 @@ describe('LoginPage', () => {
     );
 
     const button = screen.getByTestId('corporate-login-button');
-    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(screen.getByTestId('corporate-login-pending')).toBeInTheDocument();
 
-    expect(loginSpy).toHaveBeenCalledTimes(1);
-    expect(loginSpy).toHaveBeenCalledWith({ redirectUri: 'http://localhost:3000/login?redirect=%2Faccess%2Froles' });
+    fireEvent.click(button);
+    expect(startKeycloakLogin).not.toHaveBeenCalled();
   });
 
   it('shows permitAll mode with Devam Et button', () => {

@@ -8,9 +8,16 @@ git clone <repo-url>
 cd web
 pnpm install
 
-# Start development
-pnpm dev          # All apps
-pnpm dev:shell    # Shell only
+# Canonical local stack
+cd ../backend
+./scripts/run-compose-stack.sh
+
+cd ../web
+pnpm start
+
+# Secondary surfaces
+pnpm run dev:all       # core profile only
+pnpm run dev:remotes   # minimal remotes
 ```
 
 ## Code Quality

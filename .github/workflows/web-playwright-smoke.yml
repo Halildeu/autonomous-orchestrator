@@ -3,6 +3,14 @@ name: Web Playwright Smoke
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: "Hedef environment"
+        required: true
+        default: "stage"
+        type: choice
+        options:
+          - stage
+          - prod
       mode:
         description: "ci: Seviye 1, nightly: Seviye 1+2"
         required: true
@@ -11,6 +19,14 @@ on:
         options:
           - ci
           - nightly
+      suite:
+        description: "Çalıştırılacak test kümesi"
+        required: false
+        default: "scenario-runner"
+        type: choice
+        options:
+          - scenario-runner
+          - authz-zanzibar
       soft_mode:
         description: "1: Soft mode (job kırma yok), 0: Hard mode (FAIL -> job fail)"
         required: false
@@ -42,18 +58,25 @@ on:
 
 jobs:
   pw-smoke:
+    if: ${{ inputs.env != 'stage' }}
     runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Validate base_url
         run: |
@@ -69,20 +92,58 @@ jobs:
           fi
 
       - name: Install web dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: web
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: web
 
-      - name: Run Playwright YAML smoke
+      - name: Validate authz smoke secrets
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
         run: |
-          set -e
-          if [ "${{ inputs.mode }}" = "nightly" ]; then
-            npm run pw:nightly
+          set -euo pipefail
+          if [ -z "${PW_REAL_USER_PASSWORD:-}" ]; then
+            echo "[pw-smoke] HATA: authz-zanzibar için PW_REAL_USER_PASSWORD secret'ı zorunlu."
+            exit 1
+          fi
+        env:
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Detect stage Keycloak endpoint
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
+        run: |
+          set -euo pipefail
+          kc_container="$(docker ps --format '{{.Names}}' | awk '/keycloak/ { print; exit }')"
+          if [[ -z "${kc_container}" ]]; then
+            echo "[pw-smoke] HATA: çalışan keycloak container bulunamadı."
+            docker ps --format '{{.Names}}'
+            exit 1
+          fi
+
+          host_port="$(
+            docker inspect -f '{{range $port, $bindings := .NetworkSettings.Ports}}{{if and (eq $port "8080/tcp") $bindings}}{{(index $bindings 0).HostPort}}{{end}}{{end}}' \
+              "${kc_container}" 2>/dev/null || true
+          )"
+          if [[ -z "${host_port}" ]]; then
+            host_port="8081"
+          fi
+
+          echo "PW_KEYCLOAK_URL=http://127.0.0.1:${host_port}" >> "${GITHUB_ENV}"
+          echo "[pw-smoke] keycloak container=${kc_container} host_port=${host_port}"
+
+      - name: Run Playwright smoke
+        run: |
+          set -euo pipefail
+          if [[ -n "${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN:-}" ]]; then
+            echo "[pw-smoke] chromium secure-context override: ${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN}"
+          fi
+          if [ "${{ inputs.suite }}" = "authz-zanzibar" ]; then
+            pnpm run pw:authz-zanzibar
+          elif [ "${{ inputs.mode }}" = "nightly" ]; then
+            pnpm run pw:nightly
           else
-            npm run pw:ci
+            pnpm run pw:ci
           fi
         working-directory: web
         env:
@@ -90,14 +151,275 @@ jobs:
           PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
           PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
           PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN: ${{ startsWith(inputs.base_url, 'http://') && inputs.base_url || '' }}
           KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
           KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
           KEYCLOAK_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
+          PW_REAL_USER_EMAIL: ${{ secrets.PW_REAL_USER_EMAIL }}
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
 
       - name: Upload reports (pw)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pw-reports
-          path: web/test-results/pw
+          path: web/test-results
+          if-no-files-found: warn
+
+  pw-smoke-stage:
+    if: ${{ inputs.env == 'stage' }}
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+
+    steps:
+      - name: Repair stage workspace ownership
+        run: |
+          set -euo pipefail
+          image="platform-playwright-smoke:chromium-bookworm"
+          if docker image inspect "${image}" >/dev/null 2>&1; then
+            docker run --rm \
+              -v "${GITHUB_WORKSPACE}:/work" \
+              "${image}" \
+              bash -lc 'find /work -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
+          else
+            echo "[pw-smoke] cleanup image henuz yok; docker cleanup atlandi."
+          fi
+
+      - name: Checkout repository
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          INPUT_SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          if [[ -d "/home/halil/platform/repo/web" ]]; then
+            echo "[pw-smoke] host checkout bulundu; temel web agaci lokal repo uzerinden kopyalaniyor."
+            rm -rf "${GITHUB_WORKSPACE}/web"
+            mkdir -p "${GITHUB_WORKSPACE}/web"
+            cp -R "/home/halil/platform/repo/web/." "${GITHUB_WORKSPACE}/web/"
+
+            if [[ "${INPUT_SUITE}" == "authz-zanzibar" ]]; then
+              echo "[pw-smoke] authz suite icin branch spec SHA bazli indiriliyor."
+              mkdir -p "${GITHUB_WORKSPACE}/web/tests/playwright"
+              curl -fsSL --connect-timeout 20 --max-time 120 \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github.raw" \
+                "https://api.github.com/repos/${GH_REPO}/contents/web/tests/playwright/authz.zanzibar.spec.ts?ref=${GH_SHA}" \
+                -o "${GITHUB_WORKSPACE}/web/tests/playwright/authz.zanzibar.spec.ts"
+            fi
+            exit 0
+          fi
+
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "${tmpdir}"' EXIT
+          archive="${tmpdir}/repo.tar.gz"
+
+          curl -fsSL --connect-timeout 20 --max-time 180 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/tarball/${GH_SHA}" \
+            -o "${archive}"
+
+          tar -xzf "${archive}" -C "${tmpdir}"
+          src_dir="$(find "${tmpdir}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [[ -z "${src_dir}" || ! -d "${src_dir}/web" ]]; then
+            echo "[pw-smoke] HATA: indirilen arsiv icinde web dizini bulunamadi."
+            find "${tmpdir}" -mindepth 1 -maxdepth 2 -type d | sort || true
+            exit 1
+          fi
+
+          rm -rf "${GITHUB_WORKSPACE}/web"
+          mkdir -p "${GITHUB_WORKSPACE}/web"
+          cp -R "${src_dir}/web/." "${GITHUB_WORKSPACE}/web/"
+
+      - name: Validate base_url
+        run: |
+          set -euo pipefail
+          BASE_URL="${{ inputs.base_url }}"
+          if [ -z "$BASE_URL" ]; then
+            echo "[pw-smoke] HATA: 'base_url' boş olamaz. Staging URL girin (örn: http://10.9.10.53:5544)."
+            exit 1
+          fi
+
+      - name: Validate authz smoke secrets
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PW_REAL_USER_PASSWORD:-}" ]; then
+            echo "[pw-smoke] HATA: authz-zanzibar için PW_REAL_USER_PASSWORD secret'ı zorunlu."
+            exit 1
+          fi
+        env:
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Detect stage Keycloak endpoint
+        if: ${{ inputs.suite == 'authz-zanzibar' }}
+        run: |
+          set -euo pipefail
+          kc_container="$(docker ps --format '{{.Names}}' | awk '/keycloak/ { print; exit }')"
+          if [[ -z "${kc_container}" ]]; then
+            echo "[pw-smoke] HATA: çalışan keycloak container bulunamadı."
+            docker ps --format '{{.Names}}'
+            exit 1
+          fi
+
+          host_port="$(
+            docker inspect -f '{{range $port, $bindings := .NetworkSettings.Ports}}{{if and (eq $port "8080/tcp") $bindings}}{{(index $bindings 0).HostPort}}{{end}}{{end}}' \
+              "${kc_container}" 2>/dev/null || true
+          )"
+          if [[ -z "${host_port}" ]]; then
+            host_port="8081"
+          fi
+
+          echo "PW_KEYCLOAK_URL=http://127.0.0.1:${host_port}" >> "${GITHUB_ENV}"
+          echo "[pw-smoke] keycloak container=${kc_container} host_port=${host_port}"
+
+      - name: Detect system browser
+        id: detect_browser
+        run: |
+          set -euo pipefail
+          for bin in \
+            "$(command -v google-chrome-stable || true)" \
+            "$(command -v google-chrome || true)" \
+            "$(command -v chromium || true)" \
+            "$(command -v chromium-browser || true)" \
+            "$(command -v microsoft-edge-stable || true)" \
+            "$(command -v microsoft-edge || true)" \
+            /usr/bin/google-chrome \
+            /usr/bin/google-chrome-stable \
+            /usr/bin/chromium \
+            /usr/bin/chromium-browser \
+            /usr/bin/microsoft-edge \
+            /usr/bin/microsoft-edge-stable \
+            /snap/bin/chromium; do
+            if [ -n "${bin}" ] && [ -x "${bin}" ]; then
+              echo "PLAYWRIGHT_EXECUTABLE_PATH=${bin}" >> "${GITHUB_ENV}"
+              echo "executable_path=${bin}" >> "${GITHUB_OUTPUT}"
+              echo "[pw-smoke] sistem tarayicisi bulundu: ${bin}"
+              exit 0
+            fi
+          done
+          echo "executable_path=" >> "${GITHUB_OUTPUT}"
+          echo "[pw-smoke] sistem tarayicisi bulunamadi; Docker fallback kullanilacak."
+
+      - name: Build local Playwright smoke image
+        if: ${{ steps.detect_browser.outputs.executable_path == '' }}
+        run: |
+          set -euo pipefail
+          image="platform-playwright-smoke:chromium-bookworm"
+          echo "[pw-smoke] Docker fallback image: ${image}"
+          if docker image inspect "${image}" >/dev/null 2>&1; then
+            echo "[pw-smoke] yerel smoke image zaten mevcut."
+            exit 0
+          fi
+
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "${tmpdir}"' EXIT
+          printf '%s\n' \
+            'FROM node:20-bookworm' \
+            'RUN apt-get update && apt-get install -y --no-install-recommends chromium ca-certificates && rm -rf /var/lib/apt/lists/*' \
+            > "${tmpdir}/Dockerfile"
+
+          if timeout 900 docker build -t "${image}" "${tmpdir}"
+          then
+            exit 0
+          fi
+
+          echo "[pw-smoke] HATA: yerel smoke image olusturma basarisiz oldu. Runner tanisi basliyor."
+          echo "--- docker version ---"
+          docker version || true
+          echo "--- docker info ---"
+          docker info || true
+          echo "--- docker system df ---"
+          docker system df || true
+          echo "--- disk usage ---"
+          df -h . /var/lib/docker || true
+          echo "--- resolver check (docker.io) ---"
+          getent hosts registry-1.docker.io || true
+          echo "--- registry probe (docker.io) ---"
+          curl -I --max-time 20 https://registry-1.docker.io/v2/ || true
+          exit 1
+
+      - name: Run Playwright smoke
+        run: |
+          set -euo pipefail
+          if [[ -n "${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN:-}" ]]; then
+            echo "[pw-smoke] chromium secure-context override: ${PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN}"
+          fi
+          cmd="npx -y pnpm@9.15.9 run pw:ci"
+          if [ "${INPUT_SUITE}" = "authz-zanzibar" ]; then
+            cmd="npx -y pnpm@9.15.9 run pw:authz-zanzibar"
+          elif [ "${INPUT_MODE}" = "nightly" ]; then
+            cmd="npx -y pnpm@9.15.9 run pw:nightly"
+          fi
+
+          if [ -n "${PLAYWRIGHT_EXECUTABLE_PATH:-}" ]; then
+            cd web
+            npx -y pnpm@9.15.9 install --frozen-lockfile
+            ${cmd}
+            exit 0
+          fi
+
+          image="platform-playwright-smoke:chromium-bookworm"
+          export PLAYWRIGHT_EXECUTABLE_PATH="/usr/bin/chromium"
+          docker run --rm \
+            --network host \
+            --ipc=host \
+            --user "$(id -u):$(id -g)" \
+            -e CI=1 \
+            -e HOME=/tmp/pw-home \
+            -e XDG_CACHE_HOME=/tmp/pw-cache \
+            -e NPM_CONFIG_CACHE=/tmp/npm-cache \
+            -e PNPM_HOME=/tmp/pnpm-home \
+            -e PLAYWRIGHT_BASE_URL \
+            -e PLAYWRIGHT_EXECUTABLE_PATH \
+            -e PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN \
+            -e PW_KEYCLOAK_URL \
+            -e PW_KEYCLOAK_CLIENT_ID \
+            -e PW_KEYCLOAK_CLIENT_SECRET \
+            -e PW_KEYCLOAK_SCOPE \
+            -e PW_SOFT_MODE \
+            -e PW_AUTH_MODE \
+            -e PW_READONLY_ENFORCE \
+            -e KEYCLOAK_TOKEN_URL \
+            -e KEYCLOAK_CLIENT_ID \
+            -e KEYCLOAK_CLIENT_SECRET \
+            -e KEYCLOAK_SCOPE \
+            -e PW_REAL_USER_EMAIL \
+            -e PW_REAL_USER_PASSWORD \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work/web \
+            "${image}" \
+            bash -lc "mkdir -p \"\$HOME\" \"\$XDG_CACHE_HOME\" \"\$NPM_CONFIG_CACHE\" \"\$PNPM_HOME\" && npx -y pnpm@9.15.9 install --frozen-lockfile && ${cmd}"
+        env:
+          INPUT_SUITE: ${{ inputs.suite }}
+          INPUT_MODE: ${{ inputs.mode }}
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+          PW_SOFT_MODE: ${{ inputs.soft_mode || '0' }}
+          PW_AUTH_MODE: ${{ inputs.auth_mode || 'none' }}
+          PW_READONLY_ENFORCE: ${{ inputs.readonly_enforce || '0' }}
+          PLAYWRIGHT_TREAT_INSECURE_AS_SECURE_ORIGIN: ${{ startsWith(inputs.base_url, 'http://') && inputs.base_url || '' }}
+          PW_KEYCLOAK_CLIENT_ID: admin-cli
+          PW_KEYCLOAK_CLIENT_SECRET: ''
+          PW_KEYCLOAK_SCOPE: openid
+          KEYCLOAK_TOKEN_URL: ${{ secrets.KEYCLOAK_TOKEN_URL }}
+          KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+          KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+          KEYCLOAK_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
+          PW_REAL_USER_EMAIL: ${{ secrets.PW_REAL_USER_EMAIL }}
+          PW_REAL_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+
+      - name: Upload reports (pw)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-reports-stage
+          path: web/test-results
+          if-no-files-found: warn

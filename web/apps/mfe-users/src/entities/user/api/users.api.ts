@@ -53,16 +53,23 @@ export type UserMutationAck = {
   auditId?: string;
 };
 
+/**
+ * @deprecated STORY-0318: Module lists now come from /v1/authz/catalog.
+ * These hardcoded lists are kept temporarily for backward compatibility.
+ */
 const KNOWN_MODULES: Array<{ key: string; label: string }> = [
   { key: 'USER_MANAGEMENT', label: 'Kullanıcı Modülü' },
   { key: 'PURCHASE', label: 'Satın Alma Modülü' },
   { key: 'WAREHOUSE', label: 'Depo Modülü' },
 ];
 
+/**
+ * @deprecated STORY-0318: Role assignment now uses POST /v1/authz/users/{id}/assignments.
+ * This mapping is kept temporarily for backward compatibility.
+ */
 const MODULE_LEVEL_ROLE_MAP: Record<string, Partial<Record<UserModuleAccessLevel, string>>> = {
   USER_MANAGEMENT: {
     VIEW: 'USER_VIEWER',
-    EDIT: 'USER_MANAGER',
     MANAGE: 'USER_MANAGER',
   },
   PURCHASE: {

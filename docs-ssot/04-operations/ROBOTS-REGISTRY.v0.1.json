@@ -615,6 +615,7 @@
       ],
       "side_effects": [
         "workflow_dispatch(security-guardrails)",
+        "schedule(security-guardrails nightly-full-refresh)",
         "pull_request_gate(security-guardrails)"
       ],
       "required_auth_refs": [
@@ -1113,6 +1114,100 @@
       ],
       "notes": [
         "AUTO-STUB: resolved (auto-inferred fields from robots_tbd_plan)"
+      ]
+    },
+    {
+      "id": "ROB-0128",
+      "name": "stage-authz-diagnose",
+      "kind": "workflow",
+      "path": ".github/workflows/stage-authz-diagnose.yml",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe",
+        "plan"
+      ],
+      "side_effects": [
+        "workflow_dispatch(stage-authz-diagnose)",
+        "runs_stage_authz_probe"
+      ],
+      "required_auth_refs": [
+        "TOK-0001"
+      ],
+      "required_env": [
+        "GH_TOKEN|GITHUB_TOKEN|VaultPointer"
+      ],
+      "required_confirm": null,
+      "inputs": [
+        "env(stage|prod)",
+        "base_url(required)",
+        "client_id(optional)",
+        "username(optional)",
+        "password(optional)"
+      ],
+      "outputs": [
+        ".autopilot-tmp/robots/ROB-0128/report.md"
+      ],
+      "notes": [
+        "Stage authz zincirini edge/gateway/service seviyesinde teşhis eder."
+      ]
+    },
+    {
+      "id": "ROB-0129",
+      "name": "stage-keycloak-smoke-user",
+      "kind": "workflow",
+      "path": ".github/workflows/stage-keycloak-smoke-user.yml",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe",
+        "plan"
+      ],
+      "side_effects": [
+        "workflow_dispatch(stage-keycloak-smoke-user)",
+        "runs_stage_keycloak_smoke_user_ops"
+      ],
+      "required_auth_refs": [
+        "TOK-0001"
+      ],
+      "required_env": [
+        "GH_TOKEN|GITHUB_TOKEN|VaultPointer"
+      ],
+      "required_confirm": null,
+      "inputs": [
+        "mode(inspect|reset-password|inspect-app-authz)",
+        "env(stage|prod)"
+      ],
+      "outputs": [
+        ".autopilot-tmp/robots/ROB-0129/report.md"
+      ],
+      "notes": [
+        "Stage smoke kullanıcısı üzerinde Keycloak tabanlı tanı ve hazırlık adımlarını çalıştırır."
+      ]
+    },
+    {
+      "id": "ROB-0130",
+      "name": "local-gate-hook",
+      "kind": "script",
+      "path": "scripts/setup_local_git_hooks.sh",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe",
+        "plan"
+      ],
+      "side_effects": [
+        "local_write(.git/hooks/pre-push)"
+      ],
+      "required_auth_refs": [],
+      "required_env": [],
+      "required_confirm": null,
+      "inputs": [],
+      "guardrails": [
+        "No remote side-effects; local git hook only"
+      ],
+      "outputs": [
+        ".git/hooks/pre-push"
+      ],
+      "notes": [
+        "Lokal pre-push hook kurar. Remote side-effect yok."
       ]
     }
   ]

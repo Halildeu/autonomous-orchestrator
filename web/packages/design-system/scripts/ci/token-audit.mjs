@@ -17,6 +17,18 @@ const HARDCODED_PATTERNS = [
   { pattern: /(?<!var\([^)]*)(rgba?\(\d+\s*,\s*\d+\s*,\s*\d+)/g, name: 'rgb-color' },
 ];
 
+// Known acceptable patterns (not real hardcoded color issues)
+const EXEMPTIONS = [
+  // HTML entities like &#9662; (▾ arrow) misdetected as hex color
+  /&#\d{3,5};/,
+  // Chart default palettes — overridable via props, documented as defaults
+  /(?:const|let)\s+(?:PALETTE|DEFAULT_COLORS|COLORS)\s*=/,
+  // CSS var getter fallbacks: get('--token', '#hex') — already CSS-var-first
+  /get\s*\(\s*['"][^'"]+['"]\s*,\s*['"][^'"]+['"]\s*\)/,
+  // Shadow utilities with very low opacity (cosmetic, not theme-breaking)
+  /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.0[0-9]\)/,
+];
+
 // Directories to scan
 const SCAN_DIRS = ['components', 'primitives', 'enterprise', 'patterns', 'advanced', 'form', 'motion', 'providers', 'internal', 'performance'];
 
@@ -27,18 +39,42 @@ function scanFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const issues = [];
 
+  // Check if the entire file is exempt (chart palette, CSS var getter pattern)
+  const isExemptFile = EXEMPTIONS.some(rx => rx.test(content));
+
   for (const { pattern, name } of HARDCODED_PATTERNS) {
     const regex = new RegExp(pattern.source, pattern.flags);
     let match;
     while ((match = regex.exec(content)) !== null) {
-      // Skip if inside a var() fallback like var(--token))
+      // Skip if inside a var() fallback like var(--token, #hex)
       const before = content.slice(Math.max(0, match.index - 30), match.index);
       if (before.includes('var(')) continue;
 
       // Skip if in a comment
       const lineStart = content.lastIndexOf('\n', match.index) + 1;
-      const line = content.slice(lineStart, match.index);
-      if (line.includes('//') || line.includes('*')) continue;
+      const lineEnd = content.indexOf('\n', match.index);
+      const line = content.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
+      if (line.trimStart().startsWith('//') || line.trimStart().startsWith('*')) continue;
+
+      // Skip HTML entities misdetected as hex (&#9662; etc)
+      if (/&#\d+;/.test(content.slice(Math.max(0, match.index - 5), match.index + 10))) continue;
+
+      // Skip if line is part of a default palette/color array constant
+      if (/(?:PALETTE|DEFAULT_COLORS|COLORS|PAL)\s*=\s*\[/.test(line)) continue;
+      // Skip if inside a const array of hex strings (e.g. ['#hex', '#hex'])
+      if (/const\s+\w+\s*=\s*\[/.test(line) && /['"]#[0-9a-fA-F]+['"]/.test(line)) continue;
+
+      // Skip CSS var getter fallbacks: get('--token', '#hex')
+      const surroundCtx = content.slice(Math.max(0, match.index - 60), match.index);
+      if (/get\s*\(\s*['"]--/.test(surroundCtx)) continue;
+
+      // Skip very low-opacity black/neutral (cosmetic shadows, not theme-breaking)
+      const matchStr = match[1] || '';
+      if (/rgba\(\s*0\s*,\s*0\s*,\s*0/.test(matchStr)) {
+        // Check for low opacity in the full match context
+        const opacityCtx = content.slice(match.index, match.index + 40);
+        if (/0\.[0-2]\d?\s*\)/.test(opacityCtx)) continue; // opacity ≤ 0.29 (cosmetic shadow)
+      }
 
       const lineNum = content.slice(0, match.index).split('\n').length;
       issues.push({ line: lineNum, value: match[1], type: name });

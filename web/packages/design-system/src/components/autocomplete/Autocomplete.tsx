@@ -330,6 +330,7 @@ export const Autocomplete = React.forwardRef<HTMLInputElement, AutocompleteProps
               aria-invalid={invalid || Boolean(error) || undefined}
               aria-disabled={disabled || undefined}
               aria-describedby={describedBy}
+              aria-label={!label && placeholder ? placeholder : typeof label === 'string' ? label : undefined}
               autoComplete="off"
               className={getFieldInputClass(size)}
               onChange={handleInputChange}

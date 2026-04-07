@@ -79,6 +79,8 @@ Owner: Frontend
 - Vault KV v2 varsayılan path/key’ler (value yok):
   - `secret/<env>/web-playwright/config`:
     - `PLAYWRIGHT_BASE_URL`
+    - `PW_REAL_USER_EMAIL` (opsiyonel; `authz-zanzibar` suite için önerilir)
+    - `PW_REAL_USER_PASSWORD` (opsiyonel; `authz-zanzibar` suite için zorunlu)
   - `secret/<env>/web-playwright/keycloak`:
     - `KEYCLOAK_TOKEN_URL`
     - `KEYCLOAK_CLIENT_ID`
@@ -90,6 +92,10 @@ Owner: Frontend
   - `env=stage` için default path’ler:
     - `stage/web-playwright/config`
     - `stage/web-playwright/keycloak`
+  - Vault path boşsa önce aynı workflow’da `mode=seed-web-playwright` çalıştır:
+    - `playwright_base_url` zorunludur.
+    - `pw_real_user_email` opsiyoneldir.
+    - `KEYCLOAK_*` değerleri mevcut GitHub repo secret’larından seed edilir.
   - Önce `dry_run=true` ile sadece FOUND/MISSING key listesini doğrula.
   - Sonra `dry_run=false` ile GitHub secrets’ları güncelle.
 
@@ -97,6 +103,12 @@ Owner: Frontend
   1) `vault-secrets-sync` (dry_run=true)
   2) `vault-secrets-sync` (dry_run=false)
   3) `.github/workflows/web-playwright-nightly.yml` (workflow_dispatch) ile koşumu doğrula
+
+- `authz-zanzibar` suite notu:
+  - Restricted-user smoke çalıştırılacaksa `secret/<env>/web-playwright/config`
+    altında `PW_REAL_USER_PASSWORD` tanımlı olmalıdır.
+  - `PW_REAL_USER_EMAIL` boş bırakılırsa varsayılan kullanıcı
+    `user3@example.com` kabul edilir.
 
 -------------------------------------------------------------------------------
 3.3 LOCAL INTEGRATION NIGHTLY (SELF-HOSTED)
@@ -172,3 +184,5 @@ Owner: Frontend
 - Runner: `web/tests/playwright/scenario-runner.spec.ts`
 - Telemetry: `web/tests/playwright/utils/pw_telemetry.ts`
 - CI workflow: `.github/workflows/web-playwright-smoke.yml`
+  - `env=stage` seçilirse smoke koşusu self-hosted `stage-backend` runner üzerinde çalışır ve `stage` environment secret'larını kullanır.
+  - `env=prod` seçilirse smoke koşusu GitHub-hosted runner üzerinde çalışır ve ilgili environment secret'larını kullanır.

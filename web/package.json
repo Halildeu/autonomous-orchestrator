@@ -4,7 +4,7 @@
   "description": "MFE Kök Dizini",
   "private": true,
   "engines": {
-    "node": "20.x || 22.x"
+    "node": ">=22.12"
   },
   "workspaces": [
     "apps/mfe-reporting",
@@ -32,16 +32,17 @@
   "main": "index.js",
   "scripts": {
     "prestart": "npx kill-port 3000 3001 3002 3003 3004 3005 3006 3007 || true",
+    "dev": "pnpm start",
     "dev:remotes": "bash ./scripts/health/run-dev-servers.sh --profile remotes",
     "dev:shell": "npm start --prefix apps/mfe-shell",
     "dev:users": "npm start --prefix apps/mfe-users",
     "dev:access": "npm start --prefix apps/mfe-access",
     "dev:audit": "npm start --prefix apps/mfe-audit",
-    "dev:all:raw": "npm-run-all --parallel dev:shell dev:users dev:access dev:audit",
+    "dev:all:raw": "node -e \"console.error('[deprecated] use pnpm run dev:all');\" && pnpm run dev:all",
     "dev:all": "bash ./scripts/health/run-dev-servers.sh --profile core",
     "dev:routes:start": "WEB_RUNTIME_PROFILE=auth-business-routes WEB_RUNTIME_TAIL=0 VITE_SHELL_ENABLE_SUGGESTIONS_REMOTE=0 SHELL_ENABLE_SUGGESTIONS_REMOTE=0 VITE_SHELL_ENABLE_ETHIC_REMOTE=0 SHELL_ENABLE_ETHIC_REMOTE=0 bash ./scripts/health/run-dev-servers.sh --profile auth-business-routes",
     "dev:routes:stop": "bash ./scripts/health/stop-dev-servers.sh",
-    "start:raw": "npx concurrently \"npm start --prefix apps/mfe-shell\" \"npm start --prefix apps/mfe-suggestions\" \"npm start --prefix apps/mfe-ethic\" \"npm start --prefix apps/mfe-users\" \"npm start --prefix apps/mfe-access\" \"npm start --prefix apps/mfe-audit\" \"npm start --prefix apps/mfe-reporting\"",
+    "start:raw": "node -e \"console.error('[deprecated] use pnpm start');\" && pnpm start",
     "start": "bash ./scripts/health/run-dev-servers.sh --profile full",
     "build-storybook": "storybook build",
     "test:storybook": "test-storybook --url http://localhost:6006",
@@ -100,6 +101,7 @@
     "release:ui-library": "node ./scripts/ops/run-ui-library-release.mjs",
     "build:users": "npm run build --prefix apps/mfe-users",
     "build:reporting": "npm run build --prefix apps/mfe-reporting",
+    "build:ubuntu:single-domain": "node ./scripts/deploy/build-single-domain.mjs",
     "build:raw": "npm run clean && npm-run-all --parallel build:shell build:suggestions build:ethic build:access build:audit build:design-system build:users build:reporting",
     "build": "bash ./scripts/health/run-web-build-guard.sh --script build:raw",
     "test": "npm-run-all test:shell test:ethic test:access:unit test:audit test:design-system test:shared-types",
@@ -152,11 +154,14 @@
     "test:smoke:business-routes:stack": "npm run test:smoke:grid-pagination:stack && npm run test:smoke:access-audit-pagination:stack",
     "test:smoke:business-routes:full": "npm run test:smoke:business-routes && npm run test:smoke:real-mutations",
     "test:smoke:business-routes:full:stack": "npm run test:smoke:business-routes:stack && npm run test:smoke:real-mutations:stack",
+    "test:smoke:single-domain-preauth": "node ./scripts/ops/run-single-domain-runtime-smoke.mjs",
     "report:mutation-lane-summary": "node ./scripts/ops/generate-mutation-lane-summary.mjs",
     "report:runtime-status-summary": "node ./scripts/ops/generate-runtime-status-summary.mjs",
     "smoke:playwright": "npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/reporting.a11y.spec.ts tests/playwright/access.toast.spec.ts tests/playwright/shell.i18n.spec.ts",
     "pw:ci": "PW_MODE=ci npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/scenario-runner.spec.ts --project=chromium --workers=1",
     "pw:nightly": "PW_MODE=nightly npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/scenario-runner.spec.ts --project=chromium --workers=1",
+    "pw:authz-zanzibar": "npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/authz.zanzibar.spec.ts --project=chromium --workers=1",
+    "pw:single-domain-preauth": "npx playwright test --config tests/playwright/playwright.config.ts tests/playwright/single-domain.preauth.runtime.spec.ts --project=chromium --workers=1",
     "doctor:frontend": "node ./scripts/ops/frontend-doctor.mjs",
     "doctor:lint": "node ./scripts/ops/lint-doctor.mjs",
     "doctor:lint:json": "node ./scripts/ops/lint-doctor.mjs --json",
@@ -192,9 +197,9 @@
     "build:analyze": "vite build --mode analyze",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev:frontend": "bash ./scripts/dev-frontend.sh",
+    "dev:frontend": "node -e \"console.error('[deprecated] use pnpm start');\" && pnpm start",
     "stop:frontend": "bash ./scripts/stop-frontend.sh",
-    "dev:full": "cd ../backend && docker compose up -d && cd ../web && bash ./scripts/dev-frontend.sh"
+    "dev:full": "node -e \"console.error('[deprecated] use canonical backend compose + pnpm start');\" && cd ../backend && ./scripts/run-compose-stack.sh && cd ../web && pnpm start"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -312,5 +317,6 @@
       "path": "apps/mfe-audit/dist-quality/assets/index-*.js",
       "limit": "550 KB"
     }
-  ]
+  ],
+  "packageManager": "pnpm@10.12.4+sha512.5ea8b0deed94ed68691c9bad4c955492705c5eeb8a87ef86bc62c74a26b037b08ff9570f108b2e4dbd1dd1a9186fea925e527f141c648e85af45631074680184"
 }

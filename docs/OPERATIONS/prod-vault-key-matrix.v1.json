@@ -1,0 +1,132 @@
+{
+  "version": "v1",
+  "kind": "prod-vault-key-matrix",
+  "env": "prod",
+  "summary": {
+    "purpose": "Production cutover oncesi gerekli Vault ve GitHub environment anahtarlarini tek matriste toplar.",
+    "notes": [
+      "Bu dosya deger tasimaz; yalnizca hangi key'in nereye yazilacagini ve nasil doldurulacagini belirtir.",
+      "Secret source of truth Vault'tur. GitHub environment secret'lari secret/prod/ops/github/backend-deploy path'inden senkronlanir.",
+      "Stage'den kopyalanabilecek alanlar prod domain, prod host ve prod secret rotasyonu gerektiren alanlardan ayrilmistir."
+    ]
+  },
+  "paths": [
+    {
+      "path": "secret/prod/backend-deploy/config",
+      "purpose": "Ubuntu host uzerinde render edilen /home/halil/platform/env/backend.env kaynagi",
+      "keys": [
+        {"name": "GIT_REMOTE_URL", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "REPO_BRANCH", "required": true, "strategy": "set_to_main_or_release_branch"},
+        {"name": "GHCR_OWNER", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "IMAGE_TAG", "required": true, "strategy": "set_release_tag_or_main_stable"},
+        {"name": "COMPOSE_PROJECT_NAME", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "TZ", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "COMPOSE_PROFILES", "required": false, "strategy": "set_if_report_or_schema_enabled"},
+        {"name": "API_GATEWAY_PORT", "required": true, "strategy": "set_prod_binding_port"},
+        {"name": "VAULT_URI", "required": true, "strategy": "set_prod_vault_address"},
+        {"name": "VAULT_SCHEME", "required": true, "strategy": "reuse_or_set_https"},
+        {"name": "VAULT_TOKEN", "required": true, "strategy": "issue_runtime_token_or_approle_render_flow"},
+        {"name": "VAULT_FAIL_FAST", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "KEYCLOAK_ISSUER_URI", "required": true, "strategy": "set_prod_domain"},
+        {"name": "KEYCLOAK_JWKS_URI", "required": true, "strategy": "set_prod_domain"},
+        {"name": "WEB_ORIGIN", "required": true, "strategy": "set_prod_domain"},
+        {"name": "AUTH_VERIFICATION_BASE_URL", "required": true, "strategy": "set_prod_domain"},
+        {"name": "AUTH_RESET_BASE_URL", "required": true, "strategy": "set_prod_domain"},
+        {"name": "SERVICE_CLIENT_USER_SERVICE_SECRET", "required": true, "strategy": "issue_new_secret"},
+        {"name": "PERMISSION_SERVICE_INTERNAL_API_KEY", "required": true, "strategy": "issue_new_secret"},
+        {"name": "SECURITY_AUTH_ALLOWED_CLIENT_IDS", "required": false, "strategy": "review_against_prod_clients"},
+        {"name": "POSTGRES_USER", "required": true, "strategy": "reuse_or_set_prod_db_user"},
+        {"name": "POSTGRES_PASSWORD", "required": true, "strategy": "issue_new_secret"},
+        {"name": "POSTGRES_DB", "required": true, "strategy": "reuse_or_set_prod_db_name"},
+        {"name": "AUTH_DB_SCHEMA", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "USER_DB_SCHEMA", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "PERMISSION_DB_SCHEMA", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "VARIANT_DB_SCHEMA", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "CORE_DATA_DB_SCHEMA", "required": true, "strategy": "reuse_stage_value"},
+        {"name": "OPENFGA_STORE_ID", "required": true, "strategy": "create_or_promote_prod_store"},
+        {"name": "OPENFGA_MODEL_ID", "required": true, "strategy": "publish_prod_authorization_model"},
+        {"name": "OPENFGA_LOG_LEVEL", "required": false, "strategy": "reuse_or_tune_for_prod"},
+        {"name": "CORE_DATA_DB_URL", "required": true, "strategy": "set_prod_db_endpoint"},
+        {"name": "CORE_DATA_DB_USERNAME", "required": true, "strategy": "reuse_or_set_prod_db_user"},
+        {"name": "CORE_DATA_DB_PASSWORD", "required": true, "strategy": "issue_new_secret"},
+        {"name": "REPORT_MSSQL_HOST", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_MSSQL_PORT", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_MSSQL_DB", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_MSSQL_USERNAME", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_MSSQL_PASSWORD", "required": false, "strategy": "issue_if_report_enabled"},
+        {"name": "REPORT_PG_HOST", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_PG_PORT", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_PG_DB", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_PG_USERNAME", "required": false, "strategy": "set_if_report_enabled"},
+        {"name": "REPORT_PG_PASSWORD", "required": false, "strategy": "issue_if_report_enabled"},
+        {"name": "SCHEMA_MSSQL_HOST", "required": false, "strategy": "set_if_schema_enabled"},
+        {"name": "SCHEMA_MSSQL_PORT", "required": false, "strategy": "set_if_schema_enabled"},
+        {"name": "SCHEMA_MSSQL_DB", "required": false, "strategy": "set_if_schema_enabled"},
+        {"name": "SCHEMA_MSSQL_USERNAME", "required": false, "strategy": "set_if_schema_enabled"},
+        {"name": "SCHEMA_MSSQL_PASSWORD", "required": false, "strategy": "issue_if_schema_enabled"},
+        {"name": "SCHEMA_DEFAULT_SCHEMA", "required": false, "strategy": "set_if_schema_enabled"}
+      ]
+    },
+    {
+      "path": "secret/prod/ops/github/backend-deploy",
+      "purpose": "GitHub prod environment secret sync kaynagi",
+      "keys": [
+        {"name": "BACKEND_SSH_DEPLOY_ENABLED", "required": true, "strategy": "set_true_for_prod_host"},
+        {"name": "BACKEND_DEPLOY_SSH_HOST", "required": true, "strategy": "set_prod_host"},
+        {"name": "BACKEND_DEPLOY_SSH_PORT", "required": true, "strategy": "reuse_or_set_prod_ssh_port"},
+        {"name": "BACKEND_DEPLOY_SSH_USER", "required": true, "strategy": "set_prod_deploy_user"},
+        {"name": "BACKEND_DEPLOY_SSH_KEY", "required": true, "strategy": "issue_or_rotate_prod_keypair"},
+        {"name": "BACKEND_DEPLOY_SSH_KNOWN_HOSTS", "required": true, "strategy": "capture_prod_host_key"},
+        {"name": "BACKEND_DEPLOY_REMOTE_ENV_FILE", "required": true, "strategy": "set_prod_host_env_path"},
+        {"name": "BACKEND_DEPLOY_REMOTE_REPO_DIR", "required": true, "strategy": "set_prod_host_repo_path"},
+        {"name": "BACKEND_DEPLOY_REMOTE_COMPOSE_PROFILES", "required": false, "strategy": "set_if_report_or_schema_enabled"},
+        {"name": "BACKEND_HEALTH_URLS", "required": true, "strategy": "set_prod_health_endpoints"}
+      ]
+    },
+    {
+      "path": "secret/prod/db/auth-service",
+      "purpose": "Auth service runtime database secretleri",
+      "keys": [
+        {"name": "username", "required": true, "strategy": "reuse_or_set_prod_db_user"},
+        {"name": "password", "required": true, "strategy": "issue_new_secret"}
+      ]
+    },
+    {
+      "path": "secret/prod/db/user-service",
+      "purpose": "User service runtime database secretleri",
+      "keys": [
+        {"name": "username", "required": true, "strategy": "reuse_or_set_prod_db_user"},
+        {"name": "password", "required": true, "strategy": "issue_new_secret"}
+      ]
+    },
+    {
+      "path": "secret/prod/db/permission-service",
+      "purpose": "Permission service runtime database secretleri",
+      "keys": [
+        {"name": "username", "required": true, "strategy": "reuse_or_set_prod_db_user"},
+        {"name": "password", "required": true, "strategy": "issue_new_secret"}
+      ]
+    },
+    {
+      "path": "secret/prod/db/variant-service",
+      "purpose": "Variant service runtime database secretleri",
+      "keys": [
+        {"name": "username", "required": true, "strategy": "reuse_or_set_prod_db_user"},
+        {"name": "password", "required": true, "strategy": "issue_new_secret"}
+      ]
+    },
+    {
+      "path": "secret/prod/jwt/auth-service",
+      "purpose": "Auth service JWT runtime secretleri",
+      "keys": [
+        {"name": "secret", "required": true, "strategy": "issue_new_secret"}
+      ]
+    }
+  ],
+  "github_environment": {
+    "name": "prod",
+    "sync_workflow": ".github/workflows/vault-secrets-sync.yml",
+    "sync_mode": "backend-deploy",
+    "sync_scope": "environment"
+  }
+}

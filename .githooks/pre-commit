@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+[[ -n "${ROOT_DIR}" ]] || exit 2
+
+cd "${ROOT_DIR}"
+bash scripts/require_local_gate.sh --auto-run --caller pre-commit

@@ -183,7 +183,7 @@ export const List = React.forwardRef<HTMLElement, ListProps>(({
                     "w-full rounded-[24px] text-left transition duration-200",
                     densityClass[density],
                     selected
-                      ? "bg-[color-mix(in_oklab,var(--action-primary-soft)_60%,transparent)] shadow-[0_18px_34px_-28px_rgba(79,70,229,0.38)]"
+                      ? "bg-[color-mix(in_oklab,var(--action-primary-soft)_60%,transparent)] shadow-[0_18px_34px_-28px_var(--action-primary-shadow,hsl(var(--accent-hue,245)_67%_59%/0.38))]"
                       : "",
                     blocked
                       ? "cursor-not-allowed opacity-70"

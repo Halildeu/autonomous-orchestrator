@@ -43,3 +43,24 @@ describe('Grid.Col — span ve responsive', () => {
     expect(document.querySelector('.col-start-3')).toBeInTheDocument();
   });
 });
+
+describe('Grid — edge cases', () => {
+  it('bos children render eder', () => {
+    const { container } = render(<Grid />);
+    expect(container.querySelector('[data-component="grid"]')).toBeInTheDocument();
+  });
+  it('className forwarding', () => {
+    const { container } = render(<Grid className="my-grid"><Grid.Col span={12}>A</Grid.Col></Grid>);
+    expect(container.querySelector('.my-grid')).toBeInTheDocument();
+  });
+  it('nested grid destekler', () => {
+    render(
+      <Grid>
+        <Grid.Col span={6}>
+          <Grid><Grid.Col span={12}>Nested</Grid.Col></Grid>
+        </Grid.Col>
+      </Grid>
+    );
+    expect(screen.getByText('Nested')).toBeInTheDocument();
+  });
+});

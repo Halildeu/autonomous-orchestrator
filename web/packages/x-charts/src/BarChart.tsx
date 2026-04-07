@@ -10,6 +10,8 @@ import React, { useMemo, useCallback } from "react";
 import { cn } from "@mfe/design-system";
 import { useEChartsRenderer } from "./renderers";
 import { buildDesignLabEChartsTheme } from "./theme/DesignLabEChartsTheme";
+import { formatCompact } from "./utils/formatters";
+import { sanitizeDataPoints } from "./utils/data-validation";
 import type { EChartsOption } from "./renderers/echarts-imports";
 
 /* ------------------------------------------------------------------ */
@@ -105,9 +107,11 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
     forwardedRef,
   ) {
     const height = SIZE_HEIGHT[size];
-    const isEmpty = !data || data.length === 0;
+    const safeData = useMemo(() => sanitizeDataPoints(data), [data]);
+    const isEmpty = safeData.length === 0;
     const isHorizontal = orientation === "horizontal";
     const hasMultiSeries = seriesDef && seriesDef.length > 0;
+    const fmt = valueFormatter ?? formatCompact;
 
     const theme = useMemo(() => buildDesignLabEChartsTheme(), []);
 
@@ -118,7 +122,7 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
 
       const categoryAxis = {
         type: "category" as const,
-        data: data.map((d) => d.label),
+        data: safeData.map((d) => d.label),
         axisLabel: { fontSize: 11 },
         axisTick: { alignWithLabel: true },
       };
@@ -127,7 +131,7 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
         type: "value" as const,
         axisLabel: {
           fontSize: 11,
-          formatter: valueFormatter ? (v: number) => valueFormatter(v) : undefined,
+          formatter: (v: number) => fmt(v),
         },
         splitLine: {
           show: showGrid,
@@ -139,14 +143,14 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
         ? seriesDef!.map((s, i) => ({
             type: "bar" as const,
             name: s.name,
-            data: data.map((d) => (d as Record<string, unknown>)[s.field] as number ?? 0),
+            data: safeData.map((d) => (d as Record<string, unknown>)[s.field] as number ?? 0),
             itemStyle: { color: s.color ?? palette[i % palette.length] },
             label: showValues
               ? {
                   show: true,
                   position: isHorizontal ? "right" : "top" as const,
                   formatter: valueFormatter
-                    ? (p: { value: number }) => valueFormatter(p.value)
+                    ? (p: { value: number }) => fmt(p.value)
                     : undefined,
                   fontSize: 11,
                 }
@@ -157,7 +161,7 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
             {
               type: "bar" as const,
               name: title ?? "Value",
-              data: data.map((d, i) => ({
+              data: safeData.map((d, i) => ({
                 value: d.value,
                 itemStyle: { color: d.color ?? palette[i % palette.length] },
               })),
@@ -166,7 +170,7 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
                     show: true,
                     position: isHorizontal ? ("right" as const) : ("top" as const),
                     formatter: valueFormatter
-                      ? (p: { value: number }) => valueFormatter(p.value)
+                      ? (p: { value: number }) => fmt(p.value)
                       : undefined,
                     fontSize: 11,
                   }
@@ -192,9 +196,7 @@ export const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
           trigger: "axis",
           confine: true,
           axisPointer: { type: "shadow" },
-          valueFormatter: valueFormatter
-            ? (v: unknown) => valueFormatter(v as number)
-            : undefined,
+          valueFormatter: (v: unknown) => fmt(v as number),
         },
         legend: {
           show: showLegend || hasMultiSeries,

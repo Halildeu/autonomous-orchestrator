@@ -6,7 +6,6 @@ import { api } from "@mfe/shared-http";
 import { store } from "../store/store";
 import {
   configureShellServices,
-  _getShellServices,
   type ShellNotificationEntry,
   type ShellTelemetryEvent,
 } from "../services/shell-services";
@@ -18,6 +17,7 @@ import telemetryClient from "../telemetry/telemetry-client";
 import {
   broadcastAuthState,
 } from "../auth/auth-sync";
+import { isPermitAllMode } from "../auth/auth-config";
 import { queryClient } from "./query-config";
 import { readEnvBoolean } from "./env";
 
@@ -136,4 +136,26 @@ export const wireRemoteShellServices = () => {
   });
 };
 
-wireRemoteShellServices();
+let remoteShellServicesWired = false;
+
+const shouldWireRemoteShellServices = () => {
+  const authState = store.getState().auth;
+  return isPermitAllMode() || Boolean(authState.token);
+};
+
+const wireRemoteShellServicesWhenReady = () => {
+  if (remoteShellServicesWired || !shouldWireRemoteShellServices()) {
+    return;
+  }
+  remoteShellServicesWired = true;
+  wireRemoteShellServices();
+};
+
+// Avoid eager remote evaluation on public routes like /login. Some remotes
+// still pull React vendor chunks during shell-services import, which can
+// white-screen the page before auth completes.
+wireRemoteShellServicesWhenReady();
+
+store.subscribe(() => {
+  wireRemoteShellServicesWhenReady();
+});

@@ -24,6 +24,7 @@ usage() {
   echo "Env: AUTOPILOT_ANY_FAIL=1 optional (treat any failing check as failure; default watches required checks only)."
   echo "Env: AUTOPILOT_AUTO_CONFLICT=1 optional (mergeable_state=dirty ise main ile auto-resolve dener; allowlist scope)."
   echo "Env: AUTOPILOT_SEMANTIC_LINT=1 optional (local-only semantic lint report)."
+  echo "Guard: git push oncesi scripts/require_local_gate.sh --auto-run zorunlu calisir."
 }
 
 while [[ $# -gt 0 ]]; do
@@ -362,10 +363,12 @@ while [[ $attempt -le $MAX_ATTEMPTS ]]; do
   maybe_semantic_lint || true
 
   if ! (git diff --quiet && git diff --cached --quiet); then
+    bash scripts/require_local_gate.sh --auto-run --caller autopilot-local
     git add -A
     git commit -m "fix(autopilot): attempt ${attempt} for PR #${PR}" || true
   fi
 
+  bash scripts/require_local_gate.sh --auto-run --caller autopilot-local
   git push -u origin HEAD:"${HEAD_REF}"
   python3 scripts/pr_tracker_tsv.py --repo "${REPO}" add --pr "${PR}" >/dev/null 2>&1 || true
   attempt=$((attempt+1))

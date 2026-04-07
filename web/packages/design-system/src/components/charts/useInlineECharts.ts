@@ -38,32 +38,61 @@ export function useInlineECharts(options: InlineEChartsOptions) {
 
   const { option, theme, onClick } = options;
 
+  const sanitizeTapHighlightColor = useCallback((root: HTMLDivElement) => {
+    const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
+    for (const node of nodes) {
+      node.style.webkitTapHighlightColor = 'transparent';
+    }
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const instance = echarts.init(el, theme, { renderer: 'canvas' });
+    const rect = el.getBoundingClientRect();
+    const width = rect.width || el.clientWidth || 320;
+    const height = rect.height || el.clientHeight || 200;
+    const instance = echarts.init(el, theme, { renderer: 'canvas', width, height });
     instanceRef.current = instance;
     setIsReady(true);
+    sanitizeTapHighlightColor(el);
 
     if (onClick) instance.on('click', onClick);
 
-    const observer = new ResizeObserver(() => instance.resize());
-    observer.observe(el);
+    const handleResize = () => {
+      instance.resize();
+      sanitizeTapHighlightColor(el);
+    };
+    let observer: ResizeObserver | null = null;
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(handleResize);
+      observer.observe(el);
+    }
 
     return () => {
-      observer.disconnect();
+      observer?.disconnect();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+      }
       if (onClick) instance.off('click', onClick);
       instance.dispose();
       instanceRef.current = null;
       setIsReady(false);
     };
-  }, [theme]);
+  }, [onClick, sanitizeTapHighlightColor, theme]);
 
   useEffect(() => {
     if (!instanceRef.current || !option || Object.keys(option).length === 0) return;
     instanceRef.current.setOption(option, { notMerge: false });
-  }, [option]);
+    if (containerRef.current) {
+      sanitizeTapHighlightColor(containerRef.current);
+    }
+  }, [option, sanitizeTapHighlightColor]);
 
   const resize = useCallback(() => instanceRef.current?.resize(), []);
 

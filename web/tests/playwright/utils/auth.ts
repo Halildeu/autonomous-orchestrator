@@ -33,6 +33,66 @@ type TokenCache = {
 
 let cachedToken: TokenCache | null = null;
 
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + (4 - (normalized.length % 4 || 4)) % 4, '=');
+    const decoded = Buffer.from(padded, 'base64').toString('utf8');
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+const extractJwtRoles = (claims: Record<string, unknown> | null): string[] => {
+  if (!claims) {
+    return [];
+  }
+  const realmAccess = claims.realm_access as { roles?: unknown } | undefined;
+  const resourceAccess = claims.resource_access as Record<string, { roles?: unknown } | undefined> | undefined;
+  const frontendRoles = resourceAccess?.frontend?.roles;
+  const roles = [
+    ...(Array.isArray(realmAccess?.roles) ? realmAccess.roles : []),
+    ...(Array.isArray(frontendRoles) ? frontendRoles : []),
+  ];
+  return roles
+    .map((value) => String(value ?? '').trim().toUpperCase())
+    .filter(Boolean);
+};
+
+const buildInjectedUserProfile = (token: string, permissions: string[]): TestUserProfile => {
+  const claims = decodeJwtPayload(token);
+  const tokenRoles = extractJwtRoles(claims);
+  const email =
+    String(
+      claims?.email ??
+      claims?.preferred_username ??
+      claims?.sub ??
+      'runtime@test.local',
+    ).trim() || 'runtime@test.local';
+  const fullName =
+    String(
+      claims?.name ??
+      claims?.given_name ??
+      claims?.preferred_username ??
+      email,
+    ).trim() || email;
+  const effectivePermissions = permissions.length > 0 ? permissions : tokenRoles;
+  const effectiveRole = tokenRoles.includes('ADMIN') ? 'ADMIN' : (tokenRoles[0] ?? 'USER');
+
+  return {
+    id: String(claims?.sub ?? email),
+    fullName,
+    email,
+    permissions: effectivePermissions,
+    role: effectiveRole,
+  };
+};
+
 const sanitizeBase64 = (value: string) =>
   value
     .replace(/=+$/, '')
@@ -166,13 +226,7 @@ export const buildAuthSession = async (permissions: string[] = []): Promise<Test
 
   return {
     token,
-    user: {
-      id: 'e03-runtime-user',
-      fullName: 'Runtime Test User',
-      email: 'runtime@test.local',
-      permissions,
-      role: 'ADMIN',
-    },
+    user: buildInjectedUserProfile(token, permissions),
   };
 };
 

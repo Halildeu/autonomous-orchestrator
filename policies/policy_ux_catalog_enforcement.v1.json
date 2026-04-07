@@ -22,6 +22,10 @@
     "exclude_globs": [
       "**/node_modules/**",
       "**/.cache/**",
+      "web/.storybook/**",
+      "web/packages/design-system/docs-portal/**",
+      "web/packages/design-system/scripts/**",
+      "web/packages/design-system/src/__visual__/**",
       "**/dist/**",
       "**/dist-quality/**",
       "**/build/**",

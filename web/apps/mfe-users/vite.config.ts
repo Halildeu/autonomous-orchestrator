@@ -37,15 +37,42 @@ function buildRuntimeEnv(mode: string): Record<string, string> {
   return payload;
 }
 
+function readEnvString(keys: string[], fallback: string): string {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value !== 'string') continue;
+    const normalized = value.trim();
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+  return fallback;
+}
+
+function normalizeBasePath(value: string): string {
+  const normalized = value.trim();
+  if (!normalized || normalized === '/') {
+    return '/';
+  }
+  const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Read package.json deps for MF shared config                        */
 /* ------------------------------------------------------------------ */
 
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 const deps = pkg.dependencies as Record<string, string>;
-const singleton = (name: string, fallback: string | boolean = false) => ({
+const singleton = (
+  shareKey: string,
+  versionKey: string = shareKey,
+  fallback: string | boolean = false,
+  extra: Record<string, boolean | string> = {},
+) => ({
   singleton: true,
-  requiredVersion: deps[name] ?? fallback,
+  requiredVersion: deps[versionKey] ?? fallback,
+  ...extra,
 });
 const sharedCore = {
   react: singleton('react'),
@@ -66,6 +93,8 @@ const sharedProdOnly = {
 };
 
 const isTest = !!process.env['VITEST'];
+const isSingleDomainBuild =
+  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
 
 /* ------------------------------------------------------------------ */
 /*  Vite Config                                                         */
@@ -73,8 +102,15 @@ const isTest = !!process.env['VITEST'];
 
 export default defineConfig(({ mode }) => {
   const runtimeEnv = buildRuntimeEnv(mode);
+  const appBasePath = normalizeBasePath(readEnvString(['APP_BASE_PATH', 'VITE_APP_BASE_PATH'], '/'));
+  const shellRemoteEntry = readEnvString(['MFE_SHELL_URL', 'VITE_MFE_SHELL_URL'], 'http://localhost:3000/remoteEntry.js');
+  const reportingRemoteEntry = readEnvString(
+    ['MFE_REPORTING_URL', 'VITE_MFE_REPORTING_URL'],
+    'http://localhost:3007/remoteEntry.js',
+  );
 
   return {
+    base: appBasePath,
     root: __dirname,
     publicDir: 'public',
 
@@ -85,16 +121,27 @@ export default defineConfig(({ mode }) => {
         filename: 'remoteEntry.js',
         dts: false,
         remotes: {
-          mfe_shell: { type: 'module', name: 'mfe_shell', entry: 'http://localhost:3000/remoteEntry.js' },
-          mfe_reporting: { type: 'module', name: 'mfe_reporting', entry: 'http://localhost:3007/remoteEntry.js' },
+          mfe_shell: { type: 'module', name: 'mfe_shell', entry: shellRemoteEntry },
+          mfe_reporting: { type: 'module', name: 'mfe_reporting', entry: reportingRemoteEntry },
         },
         exposes: {
           './UsersApp': './src/app/UsersApp.ui.tsx',
           './shell-services': './src/app/services/shell-services.ts',
         },
         shared: {
-          ...sharedCore,
-          ...(mode === 'production' ? sharedProdOnly : {}),
+          ...(isSingleDomainBuild
+            ? {
+                react: sharedCore.react,
+                'react-dom': sharedCore['react-dom'],
+                'react-router': sharedCore['react-router'],
+                'react-router-dom': sharedCore['react-router-dom'],
+                'react-redux': sharedCore['react-redux'],
+                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
+              }
+            : {
+                ...sharedCore,
+                ...(mode === 'production' ? sharedProdOnly : {}),
+              }),
         },
       })]),
     ],

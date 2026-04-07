@@ -160,6 +160,7 @@ export const FilterConditionRow: React.FC<FilterConditionRowProps> = ({
         value={condition.colId}
         disabled={isLocked}
         onChange={(e) => handleColChange(e.target.value)}
+        aria-label="Filter column"
       >
         <option value="">Sütun seçin...</option>
         {filterableColumns.map((col) => (
@@ -174,6 +175,7 @@ export const FilterConditionRow: React.FC<FilterConditionRowProps> = ({
           value={condition.operator}
           disabled={isLocked}
           onChange={(e) => onUpdate(condition.id, { operator: e.target.value })}
+          aria-label="Filter operator"
         >
           {operators.map((op) => (
             <option key={op.value} value={op.value}>{op.label}</option>

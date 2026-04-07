@@ -137,6 +137,18 @@ const shouldSuppressOutputChunk = (chunk: unknown): boolean => {
 };
 
 // JSDOM stubs for APIs not implemented in jsdom
+
+// ResizeObserver — used by useInlineECharts, ECharts renderers, and chart containers
+if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class ResizeObserver {
+    private cb: ResizeObserverCallback;
+    constructor(cb: ResizeObserverCallback) { this.cb = cb; }
+    observe() { /* noop in test */ }
+    unobserve() { /* noop in test */ }
+    disconnect() { /* noop in test */ }
+  };
+}
+
 if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => undefined;
 }

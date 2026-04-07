@@ -200,6 +200,30 @@ function analyzeTestFile(filePath) {
   if (roleQueries === 0 && semanticQueries === 0) shallowFlags.push('NO_SEMANTIC_QUERIES');
   if (totalScore < 25) shallowFlags.push('CRITICALLY_SHALLOW');
 
+  // ── Contract Test Profile ──
+  // Contract tests verify API surface (render, exports, types), not behavior.
+  // They are intentionally shallow by design — grading them on interaction
+  // depth or a11y would produce false negatives. Apply adjusted thresholds.
+  const isContractTest = relPath.includes('.contract.test.');
+
+  if (isContractTest) {
+    // Contract tests: only assertion density and API coverage matter
+    // Recalculate with contract-specific weights
+    const contractScore = Math.round(
+      (scores.assertionDensity / 100) * 50 +   // Assertions are king
+      (scores.semanticQueries / 100) * 20 +      // Semantic queries nice-to-have
+      (scores.mockSophistication / 100) * 15 +   // Mock usage if needed
+      (scores.asyncTesting / 100) * 15            // Async if needed
+    );
+    totalScore = contractScore;
+    // Clear shallow flags that don't apply to contract tests
+    const contractExempt = ['NO_INTERACTION', 'NO_SEMANTIC_QUERIES', 'CRITICALLY_SHALLOW'];
+    for (const flag of contractExempt) {
+      const idx = shallowFlags.indexOf(flag);
+      if (idx >= 0) shallowFlags.splice(idx, 1);
+    }
+  }
+
   // ── Classification ──
   let grade;
   if (totalScore >= 70) grade = 'A';      // Derin, güvenilir test

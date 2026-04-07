@@ -34,9 +34,9 @@ WORKFLOW_SENTINELS = (
 )
 WORKFLOW_SEQUENCE_SENTINELS = (
     "module-lane-database:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
-    "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database]",
-    "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-api]",
-    "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-contract]",
+    "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+    "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+    "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database, module-lane-api, module-lane-contract]",
     "module-lane-e2e:\n    runs-on: ubuntu-latest\n    needs: [module-lane-integration]",
 )
 PLACEHOLDER_TOKENS = (
@@ -209,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
     if missing_sequence_markers:
         return _fail(
             "LANE_WORKFLOW_SEQUENCE_INVALID",
-            "module delivery workflow must enforce backend->database->api->frontend->integration->e2e order.",
+            "module delivery workflow must enforce unit preflight, parallel database/api/frontend lanes, then integration and e2e order.",
             details={"missing_markers": missing_sequence_markers},
         )
 

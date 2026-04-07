@@ -535,9 +535,9 @@ def _check_module_delivery_workflow(root: Path) -> tuple[bool, dict[str, Any]]:
             details["issues"].append(f"missing:{marker}")
     required_sequence_markers = (
         "module-lane-database:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
-        "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database]",
-        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-api]",
-        "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-contract]",
+        "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
+        "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database, module-lane-api, module-lane-contract]",
         "module-lane-e2e:\n    runs-on: ubuntu-latest\n    needs: [module-lane-integration]",
     )
     for marker in required_sequence_markers:
