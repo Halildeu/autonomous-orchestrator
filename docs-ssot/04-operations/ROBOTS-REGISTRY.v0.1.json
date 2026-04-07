@@ -1114,6 +1114,71 @@
       "notes": [
         "AUTO-STUB: resolved (auto-inferred fields from robots_tbd_plan)"
       ]
+    },
+    {
+      "id": "ROB-0128",
+      "name": "local-gate-hook",
+      "kind": "script",
+      "path": "scripts/setup_local_git_hooks.sh",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe",
+        "plan"
+      ],
+      "side_effects": [
+        "local_write(.git/hooks/pre-push)"
+      ],
+      "required_auth_refs": [],
+      "required_env": [],
+      "required_confirm": null,
+      "inputs": [],
+      "guardrails": [
+        "No remote side-effects; local git hook only"
+      ]
+    },
+    {
+      "id": "ROB-0129",
+      "name": "stage-authz-diagnose",
+      "kind": "workflow",
+      "path": ".github/workflows/stage-authz-diagnose.yml",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe"
+      ],
+      "side_effects": [
+        "workflow_dispatch(stage environment)"
+      ],
+      "required_auth_refs": [],
+      "required_env": [],
+      "required_confirm": null,
+      "inputs": [
+        "workflow_dispatch"
+      ],
+      "guardrails": [
+        "Stage environment only; no production access"
+      ]
+    },
+    {
+      "id": "ROB-0130",
+      "name": "stage-keycloak-smoke-user",
+      "kind": "workflow",
+      "path": ".github/workflows/stage-keycloak-smoke-user.yml",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe"
+      ],
+      "side_effects": [
+        "workflow_dispatch(stage environment)"
+      ],
+      "required_auth_refs": [],
+      "required_env": [],
+      "required_confirm": null,
+      "inputs": [
+        "workflow_dispatch"
+      ],
+      "guardrails": [
+        "Stage Keycloak smoke test; no production access"
+      ]
     }
   ]
 }
