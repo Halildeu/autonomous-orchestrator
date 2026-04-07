@@ -78,8 +78,6 @@ const hostSingleton = (shareKey: string, versionKey: string = shareKey, fallback
   singleton(shareKey, versionKey, fallback, { import: false });
 const sharedCore = {
   react: singleton('react'),
-  'react/jsx-runtime': singleton('react/jsx-runtime', 'react'),
-  'react/jsx-dev-runtime': singleton('react/jsx-dev-runtime', 'react'),
   'react-dom': singleton('react-dom'),
   'react-dom/client': singleton('react-dom/client', 'react-dom'),
   'react-router': singleton('react-router'),
@@ -90,8 +88,6 @@ const sharedCore = {
 };
 const sharedSingleDomainCore = {
   react: hostSingleton('react'),
-  'react/jsx-runtime': hostSingleton('react/jsx-runtime', 'react'),
-  'react/jsx-dev-runtime': hostSingleton('react/jsx-dev-runtime', 'react'),
   'react-dom': hostSingleton('react-dom'),
   'react-dom/client': hostSingleton('react-dom/client', 'react-dom'),
   'react-router': hostSingleton('react-router'),
@@ -148,8 +144,6 @@ export default defineConfig(({ mode }) => {
           ...(isSingleDomainBuild
             ? {
                 react: sharedSingleDomainCore.react,
-                'react/jsx-runtime': sharedSingleDomainCore['react/jsx-runtime'],
-                'react/jsx-dev-runtime': sharedSingleDomainCore['react/jsx-dev-runtime'],
                 'react-dom': sharedSingleDomainCore['react-dom'],
                 'react-dom/client': sharedSingleDomainCore['react-dom/client'],
                 'react-router': sharedSingleDomainCore['react-router'],

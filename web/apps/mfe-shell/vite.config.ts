@@ -167,8 +167,6 @@ const singleton = (
 });
 const sharedCore = {
   react: singleton('react'),
-  'react/jsx-runtime': singleton('react/jsx-runtime', 'react'),
-  'react/jsx-dev-runtime': singleton('react/jsx-dev-runtime', 'react'),
   'react-dom': singleton('react-dom'),
   'react-dom/client': singleton('react-dom/client', 'react-dom'),
   'react-router': singleton('react-router'),
@@ -231,8 +229,6 @@ export default defineConfig(({ mode }) => {
           ...(isSingleDomainBuild
             ? {
                 react: sharedCore.react,
-                'react/jsx-runtime': sharedCore['react/jsx-runtime'],
-                'react/jsx-dev-runtime': sharedCore['react/jsx-dev-runtime'],
                 'react-dom': sharedCore['react-dom'],
                 'react-dom/client': sharedCore['react-dom/client'],
                 'react-router': sharedCore['react-router'],
