@@ -90,8 +90,6 @@ const sharedSingleDomainCore = {
   'react-dom': hostSingleton('react-dom'),
   'react-router': hostSingleton('react-router'),
   'react-router-dom': hostSingleton('react-router-dom'),
-  'react-redux': hostSingleton('react-redux'),
-  '@reduxjs/toolkit': hostSingleton('@reduxjs/toolkit'),
 };
 const sharedProdOnly = {
   'ag-grid-react': singleton('ag-grid-react'),
@@ -145,8 +143,8 @@ export default defineConfig(({ mode }) => {
                 'react-dom': sharedSingleDomainCore['react-dom'],
                 'react-router': sharedSingleDomainCore['react-router'],
                 'react-router-dom': sharedSingleDomainCore['react-router-dom'],
-                'react-redux': sharedSingleDomainCore['react-redux'],
-                '@reduxjs/toolkit': sharedSingleDomainCore['@reduxjs/toolkit'],
+                'react-redux': sharedCore['react-redux'],
+                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
               }
             : {
                 ...sharedCore,
