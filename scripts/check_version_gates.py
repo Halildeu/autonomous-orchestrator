@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = ROOT / "web"
 BACKEND_DIR = ROOT / "backend"
 
-EXPECTED_NODE_MAJOR_CI = 20  # şimdilik hardcode; SSOT engines/.nvmrc gelince buradan okunacak.
+EXPECTED_NODE_MAJOR_CI = 22  # Node 22 LTS pinned (.nvmrc=22.22.2, engines>=22.12)
 
 
 @dataclass
