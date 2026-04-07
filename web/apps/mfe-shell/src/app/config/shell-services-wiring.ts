@@ -17,6 +17,7 @@ import telemetryClient from "../telemetry/telemetry-client";
 import {
   broadcastAuthState,
 } from "../auth/auth-sync";
+import { isPermitAllMode } from "../auth/auth-config";
 import { queryClient } from "./query-config";
 import { readEnvBoolean } from "./env";
 
@@ -139,7 +140,7 @@ let remoteShellServicesWired = false;
 
 const shouldWireRemoteShellServices = () => {
   const authState = store.getState().auth;
-  return Boolean(authState.token) || authState.status === "succeeded";
+  return isPermitAllMode() || Boolean(authState.token);
 };
 
 const wireRemoteShellServicesWhenReady = () => {
