@@ -68,6 +68,7 @@ export default tseslint.config(
       'packages/x-kanban/**',
       'packages/x-editor/**',
       '.__mf__temp/**',
+      '**/.__mf__temp/**',
       '.mf/**',
       'scripts/theme/**',
     ],

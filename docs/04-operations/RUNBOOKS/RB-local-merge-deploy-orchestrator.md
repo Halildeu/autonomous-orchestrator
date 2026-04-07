@@ -44,6 +44,17 @@ Local SSOT prensibiyle PR’ı uçtan uca sonuçlandırmak:
 2) Git push auth (autopilot push stabil olsun):
 - `bash scripts/ops/git_setup_push_auth.sh`
 
+3) Local gate zorunlu:
+- `bash scripts/setup_local_git_hooks.sh`
+- `bash scripts/run_local_gate_chain.sh`
+- Canonical PASS artifact:
+  - `.cache/reports/local-gate-chain/status.json`
+- Not:
+  - `pre-commit` ve `pre-push` hook’ları stale/missing artifact halinde
+    `scripts/require_local_gate.sh --auto-run` çağırır.
+  - `NVD_API_KEY` shell env’de yoksa local security zinciri repo `.env/.env.local`
+    dosyalarından allowlist ile yüklemeyi dener; değer loglanmaz.
+
 ### 3.2 Orchestrator (manual fix)
 
 CI fail olursa script durur ve `FAILURE.md` üretir; fix’i sen yaparsın, sonra aynı komutu tekrar çalıştırırsın.
@@ -133,6 +144,7 @@ Deploy skip:
 -------------------------------------------------------------------------------
 
 - Local SSOT: hata analizi ve fix localde; GitHub Actions sadece deterministic executor.
+- Git öncesi zorunlu eşik: local gate PASS artifact’i olmadan commit/push yok.
 - Merge bot GitHub’da kalabilir; local orchestrator gerektiğinde merge/deploy tetikler.
 - Kanıtlar localde: `artifacts/ci-logs/**`.
 

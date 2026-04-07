@@ -94,9 +94,11 @@ jobs:
         run: |
           python3 scripts/check_version_gates.py --mode ci
           if command -v pnpm >/dev/null 2>&1; then pnpm -C web install --frozen-lockfile; else corepack pnpm -C web install --frozen-lockfile; fi
+          if command -v pnpm >/dev/null 2>&1; then pnpm -C web exec playwright install --with-deps chromium; else corepack pnpm -C web exec playwright install --with-deps chromium; fi
           npm -C web run tokens:build -- --check
           bash scripts/run_lint_web.sh
           bash scripts/run_tests_web.sh
+          bash scripts/run_tests_web.sh pw-preauth
 
   ci-gate-backend:
     runs-on: ubuntu-latest
