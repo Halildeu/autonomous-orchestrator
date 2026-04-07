@@ -4,7 +4,18 @@ import { readFileSync, existsSync } from 'node:fs';
 const root = new URL('../', import.meta.url);
 
 function run(cmd) {
-  return execSync(cmd, { encoding: 'utf8', cwd: new URL('.', root) });
+  const env = { ...process.env };
+  for (const key of [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_PREFIX',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  ]) {
+    delete env[key];
+  }
+  return execSync(cmd, { encoding: 'utf8', cwd: new URL('.', root), env });
 }
 
 const tracked = run('git ls-files')
