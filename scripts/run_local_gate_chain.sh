@@ -35,23 +35,23 @@ compute_worktree_fingerprint() {
   python3 "${SCRIPT_DIR}/ops/compute_worktree_fingerprint.py" --repo-root "${ROOT_DIR}"
 }
 
-node20_prefix() {
+node22_prefix() {
   if command -v volta >/dev/null 2>&1; then
-    printf 'volta run --node 20'
+    printf 'volta run --node 22'
     return 0
   fi
 
   if command -v node >/dev/null 2>&1; then
     local major
     major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
-    if [[ "${major}" == "20" ]]; then
+    if [[ "${major}" == "22" ]]; then
       printf ''
       return 0
     fi
   fi
 
-  if [[ -x /opt/homebrew/opt/node@20/bin/node ]]; then
-    printf 'env PATH=/opt/homebrew/opt/node@20/bin:%s' "${PATH}"
+  if [[ -x /opt/homebrew/opt/node@22/bin/node ]]; then
+    printf 'env PATH=/opt/homebrew/opt/node@22/bin:%s' "${PATH}"
     return 0
   fi
 
@@ -89,8 +89,8 @@ run_shell_step() {
   run_with_log "${step}" /bin/zsh -lc "$*"
 }
 
-NODE20_CMD="$(node20_prefix || true)"
-if [[ -z "${NODE20_CMD}" ]]; then
+NODE22_CMD="$(node22_prefix || true)"
+if [[ -z "${NODE22_CMD}" ]]; then
   if command -v node >/dev/null 2>&1; then
     current_node_major="$(node -p 'process.versions.node.split(\".\")[0]' 2>/dev/null || true)"
   else
@@ -100,8 +100,8 @@ else
   current_node_major=""
 fi
 
-if [[ -z "${NODE20_CMD}" && "${current_node_major}" != "20" ]]; then
-  info "FAIL toolchain: Node 20 bulunamadı. Volta veya node@20 yükleyin."
+if [[ -z "${NODE22_CMD}" && "${current_node_major}" != "22" ]]; then
+  info "FAIL toolchain: Node 22 bulunamadı. Volta veya node@22 yükleyin."
   exit 2
 fi
 
@@ -264,20 +264,20 @@ python3 scripts/check_auth_registry.py
 python3 scripts/check_workflow_model_ssot.py
 '
 
-if [[ -n "${NODE20_CMD}" ]]; then
+if [[ -n "${NODE22_CMD}" ]]; then
   web_gate_cmd="
 set -euo pipefail
-${NODE20_CMD} python3 scripts/check_version_gates.py --mode ci
-${NODE20_CMD} pnpm -C web install --frozen-lockfile
-${NODE20_CMD} pnpm -C web exec playwright install chromium
-${NODE20_CMD} pnpm -C web run tokens:build -- --check
+${NODE22_CMD} python3 scripts/check_version_gates.py --mode ci
+${NODE22_CMD} pnpm -C web install --frozen-lockfile
+${NODE22_CMD} pnpm -C web exec playwright install chromium
+${NODE22_CMD} pnpm -C web run tokens:build -- --check
 python3 scripts/check_theme_contract_consistency.py
 python3 scripts/check_tailwind_token_map.py
 python3 scripts/check_theme_override_allowlist.py
 python3 scripts/check_no_hardcoded_theme_styles.py
-${NODE20_CMD} bash scripts/run_lint_web.sh
-${NODE20_CMD} bash scripts/run_tests_web.sh
-${NODE20_CMD} bash scripts/run_tests_web.sh pw-preauth
+${NODE22_CMD} bash scripts/run_lint_web.sh
+${NODE22_CMD} bash scripts/run_tests_web.sh
+${NODE22_CMD} bash scripts/run_tests_web.sh pw-preauth
 "
 else
   web_gate_cmd='
