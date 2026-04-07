@@ -321,7 +321,7 @@ export const SectionTabs = React.forwardRef<HTMLDivElement, SectionTabsProps>(fu
               classes?.item,
             ),
             activeItem: cn(
-              'bg-surface-default shadow-[0_14px_28px_-18px_rgba(38,28,89,0.55)] ring-1 ring-border-default/80',
+              'bg-surface-default shadow-[0_14px_28px_-18px_var(--shadow-color,hsl(var(--accent-hue,250)_50%_23%/0.55))] ring-1 ring-border-default/80',
               'before:absolute before:inset-0 before:rounded-[inherit] before:ring-1 before:ring-accent-soft/70 before:content-[\'\']',
               classes?.activeItem,
             ),

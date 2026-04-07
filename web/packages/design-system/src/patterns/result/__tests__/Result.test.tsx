@@ -38,3 +38,22 @@ describe('Result — status varyantlari', () => {
     expect(screen.getByTestId('custom')).toBeInTheDocument();
   });
 });
+
+describe('Result — edge cases', () => {
+  it('title olmadan status icon gosterir', () => {
+    const { container } = render(<Result status="error" />);
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+  it('className forwarding', () => {
+    const { container } = render(<Result status="success" className="my-custom" />);
+    expect(container.querySelector('.my-custom')).toBeInTheDocument();
+  });
+});
+
+describe('Result — a11y', () => {
+  it('her status icin anlamli ikon gosterir', () => {
+    const { container } = render(<Result status="error" title="Hata" />);
+    expect(container.querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByText('Hata')).toBeInTheDocument();
+  });
+});

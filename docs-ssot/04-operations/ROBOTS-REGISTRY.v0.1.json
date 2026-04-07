@@ -1182,6 +1182,33 @@
       "notes": [
         "Stage smoke kullanıcısı üzerinde Keycloak tabanlı tanı ve hazırlık adımlarını çalıştırır."
       ]
+    },
+    {
+      "id": "ROB-0130",
+      "name": "local-gate-hook",
+      "kind": "script",
+      "path": "scripts/setup_local_git_hooks.sh",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe",
+        "plan"
+      ],
+      "side_effects": [
+        "local_write(.git/hooks/pre-push)"
+      ],
+      "required_auth_refs": [],
+      "required_env": [],
+      "required_confirm": null,
+      "inputs": [],
+      "guardrails": [
+        "No remote side-effects; local git hook only"
+      ],
+      "outputs": [
+        ".git/hooks/pre-push"
+      ],
+      "notes": [
+        "Lokal pre-push hook kurar. Remote side-effect yok."
+      ]
     }
   ]
 }

@@ -36,7 +36,7 @@
       "framework": "react",
       "framework_line": "18.x",
       "runtime": "node",
-      "node_major": 20,
+      "node_major": 22,
       "package_manager": "pnpm",
       "mfe_architecture": "module-federation",
       "style_system": [

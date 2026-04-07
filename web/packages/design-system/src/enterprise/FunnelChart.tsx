@@ -129,10 +129,19 @@ export const FunnelChart: React.FC<FunnelChartProps> = ({
             return (
               <g
                 key={stage.id}
+                role={onStageClick ? 'button' : undefined}
+                tabIndex={onStageClick ? 0 : undefined}
                 className={cn(onStageClick && 'cursor-pointer')}
                 onClick={() => onStageClick?.(stage)}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && onStageClick) {
+                    e.preventDefault();
+                    onStageClick(stage);
+                  }
+                }}
                 onMouseEnter={() => setHoveredId(stage.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                aria-label={stage.label}
               >
                 <rect
                   x={x}
@@ -222,10 +231,19 @@ export const FunnelChart: React.FC<FunnelChartProps> = ({
           return (
             <g
               key={stage.id}
+              role={onStageClick ? 'button' : undefined}
+              tabIndex={onStageClick ? 0 : undefined}
               className={cn(onStageClick && 'cursor-pointer')}
               onClick={() => onStageClick?.(stage)}
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && onStageClick) {
+                  e.preventDefault();
+                  onStageClick(stage);
+                }
+              }}
               onMouseEnter={() => setHoveredId(stage.id)}
               onMouseLeave={() => setHoveredId(null)}
+              aria-label={stage.label}
             >
               <path
                 d={path}

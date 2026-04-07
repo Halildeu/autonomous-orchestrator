@@ -104,6 +104,11 @@
       "web/apps/mfe-shell/src/pages/**/*",
       "web/packages/design-system/src/**",
       "web/packages/design-system/src/index.ts",
+      "web/packages/design-system/scripts/**",
+      "web/packages/design-system/docs-portal/**",
+      "web/packages/design-system/*.json",
+      "web/packages/design-system/*.md",
+      "web/.storybook/**",
       "web/packages/shared-types/**/*"
     ],
     "affected_modules": [
@@ -323,6 +328,31 @@
       },
       {
         "path_glob": "web/packages/design-system/src/**",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/packages/design-system/scripts/**",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/packages/design-system/docs-portal/**",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/packages/design-system/*.json",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/packages/design-system/*.md",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/.storybook/**",
         "ux_theme_id": "consistency_and_pattern_governance",
         "ux_subtheme_id": "single_component_source_of_truth"
       },

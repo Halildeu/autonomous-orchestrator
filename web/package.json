@@ -4,7 +4,7 @@
   "description": "MFE Kök Dizini",
   "private": true,
   "engines": {
-    "node": "20.x || 22.x"
+    "node": ">=22.12"
   },
   "workspaces": [
     "apps/mfe-reporting",

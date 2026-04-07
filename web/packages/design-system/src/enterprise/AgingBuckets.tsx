@@ -106,9 +106,17 @@ export const AgingBuckets: React.FC<AgingBucketsProps> = ({
             return (
               <div
                 key={bucket.id}
-                className={cn('h-full transition-all duration-300 first:rounded-l-md last:rounded-r-md', onBucketClick && 'cursor-pointer hover:opacity-80')}
+                role={onBucketClick ? 'button' : undefined}
+                tabIndex={onBucketClick ? 0 : undefined}
+                className={cn('h-full transition-all duration-300 first:rounded-l-md last:rounded-r-md', onBucketClick && 'cursor-pointer hover:opacity-80 focus-visible:ring-2 focus-visible:ring-focus-outline')}
                 style={{ width: `${pct}%`, backgroundColor: toneColorMap[tone] }}
                 onClick={() => onBucketClick?.(bucket)}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && onBucketClick) {
+                    e.preventDefault();
+                    onBucketClick(bucket);
+                  }
+                }}
                 title={`${bucket.label}: ${pct}%`}
               >
                 {pct > 8 && (
@@ -132,13 +140,22 @@ export const AgingBuckets: React.FC<AgingBucketsProps> = ({
           return (
             <div
               key={bucket.id}
+              role={onBucketClick ? 'button' : undefined}
+              tabIndex={onBucketClick ? 0 : undefined}
               className={cn(
                 'flex-1 min-w-[120px] rounded-lg border p-3 transition-all duration-200',
                 toneClasses.border,
                 toneClasses.bg,
-                onBucketClick && 'cursor-pointer hover:shadow-md hover:scale-[1.02]',
+                onBucketClick && 'cursor-pointer hover:shadow-md hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-focus-outline',
               )}
               onClick={() => onBucketClick?.(bucket)}
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && onBucketClick) {
+                  e.preventDefault();
+                  onBucketClick(bucket);
+                }
+              }}
+              aria-label={bucket.label}
             >
               {/* Label */}
               <div className="text-xs font-medium text-text-secondary mb-1">
