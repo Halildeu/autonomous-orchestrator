@@ -37,6 +37,25 @@ Rules:
 - Transition-active ve archive-reference katmanı yeni normatif kural yazmak için
   kullanılmaz.
 
+## 0c. Local Gate Zorunluluğu (MUST)
+
+- Git geçişi öncesi local gate zorunludur: commit, push, PR create akışları
+  `scripts/run_local_gate_chain.sh` PASS artifact’i olmadan ilerleyemez.
+- Canonical artifact:
+  - `.cache/reports/local-gate-chain/status.json`
+- Guard script:
+  - `scripts/require_local_gate.sh`
+- Standard installer:
+  - `scripts/setup_local_git_hooks.sh`
+- Git hook enforce:
+  - `.githooks/pre-commit`
+  - `.githooks/pre-push`
+- Artifact mevcut worktree fingerprint ile eşleşmiyorsa stale kabul edilir ve
+  local gate yeniden çalıştırılır.
+- Local security zincirinde `NVD_API_KEY` gerekiyorsa agent önce mevcut shell
+  env’i, yoksa repo `.env/.env.local` dosyalarını allowlist üzerinden okur;
+  secret değerini loglamaz.
+
 ## 1. İş tipleri
 
 - [BE]  → Backend endpoint / servis / job

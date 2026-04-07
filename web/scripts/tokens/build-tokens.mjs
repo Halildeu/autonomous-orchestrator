@@ -11,11 +11,11 @@
  *   2. tokens.css         CSS custom properties (:root block).
  *   3. token-types.ts     TypeScript union types for each token category.
  *
- * Usage:  node scripts/tokens/build-tokens.mjs
+ * Usage:  node scripts/tokens/build-tokens.mjs [--check]
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /* ------------------------------------------------------------------ */
@@ -26,8 +26,12 @@ const __dirname = dirname(__filename);
 const ROOT = join(__dirname, "../..");
 const TOKENS_SRC = join(ROOT, "packages/design-system/src/tokens");
 const BUILD_DIR = join(TOKENS_SRC, "build");
+const args = new Set(process.argv.slice(2));
+const isCheckMode = args.has("--check");
 
-mkdirSync(BUILD_DIR, { recursive: true });
+if (!isCheckMode) {
+  mkdirSync(BUILD_DIR, { recursive: true });
+}
 
 /* ------------------------------------------------------------------ */
 /*  Token source files to process (order matters for output)           */
@@ -239,8 +243,7 @@ for (const file of TOKEN_FILES) {
 /*  1. tokens.json                                                     */
 /* ------------------------------------------------------------------ */
 const jsonPath = join(BUILD_DIR, "tokens.json");
-writeFileSync(jsonPath, JSON.stringify(allTokens, null, 2) + "\n", "utf-8");
-console.log(`  [ok] ${jsonPath}`);
+const jsonContent = JSON.stringify(allTokens, null, 2) + "\n";
 
 /* ------------------------------------------------------------------ */
 /*  2. tokens.css                                                      */
@@ -290,8 +293,6 @@ for (const { category, name, value } of exportNames) {
 cssContent += `}\n`;
 
 const cssPath = join(BUILD_DIR, "tokens.css");
-writeFileSync(cssPath, cssContent, "utf-8");
-console.log(`  [ok] ${cssPath}`);
 
 /* ------------------------------------------------------------------ */
 /*  3. token-types.ts                                                  */
@@ -309,8 +310,6 @@ for (const { name, keys } of exportNames) {
 }
 
 const tsPath = join(BUILD_DIR, "token-types.ts");
-writeFileSync(tsPath, tsContent, "utf-8");
-console.log(`  [ok] ${tsPath}`);
 
 /* ------------------------------------------------------------------ */
 /*  4. docs.json                                                       */
@@ -353,8 +352,42 @@ function buildDocsEntries(exportEntries) {
 
 const docsEntries = buildDocsEntries(exportNames);
 const docsPath = join(BUILD_DIR, "docs.json");
-writeFileSync(docsPath, JSON.stringify(docsEntries, null, 2) + "\n", "utf-8");
-console.log(`  [ok] ${docsPath}`);
+const docsContent = JSON.stringify(docsEntries, null, 2) + "\n";
+
+const outputs = [
+  ["tokens.json", jsonPath, jsonContent],
+  ["tokens.css", cssPath, cssContent],
+  ["token-types.ts", tsPath, tsContent],
+  ["docs.json", docsPath, docsContent],
+];
+
+if (isCheckMode) {
+  const errors = [];
+  for (const [label, outputPath, content] of outputs) {
+    try {
+      const existing = readFileSync(outputPath, "utf-8");
+      if (existing !== content) {
+        errors.push(`- Drift: ${relative(ROOT, outputPath)} generated output is not up to date (${label}).`);
+      }
+    } catch {
+      errors.push(`- Missing: ${relative(ROOT, outputPath)} does not exist (${label}).`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error("❌ tokens:build drift detected (run: pnpm -C web run tokens:build)");
+    errors.forEach((line) => console.error(line));
+    process.exit(1);
+  }
+
+  console.log(`✅ tokens:build --check OK (${outputs.length} files)`);
+} else {
+  mkdirSync(BUILD_DIR, { recursive: true });
+  for (const [, outputPath, content] of outputs) {
+    writeFileSync(outputPath, content, "utf-8");
+    console.log(`  [ok] ${outputPath}`);
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Summary                                                            */

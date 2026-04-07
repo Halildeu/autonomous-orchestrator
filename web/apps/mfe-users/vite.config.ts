@@ -74,8 +74,6 @@ const singleton = (
   requiredVersion: deps[versionKey] ?? fallback,
   ...extra,
 });
-const hostSingleton = (shareKey: string, versionKey: string = shareKey, fallback: string | boolean = false) =>
-  singleton(shareKey, versionKey, fallback, { import: false });
 const sharedCore = {
   react: singleton('react'),
   'react-dom': singleton('react-dom'),
@@ -84,10 +82,6 @@ const sharedCore = {
   'react-redux': singleton('react-redux'),
   '@reduxjs/toolkit': singleton('@reduxjs/toolkit'),
   '@tanstack/react-query': singleton('@tanstack/react-query'),
-};
-const sharedSingleDomainCore = {
-  react: hostSingleton('react'),
-  'react-dom': hostSingleton('react-dom'),
 };
 const sharedProdOnly = {
   'ag-grid-react': singleton('ag-grid-react'),
@@ -137,8 +131,8 @@ export default defineConfig(({ mode }) => {
         shared: {
           ...(isSingleDomainBuild
             ? {
-                react: sharedSingleDomainCore.react,
-                'react-dom': sharedSingleDomainCore['react-dom'],
+                react: sharedCore.react,
+                'react-dom': sharedCore['react-dom'],
                 'react-router': sharedCore['react-router'],
                 'react-router-dom': sharedCore['react-router-dom'],
                 'react-redux': sharedCore['react-redux'],
