@@ -81,8 +81,8 @@ def _check_technical_baseline_aistd(root: Path, rel_path: str) -> tuple[bool, di
             details["invalid_values"].append("technical_baseline_aistd:frontend.language_must_be_typescript")
         if frontend.get("framework") != "react":
             details["invalid_values"].append("technical_baseline_aistd:frontend.framework_must_be_react")
-        if int(frontend.get("node_major") or 0) != 20:
-            details["invalid_values"].append("technical_baseline_aistd:frontend.node_major_must_be_20")
+        if int(frontend.get("node_major") or 0) != 22:
+            details["invalid_values"].append("technical_baseline_aistd:frontend.node_major_must_be_22")
         if frontend.get("package_manager") != "pnpm":
             details["invalid_values"].append("technical_baseline_aistd:frontend.package_manager_must_be_pnpm")
         design_contract = frontend.get("design_contract")
