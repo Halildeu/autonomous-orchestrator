@@ -157,13 +157,20 @@ function buildRemotes() {
 
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 const deps = pkg.dependencies as Record<string, string>;
-const singleton = (name: string, fallback: string | boolean = false) => ({
+const singleton = (
+  shareKey: string,
+  versionKey: string = shareKey,
+  fallback: string | boolean = false,
+) => ({
   singleton: true,
-  requiredVersion: deps[name] ?? fallback,
+  requiredVersion: deps[versionKey] ?? fallback,
 });
 const sharedCore = {
   react: singleton('react'),
+  'react/jsx-runtime': singleton('react/jsx-runtime', 'react'),
+  'react/jsx-dev-runtime': singleton('react/jsx-dev-runtime', 'react'),
   'react-dom': singleton('react-dom'),
+  'react-dom/client': singleton('react-dom/client', 'react-dom'),
   'react-router': singleton('react-router'),
   'react-router-dom': singleton('react-router-dom'),
   '@reduxjs/toolkit': singleton('@reduxjs/toolkit'),
@@ -224,7 +231,10 @@ export default defineConfig(({ mode }) => {
           ...(isSingleDomainBuild
             ? {
                 react: sharedCore.react,
+                'react/jsx-runtime': sharedCore['react/jsx-runtime'],
+                'react/jsx-dev-runtime': sharedCore['react/jsx-dev-runtime'],
                 'react-dom': sharedCore['react-dom'],
+                'react-dom/client': sharedCore['react-dom/client'],
                 'react-router': sharedCore['react-router'],
                 'react-router-dom': sharedCore['react-router-dom'],
                 '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
