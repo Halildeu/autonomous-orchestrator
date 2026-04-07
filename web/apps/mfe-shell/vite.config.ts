@@ -168,7 +168,6 @@ const singleton = (
 const sharedCore = {
   react: singleton('react'),
   'react-dom': singleton('react-dom'),
-  'react-dom/client': singleton('react-dom/client', 'react-dom'),
   'react-router': singleton('react-router'),
   'react-router-dom': singleton('react-router-dom'),
   '@reduxjs/toolkit': singleton('@reduxjs/toolkit'),
@@ -230,7 +229,6 @@ export default defineConfig(({ mode }) => {
             ? {
                 react: sharedCore.react,
                 'react-dom': sharedCore['react-dom'],
-                'react-dom/client': sharedCore['react-dom/client'],
                 'react-router': sharedCore['react-router'],
                 'react-router-dom': sharedCore['react-router-dom'],
                 '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],

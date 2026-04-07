@@ -79,7 +79,6 @@ const hostSingleton = (shareKey: string, versionKey: string = shareKey, fallback
 const sharedCore = {
   react: singleton('react'),
   'react-dom': singleton('react-dom'),
-  'react-dom/client': singleton('react-dom/client', 'react-dom'),
   'react-router': singleton('react-router'),
   'react-router-dom': singleton('react-router-dom'),
   'react-redux': singleton('react-redux'),
@@ -89,7 +88,6 @@ const sharedCore = {
 const sharedSingleDomainCore = {
   react: hostSingleton('react'),
   'react-dom': hostSingleton('react-dom'),
-  'react-dom/client': hostSingleton('react-dom/client', 'react-dom'),
   'react-router': hostSingleton('react-router'),
   'react-router-dom': hostSingleton('react-router-dom'),
   'react-redux': hostSingleton('react-redux'),
@@ -145,7 +143,6 @@ export default defineConfig(({ mode }) => {
             ? {
                 react: sharedSingleDomainCore.react,
                 'react-dom': sharedSingleDomainCore['react-dom'],
-                'react-dom/client': sharedSingleDomainCore['react-dom/client'],
                 'react-router': sharedSingleDomainCore['react-router'],
                 'react-router-dom': sharedSingleDomainCore['react-router-dom'],
                 'react-redux': sharedSingleDomainCore['react-redux'],
