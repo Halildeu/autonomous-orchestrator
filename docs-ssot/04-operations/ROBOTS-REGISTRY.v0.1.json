@@ -1201,6 +1201,12 @@
       "inputs": [],
       "guardrails": [
         "No remote side-effects; local git hook only"
+      ],
+      "outputs": [
+        ".git/hooks/pre-push"
+      ],
+      "notes": [
+        "Lokal pre-push hook kurar. Remote side-effect yok."
       ]
     }
   ]
