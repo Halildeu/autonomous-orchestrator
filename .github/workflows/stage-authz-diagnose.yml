@@ -1,0 +1,236 @@
+name: Stage Authz Diagnose
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_email:
+        description: "Smoke kullanıcı e-postası"
+        required: true
+        default: "user3@example.com"
+        type: string
+      client_id:
+        description: "Password grant için client_id"
+        required: true
+        default: "admin-cli"
+        type: string
+      realm:
+        description: "Keycloak realm"
+        required: true
+        default: "serban"
+        type: string
+      public_origin:
+        description: "Frontend public origin"
+        required: true
+        default: "https://ai.acik.com"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-authz:
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stage-backend
+    environment: stage
+    steps:
+      - name: Diagnose authz runtime
+        shell: bash
+        env:
+          TARGET_EMAIL: ${{ inputs.user_email }}
+          TARGET_CLIENT_ID: ${{ inputs.client_id }}
+          REALM_NAME: ${{ inputs.realm }}
+          PUBLIC_ORIGIN: ${{ inputs.public_origin }}
+          TARGET_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+          KC_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+          KC_SCOPE: ${{ secrets.KEYCLOAK_SCOPE }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          require_cmd() {
+            if ! command -v "$1" >/dev/null 2>&1; then
+              echo "[diag] HATA: '$1' komutu bulunamadı."
+              exit 1
+            fi
+          }
+
+          require_cmd docker
+          require_cmd curl
+          require_cmd python3
+
+          if [[ -z "${TARGET_PASSWORD:-}" ]]; then
+            echo "[diag] HATA: stage secret PW_REAL_USER_PASSWORD zorunlu."
+            exit 1
+          fi
+
+          kc_container="$(docker ps --format '{{.Names}}' | awk '/keycloak/ { print; exit }')"
+          if [[ -z "${kc_container}" ]]; then
+            echo "[diag] HATA: çalışan keycloak container bulunamadı."
+            docker ps --format '{{.Names}}'
+            exit 1
+          fi
+
+          kc_host_port="$(
+            docker inspect -f '{{range $port, $bindings := .NetworkSettings.Ports}}{{if and (eq $port "8080/tcp") $bindings}}{{(index $bindings 0).HostPort}}{{end}}{{end}}' \
+              "${kc_container}" 2>/dev/null || true
+          )"
+          if [[ -z "${kc_host_port}" ]]; then
+            kc_host_port="8080"
+          fi
+          keycloak_base="http://127.0.0.1:${kc_host_port}"
+
+          gateway_container="$(docker ps --format '{{.Names}}' | awk '/api-gateway/ { print; exit }')"
+          gateway_host_port="$(
+            docker inspect -f '{{range $port, $bindings := .NetworkSettings.Ports}}{{if and (eq $port "8080/tcp") $bindings}}{{(index $bindings 0).HostPort}}{{end}}{{end}}' \
+              "${gateway_container:-missing}" 2>/dev/null || true
+          )"
+          if [[ -z "${gateway_host_port}" ]]; then
+            gateway_host_port="8080"
+          fi
+
+          echo "[diag] keycloak_container=${kc_container}"
+          echo "[diag] keycloak_base=${keycloak_base}"
+          echo "[diag] gateway_container=${gateway_container:-missing}"
+          echo "[diag] gateway_host_port=${gateway_host_port}"
+
+          token_cmd=(
+            curl -sS -w '\n%{http_code}'
+            -X POST "${keycloak_base}/realms/${REALM_NAME}/protocol/openid-connect/token"
+            -H "Content-Type: application/x-www-form-urlencoded"
+            -d "grant_type=password"
+            -d "client_id=${TARGET_CLIENT_ID}"
+            -d "username=${TARGET_EMAIL}"
+            -d "password=${TARGET_PASSWORD}"
+            -d "scope=${KC_SCOPE:-openid}"
+          )
+          if [[ -n "${KC_CLIENT_SECRET:-}" && "${TARGET_CLIENT_ID}" != "admin-cli" ]]; then
+            token_cmd+=(-d "client_secret=${KC_CLIENT_SECRET}")
+          fi
+
+          token_response="$("${token_cmd[@]}")"
+          token_status="$(printf '%s' "${token_response}" | tail -n 1)"
+          token_body="$(printf '%s' "${token_response}" | sed '$d')"
+          access_token="$(printf '%s' "${token_body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; print(str(payload.get("access_token","")).strip())')"
+
+          echo "[diag] token_status=${token_status}"
+          if [[ "${token_status}" != "200" || -z "${access_token}" ]]; then
+            printf '%s' "${token_body}" | python3 -c 'import json,sys; raw=sys.stdin.read().strip(); payload=json.loads(raw) if raw else {}; print("[diag] token_error=" + str(payload.get("error","-"))); print("[diag] token_error_description=" + str(payload.get("error_description","-")));'
+            exit 1
+          fi
+
+          python3 - <<'PY' "${access_token}"
+import base64
+import json
+import sys
+
+token = sys.argv[1].strip()
+payload = {}
+parts = token.split(".")
+if len(parts) >= 2:
+    raw = parts[1]
+    raw += "=" * (-len(raw) % 4)
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(raw.encode("ascii")).decode("utf-8"))
+    except Exception:
+        payload = {}
+
+aud = payload.get("aud", [])
+if isinstance(aud, str):
+    aud = [aud]
+elif not isinstance(aud, list):
+    aud = []
+
+print("[diag] token_sub=" + str(payload.get("sub", "-")))
+print("[diag] token_email=" + str(payload.get("email", "-")))
+print("[diag] token_iss=" + str(payload.get("iss", "-")))
+print("[diag] token_azp=" + str(payload.get("azp", "-")))
+print("[diag] token_client_id=" + str(payload.get("client_id", "-")))
+print("[diag] token_aud=" + ",".join(str(item) for item in aud))
+PY
+
+          dump_env() {
+            local label="$1"
+            local container_name="$2"
+            if [[ -z "${container_name}" ]]; then
+              echo "[diag] ${label}_env=container-missing"
+              return 0
+            fi
+            echo "[diag] ${label}_env_begin"
+            docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${container_name}" \
+              | grep -E '^(SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT|SECURITY_JWT_|PERMISSION_AUTHZ_|SPRING_APPLICATION_NAME=)' \
+              | sort || true
+            echo "[diag] ${label}_env_end"
+          }
+
+          probe_authz() {
+            local label="$1"
+            local url="$2"
+            local headers_file body_file authz_status content_type curl_exit
+            headers_file="$(mktemp)"
+            body_file="$(mktemp)"
+
+            set +e
+            authz_status="$(
+              curl -sSk \
+                -o "${body_file}" \
+                -D "${headers_file}" \
+                -w '%{http_code}' \
+                -H "Authorization: Bearer ${access_token}" \
+                -H "Accept: application/json" \
+                "${url}"
+            )"
+            curl_exit=$?
+            set -e
+
+            if [[ "${curl_exit}" -ne 0 ]]; then
+              echo "[diag] target=${label} url=${url} curl_exit=${curl_exit}"
+              rm -f "${headers_file}" "${body_file}"
+              return 0
+            fi
+
+            content_type="$(
+              awk 'BEGIN{IGNORECASE=1} /^content-type:/ {sub(/\r$/,"",$0); sub(/^[^:]+:[[:space:]]*/,"",$0); print; exit}' "${headers_file}"
+            )"
+            echo "[diag] target=${label} url=${url} status=${authz_status} content_type=${content_type:--}"
+
+            if [[ "${content_type}" == application/json* ]]; then
+              python3 -c 'import json,pathlib,sys; payload=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace") or "{}"); print("[diag] json=" + json.dumps(payload, ensure_ascii=True)[:800])' "${body_file}" || true
+            else
+              body_preview="$(tr '\n' ' ' < "${body_file}" | sed 's/[[:space:]]\\+/ /g' | cut -c1-240)"
+              echo "[diag] body_preview=${body_preview:--}"
+            fi
+
+            rm -f "${headers_file}" "${body_file}"
+          }
+
+          dump_logs() {
+            local label="$1"
+            local container_name="$2"
+            if [[ -z "${container_name}" ]]; then
+              echo "[diag] ${label}_logs=container-missing"
+              return 0
+            fi
+            echo "[diag] ${label}_logs_begin"
+            docker logs --tail 200 "${container_name}" 2>&1 \
+              | grep -Ei 'authz|jwt|issuer|exception|error|warn|unauthorized|denied|failed|trace|security' \
+              | tail -n 120 || true
+            echo "[diag] ${label}_logs_end"
+          }
+
+          permission_container="platform-permission-service-1"
+          user_container="platform-user-service-1"
+
+          dump_env "gateway" "${gateway_container:-}"
+          dump_env "permission" "${permission_container}"
+
+          probe_authz "edge" "${PUBLIC_ORIGIN%/}/api/v1/authz/me"
+          probe_authz "gateway" "http://127.0.0.1:${gateway_host_port}/api/v1/authz/me"
+          probe_authz "permission-service" "http://127.0.0.1:8090/api/v1/authz/me"
+          probe_authz "user-service" "http://127.0.0.1:8089/api/v1/authz/me"
+
+          dump_logs "gateway" "${gateway_container:-}"
+          dump_logs "permission" "${permission_container}"
+          dump_logs "user_service" "${user_container}"
