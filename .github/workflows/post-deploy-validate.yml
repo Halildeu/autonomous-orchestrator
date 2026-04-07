@@ -285,6 +285,7 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         env:
           WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+          WEB_TLS_SELF_SIGNED: ${{ vars.WEB_TLS_SELF_SIGNED }}
         shell: bash
         run: |
           set -euo pipefail
@@ -296,7 +297,11 @@ jobs:
           fi
 
           echo "::group::web smoke"
-          curl -fsS "${WEB_SMOKE_URL}" >/dev/null
+          curl_args=(-fsS)
+          if [ "${WEB_TLS_SELF_SIGNED:-false}" = "true" ]; then
+            curl_args=(-k "${curl_args[@]}")
+          fi
+          curl "${curl_args[@]}" "${WEB_SMOKE_URL}" >/dev/null
           echo "::endgroup::"
 
           echo "::notice title=post-deploy-validate::PASS"
@@ -374,6 +379,7 @@ jobs:
         if: ${{ env.DEPLOY_ENABLED == 'true' }}
         env:
           WEB_SMOKE_URL: ${{ secrets.WEB_SMOKE_URL }}
+          WEB_TLS_SELF_SIGNED: ${{ vars.WEB_TLS_SELF_SIGNED }}
         shell: bash
         run: |
           set -euo pipefail
@@ -385,7 +391,11 @@ jobs:
           fi
 
           echo "::group::web smoke"
-          curl -fsS "${WEB_SMOKE_URL}" >/dev/null
+          curl_args=(-fsS)
+          if [ "${WEB_TLS_SELF_SIGNED:-false}" = "true" ]; then
+            curl_args=(-k "${curl_args[@]}")
+          fi
+          curl "${curl_args[@]}" "${WEB_SMOKE_URL}" >/dev/null
           echo "::endgroup::"
 
           echo "::notice title=post-deploy-validate::PASS"
