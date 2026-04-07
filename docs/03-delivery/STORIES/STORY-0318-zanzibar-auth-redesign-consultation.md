@@ -1,6 +1,12 @@
 # STORY-0318: Zanzibar Uyumlu Yetki Sistemi — Final İstişare Dokümanı
 
-## 1. Kararlar
+<!-- ID: STORY-0318 -->
+
+## 1. AMAÇ
+
+Mevcut yetki sistemini Zanzibar (OpenFGA) tabanlı tam yetki yönetimine dönüştürmek: rol paketleri, DENY, çoklu rol, scope UI, izin kataloğu ve explain sistemi.
+
+## 2. Kararlar
 
 | # | Karar | Tercih |
 |---|---|---|
@@ -19,7 +25,7 @@
 
 ---
 
-## 2. İki Yetki Katmanı
+## 3. İki Yetki Katmanı
 
 ### Katman 1: Veri Yetkisi (Data-Level)
 
@@ -58,7 +64,7 @@ Ahmet Serban'da satın alma yapabilir, Acme'de yapamaz:
 
 ---
 
-## 3. OpenFGA Model (Final)
+## 4. OpenFGA Model (Final)
 
 ```fga
 model
@@ -132,7 +138,7 @@ Her type'ta `blocked` ilişkisi var — engelleme her seviyede çalışır.
 
 ---
 
-## 4. Rol Sistemi
+## 5. Rol Sistemi
 
 ### 4.1 Yerleşik Roller (silinemez)
 
@@ -198,7 +204,7 @@ Kural: DENY her zaman ALLOW'u yener (deny-wins). Birden fazla rolde çakışma v
 
 ---
 
-## 5. Atama Akışı
+## 6. Atama Akışı
 
 ### 5.1 Rol Oluşturma (/access/roles)
 
@@ -279,7 +285,7 @@ Yol B: Rolden kullanıcıya
 
 ---
 
-## 6. Hata Tespiti (Kullanıcı Dostu)
+## 7. Hata Tespiti (Kullanıcı Dostu)
 
 ### 6.1 "Neden Erişemiyorum?" Sistemi
 
@@ -367,7 +373,7 @@ if (!allowed) {
 
 ---
 
-## 7. /v1/authz/me Response (Final)
+## 8. /v1/authz/me Response (Final)
 
 ```json
 {
@@ -403,7 +409,7 @@ Frontend bu response'u cache'ler (60s TTL) ve her yetki kontrolü bu objeden yap
 
 ---
 
-## 8. UI Tasarımı (Final)
+## 9. UI Tasarımı (Final)
 
 ### 8.1 mfe-users — Kullanıcı Drawer
 
@@ -475,7 +481,7 @@ Semboller:
 
 ---
 
-## 9. İzin Kataloğu
+## 10. İzin Kataloğu
 
 Tüm izin parçacıkları tek endpoint'ten gelir:
 
@@ -520,7 +526,7 @@ Bu endpoint:
 
 ---
 
-## 10. Yapılacak İşler
+## 11. Yapılacak İşler
 
 ### Faz 1: OpenFGA Model + Backend Altyapı
 - model.fga güncelle (branch, action, report, page, field type'ları + blocked ilişkisi)
@@ -559,7 +565,7 @@ Bu endpoint:
 
 ---
 
-## 11. Doğrulama Kriterleri
+## 12. Doğrulama Kriterleri
 
 - [ ] Şirket atanmadan kullanıcı hiçbir veri görememeli
 - [ ] Rol atanmadan kullanıcı hiçbir modüle erişememeli
