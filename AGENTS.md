@@ -1,5 +1,22 @@
 # AGENTS.md – Proje Genel Agent Talimatları
 
+## 0a. Canonical Git Öncesi Entry Points (MUST FIND FIRST)
+
+- Git öncesi tek canonical local gate adı: `local-gate-chain`
+- Runner:
+  - `scripts/run_local_gate_chain.sh`
+- Guard:
+  - `scripts/require_local_gate.sh`
+- Hook installer:
+  - `scripts/setup_local_git_hooks.sh`
+- Hook enforce:
+  - `.githooks/pre-commit`
+  - `.githooks/pre-push`
+- Canonical PASS artifact:
+  - `.cache/reports/local-gate-chain/status.json`
+- Canonical summary:
+  - `.cache/reports/local-gate-chain/summary.txt`
+
 ## 0. Decision Registry (MUST READ)
 
 **Before modifying any code, check `decisions/registry.v1.json`.**
@@ -41,6 +58,9 @@ Rules:
 
 - Git geçişi öncesi local gate zorunludur: commit, push, PR create akışları
   `scripts/run_local_gate_chain.sh` PASS artifact’i olmadan ilerleyemez.
+- Bu repo’da agent ilk fırsatta canonical installer’ı esas alır:
+  - `scripts/setup_local_git_hooks.sh`
+  - beklenen sonuç: `core.hooksPath=.githooks`
 - Canonical artifact:
   - `.cache/reports/local-gate-chain/status.json`
 - Guard script:
