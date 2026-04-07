@@ -45,6 +45,28 @@ const SKIP_PATTERNS = [/__tests__/, /\.test\./, /\.stories\./, /\.figma\./, /set
 const ACCESS_REQUIRED = ['enterprise', 'components', 'patterns', 'advanced'];
 const DISPLAY_NAME_REQUIRED = ['primitives', 'components', 'patterns'];
 
+/**
+ * Detect if a file is a utility/factory module rather than a React component.
+ * Utility modules export factory functions (create*, build*, with*, find*) that
+ * return render functions or data — they are not standalone user-facing components.
+ * They should not be scored on a11y, accessControl, or storyCompleteness.
+ *
+ * Heuristic: file has NO React component pattern (FC, forwardRef, displayName)
+ * AND exports factory-pattern functions.
+ */
+function isUtilityModule(content) {
+  const hasDisplayName = /\.displayName\s*=/.test(content);
+  const hasForwardRef = /forwardRef|React\.forwardRef/.test(content);
+  const hasFC = /React\.FC|:\s*FC</.test(content);
+  const isReactComponent = hasDisplayName || hasForwardRef || hasFC;
+
+  // Factory exports: createXxx, buildXxx, withXxx, findXxx, formatXxx, computeXxx
+  const factoryExports = (content.match(/export\s+function\s+(?:create|build|with|find|format|compute)\w+/g) || []).length;
+
+  // If it has factory exports but is NOT a React component → utility module
+  return factoryExports >= 1 && !isReactComponent;
+}
+
 // ── Component Discovery ──
 function findComponents(targetDir) {
   const results = [];
@@ -440,13 +462,15 @@ for (const { fullPath, relPath, dir, name } of allComponents) {
   const lineCount = content.split('\n').length;
   if (lineCount < 15) continue; // Skip tiny files
 
+  const isUtility = isUtilityModule(content);
+
   const scores = {
     api: scoreAPI(content, dir, name),
     testDepth: scoreTestDepth(name, dir),
-    a11y: scoreA11y(name, dir),
+    a11y: isUtility ? 100 : scoreA11y(name, dir), // Utilities: a11y N/A → full score
     testCoverage: scoreTestCoverage(name, dir),
-    accessControl: scoreAccessControl(content, dir),
-    storyCompleteness: scoreStory(name, dir),
+    accessControl: isUtility ? 100 : scoreAccessControl(content, dir), // Utilities: access N/A → full score
+    storyCompleteness: isUtility ? 100 : scoreStory(name, dir), // Utilities: stories N/A → full score
     i18n: scoreI18n(content),
     documentation: scoreDocumentation(content, name, dir),
   };
