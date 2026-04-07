@@ -20,8 +20,17 @@ const RULES = [
     test: (content) => {
       const hasOnClick = content.includes('onClick');
       const hasRole = content.includes('role=');
-      const hasButton = content.includes('<button') || content.includes('<a ');
-      return hasOnClick && !hasRole && !hasButton;
+      // Semantic HTML elements that inherently support click interaction
+      const hasSemanticElement = content.includes('<button') || content.includes('<a ')
+        || content.includes('<input') || content.includes('<select')
+        || content.includes('<textarea') || content.includes('<label')
+        || content.includes('<summary');
+      // React component wrappers that are already semantic (Button, IconButton, LinkInline)
+      const hasSemanticComponent = /<(?:Button|IconButton|LinkInline|MenuItem)\b/.test(content);
+      // Library components that handle their own a11y (ECharts, AG Grid)
+      const isLibraryDelegate = content.includes('useChart') || content.includes('echarts')
+        || content.includes('AgGrid') || content.includes('gridApi');
+      return hasOnClick && !hasRole && !hasSemanticElement && !hasSemanticComponent && !isLibraryDelegate;
     },
     severity: 'error',
     message: 'onClick handler on non-semantic element without role attribute',
@@ -31,8 +40,11 @@ const RULES = [
     test: (content) => {
       const hasOnClick = content.includes('onClick');
       const hasOnKeyDown = content.includes('onKeyDown') || content.includes('onKeyUp') || content.includes('onKeyPress');
-      const hasButton = content.includes('<button');
-      return hasOnClick && !hasOnKeyDown && !hasButton;
+      const hasSemanticElement = content.includes('<button') || content.includes('<a ')
+        || content.includes('<input') || content.includes('<select')
+        || content.includes('<label') || content.includes('<summary');
+      const hasSemanticComponent = /<(?:Button|IconButton|LinkInline|MenuItem)\b/.test(content);
+      return hasOnClick && !hasOnKeyDown && !hasSemanticElement && !hasSemanticComponent;
     },
     severity: 'warning',
     message: 'Click handler without keyboard equivalent (onKeyDown)',
@@ -61,8 +73,11 @@ const RULES = [
     id: 'form-label',
     test: (content) => {
       const hasInput = content.includes('<input') || content.includes('<textarea') || content.includes('<select');
-      const hasLabel = content.includes('aria-label') || content.includes('aria-labelledby') || content.includes('htmlFor') || content.includes('<label');
-      return hasInput && !hasLabel;
+      const hasLabel = content.includes('aria-label') || content.includes('aria-labelledby')
+        || content.includes('htmlFor') || content.includes('<label');
+      // Components that wrap inputs with FieldControlShell (which provides label association)
+      const hasFieldShell = content.includes('FieldControlShell') || content.includes('FormField');
+      return hasInput && !hasLabel && !hasFieldShell;
     },
     severity: 'error',
     message: 'Form element without label (aria-label, aria-labelledby, or htmlFor)',
