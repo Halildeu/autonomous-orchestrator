@@ -90,11 +90,29 @@ jobs:
           node-version: 22
       - name: Install pnpm
         run: corepack enable && corepack prepare pnpm@latest --activate
+
+      - name: pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store/v3
+          key: ${{ runner.os }}-pnpm-gate-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-gate-
+
+      - name: Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-playwright-
+
       - name: Run web gate
+        env:
+          TEST_BASE_REF: ${{ github.event.pull_request.base.sha || '' }}
+          LINT_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
         run: |
           python3 scripts/check_version_gates.py --mode ci
-          if command -v pnpm >/dev/null 2>&1; then pnpm -C web install --frozen-lockfile; else corepack pnpm -C web install --frozen-lockfile; fi
-          if command -v pnpm >/dev/null 2>&1; then pnpm -C web exec playwright install --with-deps chromium; else corepack pnpm -C web exec playwright install --with-deps chromium; fi
+          pnpm -C web install --frozen-lockfile
+          pnpm -C web exec playwright install --with-deps chromium
           npm -C web run tokens:build -- --check
           bash scripts/run_lint_web.sh
           bash scripts/run_tests_web.sh

@@ -8,44 +8,55 @@ on:
       - ".github/workflows/web-qa.yml"
   workflow_dispatch: {}
 
-jobs:
-  web-qa:
-    runs-on: ubuntu-latest
+# Shared setup anchor
+x-web-setup: &web-setup
+  - name: Checkout repository
+    uses: actions/checkout@v6
+    with:
+      fetch-depth: 0
+  - name: Set up Node
+    uses: actions/setup-node@v6
+    with:
+      node-version: 22
+  - name: Install pnpm
+    run: corepack enable && corepack prepare pnpm@latest --activate
+  - name: pnpm store cache
+    uses: actions/cache@v4
+    with:
+      path: ~/.local/share/pnpm/store/v3
+      key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
+      restore-keys: ${{ runner.os }}-pnpm-
+  - name: Install web dependencies
+    run: pnpm install --frozen-lockfile
+    working-directory: web
 
+jobs:
+  # ── Lint + audit (parallel) ──────────────────────────────
+  web-lint:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-
-      - name: Install pnpm
-        run: corepack enable && corepack prepare pnpm@latest --activate
-
-      - name: pnpm store cache
-        uses: actions/cache@v4
+      - run: corepack enable && corepack prepare pnpm@latest --activate
+      - uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store/v3
           key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
-
-      - name: Version gates (toolchain/lockfile/ag-grid)
-        run: python3 scripts/check_version_gates.py --mode ci
-
-      - name: Install web dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
         working-directory: web
 
-      - name: Theme guardrails (contract + no-fallback)
+      - name: Version gates
+        run: python3 scripts/check_version_gates.py --mode ci
+
+      - name: Theme guardrails
         run: |
           pnpm -C web run tokens:build -- --check
           python3 scripts/check_theme_contract_consistency.py
@@ -54,29 +65,67 @@ jobs:
           python3 scripts/check_no_hardcoded_theme_styles.py
 
       - name: Dependency audit
-        run: pnpm audit --audit-level=high || true
+        run: pnpm audit --audit-level=high
         working-directory: web
 
-      - name: ESLint cache restore
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: web/.eslintcache
           key: ${{ runner.os }}-eslint-${{ hashFiles('web/eslint.config.mjs') }}-${{ github.sha }}
           restore-keys: ${{ runner.os }}-eslint-${{ hashFiles('web/eslint.config.mjs') }}-
 
       - name: Web lint
+        env:
+          LINT_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
         run: bash scripts/run_lint_web.sh
 
-      - name: Web unit tests (changed only)
+  # ── Unit tests (parallel) ────────────────────────────────
+  web-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: corepack enable && corepack prepare pnpm@latest --activate
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store/v3
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+
+      - name: Unit tests (changed only + coverage)
         run: |
           cd web
           BASE_SHA="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
-          npx vitest run --changed "$BASE_SHA" --passWithNoTests --environment jsdom
+          npx vitest run --changed "$BASE_SHA" --passWithNoTests --environment jsdom --coverage
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
 
+  # ── Bundle size (parallel) ───────────────────────────────
+  web-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: corepack enable && corepack prepare pnpm@latest --activate
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store/v3
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+
       - name: Bundle size check
-        continue-on-error: true
         run: |
           pnpm --filter design-system --filter x-data-grid --filter x-charts --filter x-editor --filter x-kanban --filter x-scheduler --filter x-form-builder --filter blocks run build
           npx size-limit

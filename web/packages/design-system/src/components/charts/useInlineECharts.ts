@@ -41,7 +41,7 @@ export function useInlineECharts(options: InlineEChartsOptions) {
   const sanitizeTapHighlightColor = useCallback((root: HTMLDivElement) => {
     const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
     for (const node of nodes) {
-      node.style.webkitTapHighlightColor = 'transparent';
+      (node.style as Record<string, unknown>)['webkitTapHighlightColor'] = 'transparent';
     }
   }, []);
 
