@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ToastProvider } from "@mfe/design-system";
 import { PermissionProvider } from "@mfe/auth";
+import type { AuthzMeResponse } from "@mfe/auth";
 import { store } from "../store/store";
 import { ThemeProvider } from "../theme/theme-context.provider";
 import { I18nProvider, i18n } from "../i18n";
@@ -20,7 +21,7 @@ import "../config/shell-services-wiring";
 import "../config/i18n-config";
 
 const PermissionProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token, initialized } = useAppSelector((state) => state.auth);
+  const { token, initialized, authzSnapshot } = useAppSelector((state) => state.auth);
   const permitAllMode = isPermitAllMode();
   const permissionFetchEnabled = permitAllMode || (initialized && Boolean(token));
 
@@ -29,6 +30,7 @@ const PermissionProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ ch
       httpGet={api.get}
       permitAll={permitAllMode}
       enabled={permissionFetchEnabled}
+      initialData={authzSnapshot as AuthzMeResponse | null}
     >
       {children}
     </PermissionProvider>

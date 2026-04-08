@@ -19,20 +19,36 @@ import { registerGridVariantsTokenResolver } from "@mfe/design-system";
 /*  Fetch real application permissions from permission-service          */
 /* ------------------------------------------------------------------ */
 
-async function fetchAppPermissions(token: string): Promise<string[]> {
+interface AuthzMeResult {
+  permissions: string[];
+  superAdmin: boolean;
+  /** Full /v1/authz/me response for PermissionProvider (avoids double fetch). */
+  rawResponse: Record<string, unknown> | null;
+}
+
+async function fetchAppPermissions(token: string): Promise<AuthzMeResult> {
   try {
     const res = await api.get("/v1/authz/me", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const data = res.data as { permissions?: string[]; allowedModules?: string[] };
+    const data = res.data as Record<string, unknown> & {
+      permissions?: string[];
+      allowedModules?: string[];
+      superAdmin?: boolean;
+    };
+    const superAdmin = data?.superAdmin === true;
     // Prefer allowedModules (OpenFGA) over legacy permissions
     if (Array.isArray(data?.allowedModules) && data.allowedModules.length > 0) {
-      return data.allowedModules;
+      return { permissions: data.allowedModules, superAdmin, rawResponse: data };
     }
-    return Array.isArray(data?.permissions) ? data.permissions : [];
+    return {
+      permissions: Array.isArray(data?.permissions) ? data.permissions : [],
+      superAdmin,
+      rawResponse: data,
+    };
   } catch (err: unknown) {
     console.warn("AuthBootstrapper: /v1/authz/me failed, falling back to JWT roles", err);
-    return [];
+    return { permissions: [], superAdmin: false, rawResponse: null };
   }
 }
 
@@ -163,16 +179,18 @@ export const AuthBootstrapper: React.FC<{ children: React.ReactNode }> = ({
           void setTokenCookie(kcToken);
           const profile = mapKeycloakProfile(kcToken);
           // Fetch real application permissions from authorization proxy
-          const appPermissions = await fetchAppPermissions(kcToken);
+          const authzResult = await fetchAppPermissions(kcToken);
           const mergedProfile = profile
             ? {
                 ...profile,
-                permissions: appPermissions.length > 0
-                  ? appPermissions
+                permissions: authzResult.permissions.length > 0
+                  ? authzResult.permissions
                   : profile.permissions,
-                role: appPermissions.length > 0
-                  ? (appPermissions.find((p) => p === "ADMIN") ?? appPermissions[0] ?? profile.role)
-                  : profile.role,
+                role: authzResult.superAdmin
+                  ? "ADMIN"
+                  : authzResult.permissions.length > 0
+                    ? (authzResult.permissions.find((p) => p === "ADMIN") ?? profile.role)
+                    : profile.role,
               }
             : undefined;
           dispatch(
@@ -182,6 +200,7 @@ export const AuthBootstrapper: React.FC<{ children: React.ReactNode }> = ({
               expiresAt: keycloak.tokenParsed?.exp
                 ? keycloak.tokenParsed.exp * 1000
                 : null,
+              authzSnapshot: authzResult.rawResponse,
             }),
           );
         } else {
@@ -209,16 +228,18 @@ export const AuthBootstrapper: React.FC<{ children: React.ReactNode }> = ({
         if (refreshed && keycloak.token) {
           void setTokenCookie(keycloak.token);
           const profile = mapKeycloakProfile(keycloak.token);
-          const appPermissions = await fetchAppPermissions(keycloak.token);
+          const authzResult = await fetchAppPermissions(keycloak.token);
           const mergedProfile = profile
             ? {
                 ...profile,
-                permissions: appPermissions.length > 0
-                  ? appPermissions
+                permissions: authzResult.permissions.length > 0
+                  ? authzResult.permissions
                   : profile.permissions,
-                role: appPermissions.length > 0
-                  ? (appPermissions.find((p) => p === "ADMIN") ?? appPermissions[0] ?? profile.role)
-                  : profile.role,
+                role: authzResult.superAdmin
+                  ? "ADMIN"
+                  : authzResult.permissions.length > 0
+                    ? (authzResult.permissions.find((p) => p === "ADMIN") ?? profile.role)
+                    : profile.role,
               }
             : undefined;
           dispatch(
@@ -228,6 +249,7 @@ export const AuthBootstrapper: React.FC<{ children: React.ReactNode }> = ({
               expiresAt: keycloak.tokenParsed?.exp
                 ? keycloak.tokenParsed.exp * 1000
                 : null,
+              authzSnapshot: authzResult.rawResponse,
             }),
           );
         }

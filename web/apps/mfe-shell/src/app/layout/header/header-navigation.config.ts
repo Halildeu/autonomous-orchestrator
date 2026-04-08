@@ -14,7 +14,7 @@ import {
   Lightbulb,
   Scale,
 } from 'lucide-react';
-import { PERMISSIONS } from '../../../features/auth/lib/permissions.constants';
+import { PERMISSIONS, MODULE_KEYS } from '../../../features/auth/lib/permissions.constants';
 
 /* ------------------------------------------------------------------ */
 /*  Navigation types                                                   */
@@ -26,7 +26,10 @@ export interface NavGroupItem {
   descriptionKey?: string;
   path: string;
   icon: LucideIcon;
+  /** @deprecated Use module instead. Legacy permission string for backward compat. */
   permission?: string;
+  /** OpenFGA module key — preferred over permission. */
+  module?: string;
   /** If true, item is only shown when the corresponding remote is enabled. */
   remoteFlag?: 'suggestions' | 'ethic';
 }
@@ -35,8 +38,10 @@ export interface NavGroup {
   key: string;
   labelKey: string;
   icon: LucideIcon;
-  /** Permission required for the group itself. 'any-child' shows group if any child is visible. */
+  /** @deprecated Use module instead. Legacy permission for the group itself. */
   permission?: string | 'any-child';
+  /** OpenFGA module key — preferred over permission. */
+  module?: string;
   /** Items inside a mega menu dropdown. Mutually exclusive with directPath. */
   items?: NavGroupItem[];
   /** Direct navigation path (no dropdown). Mutually exclusive with items. */
@@ -84,6 +89,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.hr.compensation.desc',
         path: '/admin/reports',
         icon: BarChart3,
+        module: MODULE_KEYS.REPORT,
         permission: PERMISSIONS.REPORTING_MODULE,
       },
       {
@@ -92,6 +98,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.hr.demographic.desc',
         path: '/admin/reports',
         icon: PieChart,
+        module: MODULE_KEYS.REPORT,
         permission: PERMISSIONS.REPORTING_MODULE,
       },
     ],
@@ -108,6 +115,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.admin.users.desc',
         path: '/admin/users',
         icon: Users,
+        module: MODULE_KEYS.USER_MANAGEMENT,
         permission: PERMISSIONS.USER_MANAGEMENT_MODULE,
       },
       {
@@ -116,6 +124,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.admin.access.desc',
         path: '/access/roles',
         icon: Shield,
+        module: MODULE_KEYS.ACCESS,
         permission: PERMISSIONS.ACCESS_MODULE,
       },
       {
@@ -124,6 +133,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.admin.audit.desc',
         path: '/audit/events',
         icon: FileSearch,
+        module: MODULE_KEYS.AUDIT,
         permission: PERMISSIONS.AUDIT_MODULE,
       },
       {
@@ -132,6 +142,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.admin.services.desc',
         path: '/admin/services',
         icon: Server,
+        module: MODULE_KEYS.THEME,
         permission: PERMISSIONS.THEME_ADMIN,
       },
     ],
@@ -141,6 +152,7 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: 'shell.mega.reports',
     icon: BarChart3,
     directPath: '/admin/reports',
+    module: MODULE_KEYS.REPORT,
     permission: PERMISSIONS.REPORTING_MODULE,
   },
   {
@@ -155,6 +167,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.tools.schema.desc',
         path: '/admin/schema-explorer',
         icon: Database,
+        module: MODULE_KEYS.THEME,
       },
       {
         key: 'designlab',
@@ -162,6 +175,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.tools.designlab.desc',
         path: '/admin/design-lab',
         icon: Palette,
+        module: MODULE_KEYS.THEME,
         permission: PERMISSIONS.THEME_ADMIN,
       },
       {
@@ -170,6 +184,7 @@ export const NAV_GROUPS: NavGroup[] = [
         descriptionKey: 'shell.mega.tools.themes.desc',
         path: '/admin/themes',
         icon: Paintbrush,
+        module: MODULE_KEYS.THEME,
         permission: PERMISSIONS.THEME_ADMIN,
       },
     ],

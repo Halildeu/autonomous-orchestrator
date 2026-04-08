@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserDetail } from '@mfe/shared-types';
 import { useUserMutations } from '../../../features/user-management/model/use-users-query.model';
 import { PERMISSIONS } from '../../../features/user-management/lib/permissions.constants';
+import { usePermissions } from '@mfe/auth';
 import { useAuthorization } from '../../../features/user-management/model/use-authorization.model';
 import { DetailDrawer, Tabs, Checkbox, Button, Badge } from '@mfe/design-system';
 import { useUsersI18n } from '../../../i18n/useUsersI18n';
@@ -117,12 +118,17 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
     }
     setSessionTimeoutMinutes(user?.sessionTimeoutMinutes ?? 15);
     setDirty(false);
-    // Scope initial values would come from user data or assignments
-    setSelectedCompanyIds([]);
-    setSelectedProjectIds([]);
-    setSelectedWarehouseIds([]);
-    setSelectedBranchIds([]);
   }, [user?.id, userRolesQuery.data]);
+
+  // Initialize scope selections from user's current assignments
+  useEffect(() => {
+    if (userScopesQuery.data) {
+      setSelectedCompanyIds(userScopesQuery.data.companyIds);
+      setSelectedProjectIds(userScopesQuery.data.projectIds);
+      setSelectedWarehouseIds(userScopesQuery.data.warehouseIds);
+      setSelectedBranchIds(userScopesQuery.data.branchIds);
+    }
+  }, [userScopesQuery.data]);
 
   // --- Mutations ---
   const assignMutation = useMutation({
@@ -195,24 +201,84 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
 
   const roles = rolesQuery.data ?? [];
 
-  // Placeholder scope data — in production these come from core-data-service
-  const companies: ScopeEntity[] = [
-    { id: 1, name: 'Serban Holding' },
-    { id: 2, name: 'Acme Corp' },
-    { id: 3, name: 'Beta Ltd' },
-  ];
-  const projects: ScopeEntity[] = [
-    { id: 1, name: 'Proje Alpha' },
-    { id: 2, name: 'Proje Beta' },
-  ];
-  const warehouses: ScopeEntity[] = [
-    { id: 1, name: 'İstanbul Depo' },
-    { id: 2, name: 'Ankara Depo' },
-  ];
-  const branches: ScopeEntity[] = [
-    { id: 1, name: 'İstanbul Şube' },
-    { id: 2, name: 'Ankara Şube' },
-  ];
+  // Scope data from core-data-service (fallback to empty arrays)
+  const companiesQuery = useQuery({
+    queryKey: ['scope-companies'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/companies');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((c: any) => ({ id: c.id, name: c.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const projectsQuery = useQuery({
+    queryKey: ['scope-projects'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/projects');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((p: any) => ({ id: p.id, name: p.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const warehousesQuery = useQuery({
+    queryKey: ['scope-warehouses'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/warehouses');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((w: any) => ({ id: w.id, name: w.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const branchesQuery = useQuery({
+    queryKey: ['scope-branches'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/branches');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((b: any) => ({ id: b.id, name: b.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+
+  // User's current scope assignments
+  const userScopesQuery = useQuery({
+    queryKey: ['user-scopes', user?.id],
+    queryFn: async () => {
+      try {
+        const res = await api.get(`/api/v1/roles/users/${user!.id}/scopes`);
+        const data = res.data as any;
+        return {
+          companyIds: (data?.companyIds ?? []) as number[],
+          projectIds: (data?.projectIds ?? []) as number[],
+          warehouseIds: (data?.warehouseIds ?? []) as number[],
+          branchIds: (data?.branchIds ?? []) as number[],
+        };
+      } catch {
+        return { companyIds: [], projectIds: [], warehouseIds: [], branchIds: [] };
+      }
+    },
+    enabled: open && !!user,
+  });
+
+  const companies = companiesQuery.data ?? [];
+  const projects = projectsQuery.data ?? [];
+  const warehouses = warehousesQuery.data ?? [];
+  const branches = branchesQuery.data ?? [];
 
   const scopeCheckboxList = (items: ScopeEntity[], selected: number[], setter: React.Dispatch<React.SetStateAction<number[]>>) => (
     <div className="flex flex-col gap-2 mt-2">

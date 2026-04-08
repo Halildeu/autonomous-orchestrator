@@ -42,6 +42,13 @@ vi.mock('../auth/auth-config', () => ({
   isPermitAllMode: () => authModeMock.permitAll,
 }));
 
+vi.mock('@mfe/auth', () => ({
+  usePermissions: () => ({
+    hasModule: () => true,
+    isSuperAdmin: () => false,
+  }),
+}));
+
 const LocationViewer = ({ label }: { label: string }) => {
   const location = useLocation();
   return (

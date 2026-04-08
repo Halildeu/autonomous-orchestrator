@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuthorization } from '../../../features/auth/model/use-authorization.model';
+import { usePermissions } from '@mfe/auth';
 import { useAppSelector } from '../../store/store.hooks';
 import {
   isSuggestionsRemoteEnabled,
@@ -42,20 +42,28 @@ export interface HeaderNavigationState {
 
 export function useHeaderNavigation(): HeaderNavigationState {
   const { pathname } = useLocation();
-  const { hasPermission } = useAuthorization();
+  const { hasModule, isSuperAdmin } = usePermissions();
   const { initialized } = useAppSelector((s) => s.auth);
   const { t } = useShellCommonI18n();
 
   const suggestionsEnabled = isSuggestionsRemoteEnabled();
   const ethicEnabled = isEthicRemoteEnabled();
 
+  /** Check if a nav config item is accessible. Prefers module key over legacy permission. */
+  const canAccess = (item: { module?: string; permission?: string }) => {
+    if (isSuperAdmin()) return true;
+    if (item.module) return hasModule(item.module);
+    // No module key — always visible (e.g. schema-explorer has no permission gate)
+    return true;
+  };
+
   const groups = useMemo<ResolvedNavGroup[]>(() => {
     if (!initialized) return [];
 
     return NAV_GROUPS.reduce<ResolvedNavGroup[]>((acc, group) => {
-      // Direct path group — check single permission
+      // Direct path group — check module/permission
       if (group.directPath) {
-        if (group.permission && group.permission !== 'any-child' && !hasPermission(group.permission)) {
+        if (group.module && !canAccess(group)) {
           return acc;
         }
         acc.push({
@@ -67,11 +75,11 @@ export function useHeaderNavigation(): HeaderNavigationState {
         return acc;
       }
 
-      // Group with items — filter items by permission + remote flags
+      // Group with items — filter items by module + remote flags
       const filteredItems = (group.items ?? []).reduce<ResolvedNavItem[]>((items, item) => {
         if (item.remoteFlag === 'suggestions' && !suggestionsEnabled) return items;
         if (item.remoteFlag === 'ethic' && !ethicEnabled) return items;
-        if (item.permission && !hasPermission(item.permission)) return items;
+        if (item.module && !canAccess(item)) return items;
         items.push({
           key: item.key,
           label: t(item.labelKey),
@@ -93,7 +101,7 @@ export function useHeaderNavigation(): HeaderNavigationState {
       });
       return acc;
     }, []);
-  }, [initialized, hasPermission, suggestionsEnabled, ethicEnabled, t]);
+  }, [initialized, hasModule, isSuperAdmin, suggestionsEnabled, ethicEnabled, t]);
 
   // Resolve active group and item from current path (longest prefix match)
   const { activeGroupKey, activeItemKey } = useMemo(() => {

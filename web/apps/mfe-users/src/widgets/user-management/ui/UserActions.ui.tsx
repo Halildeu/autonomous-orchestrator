@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { UserSummary } from '@mfe/shared-types';
 import { useUserMutations } from '../../../features/user-management/model/use-users-query.model';
+import { usePermissions } from '@mfe/auth';
 import { useAuthorization } from '../../../features/user-management/model/use-authorization.model';
 import { PERMISSIONS } from '../../../features/user-management/lib/permissions.constants';
 import { useUsersI18n } from '../../../i18n/useUsersI18n';

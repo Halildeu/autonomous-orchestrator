@@ -29,9 +29,10 @@ vi.mock('../store/store.hooks', () => ({
     }),
 }));
 
-vi.mock('../../features/auth/model/use-authorization.model', () => ({
-  useAuthorization: () => ({
-    hasPermission: () => true,
+vi.mock('@mfe/auth', () => ({
+  usePermissions: () => ({
+    hasModule: () => true,
+    isSuperAdmin: () => false,
   }),
 }));
 

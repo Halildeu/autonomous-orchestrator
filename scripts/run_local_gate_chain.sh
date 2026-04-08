@@ -23,6 +23,19 @@ if [[ -f "${SCRIPT_DIR}/ops/load_local_env.sh" ]]; then
   source "${SCRIPT_DIR}/ops/load_local_env.sh"
 fi
 
+# NVM support: add Node 22 to PATH if managed via NVM (git hooks don't inherit login shell)
+if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" != "22" ]]; then
+  _nvm_dir="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "${_nvm_dir}/nvm.sh" ]]; then
+    _nvm_node22="$(NVM_DIR="${_nvm_dir}" bash -c 'source "$NVM_DIR/nvm.sh" --no-use 2>/dev/null; nvm which 22 2>/dev/null' || true)"
+    if [[ -x "${_nvm_node22}" ]]; then
+      export PATH="$(dirname "${_nvm_node22}"):${PATH}"
+    fi
+    unset _nvm_node22
+  fi
+  unset _nvm_dir
+fi
+
 info() {
   printf '[local-gate] %s\n' "$*"
 }
@@ -92,7 +105,7 @@ run_shell_step() {
 NODE22_CMD="$(node22_prefix || true)"
 if [[ -z "${NODE22_CMD}" ]]; then
   if command -v node >/dev/null 2>&1; then
-    current_node_major="$(node -p 'process.versions.node.split(\".\")[0]' 2>/dev/null || true)"
+    current_node_major="$(node -e 'process.stdout.write(process.versions.node.split(".")[0])' 2>/dev/null || true)"
   else
     current_node_major=""
   fi

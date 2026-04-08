@@ -15,9 +15,8 @@ import { ShellSidebar } from '@mfe/design-system';
 import type { ShellSidebarNavItem, ShellSidebarFooterActionItem } from '@mfe/design-system';
 import { useAppDispatch } from '../store/store.hooks';
 import { pushNotification, toggleOpen } from '../../features/notifications/model/notifications.slice';
-import { useAuthorization } from '../../features/auth/model/use-authorization.model';
-import { PERMISSIONS } from '../../features/auth/lib/permissions.constants';
-import { resolveDefaultShellPath } from '../shell-navigation';
+import { usePermissions } from '@mfe/auth';
+import { MODULE_KEYS } from '../../features/auth/lib/permissions.constants';
 
 const STORAGE_KEY = 'shell.sidebar.mode';
 const defaultReportingRoute = getSharedReport('users-overview').webRoute;
@@ -26,7 +25,8 @@ export const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasPermission } = useAuthorization();
+  const { hasModule, isSuperAdmin } = usePermissions();
+  const sa = isSuperAdmin();
 
   /* ---- Online status ---- */
   const [isOnline, setIsOnline] = useState<boolean>(() =>
@@ -46,17 +46,11 @@ export const Sidebar: React.FC = () => {
 
   /* ---- Navigation items ---- */
   const navItems: ShellSidebarNavItem[] = useMemo(() => {
-    const canAccess = hasPermission(PERMISSIONS.ACCESS_MODULE);
-    const canAudit = hasPermission(PERMISSIONS.AUDIT_MODULE);
-    const canReport = hasPermission(PERMISSIONS.REPORTING_MODULE);
-    const canThemeAdmin = hasPermission(PERMISSIONS.THEME_ADMIN);
-    const permissions = [
-      canAccess ? PERMISSIONS.ACCESS_MODULE : null,
-      canAudit ? PERMISSIONS.AUDIT_MODULE : null,
-      canReport ? PERMISSIONS.REPORTING_MODULE : null,
-      canThemeAdmin ? PERMISSIONS.THEME_ADMIN : null,
-    ].filter((p): p is NonNullable<typeof p> => p != null);
-    const homePath = resolveDefaultShellPath({ permissions });
+    const canAccess = sa || hasModule(MODULE_KEYS.ACCESS);
+    const canAudit = sa || hasModule(MODULE_KEYS.AUDIT);
+    const canReport = sa || hasModule(MODULE_KEYS.REPORT);
+    const canThemeAdmin = sa || hasModule(MODULE_KEYS.THEME);
+    const homePath = '/home';
 
     return [
       { key: 'home', label: 'Home', href: homePath, icon: <Home aria-hidden />, dataTestId: 'nav-home' },
@@ -66,7 +60,7 @@ export const Sidebar: React.FC = () => {
       { key: 'services', label: 'Services', href: canThemeAdmin ? '/admin/services' : undefined, icon: <Server aria-hidden />, dataTestId: 'nav-services', disabled: !canThemeAdmin },
       { key: 'schema-explorer', label: 'Schema Explorer', href: '/admin/schema-explorer', icon: <Database aria-hidden />, dataTestId: 'nav-schema-explorer' },
     ];
-  }, [hasPermission]);
+  }, [hasModule, sa]);
 
   /* ---- Active key resolution ---- */
   const homePath = navItems.find((item) => item.key === 'home')?.href;
@@ -89,8 +83,8 @@ export const Sidebar: React.FC = () => {
         key: 'settings',
         label: 'Settings',
         icon: <Settings aria-hidden />,
-        href: hasPermission(PERMISSIONS.THEME_ADMIN) ? '/admin/themes' : undefined,
-        disabled: !hasPermission(PERMISSIONS.THEME_ADMIN),
+        href: (sa || hasModule(MODULE_KEYS.THEME)) ? '/admin/themes' : undefined,
+        disabled: !(sa || hasModule(MODULE_KEYS.THEME)),
         dataTestId: 'nav-settings',
       },
       {

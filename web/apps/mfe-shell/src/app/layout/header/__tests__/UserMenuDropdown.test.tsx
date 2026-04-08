@@ -23,14 +23,15 @@ vi.mock('../../../store/store.hooks', () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
-vi.mock('../../../../features/auth/model/use-authorization.model', () => ({
-  useAuthorization: () => ({
-    hasPermission: () => true,
+vi.mock('@mfe/auth', () => ({
+  usePermissions: () => ({
+    hasModule: () => true,
+    isSuperAdmin: () => false,
   }),
 }));
 
 vi.mock('../../../../features/auth/lib/permissions.constants', () => ({
-  PERMISSIONS: { AUDIT_MODULE: 'audit', THEME_ADMIN: 'theme-admin' },
+  MODULE_KEYS: { AUDIT: 'AUDIT', THEME: 'THEME' },
 }));
 
 vi.mock('../../../../features/auth/model/auth.slice', () => ({

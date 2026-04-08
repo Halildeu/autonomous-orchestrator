@@ -63,12 +63,16 @@ interface AuthState {
   lastRegisteredEmail: string | null;
   expiresAt: number | null;
   initialized: boolean;
+  /** Cached /v1/authz/me response — shared with PermissionProvider to avoid double fetch. */
+  authzSnapshot: Record<string, unknown> | null;
 }
 
 type KeycloakSessionPayload = {
   token: string | null;
   profile?: Partial<UserProfile>;
   expiresAt?: number | null;
+  /** Full /v1/authz/me response to share with PermissionProvider. */
+  authzSnapshot?: Record<string, unknown> | null;
 };
 
 type LoginResponseV1 = {
@@ -115,6 +119,7 @@ const initialState: AuthState = {
   lastRegisteredEmail: null,
   expiresAt: initialPersisted.expiresAt,
   initialized: false,
+  authzSnapshot: null,
 };
 
 // Login olmak için asenkron thunk
@@ -203,6 +208,7 @@ const authSlice = createSlice({
       state.error = null;
       state.lastRegisteredEmail = null;
       state.expiresAt = null;
+      state.authzSnapshot = null;
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.removeItem('token');
@@ -221,7 +227,10 @@ const authSlice = createSlice({
     },
     setKeycloakSession: (state, action: PayloadAction<KeycloakSessionPayload>) => {
       const incomingToken = normalizeAuthToken(action.payload.token);
-      const { profile, expiresAt } = action.payload;
+      const { profile, expiresAt, authzSnapshot } = action.payload;
+      if (authzSnapshot !== undefined) {
+        state.authzSnapshot = authzSnapshot;
+      }
       state.token = incomingToken;
       state.expiresAt = expiresAt ?? null;
       if (incomingToken) {

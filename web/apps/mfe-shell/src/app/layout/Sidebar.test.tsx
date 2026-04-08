@@ -10,8 +10,20 @@ const dispatchMock = vi.fn();
 const pushNotificationMock = vi.fn((payload: Record<string, unknown>) => ({ type: 'notifications/push', payload }));
 const toggleOpenMock = vi.fn((payload: boolean) => ({ type: 'notifications/toggle', payload }));
 
-const authorizationMock = {
-  hasPermission: vi.fn((permission: string) => permission !== 'DENY'),
+const permissionsMock = {
+  hasModule: vi.fn(() => true),
+  isSuperAdmin: vi.fn(() => false),
+  getModuleLevel: vi.fn(() => 'MANAGE'),
+  isActionAllowed: vi.fn(() => true),
+  isActionDenied: vi.fn(() => false),
+  canViewReport: vi.fn(() => true),
+  canAccessPage: vi.fn(() => true),
+  getUserRoles: vi.fn(() => []),
+  canAccessCompany: vi.fn(() => true),
+  authz: null,
+  initialized: true,
+  loading: false,
+  refresh: vi.fn(),
 };
 
 const routerFuture = {
@@ -23,8 +35,8 @@ vi.mock('../store/store.hooks', () => ({
   useAppDispatch: () => dispatchMock,
 }));
 
-vi.mock('../../features/auth/model/use-authorization.model', () => ({
-  useAuthorization: () => authorizationMock,
+vi.mock('@mfe/auth', () => ({
+  usePermissions: () => permissionsMock,
 }));
 
 vi.mock('../../features/notifications/model/notifications.slice', () => ({
@@ -37,7 +49,8 @@ vi.mock('../auth/auth-config', () => ({
 }));
 
 vi.mock('../shell-navigation', () => ({
-  resolveDefaultShellPath: () => '/suggestions',
+  isSuggestionsRemoteEnabled: () => true,
+  isEthicRemoteEnabled: () => true,
 }));
 
 const LocationViewer = () => {
@@ -67,7 +80,8 @@ describe('Sidebar', () => {
     dispatchMock.mockReset();
     pushNotificationMock.mockClear();
     toggleOpenMock.mockClear();
-    authorizationMock.hasPermission.mockImplementation((permission: string) => permission !== 'DENY');
+    permissionsMock.hasModule.mockImplementation(() => true);
+    permissionsMock.isSuperAdmin.mockImplementation(() => false);
     window.localStorage.clear();
   });
 

@@ -7,8 +7,8 @@ import { useAppDispatch, useAppSelector } from "../store/store.hooks";
 import { buildAppRedirectUri, isPermitAllMode } from "../auth/auth-config";
 import keycloak from "../auth/keycloakClient";
 import { logout } from "../../features/auth/model/auth.slice";
-import { useAuthorization } from "../../features/auth/model/use-authorization.model";
-import { PERMISSIONS } from "../../features/auth/lib/permissions.constants";
+import { usePermissions } from "@mfe/auth";
+import { MODULE_KEYS } from "../../features/auth/lib/permissions.constants";
 import {
   isSuggestionsRemoteEnabled,
   isEthicRemoteEnabled,
@@ -34,18 +34,19 @@ export const ShellHeader: React.FC = () => {
   const [loginOpen, setLoginOpen] = useState(false);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { hasPermission } = useAuthorization();
+  const { hasModule, isSuperAdmin } = usePermissions();
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const { t, manager: i18nManager, locale } = useShellCommonI18n();
   const permitAllMode = isPermitAllMode();
 
   const suggestionsEnabled = isSuggestionsRemoteEnabled();
   const ethicEnabled = isEthicRemoteEnabled();
-  const canAccess = initialized && hasPermission(PERMISSIONS.ACCESS_MODULE);
-  const canAudit = initialized && hasPermission(PERMISSIONS.AUDIT_MODULE);
-  const canReport = initialized && hasPermission(PERMISSIONS.REPORTING_MODULE);
-  const canManageUsers = initialized && hasPermission(PERMISSIONS.USER_MANAGEMENT_MODULE);
-  const canThemeAdmin = initialized && hasPermission(PERMISSIONS.THEME_ADMIN);
+  const sa = isSuperAdmin();
+  const canAccess = initialized && (sa || hasModule(MODULE_KEYS.ACCESS));
+  const canAudit = initialized && (sa || hasModule(MODULE_KEYS.AUDIT));
+  const canReport = initialized && (sa || hasModule(MODULE_KEYS.REPORT));
+  const canManageUsers = initialized && (sa || hasModule(MODULE_KEYS.USER_MANAGEMENT));
+  const canThemeAdmin = initialized && (sa || hasModule(MODULE_KEYS.THEME));
 
   useEffect(() => {
     setLoginOpen(false);

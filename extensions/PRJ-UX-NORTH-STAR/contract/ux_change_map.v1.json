@@ -259,6 +259,26 @@
       "ux_subtheme_id": "least_privilege_interaction_design"
     },
     {
+      "path": "web/apps/mfe-shell/src/features/auth/model/auth.slice.ts",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "least_privilege_interaction_design"
+    },
+    {
+      "path": "web/apps/mfe-shell/src/features/auth/lib/permissions.constants.ts",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "least_privilege_interaction_design"
+    },
+    {
+      "path": "web/apps/mfe-shell/src/app/guards/ProtectedRoute.tsx",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "least_privilege_interaction_design"
+    },
+    {
+      "path": "web/apps/mfe-shell/src/app/shell-navigation.ts",
+      "ux_theme_id": "navigation_information_scent",
+      "ux_subtheme_id": "orientation_and_wayfinding"
+    },
+    {
       "path": "web/apps/mfe-shell/src/app/auth/keycloakClient.ts",
       "ux_theme_id": "trust_privacy_security_ux",
       "ux_subtheme_id": "secure_session_step_up_authentication"

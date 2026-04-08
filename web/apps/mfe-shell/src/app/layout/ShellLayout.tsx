@@ -1,13 +1,8 @@
-import React, { useEffect, _useMemo, useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
 import { BrowserRouter, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/store.hooks";
 import { useThemeContext } from "../theme/theme-context.provider";
 import { useToast, useBreakpoint } from "@mfe/design-system";
-import {
-  _isSuggestionsRemoteEnabled,
-  _isEthicRemoteEnabled,
-  _resolveDefaultShellPath,
-} from "../shell-navigation";
 import { useShellCommonI18n } from "../i18n";
 import { useShellShortcuts } from "../shortcuts/useShellShortcuts.model";
 import { fetchProducts } from "../../features/products/model/products.slice";

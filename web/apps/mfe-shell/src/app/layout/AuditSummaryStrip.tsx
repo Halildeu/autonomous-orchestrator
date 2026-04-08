@@ -11,8 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store/store.hooks';
 import { fetchAuditSummaryEvents } from '../../features/audit/lib/audit-summary-api';
 import { collectAuditSummaryNotifications } from '../../features/audit/lib/audit-summary-notifications';
-import { PERMISSIONS } from '../../features/auth/lib/permissions.constants';
-import { useAuthorization } from '../../features/auth/model/use-authorization.model';
+import { MODULE_KEYS } from '../../features/auth/lib/permissions.constants';
+import { usePermissions } from '@mfe/auth';
 import { pushNotification, toggleOpen } from '../../features/notifications/model/notifications.slice';
 
 type AuditSummaryStripStatus = 'idle' | 'loading' | 'ready' | 'blocked' | 'error';
@@ -124,11 +124,11 @@ export const AuditSummaryStrip: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { token, user } = useAppSelector((state) => state.auth);
-  const { hasPermission } = useAuthorization();
+  const { hasModule, isSuperAdmin } = usePermissions();
   const [state, setState] = useState<AuditSummaryStripState>(initialState);
   const previousGroupsRef = useRef<AuditSummarySnapshot[] | null>(null);
   const normalizedEmail = useMemo(() => user?.email?.trim() ?? '', [user?.email]);
-  const canReadAudit = Boolean(token) && Boolean(normalizedEmail) && hasPermission(PERMISSIONS.AUDIT_MODULE);
+  const canReadAudit = Boolean(token) && Boolean(normalizedEmail) && (isSuperAdmin() || hasModule(MODULE_KEYS.AUDIT));
 
   const refresh = useCallback(async () => {
     if (!canReadAudit || !normalizedEmail) {

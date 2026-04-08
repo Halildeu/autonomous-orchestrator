@@ -1,8 +1,3 @@
-import { getSharedReport } from '@platform/capabilities';
-import { PERMISSIONS } from '../features/auth/lib/permissions.constants';
-
-const defaultReportingRoute = getSharedReport('users-overview').webRoute;
-
 const readEnv = (keys: string[], fallback: string): string => {
   if (typeof process !== 'undefined' && process?.env) {
     for (const key of keys) {
@@ -37,40 +32,3 @@ export const isSuggestionsRemoteEnabled = (): boolean => (
 export const isEthicRemoteEnabled = (): boolean => (
   readEnvBoolean(['VITE_SHELL_ENABLE_ETHIC_REMOTE', 'SHELL_ENABLE_ETHIC_REMOTE'], true)
 );
-
-type DefaultShellPathOptions = {
-  permitAllMode: boolean;
-  permissions: readonly string[];
-};
-
-const hasPermission = (permissions: readonly string[], permission: string): boolean => permissions.includes(permission);
-
-export const resolveDefaultShellPath = ({
-  permitAllMode,
-  permissions,
-}: DefaultShellPathOptions): string => {
-  // Dashboard as default landing page
-  return '/home';
-  if (isSuggestionsRemoteEnabled()) {
-    return '/suggestions';
-  }
-  if (isEthicRemoteEnabled()) {
-    return '/ethic';
-  }
-  if (permitAllMode || hasPermission(permissions, PERMISSIONS.ACCESS_MODULE)) {
-    return '/access/roles';
-  }
-  if (permitAllMode || hasPermission(permissions, PERMISSIONS.AUDIT_MODULE)) {
-    return '/audit/events';
-  }
-  if (permitAllMode || hasPermission(permissions, PERMISSIONS.REPORTING_MODULE)) {
-    return defaultReportingRoute;
-  }
-  if (permitAllMode || hasPermission(permissions, PERMISSIONS.USER_MANAGEMENT_MODULE)) {
-    return '/admin/users';
-  }
-  if (permitAllMode || hasPermission(permissions, PERMISSIONS.THEME_ADMIN)) {
-    return '/admin/themes';
-  }
-  return '/unauthorized';
-};

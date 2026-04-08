@@ -87,17 +87,47 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const [dirty, setDirty] = React.useState(false);
   const [addUserId, setAddUserId] = React.useState('');
 
-  // Init from role policies on open
+  // Init from role granules (fetch full 5-type permission list)
+  const roleGranulesQuery = useQuery({
+    queryKey: ['role-granules', role?.id],
+    queryFn: async () => {
+      if (!isPersistedRoleId(role?.id)) return null;
+      const res = await api.get(`/api/v1/roles/${role!.id}`);
+      const data = res.data as any;
+      return (data?.policies ?? data?.permissions ?? []) as Granule[];
+    },
+    enabled: open && mode === 'view' && !!role && isPersistedRoleId(role?.id),
+  });
+
   React.useEffect(() => {
     if (!role) return;
     const mods: Record<string, string> = {};
-    for (const p of role.policies) { mods[p.moduleKey] = p.level; }
+    const acts: Record<string, string> = {};
+    const reps: Record<string, string> = {};
+    const pgs: Record<string, string> = {};
+
+    // Init from fetched granules if available
+    const granules = roleGranulesQuery.data;
+    if (granules && granules.length > 0) {
+      for (const g of granules) {
+        switch (g.type?.toUpperCase()) {
+          case 'MODULE': mods[g.key] = g.grant; break;
+          case 'ACTION': acts[g.key] = g.grant; break;
+          case 'REPORT': reps[g.key] = g.grant; break;
+          case 'PAGE': pgs[g.key] = g.grant; break;
+        }
+      }
+    } else {
+      // Fallback to legacy policies
+      for (const p of role.policies) { mods[p.moduleKey] = p.level; }
+    }
+
     setModuleGrants(mods);
-    setActionGrants({});
-    setReportGrants({});
-    setPageGrants({});
+    setActionGrants(acts);
+    setReportGrants(reps);
+    setPageGrants(pgs);
     setDirty(false);
-  }, [role]);
+  }, [role, roleGranulesQuery.data]);
 
   // --- Save granules mutation ---
   const saveGranulesMutation = useMutation({

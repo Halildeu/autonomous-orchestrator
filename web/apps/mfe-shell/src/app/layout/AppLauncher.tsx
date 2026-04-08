@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { usePermissions } from '@mfe/auth';
 import { useAuthorization } from '../../features/auth/model/use-authorization.model';
 import { PERMISSIONS } from '../../features/auth/lib/permissions.constants';
 import { useShellCommonI18n } from '../i18n';
