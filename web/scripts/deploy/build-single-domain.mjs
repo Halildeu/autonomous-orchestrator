@@ -82,7 +82,7 @@ const publicOrigin = trimTrailingSlash(
   process.env.WEB_PUBLIC_ORIGIN ||
     process.env.VITE_FRONTEND_PUBLIC_ORIGIN ||
     process.env.FRONTEND_PUBLIC_ORIGIN ||
-    'http://127.0.0.1:5544',
+    'https://ai.acik.com',
 );
 const remoteEntryUrlFor = (slug) => `${publicOrigin}/remotes/${slug}/remoteEntry.js`;
 const authMode =

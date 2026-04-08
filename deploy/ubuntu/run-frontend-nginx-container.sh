@@ -6,11 +6,11 @@ NGINX_RUNTIME_DIR="${NGINX_RUNTIME_DIR:-/home/halil/platform/web/nginx}"
 NGINX_CONTAINER_NAME="${NGINX_CONTAINER_NAME:-platform-web-nginx}"
 NGINX_IMAGE="${NGINX_IMAGE:-nginx:1.27-alpine}"
 NGINX_CONFIG_PATH="${NGINX_CONFIG_PATH:-${NGINX_RUNTIME_DIR}/default.conf}"
-NGINX_PORT="${NGINX_PORT:-5544}"
+NGINX_PORT="${NGINX_PORT:-80}"
 NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-80}"
 NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-443}"
-NGINX_SERVER_NAME="${NGINX_SERVER_NAME:-_}"
-NGINX_TLS_ENABLED="${NGINX_TLS_ENABLED:-false}"
+NGINX_SERVER_NAME="${NGINX_SERVER_NAME:-ai.acik.com}"
+NGINX_TLS_ENABLED="${NGINX_TLS_ENABLED:-true}"
 NGINX_TLS_CERT_PATH="${NGINX_TLS_CERT_PATH:-}"
 NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH:-}"
 NGINX_GATEWAY_UPSTREAM="${NGINX_GATEWAY_UPSTREAM:-http://127.0.0.1:8080}"
@@ -65,6 +65,8 @@ main() {
     fi
 
     cat > "${NGINX_CONFIG_PATH}" <<EOF
+server_tokens off;
+
 server {
   listen ${NGINX_HTTP_PORT};
   server_name ${NGINX_SERVER_NAME};
@@ -86,9 +88,26 @@ server {
 
   ssl_certificate /etc/nginx/tls/tls.crt;
   ssl_certificate_key /etc/nginx/tls/tls.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_prefer_server_ciphers on;
+  ssl_session_cache shared:SSL:10m;
+  ssl_session_timeout 10m;
+
+  # Security headers
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Frame-Options "SAMEORIGIN" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-XSS-Protection "1; mode=block" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
   root /usr/share/nginx/html;
   index index.html;
+
+  # Block Keycloak admin console
+  location /admin/ {
+    return 403;
+  }
 
   location = /nginx-healthz {
     access_log off;
@@ -155,12 +174,25 @@ EOF
     )
   else
     cat > "${NGINX_CONFIG_PATH}" <<EOF
+server_tokens off;
+
 server {
   listen ${NGINX_PORT};
   server_name ${NGINX_SERVER_NAME};
 
+  # Security headers
+  add_header X-Frame-Options "SAMEORIGIN" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-XSS-Protection "1; mode=block" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
   root /usr/share/nginx/html;
   index index.html;
+
+  # Block Keycloak admin console
+  location /admin/ {
+    return 403;
+  }
 
   location = /nginx-healthz {
     access_log off;

@@ -244,7 +244,7 @@ jobs:
           set -euo pipefail
           BASE_URL="${{ inputs.base_url }}"
           if [ -z "$BASE_URL" ]; then
-            echo "[pw-smoke] HATA: 'base_url' boş olamaz. Staging URL girin (örn: http://10.9.10.53:5544)."
+            echo "[pw-smoke] HATA: 'base_url' boş olamaz. Staging URL girin (örn: https://ai.acik.com)."
             exit 1
           fi
 

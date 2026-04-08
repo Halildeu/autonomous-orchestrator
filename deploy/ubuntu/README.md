@@ -162,7 +162,7 @@ Bu repo artık Ubuntu üzerinde tek-domain statik frontend bundle'ı da üretebi
 - Containerized Nginx launcher:
   - `deploy/ubuntu/run-frontend-nginx-container.sh`
 - Nginx örnek config:
-  - `deploy/ubuntu/nginx-frontend-5544.example.conf`
+  - `deploy/ubuntu/nginx-frontend-5544.example.conf` (legacy, artık 80/443 kullanılıyor)
 - TLS / live edge için önerilen host:
   - `ai.acik.com`
 - `ai.acik.com` için örnek Caddy config:
@@ -184,13 +184,13 @@ Build sırasında tek-domain public origin env'i zorunludur:
 
 ```bash
 cd web
-WEB_PUBLIC_ORIGIN="http://10.9.10.53:5544" pnpm run build:ubuntu:single-domain
+WEB_PUBLIC_ORIGIN="https://ai.acik.com" pnpm run build:ubuntu:single-domain
 ```
 
 Host deploy:
 
 ```bash
-PUBLIC_ORIGIN="http://10.9.10.53:5544" \
+PUBLIC_ORIGIN="https://ai.acik.com" \
 REPO_DIR="/home/halil/platform/repo" \
 WEB_RELEASES_DIR="/home/halil/platform/web/releases" \
 WEB_CURRENT_LINK="/home/halil/platform/web/current" \

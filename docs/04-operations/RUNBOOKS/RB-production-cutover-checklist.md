@@ -104,7 +104,7 @@ Production gözlemleme ve doğrulama kapıları:
   - [ ] `backend/scripts/vault/check-backend-deploy-prod.sh` PASS
   - [ ] stage/prod farkları gerektiğinde `backend/scripts/vault/check-backend-deploy-stage.sh` ile karşılaştırıldı
 - Public edge:
-  - [ ] `ai.acik.com -> <public-edge-ip>` DNS A kaydı
+  - [ ] `ai.acik.com -> 212.115.26.190` DNS A kaydı (inbound edge IP; outbound NAT: 31.145.18.18)
   - [ ] `Host: ai.acik.com` için binding, vhost veya route tanımlı
   - [ ] hedef backend `10.9.10.53:8082` veya production iç hedef
   - [ ] TLS sertifikası aktif

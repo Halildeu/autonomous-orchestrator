@@ -19,7 +19,7 @@ Owner: @team/platform
 
 - Repo: `Halildeu/platform-ssot`
 - Runtime target: Ubuntu host + Nginx
-- Dış giriş: `:5544`
+- Dış giriş: `:80/:443` (HTTPS, HTTP→HTTPS redirect; eski `:5544` iptal edildi)
 - Single-domain bundle:
   - shell root altında
   - remote'lar `/remotes/<slug>/remoteEntry.js`
@@ -32,13 +32,13 @@ Owner: @team/platform
 
 ```bash
 cd web
-WEB_PUBLIC_ORIGIN="http://10.9.10.53:5544" pnpm run build:ubuntu:single-domain
+WEB_PUBLIC_ORIGIN="https://ai.acik.com" pnpm run build:ubuntu:single-domain
 ```
 
 ### 3.2 Host deploy / yayın alma
 
 ```bash
-PUBLIC_ORIGIN="http://10.9.10.53:5544" \
+PUBLIC_ORIGIN="https://ai.acik.com" \
 REPO_DIR="/home/halil/platform/repo" \
 WEB_RELEASES_DIR="/home/halil/platform/web/releases" \
 WEB_CURRENT_LINK="/home/halil/platform/web/current" \
@@ -46,7 +46,7 @@ NGINX_CONTAINER_ENABLED="true" \
 deploy/ubuntu/deploy-frontend.sh
 ```
 
-Not: deploy script host üzerinde `pnpm install --frozen-lockfile` çalıştırır. `NGINX_CONTAINER_ENABLED=true` verildiğinde 5544 dinleyen Docker Nginx container'ını da yeniler.
+Not: deploy script host üzerinde `pnpm install --frozen-lockfile` çalıştırır. `NGINX_CONTAINER_ENABLED=true` verildiğinde 80/443 dinleyen Docker Nginx container'ını da yeniler.
 
 ### 3.3 Rollback / durdurma
 
@@ -83,7 +83,7 @@ docker rm -f platform-web-nginx
   - `.github/workflows/deploy-web.yml`
   - `.github/workflows/post-deploy-validate.yml`
 - Topoloji:
-  - public origin: `http://10.9.10.53:5544`
+  - public origin: `https://ai.acik.com`
   - `/` → `mfe-shell`
   - `/remoteEntry.js` → shell remote entry
   - `/remotes/access/remoteEntry.js` → `mfe-access`
@@ -98,7 +98,7 @@ docker rm -f platform-web-nginx
   - state: `/home/halil/platform/state/web.current-release`
   - state: `/home/halil/platform/state/web.previous-release`
 - Health / smoke:
-  - `http://10.9.10.53:5544/nginx-healthz`
+  - `https://ai.acik.com/nginx-healthz`
   - `post-deploy-validate.yml` içindeki stage web smoke job'ı
 - Log / izleme:
   - GitHub Actions `deploy-web`
@@ -114,13 +114,13 @@ docker rm -f platform-web-nginx
   - When: single-domain build hata verir veya `web/dist/ubuntu-single-domain` oluşmaz.
   - Then: önce `pnpm install --frozen-lockfile` tekrar çalıştırılır, sonra `WEB_PUBLIC_ORIGIN` değeri doğrulanır ve build yeniden alınır.
 
-- [ ] Arıza senaryosu 2 – Nginx container 5544 üzerinde kalkmıyor:
+- [ ] Arıza senaryosu 2 – Nginx container 80/443 üzerinde kalkmıyor:
   - Given: release host üzerinde başarıyla hazırlanmıştır.
-  - When: `platform-web-nginx` container'ı çıkış yapar veya `5544` portunu dinlemez.
-  - Then: `docker logs platform-web-nginx` ile config hatası kontrol edilir, gerekirse `deploy/ubuntu/run-frontend-nginx-container.sh` yeniden çalıştırılır ve hostta `5544` port çakışması doğrulanır.
+  - When: `platform-web-nginx` container'ı çıkış yapar veya `80/443` portlarını dinlemez.
+  - Then: `docker logs platform-web-nginx` ile config hatası kontrol edilir, gerekirse `deploy/ubuntu/run-frontend-nginx-container.sh` yeniden çalıştırılır ve hostta `80/443` port çakışması doğrulanır.
 
 - [ ] Arıza senaryosu 3 – Frontend açılıyor ama `/api` istekleri başarısız:
-  - Given: tarayıcıdan `:5544` üzerinden shell yüklenmektedir.
+  - Given: tarayıcıdan `https://ai.acik.com` üzerinden shell yüklenmektedir.
   - When: API çağrıları `502/504` döner veya gateway yanıt vermez.
   - Then: backend gateway health durumu kontrol edilir, Nginx upstream hedefi `127.0.0.1:8080` olarak doğrulanır ve gerekirse backend deploy/smoke zinciri yeniden çalıştırılır.
 
@@ -129,7 +129,7 @@ docker rm -f platform-web-nginx
 -------------------------------------------------------------------------------
 
 - Frontend ilk canlı kesitte Ubuntu üzerinde tek-domain olarak yayınlanır.
-- Nginx edge katmanı `5544` portunda statik bundle ve `/api` reverse proxy sağlar.
+- Nginx edge katmanı `80/443` portlarında (HTTPS) statik bundle ve `/api` reverse proxy sağlar.
 - Stage deploy zinciri GitHub Actions üzerinden build, host release ve smoke validation adımlarını kapsar.
 
 -------------------------------------------------------------------------------
