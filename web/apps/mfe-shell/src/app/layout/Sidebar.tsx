@@ -106,7 +106,7 @@ export const Sidebar: React.FC = () => {
         dataTestId: 'nav-support',
       },
     ],
-    [hasPermission, dispatch],
+    [hasModule, sa, dispatch],
   );
 
   /* ---- Folder items ---- */

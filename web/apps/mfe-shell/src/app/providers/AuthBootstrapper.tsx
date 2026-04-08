@@ -171,7 +171,14 @@ export const AuthBootstrapper: React.FC<{ children: React.ReactNode }> = ({
           initOptions.silentCheckSsoRedirectUri =
             authConfig.keycloak.silentCheckSsoRedirectUri;
         }
+        console.info('[AuthBootstrapper] init starting', {
+          isLoginRoute, urlHasAuthCode, onLoad: initOptions.onLoad,
+          kcUrl: authConfig.keycloak.url,
+        });
         await keycloak.init(initOptions);
+        console.info('[AuthBootstrapper] init done', {
+          authenticated: keycloak.authenticated, hasToken: !!keycloak.token,
+        });
         if (!mounted) return;
         const kcToken = keycloak.token ?? null;
         if (kcToken) {
