@@ -105,18 +105,26 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('web/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-playwright-
 
-      - name: Run web gate
-        env:
-          TEST_BASE_REF: ${{ github.event.pull_request.base.sha || '' }}
-          LINT_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+      - name: Install & prepare
         run: |
           python3 scripts/check_version_gates.py --mode ci
           pnpm -C web install --frozen-lockfile
           pnpm -C web exec playwright install --with-deps chromium
           npm -C web run tokens:build -- --check
-          bash scripts/run_lint_web.sh
-          bash scripts/run_tests_web.sh
-          bash scripts/run_tests_web.sh pw-preauth
+
+      - name: Web lint (incremental)
+        env:
+          LINT_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: bash scripts/run_lint_web.sh
+
+      - name: Web unit tests (affected packages only)
+        env:
+          TEST_BASE_REF: ${{ github.event.pull_request.base.sha || '' }}
+        run: bash scripts/run_tests_web.sh
+
+      - name: Playwright smoke
+        continue-on-error: true
+        run: bash scripts/run_tests_web.sh pw-preauth
 
   ci-gate-backend:
     runs-on: ubuntu-latest

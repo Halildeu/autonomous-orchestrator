@@ -72,6 +72,11 @@
       "import": "./dist/esm/advanced/index.js",
       "require": "./dist/cjs/advanced/index.cjs"
     },
+    "./advanced/data-grid": {
+      "types": "./dist/advanced/data-grid/index.d.ts",
+      "import": "./dist/esm/advanced/data-grid/index.js",
+      "require": "./dist/cjs/advanced/data-grid/index.cjs"
+    },
     "./advanced/data-grid/setup": {
       "types": "./dist/advanced/data-grid/setup.d.ts",
       "import": "./dist/esm/advanced/data-grid/setup.js",

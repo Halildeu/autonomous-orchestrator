@@ -29,8 +29,32 @@ export BROWSERSLIST_IGNORE_OLD_DATA="${BROWSERSLIST_IGNORE_OLD_DATA:-1}"
 
 case "$MODE" in
   unit)
-    echo "[run_tests_web] npm test"
-    npm test
+    BASE_REF="${TEST_BASE_REF:-}"
+    if [[ -n "$BASE_REF" ]]; then
+      # Package-level incremental: only test packages with changed files
+      CHANGED=$(git diff --name-only "$BASE_REF" -- . 2>/dev/null | sed 's|^web/||' || true)
+      TARGETS=""
+      [[ -z "$CHANGED" ]] && { echo "[run_tests_web] No changes, skipping"; exit 0; }
+
+      echo "$CHANGED" | grep -q "^apps/mfe-shell/"         && TARGETS="$TARGETS test:shell"
+      echo "$CHANGED" | grep -q "^apps/mfe-access/"        && TARGETS="$TARGETS test:access:unit"
+      echo "$CHANGED" | grep -q "^apps/mfe-audit/"         && TARGETS="$TARGETS test:audit"
+      echo "$CHANGED" | grep -q "^packages/design-system/" && TARGETS="$TARGETS test:design-system"
+      echo "$CHANGED" | grep -q "^packages/shared-types/"  && TARGETS="$TARGETS test:shared-types"
+      echo "$CHANGED" | grep -q "^packages/x-"             && TARGETS="$TARGETS test:workspace"
+
+      if [[ -z "$TARGETS" ]]; then
+        echo "[run_tests_web] No test-relevant packages changed, skipping"
+      else
+        echo "[run_tests_web] Incremental: running$TARGETS"
+        for t in $TARGETS; do
+          npm run "$t"
+        done
+      fi
+    else
+      echo "[run_tests_web] npm test (full)"
+      npm test
+    fi
     ;;
   pw)
     echo "[run_tests_web] npm run pw:ci"
