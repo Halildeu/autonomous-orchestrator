@@ -251,8 +251,7 @@ jobs:
       - linux
       - x64
       - stage-backend
-    needs: deploy-backend
-    if: ${{ needs.deploy-backend.result == 'success' && (github.event.inputs.env || 'stage') == 'stage' }}
+    if: ${{ (github.event.inputs.env || 'stage') == 'stage' }}
     environment: stage
     env:
       DEPLOY_ENABLED: ${{ secrets.DEPLOY_ENABLED }}
@@ -349,6 +348,8 @@ jobs:
           GHCR_USERNAME="${GITHUB_ACTOR}" \
           GHCR_TOKEN="${GITHUB_TOKEN}" \
           TARGET_IMAGE_TAG="sha-${short_sha}" \
+          BUILD_LOCAL="true" \
+          DOCKER_PULL_POLICY="never" \
           deploy/ubuntu/deploy-backend.sh
 
       - name: Collect stage backend diagnostics on failure

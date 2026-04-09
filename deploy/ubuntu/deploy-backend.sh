@@ -14,6 +14,9 @@ STATE_DIR="${STATE_DIR:-/home/halil/platform/state}"
 CURRENT_TAG_FILE="${CURRENT_TAG_FILE:-${STATE_DIR}/backend.current-image-tag}"
 PREVIOUS_TAG_FILE="${PREVIOUS_TAG_FILE:-${STATE_DIR}/backend.previous-image-tag}"
 TARGET_IMAGE_TAG="${TARGET_IMAGE_TAG:-}"
+BUILD_LOCAL="${BUILD_LOCAL:-false}"
+BUILD_COMPOSE_FILE="${BUILD_COMPOSE_FILE:-${BACKEND_DIR}/docker-compose.yml}"
+DOCKER_PULL_POLICY="${DOCKER_PULL_POLICY:-always}"
 RENDER_ENV_BEFORE_DEPLOY="${RENDER_ENV_BEFORE_DEPLOY:-false}"
 DEPLOY_ENV="${DEPLOY_ENV:-stage}"
 VAULT_ADDR="${VAULT_ADDR:-}"
@@ -350,7 +353,6 @@ main() {
   #
   # If infra config changed, run: docker compose up -d --force-recreate <service>
 
-  # Pull new images (backend services only)
   local backend_services=(
     discovery-server
     permission-service
@@ -361,7 +363,47 @@ main() {
     report-service
     api-gateway
   )
-  compose_run "${compose_args[@]}" pull "${backend_services[@]}" || true
+
+  local build_flag
+  build_flag="$(printf '%s' "${BUILD_LOCAL}" | tr '[:upper:]' '[:lower:]')"
+
+  if [[ "${build_flag}" == "true" || "${build_flag}" == "1" ]]; then
+    # ── Local build mode ──
+    # Build images on this host, tag them to match GHCR names.
+    # Eliminates GHCR pull (~25min on slow connections).
+    echo "[deploy] LOCAL BUILD mode — building images on host"
+
+    local ghcr_owner
+    ghcr_owner="$(printf '%s' "${GHCR_OWNER:-halildeu}" | tr '[:upper:]' '[:lower:]')"
+
+    docker compose -f "${BUILD_COMPOSE_FILE}" build 2>&1 | tail -5
+
+    local img svc target tagged=0
+    for img in $(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E '^serban-'); do
+      svc="${img%%:*}"
+      svc="${svc#serban-}"
+      target="ghcr.io/${ghcr_owner}/platform-ssot-${svc}:${IMAGE_TAG}"
+      docker tag "${img}" "${target}"
+      tagged=$((tagged + 1))
+    done
+    echo "[deploy] tagged ${tagged} images as ${IMAGE_TAG}"
+
+    # Also tag as main-stable for rollback support
+    for img in $(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E '^serban-'); do
+      svc="${img%%:*}"
+      svc="${svc#serban-}"
+      docker tag "${img}" "ghcr.io/${ghcr_owner}/platform-ssot-${svc}:main-stable"
+    done
+
+    export DOCKER_PULL_POLICY="never"
+
+    # Clean old images to prevent disk fill
+    docker image prune -f --filter "until=24h" >/dev/null 2>&1 || true
+  else
+    # ── Remote pull mode (default) ──
+    echo "[deploy] REMOTE PULL mode — pulling images from GHCR"
+    compose_run "${compose_args[@]}" pull "${backend_services[@]}" || true
+  fi
 
   # Ensure infrastructure is up.
   # Force-recreate vault sidecars to pick up any script changes from this deploy.
