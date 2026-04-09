@@ -33,31 +33,34 @@ kv_get_json() {
     "${VAULT_ADDR%/}/v1/${mount}/data/${path}"
 }
 
-# Like kv_get_json but returns empty string instead of failing on 404.
-# Used for optional Vault paths (db/*, jwt/*) that may not be seeded yet.
+# Like kv_get_json but returns empty string instead of failing.
+# Handles 404 (path not found), 000 (connection refused), and other errors gracefully.
+# Used for optional Vault paths and as a safe wrapper for the main config path.
 kv_get_json_optional() {
   local path="$1"
   local mount="$2"
   local http_code
-  local body
   local tmp_file
 
   tmp_file="$(mktemp)"
   http_code="$(curl -sS -w '%{http_code}' -o "${tmp_file}" \
     -H "X-Vault-Token: ${VAULT_TOKEN}" \
-    "${VAULT_ADDR%/}/v1/${mount}/data/${path}")" || true
+    "${VAULT_ADDR%/}/v1/${mount}/data/${path}" 2>/dev/null)" || true
 
   if [[ "${http_code}" == "200" ]]; then
     cat "${tmp_file}"
-  elif [[ "${http_code}" == "404" ]]; then
-    echo "[render] optional path ${mount}/${path} not found; using main config fallback" >&2
-    printf ''
-  else
-    echo "[error] unexpected HTTP ${http_code} reading ${mount}/${path}" >&2
     rm -f "${tmp_file}"
-    return 1
+  elif [[ "${http_code}" == "404" ]]; then
+    echo "[render] path ${mount}/${path} not found (404)" >&2
+    rm -f "${tmp_file}"
+  elif [[ "${http_code}" == "000" ]]; then
+    echo "[render] Vault unreachable at ${VAULT_ADDR} (connection refused/timeout)" >&2
+    rm -f "${tmp_file}"
+  else
+    echo "[render] unexpected HTTP ${http_code} for ${mount}/${path}" >&2
+    rm -f "${tmp_file}"
   fi
-  rm -f "${tmp_file}"
+  # Always return 0 — caller checks empty output for graceful degradation
 }
 
 kv_get_value() {
