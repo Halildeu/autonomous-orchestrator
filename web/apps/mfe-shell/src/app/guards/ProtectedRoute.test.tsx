@@ -22,6 +22,7 @@ const authState = {
 const permissionsMock = {
   hasModule: () => true,
   isSuperAdmin: () => false,
+  initialized: true,
 };
 
 const authModeMock = {

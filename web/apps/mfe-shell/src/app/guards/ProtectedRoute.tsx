@@ -20,11 +20,13 @@ export const ProtectedRoute = ({
   fallbackPath = '/unauthorized',
 }: ProtectedRouteProps) => {
   const { token, initialized } = useAppSelector((state) => state.auth);
-  const { hasModule, isSuperAdmin } = usePermissions();
+  const permissions = usePermissions();
+  const { hasModule, isSuperAdmin, initialized: permissionsInitialized } = permissions;
   const location = useLocation();
   const permitAllMode = isPermitAllMode();
 
-  if (!initialized) {
+  // Wait for both auth AND permissions to be ready
+  if (!initialized || (!permitAllMode && token && !permissionsInitialized)) {
     return null;
   }
 
