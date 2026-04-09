@@ -33,6 +33,33 @@ kv_get_json() {
     "${VAULT_ADDR%/}/v1/${mount}/data/${path}"
 }
 
+# Like kv_get_json but returns empty string instead of failing on 404.
+# Used for optional Vault paths (db/*, jwt/*) that may not be seeded yet.
+kv_get_json_optional() {
+  local path="$1"
+  local mount="$2"
+  local http_code
+  local body
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  http_code="$(curl -sS -w '%{http_code}' -o "${tmp_file}" \
+    -H "X-Vault-Token: ${VAULT_TOKEN}" \
+    "${VAULT_ADDR%/}/v1/${mount}/data/${path}")" || true
+
+  if [[ "${http_code}" == "200" ]]; then
+    cat "${tmp_file}"
+  elif [[ "${http_code}" == "404" ]]; then
+    echo "[render] optional path ${mount}/${path} not found; using main config fallback" >&2
+    printf ''
+  else
+    echo "[error] unexpected HTTP ${http_code} reading ${mount}/${path}" >&2
+    rm -f "${tmp_file}"
+    return 1
+  fi
+  rm -f "${tmp_file}"
+}
+
 kv_get_value() {
   local payload="$1"
   local key="$2"
@@ -203,11 +230,14 @@ main() {
   auth_jwt_path="${DEPLOY_ENV}/jwt/auth-service"
 
   payload="$(kv_get_json "${config_path}" "${mount}")"
-  auth_db_payload="$(kv_get_json "${auth_db_path}" "${mount}")"
-  user_db_payload="$(kv_get_json "${user_db_path}" "${mount}")"
-  permission_db_payload="$(kv_get_json "${permission_db_path}" "${mount}")"
-  variant_db_payload="$(kv_get_json "${variant_db_path}" "${mount}")"
-  auth_jwt_payload="$(kv_get_json "${auth_jwt_path}" "${mount}")"
+
+  # Per-service DB/JWT paths are optional — if missing, per-service DB env vars
+  # are skipped (the main config already contains shared POSTGRES_USER/PASSWORD).
+  auth_db_payload="$(kv_get_json_optional "${auth_db_path}" "${mount}")"
+  user_db_payload="$(kv_get_json_optional "${user_db_path}" "${mount}")"
+  permission_db_payload="$(kv_get_json_optional "${permission_db_path}" "${mount}")"
+  variant_db_payload="$(kv_get_json_optional "${variant_db_path}" "${mount}")"
+  auth_jwt_payload="$(kv_get_json_optional "${auth_jwt_path}" "${mount}")"
 
   for key in "${required_keys[@]}"; do
     value="$(printf '%s' "${payload}" | json_get "${key}")"
@@ -247,20 +277,41 @@ main() {
     fi
   fi
 
-  write_kv "${tmp_file}" AUTH_SERVICE_DB_URL "$(kv_get_value "${auth_db_payload}" url)"
-  write_kv "${tmp_file}" AUTH_SERVICE_DB_USERNAME "$(kv_get_value "${auth_db_payload}" user)"
-  write_kv "${tmp_file}" AUTH_SERVICE_DB_PASSWORD "$(kv_get_value "${auth_db_payload}" password)"
-  write_kv "${tmp_file}" USER_SERVICE_DB_URL "$(kv_get_value "${user_db_payload}" url)"
-  write_kv "${tmp_file}" USER_SERVICE_DB_USERNAME "$(kv_get_value "${user_db_payload}" user)"
-  write_kv "${tmp_file}" USER_SERVICE_DB_PASSWORD "$(kv_get_value "${user_db_payload}" password)"
-  write_kv "${tmp_file}" PERMISSION_SERVICE_DB_URL "$(kv_get_value "${permission_db_payload}" url)"
-  write_kv "${tmp_file}" PERMISSION_SERVICE_DB_USERNAME "$(kv_get_value "${permission_db_payload}" user)"
-  write_kv "${tmp_file}" PERMISSION_SERVICE_DB_PASSWORD "$(kv_get_value "${permission_db_payload}" password)"
-  write_kv "${tmp_file}" VARIANT_SERVICE_DB_URL "$(kv_get_value "${variant_db_payload}" url)"
-  write_kv "${tmp_file}" VARIANT_SERVICE_DB_USERNAME "$(kv_get_value "${variant_db_payload}" user)"
-  write_kv "${tmp_file}" VARIANT_SERVICE_DB_PASSWORD "$(kv_get_value "${variant_db_payload}" password)"
-  write_kv "${tmp_file}" AUTH_SERVICE_JWT_PRIVATE_KEY "$(kv_get_value "${auth_jwt_payload}" privateKey)"
-  write_kv "${tmp_file}" AUTH_SERVICE_JWT_PUBLIC_KEY "$(kv_get_value "${auth_jwt_payload}" publicKey)"
+  # Per-service DB credentials — only written when the dedicated Vault path exists.
+  # When paths are missing, services use the shared POSTGRES_USER/PASSWORD from main config.
+  write_kv_if_present() {
+    local file="$1" key="$2" val="$3"
+    [[ -n "${val}" ]] && write_kv "${file}" "${key}" "${val}"
+  }
+
+  if [[ -n "${auth_db_payload}" ]]; then
+    write_kv_if_present "${tmp_file}" AUTH_SERVICE_DB_URL "$(kv_get_value "${auth_db_payload}" url)"
+    write_kv_if_present "${tmp_file}" AUTH_SERVICE_DB_USERNAME "$(kv_get_value "${auth_db_payload}" user)"
+    write_kv_if_present "${tmp_file}" AUTH_SERVICE_DB_PASSWORD "$(kv_get_value "${auth_db_payload}" password)"
+  fi
+
+  if [[ -n "${user_db_payload}" ]]; then
+    write_kv_if_present "${tmp_file}" USER_SERVICE_DB_URL "$(kv_get_value "${user_db_payload}" url)"
+    write_kv_if_present "${tmp_file}" USER_SERVICE_DB_USERNAME "$(kv_get_value "${user_db_payload}" user)"
+    write_kv_if_present "${tmp_file}" USER_SERVICE_DB_PASSWORD "$(kv_get_value "${user_db_payload}" password)"
+  fi
+
+  if [[ -n "${permission_db_payload}" ]]; then
+    write_kv_if_present "${tmp_file}" PERMISSION_SERVICE_DB_URL "$(kv_get_value "${permission_db_payload}" url)"
+    write_kv_if_present "${tmp_file}" PERMISSION_SERVICE_DB_USERNAME "$(kv_get_value "${permission_db_payload}" user)"
+    write_kv_if_present "${tmp_file}" PERMISSION_SERVICE_DB_PASSWORD "$(kv_get_value "${permission_db_payload}" password)"
+  fi
+
+  if [[ -n "${variant_db_payload}" ]]; then
+    write_kv_if_present "${tmp_file}" VARIANT_SERVICE_DB_URL "$(kv_get_value "${variant_db_payload}" url)"
+    write_kv_if_present "${tmp_file}" VARIANT_SERVICE_DB_USERNAME "$(kv_get_value "${variant_db_payload}" user)"
+    write_kv_if_present "${tmp_file}" VARIANT_SERVICE_DB_PASSWORD "$(kv_get_value "${variant_db_payload}" password)"
+  fi
+
+  if [[ -n "${auth_jwt_payload}" ]]; then
+    write_kv_if_present "${tmp_file}" AUTH_SERVICE_JWT_PRIVATE_KEY "$(kv_get_value "${auth_jwt_payload}" privateKey)"
+    write_kv_if_present "${tmp_file}" AUTH_SERVICE_JWT_PUBLIC_KEY "$(kv_get_value "${auth_jwt_payload}" publicKey)"
+  fi
 
   mv "${tmp_file}" "${OUTPUT_FILE}"
   chmod 600 "${OUTPUT_FILE}"
