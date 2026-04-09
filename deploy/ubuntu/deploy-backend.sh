@@ -311,22 +311,32 @@ main() {
   # Remove stale containers whose config may have changed (prevents "name already in use" conflicts)
   compose_run "${compose_args[@]}" down --remove-orphans --timeout 30 2>/dev/null || true
 
-  compose_run "${compose_args[@]}" up -d postgres-db openfga-migrate openfga discovery-server
+  # Phase 1: Infrastructure (DB, Vault, Keycloak)
+  compose_run "${compose_args[@]}" up -d postgres-db vault vault-unseal keycloak
   wait_for_service_state postgres-db healthy 60
+  wait_for_service_state vault healthy 90
+
+  # Phase 2: Service dependencies (OpenFGA, Discovery)
+  compose_run "${compose_args[@]}" up -d openfga-migrate openfga discovery-server
   wait_for_service_state openfga running 60
   wait_for_service_state discovery-server healthy 90
 
+  # Phase 3: Core services (need Vault + DB + OpenFGA)
   compose_run "${compose_args[@]}" up -d --no-deps permission-service
-  wait_for_service_state permission-service healthy 90
+  wait_for_service_state permission-service healthy 120
 
   compose_run "${compose_args[@]}" up -d --no-deps auth-service user-service variant-service core-data-service
-  wait_for_service_state auth-service healthy 90
-  wait_for_service_state user-service healthy 90
-  wait_for_service_state variant-service healthy 90
-  wait_for_service_state core-data-service healthy 90
+  wait_for_service_state auth-service healthy 120
+  wait_for_service_state user-service healthy 120
+  wait_for_service_state variant-service healthy 120
+  wait_for_service_state core-data-service healthy 120
 
+  # Phase 4: API Gateway (needs all upstream services)
   compose_run "${compose_args[@]}" up -d --no-deps api-gateway
   wait_for_service_state api-gateway healthy 90
+
+  # Phase 5: Supporting services (nginx, observability, service-manager)
+  compose_run "${compose_args[@]}" up -d web-nginx service-manager vault-audit-init vault-snapshot loki promtail tempo prometheus grafana 2>/dev/null || true
 
   compose_run "${compose_args[@]}" ps
 
