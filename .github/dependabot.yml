@@ -10,6 +10,15 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "ag-grid-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ag-charts-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "maven"
     directory: "/backend"
