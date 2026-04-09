@@ -383,12 +383,12 @@ jobs:
           docker compose --env-file "${remote_env_file}" -f "${compose_file}" "${compose_flags[@]}" ps --all || true
           echo "::endgroup::"
 
-          for service in discovery-server permission-service auth-service user-service variant-service core-data-service api-gateway openfga postgres-db; do
-            echo "::group::docker inspect ${service}"
-            docker inspect "platform-${service}-1" || true
+          for service in discovery-server permission-service auth-service user-service variant-service core-data-service api-gateway openfga postgres-db vault vault-unseal; do
+            echo "::group::${service} status"
+            docker inspect --format '{{.Name}} state={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} started={{.State.StartedAt}}' "platform-${service}-1" 2>/dev/null || echo "${service}: not found"
             echo "::endgroup::"
 
-            echo "::group::docker logs ${service}"
-            docker logs --tail 200 "platform-${service}-1" || true
+            echo "::group::${service} logs (last 100)"
+            docker logs --tail 100 "platform-${service}-1" 2>&1 || true
             echo "::endgroup::"
           done

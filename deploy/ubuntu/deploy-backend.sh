@@ -259,21 +259,40 @@ main() {
   maybe_render_env
   load_env_file
 
-  # Ensure Vault URI uses correct scheme (HTTP for internal Docker network).
-  # Edge TLS is handled by nginx; internal services use HTTP to Vault.
-  fix_vault_scheme() {
+  # --- Vault URI validation and correction ---
+  # Canonical internal Vault address: http://vault:8200
+  # Reject stale hostnames (platform-stage-vault, platform-vault, etc.)
+  validate_and_fix_vault_uri() {
+    local canonical_vault_uri="http://vault:8200"
     local current_uri
     current_uri="$(read_env_value VAULT_URI)"
+
+    # Fix HTTPS → HTTP (internal Docker network uses HTTP, TLS at edge)
     if [[ "${current_uri}" == https://vault:* ]]; then
-      local new_uri="${current_uri/https:\/\//http:\/\/}"
-      upsert_env_value VAULT_URI "${new_uri}"
-      upsert_env_value VAULT_SCHEME "http"
-      export VAULT_URI="${new_uri}"
-      export VAULT_SCHEME="http"
-      echo "[deploy] fixed VAULT_URI: https→http (internal network, TLS at edge)"
+      current_uri="${current_uri/https:\/\//http:\/\/}"
+      echo "[deploy] fixed VAULT_URI scheme: https→http"
     fi
+
+    # Reject stale/wrong hostnames — only "vault" is valid in compose network
+    if [[ -n "${current_uri}" && "${current_uri}" != http://vault:* && "${current_uri}" != https://vault:* && "${current_uri}" != http://127.0.0.1:* && "${current_uri}" != https://127.0.0.1:* ]]; then
+      echo "[deploy] WARNING: stale VAULT_URI detected: ${current_uri}" >&2
+      echo "[deploy] overriding with canonical: ${canonical_vault_uri}" >&2
+      current_uri="${canonical_vault_uri}"
+    fi
+
+    # Set canonical if empty
+    if [[ -z "${current_uri}" ]]; then
+      current_uri="${canonical_vault_uri}"
+    fi
+
+    # Persist corrections
+    upsert_env_value VAULT_URI "${current_uri}"
+    upsert_env_value VAULT_SCHEME "http"
+    export VAULT_URI="${current_uri}"
+    export VAULT_SCHEME="http"
+    echo "[deploy] VAULT_URI=${current_uri}"
   }
-  fix_vault_scheme
+  validate_and_fix_vault_uri
 
   REPO_BRANCH="${PINNED_REPO_BRANCH}"
   sync_repo
@@ -351,6 +370,29 @@ main() {
   wait_for_service_state postgres-db healthy 60
   wait_for_service_state vault healthy 120
   wait_for_service_state openfga running 60
+
+  # Vault preflight — verify unsealed and accessible from deploy host
+  vault_preflight() {
+    local vault_container
+    vault_container="$(container_name_for vault)"
+    local status_json
+    status_json="$(docker exec "${vault_container}" vault status -format=json 2>/dev/null || true)"
+    if [[ -n "${status_json}" ]]; then
+      local sealed
+      sealed="$(printf '%s' "${status_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sealed","unknown"))' 2>/dev/null || echo "unknown")"
+      echo "[deploy] vault preflight: sealed=${sealed}"
+      if [[ "${sealed}" == "true" ]]; then
+        echo "[error] Vault is still sealed after health wait. Unseal keys may be missing." >&2
+        echo "[deploy] vault-unseal logs:" >&2
+        docker logs --tail 20 "$(container_name_for vault-unseal)" 2>&1 || true
+        return 1
+      fi
+    else
+      echo "[error] cannot reach Vault inside container" >&2
+      return 1
+    fi
+  }
+  vault_preflight
 
   # Recreate backend services with new images (--force-recreate only touches these)
   compose_run "${compose_args[@]}" up -d --force-recreate --no-deps discovery-server
