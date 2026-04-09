@@ -104,8 +104,11 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
-  # Block Keycloak admin console
-  location /admin/ {
+  # Block Keycloak admin console (not /admin/reports, /admin/users etc.)
+  location /admin/master/ {
+    return 403;
+  }
+  location /admin/realms/ {
     return 403;
   }
 
@@ -189,8 +192,11 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
-  # Block Keycloak admin console
-  location /admin/ {
+  # Block Keycloak admin console (not /admin/reports, /admin/users etc.)
+  location /admin/master/ {
+    return 403;
+  }
+  location /admin/realms/ {
     return 403;
   }
 

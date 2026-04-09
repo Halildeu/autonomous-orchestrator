@@ -108,7 +108,10 @@
       "backend/devops/**",
       "backend/report-service/**",
       "**/.gitkeep",
-      "web/.stylelint*"
+      "web/.stylelint*",
+      "**/*.html",
+      "**/*.ico",
+      "**/public/**"
     ],
     "scope_globs": {
       "backend": [
