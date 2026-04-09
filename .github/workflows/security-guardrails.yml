@@ -74,13 +74,15 @@ jobs:
       - name: Check live release provisioning contract
         run: python3 scripts/check_live_release_provisioning_contract.py
 
-      - name: Backend SAST
+      - name: Backend SAST (main/nightly only)
+        if: github.event_name != 'pull_request'
         run: bash backend/scripts/ci/security/run-sast.sh
 
       - name: Dependency scan (OSV-Scanner)
         run: bash backend/scripts/ci/security/run-dependency-scan.sh
 
-      - name: SBOM + signing
+      - name: SBOM + signing (main/nightly only)
+        if: github.event_name != 'pull_request'
         run: bash backend/scripts/ci/security/generate-sbom-and-sign.sh
 
       - name: Feature flag health

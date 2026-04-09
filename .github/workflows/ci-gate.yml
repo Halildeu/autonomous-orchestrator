@@ -186,7 +186,7 @@ jobs:
           cache: maven
       - name: Run backend gate
         working-directory: backend
-        run: ./mvnw -DskipITs=true test
+        run: ./mvnw -DskipITs=true test -T 1C
 
   ci-gate-legacy-archive:
     runs-on: ubuntu-latest

@@ -94,7 +94,7 @@ jobs:
 
   module-lane-unit:
     runs-on: ubuntu-latest
-    needs: [module-delivery-contract-check]
+    # Runs parallel with contract-check (no data dependency)
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python
@@ -246,6 +246,7 @@ jobs:
   module-delivery-gate:
     runs-on: ubuntu-latest
     needs:
+      - module-delivery-contract-check
       - module-lane-unit
       - module-lane-database
       - module-lane-api
