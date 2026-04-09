@@ -1,9 +1,11 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Badge, Button, Checkbox, DetailDrawer, Select, Switch, TextInput } from '@mfe/design-system';
+import { Autocomplete, Badge, Button, Checkbox, DetailDrawer, Select, Switch, TextInput } from '@mfe/design-system';
+import type { AutocompleteOption } from '@mfe/design-system';
 import type { AccessRole, AccessLevel } from '../../features/access-management/model/access.types';
 import { getPermissions } from '../../entities/permissions/api/permissions.api';
 import { api } from '@mfe/shared-http';
+import { pushToast } from '../../shared/notifications';
 
 interface RoleDrawerProps {
   open: boolean;
@@ -85,7 +87,9 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const [reportGrants, setReportGrants] = React.useState<Record<string, string>>({});
   const [pageGrants, setPageGrants] = React.useState<Record<string, string>>({});
   const [dirty, setDirty] = React.useState(false);
-  const [addUserId, setAddUserId] = React.useState('');
+  const [selectedUser, setSelectedUser] = React.useState<AutocompleteOption | null>(null);
+  const [userSearchOptions, setUserSearchOptions] = React.useState<AutocompleteOption[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = React.useState(false);
 
   // Init from role granules (fetch full 5-type permission list)
   const roleGranulesQuery = useQuery({
@@ -129,12 +133,30 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
     setDirty(false);
   }, [role, roleGranulesQuery.data]);
 
+  // --- User search handler ---
+  const handleUserSearch = React.useCallback(async (query: string) => {
+    if (query.length < 2) { setUserSearchOptions([]); return; }
+    setUserSearchLoading(true);
+    try {
+      const res = await api.get('/api/v1/users', { params: { search: query, pageSize: 10 } });
+      const items = res.data?.items ?? res.data?.content ?? [];
+      setUserSearchOptions(
+        items.map((u: { id: string | number; fullName?: string; name?: string; email?: string }) => ({
+          value: String(u.id),
+          label: `${u.fullName ?? u.name ?? ''} (${u.email ?? ''})`.trim(),
+        })),
+      );
+    } catch {
+      setUserSearchOptions([]);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  }, []);
+
   // --- Save granules mutation ---
   const saveGranulesMutation = useMutation({
     mutationFn: async () => {
-      if (!isPersistedRoleId(role?.id)) {
-        return;
-      }
+      if (!isPersistedRoleId(role?.id)) return;
       const granules: Granule[] = [];
       for (const [key, grant] of Object.entries(moduleGrants)) {
         if (grant !== 'NONE') granules.push({ type: 'module', key, grant });
@@ -153,32 +175,43 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       setDirty(false);
+      pushToast('success', t('access.notifications.permissionSaveSuccess'));
+    },
+    onError: (err: Error) => {
+      pushToast('error', err.message || t('access.notifications.permissionSaveError'));
     },
   });
 
   // --- Add member mutation ---
   const addMemberMutation = useMutation({
     mutationFn: async (userId: number) => {
-      if (!isPersistedRoleId(role?.id)) {
-        return;
-      }
+      if (!isPersistedRoleId(role?.id)) return;
       await api.post(`/api/v1/roles/${role!.id}/members`, { userIds: [userId] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-members', role?.id] });
-      setAddUserId('');
+      setSelectedUser(null);
+      setUserSearchOptions([]);
+      pushToast('success', t('access.notifications.memberAddSuccess'));
+    },
+    onError: (err: Error) => {
+      pushToast('error', err.message || t('access.notifications.memberAddError'));
     },
   });
 
   // --- Remove member mutation ---
   const removeMemberMutation = useMutation({
     mutationFn: async (userId: number) => {
-      if (!isPersistedRoleId(role?.id)) {
-        return;
-      }
+      if (!isPersistedRoleId(role?.id)) return;
       await api.delete(`/api/v1/roles/${role!.id}/members/${userId}`);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['role-members', role?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['role-members', role?.id] });
+      pushToast('success', t('access.notifications.memberRemoveSuccess'));
+    },
+    onError: (err: Error) => {
+      pushToast('error', err.message || t('access.notifications.memberRemoveError'));
+    },
   });
 
   // Reset on mode change
@@ -346,7 +379,11 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
           {members.map(member => (
             <div key={member.userId} className="flex items-center justify-between rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-2">
               <span className="text-sm text-text-primary">Kullanıcı #{member.userId}</span>
-              <button type="button" onClick={() => removeMemberMutation.mutate(member.userId)}
+              <button type="button" onClick={() => {
+                  if (confirm(t('access.notifications.memberRemoveConfirm', { userName: `#${member.userId}` }))) {
+                    removeMemberMutation.mutate(member.userId);
+                  }
+                }}
                 className="text-xs text-state-danger-text hover:underline">Kaldır</button>
             </div>
           ))}
@@ -354,14 +391,24 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
           {/* Kişi ekle */}
           <div className="flex items-center gap-2 mt-2">
-            <input
-              type="number" placeholder="Kullanıcı ID" value={addUserId}
-              onChange={e => setAddUserId(e.target.value)}
-              className="flex-1 rounded-lg border border-border-subtle px-3 py-1.5 text-sm"
+            <Autocomplete
+              placeholder={t('access.drawer.userSearchPlaceholder')}
+              options={userSearchOptions}
+              onSearch={handleUserSearch}
+              loading={userSearchLoading}
+              value={selectedUser?.value ?? ''}
+              onChange={(val) => {
+                const matched = userSearchOptions.find(o => o.value === val);
+                setSelectedUser(matched ?? null);
+              }}
+              allowCustomValue={false}
+              fullWidth
             />
-            <Button size="sm" onClick={() => { if (addUserId) addMemberMutation.mutate(Number(addUserId)); }}
-              loading={addMemberMutation.isPending} disabled={!addUserId}>
-              + Kişi Ekle
+            <Button size="sm" onClick={() => {
+                if (selectedUser) addMemberMutation.mutate(Number(selectedUser.value));
+              }}
+              loading={addMemberMutation.isPending} disabled={!selectedUser}>
+              + {t('access.drawer.userSearchLabel')}
             </Button>
           </div>
         </div>

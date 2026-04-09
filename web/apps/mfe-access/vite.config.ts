@@ -130,6 +130,11 @@ export default defineConfig(({ mode }) => {
     strictPort: true,
     cors: true,
     headers: { 'Access-Control-Allow-Origin': '*' },
+    proxy: {
+      '/api/v1/users': { target: 'http://localhost:8089', changeOrigin: true, secure: false },
+      '/api/v1/roles': { target: 'http://localhost:8090', changeOrigin: true, secure: false },
+      '/api/v1/authz': { target: 'http://localhost:8090', changeOrigin: true, secure: false },
+    },
   },
 
   build: {

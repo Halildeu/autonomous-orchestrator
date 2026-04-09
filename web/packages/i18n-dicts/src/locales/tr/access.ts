@@ -166,6 +166,27 @@ const access = {
   'access.explain.denied': 'Erişim Yok',
   'access.explain.noResults': 'Henüz bir kontrol yapılmadı.',
 
+  // Granule save / member management
+  'access.notifications.permissionSaveSuccess': 'Yetkiler kaydedildi.',
+  'access.notifications.permissionSaveError': 'Yetkiler kaydedilemedi.',
+  'access.notifications.memberAddSuccess': 'Kullanıcı role eklendi.',
+  'access.notifications.memberAddError': 'Kullanıcı eklenemedi.',
+  'access.notifications.memberRemoveSuccess': 'Kullanıcı rolden kaldırıldı.',
+  'access.notifications.memberRemoveError': 'Kullanıcı kaldırılamadı.',
+  'access.notifications.memberRemoveConfirm': '"{userName}" kullanıcısını bu rolden kaldırmak istediğinize emin misiniz?',
+
+  // User search (member add)
+  'access.drawer.userSearchPlaceholder': 'Kullanıcı adı veya e-posta ile arayın',
+  'access.drawer.userSearchLabel': 'Kullanıcı ekle',
+  'access.drawer.noUsersFound': 'Kullanıcı bulunamadı.',
+
+  // Explain reasons
+  'access.explain.reason.ALLOWED': 'Erişim izni verilmiş.',
+  'access.explain.reason.NO_ROLE': 'Kullanıcıya hiç rol atanmamış.',
+  'access.explain.reason.DENIED_BY_ROLE': 'Roldeki DENY kuralı erişimi engelliyor.',
+  'access.explain.reason.NO_SCOPE': 'Kullanıcının bu kapsam (scope) için izni yok.',
+  'access.explain.reason.NO_PERMISSION': 'Bu izin hiçbir rolde tanımlanmamış.',
+
   'common.save': 'Kaydet',
   'common.loading': 'Yükleniyor...',
 };

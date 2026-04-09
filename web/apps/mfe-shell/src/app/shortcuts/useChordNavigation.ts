@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthorization } from '../../features/auth/model/use-authorization.model';
+import { usePermissions } from '@mfe/auth';
 import { isEditableElement } from './keyboard-utils';
 import { CHORD_MAP, CHORD_TIMEOUT_MS, type ChordEntry } from './chord-navigation.config';
 
@@ -22,12 +22,12 @@ export interface ChordNavigationState {
 export function useChordNavigation(): ChordNavigationState {
   const [isPending, setIsPending] = useState(false);
   const navigate = useNavigate();
-  const { hasPermission } = useAuthorization();
+  const { hasModule } = usePermissions();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeChords = useMemo(
-    () => CHORD_MAP.filter((c) => !c.permission || hasPermission(c.permission)),
-    [hasPermission],
+    () => CHORD_MAP.filter((c) => !c.permission || hasModule(c.permission)),
+    [hasModule],
   );
 
   const cancel = useCallback(() => {

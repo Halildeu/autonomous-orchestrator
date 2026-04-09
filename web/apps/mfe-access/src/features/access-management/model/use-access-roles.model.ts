@@ -11,6 +11,7 @@ import {
   deleteRole as deleteRoleApi,
   updateRolePermissions,
 } from '../../../entities/roles/api/roles.api';
+import { pushToast } from '../../../shared/notifications';
 
 const normalise = (value: string) => value.trim().toLowerCase();
 const CURRENT_ACTOR = 'shell.user';
@@ -98,8 +99,8 @@ export const useAccessRoles = (filters: AccessFilters) => {
       await queryClient.invalidateQueries({ queryKey: ['roles'] });
       await queryClient.invalidateQueries({ queryKey: ['role'] });
     },
-    onError: (error) => {
-      console.warn('[useAccessRoles] Role güncelleme başarısız, mock veri tutuluyor.', error);
+    onError: (error: Error) => {
+      pushToast('error', error.message);
     },
   });
 
@@ -108,8 +109,8 @@ export const useAccessRoles = (filters: AccessFilters) => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['roles'] });
     },
-    onError: (error) => {
-      console.warn('[useAccessRoles] Role oluşturma başarısız.', error);
+    onError: (error: Error) => {
+      pushToast('error', error.message);
     },
   });
 
@@ -118,8 +119,8 @@ export const useAccessRoles = (filters: AccessFilters) => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['roles'] });
     },
-    onError: (error) => {
-      console.warn('[useAccessRoles] Role silme başarısız.', error);
+    onError: (error: Error) => {
+      pushToast('error', error.message);
     },
   });
 
@@ -128,8 +129,8 @@ export const useAccessRoles = (filters: AccessFilters) => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['roles'] });
     },
-    onError: (error) => {
-      console.warn('[useAccessRoles] Role klonlama başarısız.', error);
+    onError: (error: Error) => {
+      pushToast('error', error.message);
     },
   });
 
@@ -287,8 +288,8 @@ export const useAccessRoles = (filters: AccessFilters) => {
         await queryClient.invalidateQueries({ queryKey: ['roles'] });
         await queryClient.invalidateQueries({ queryKey: ['role', vars.id] });
       },
-      onError: (error) => {
-        console.warn('[useAccessRoles] Role permission update failed.', error);
+      onError: (error: Error) => {
+        pushToast('error', error.message);
       },
     }),
   };

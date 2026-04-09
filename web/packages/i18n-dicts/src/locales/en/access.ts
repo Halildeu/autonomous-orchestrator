@@ -166,6 +166,27 @@ const access = {
   'access.explain.denied': 'Denied',
   'access.explain.noResults': 'No checks performed yet.',
 
+  // Granule save / member management
+  'access.notifications.permissionSaveSuccess': 'Permissions saved.',
+  'access.notifications.permissionSaveError': 'Failed to save permissions.',
+  'access.notifications.memberAddSuccess': 'User added to role.',
+  'access.notifications.memberAddError': 'Failed to add user.',
+  'access.notifications.memberRemoveSuccess': 'User removed from role.',
+  'access.notifications.memberRemoveError': 'Failed to remove user.',
+  'access.notifications.memberRemoveConfirm': 'Are you sure you want to remove "{userName}" from this role?',
+
+  // User search (member add)
+  'access.drawer.userSearchPlaceholder': 'Search by name or email',
+  'access.drawer.userSearchLabel': 'Add user',
+  'access.drawer.noUsersFound': 'No users found.',
+
+  // Explain reasons
+  'access.explain.reason.ALLOWED': 'Access granted.',
+  'access.explain.reason.NO_ROLE': 'No roles assigned to user.',
+  'access.explain.reason.DENIED_BY_ROLE': 'A DENY rule in the role blocks access.',
+  'access.explain.reason.NO_SCOPE': 'User does not have access to this scope.',
+  'access.explain.reason.NO_PERMISSION': 'This permission is not defined in any role.',
+
   'common.save': 'Save',
   'common.loading': 'Loading...',
 };

@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { usePermissions } from '@mfe/auth';
-import { useAuthorization } from '../../features/auth/model/use-authorization.model';
-import { PERMISSIONS } from '../../features/auth/lib/permissions.constants';
+import { MODULE_KEYS } from '../../features/auth/lib/permissions.constants';
 import { useShellCommonI18n } from '../i18n';
 import { useThemeContext } from '../theme/theme-context.provider';
 import { isEthicRemoteEnabled, isSuggestionsRemoteEnabled } from '../shell-navigation';
@@ -35,7 +34,7 @@ const baseLauncherItems = [
     titleKey: 'shell.nav.access',
     descriptionKey: 'shell.launcher.access.description',
     to: '/access/roles',
-    requiredPermission: PERMISSIONS.ACCESS_MODULE,
+    requiredModule: MODULE_KEYS.ACCESS,
   },
   {
     key: 'users',
@@ -43,12 +42,12 @@ const baseLauncherItems = [
     titleKey: 'shell.nav.users',
     descriptionKey: 'shell.launcher.users.description',
     to: '/admin/users',
-    requiredPermission: PERMISSIONS.USER_MANAGEMENT_MODULE,
+    requiredModule: MODULE_KEYS.USER_MANAGEMENT,
   },
 ];
 
 const AppLauncher: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { hasPermission } = useAuthorization();
+  const { hasModule } = usePermissions();
   const { t, locale } = useShellCommonI18n();
   const { axes } = useThemeContext();
   const suggestionsEnabled = isSuggestionsRemoteEnabled();
@@ -73,13 +72,13 @@ const AppLauncher: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
         return true;
       })
-      .filter((item) => !item.requiredPermission || hasPermission(item.requiredPermission))
+      .filter((item) => !item.requiredModule || hasModule(item.requiredModule))
       .map((item) => ({
         ...item,
         title: t(item.titleKey),
         description: t(item.descriptionKey),
       }))
-  ), [ethicEnabled, hasPermission, locale, suggestionsEnabled, t]);
+  ), [ethicEnabled, hasModule, locale, suggestionsEnabled, t]);
 
   return (
     <div className="fixed inset-0 z-[1600]" role="dialog" aria-modal="true" aria-label={t('shell.launcher.title')}>

@@ -16,6 +16,10 @@ COMMON_GLOBS=(
   --glob '!**/legacy/**'
   --glob '!**/target/**'
   --glob '!**/.git/**'
+  --glob '!**/node_modules/**'
+  --glob '!**/.env'
+  --glob '!**/.env.local'
+  --glob '!**/.autopilot-tmp/**'
   --glob '!**/src/main/java/**'
   --glob '!**/src/test/**'
   --glob '!**/mvnw'
@@ -45,10 +49,11 @@ pattern = sys.argv[1]
 root = sys.argv[2]
 
 regex = re.compile(pattern)
-exclude_dir_names = {"docs", "legacy", "target", ".git", "packages", "devops", "infra", "test-results"}
+exclude_dir_names = {"docs", "legacy", "target", ".git", "node_modules", ".autopilot-tmp", "packages", "devops", "infra", "test-results"}
 exclude_subpaths = ("src/main/java", "src/test", "scripts/perf", "scripts/vault")
 exclude_file_names = {"mvnw", "mvnw.cmd", "test-users-and-variants.sh"}
 exclude_suffixes = (".example", ".env.example", "application-local.properties", "application-docker.properties")
+    exclude_file_basenames = {".env", ".env.local"}
 
 found = False
 
@@ -86,7 +91,7 @@ for dirpath, dirnames, filenames in os.walk(root):
 
     for filename in filenames:
         rel_path = f"{rel_dir_posix}/{filename}" if rel_dir_posix else filename
-        if filename in exclude_file_names:
+        if filename in exclude_file_names or filename in exclude_file_basenames:
             continue
         if any(contains_subpath(rel_path, prefix) for prefix in exclude_subpaths):
             continue

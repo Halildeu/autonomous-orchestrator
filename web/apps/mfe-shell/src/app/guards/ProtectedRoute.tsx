@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../store/store.hooks';
 import { usePermissions } from '@mfe/auth';
-import { useAuthorization } from '../../features/auth/model/use-authorization.model';
 import { isPermitAllMode } from '../auth/auth-config';
 
 interface ProtectedRouteProps {
@@ -22,7 +21,6 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { token, initialized } = useAppSelector((state) => state.auth);
   const { hasModule, isSuperAdmin } = usePermissions();
-  const { hasPermission } = useAuthorization();
   const location = useLocation();
   const permitAllMode = isPermitAllMode();
 
@@ -49,8 +47,8 @@ export const ProtectedRoute = ({
   if (requiredModule) {
     canAccess = isSuperAdmin() || hasModule(requiredModule);
   } else if (requiredPermissions) {
-    // Legacy string-based check (backward compat)
-    canAccess = hasPermission(requiredPermissions);
+    // Legacy string-based check — map to module check for backward compat
+    canAccess = isSuperAdmin() || requiredPermissions.every(p => hasModule(p));
   } else {
     canAccess = true;
   }

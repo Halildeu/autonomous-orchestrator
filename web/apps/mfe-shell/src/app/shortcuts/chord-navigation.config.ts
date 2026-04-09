@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { Home, Users, BarChart3, Server, Shield, Palette } from 'lucide-react';
-import { PERMISSIONS } from '../../features/auth/lib/permissions.constants';
+import { MODULE_KEYS } from '../../features/auth/lib/permissions.constants';
 
 /* ------------------------------------------------------------------ */
 /*  G-Chord Navigation — Linear-style "g then key" shortcuts           */
@@ -24,9 +24,9 @@ export const CHORD_TIMEOUT_MS = 1500;
 
 export const CHORD_MAP: ChordEntry[] = [
   { key: 'h', labelKey: 'shell.chord.home', path: '/', icon: Home },
-  { key: 'u', labelKey: 'shell.chord.users', path: '/admin/users', icon: Users, permission: PERMISSIONS.USER_MODULE },
+  { key: 'u', labelKey: 'shell.chord.users', path: '/admin/users', icon: Users, permission: MODULE_KEYS.USER_MANAGEMENT },
   { key: 'r', labelKey: 'shell.chord.reports', path: '/admin/reports', icon: BarChart3 },
   { key: 's', labelKey: 'shell.chord.services', path: '/admin/services', icon: Server },
-  { key: 'a', labelKey: 'shell.chord.audit', path: '/audit/events', icon: Shield, permission: PERMISSIONS.AUDIT_MODULE },
-  { key: 't', labelKey: 'shell.chord.themes', path: '/admin/themes', icon: Palette, permission: PERMISSIONS.THEME_ADMIN },
+  { key: 'a', labelKey: 'shell.chord.audit', path: '/audit/events', icon: Shield, permission: MODULE_KEYS.AUDIT },
+  { key: 't', labelKey: 'shell.chord.themes', path: '/admin/themes', icon: Palette, permission: MODULE_KEYS.THEME },
 ];

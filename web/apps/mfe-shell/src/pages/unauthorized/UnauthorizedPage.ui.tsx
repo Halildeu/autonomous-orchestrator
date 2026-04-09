@@ -1,7 +1,9 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Alert, Button } from '@mfe/design-system';
-import { usePermissions } from '@mfe/auth';
+import { Alert, Badge, Button } from '@mfe/design-system';
+import { usePermissions, useExplainPermission } from '@mfe/auth';
+import type { ExplainResponse } from '@mfe/auth';
+import { api } from '@mfe/shared-http';
 import { useShellCommonI18n } from '../../app/i18n';
 
 const REASON_MESSAGES: Record<string, { title: string; description: string }> = {
@@ -19,10 +21,21 @@ const REASON_MESSAGES: Record<string, { title: string; description: string }> = 
   },
 };
 
+const EXPLAIN_REASON_LABELS: Record<ExplainResponse['reason'], { label: string; variant: 'success' | 'error' | 'warning' }> = {
+  ALLOWED: { label: 'Erişim izni verilmiş.', variant: 'success' },
+  NO_ROLE: { label: 'Kullanıcıya hiç rol atanmamış.', variant: 'error' },
+  DENIED_BY_ROLE: { label: 'Roldeki DENY kuralı erişimi engelliyor.', variant: 'error' },
+  NO_SCOPE: { label: 'Kullanıcının bu kapsam (scope) için izni yok.', variant: 'warning' },
+  NO_PERMISSION: { label: 'Bu izin hiçbir rolde tanımlanmamış.', variant: 'error' },
+};
+
 const UnauthorizedPage: React.FC = () => {
   const location = useLocation();
   const { t } = useShellCommonI18n();
   const { authz } = usePermissions();
+  const { explain, result: explainResult, loading: explainLoading, error: explainError } = useExplainPermission({
+    httpPost: (url, body) => api.post(url, body),
+  });
 
   const state = location.state as {
     from?: string;
@@ -34,9 +47,21 @@ const UnauthorizedPage: React.FC = () => {
   const fromPath = state?.from ?? '/';
   const reason = state?.reason;
   const requiredModule = state?.requiredModule;
+  const requiredPermission = state?.requiredPermission;
   const userRoles = authz?.roles ?? [];
+  const userId = (authz as Record<string, unknown>)?.userId as string | undefined;
 
   const reasonInfo = reason ? REASON_MESSAGES[reason] : null;
+
+  const handleExplain = async () => {
+    if (!userId) return;
+    const permType = requiredPermission ? 'ACTION' : 'MODULE';
+    const permKey = requiredPermission ?? requiredModule ?? '';
+    if (!permKey) return;
+    await explain(userId, permType, permKey);
+  };
+
+  const canExplain = !!userId && !!(requiredModule || requiredPermission);
 
   return (
     <div className="mt-16 flex justify-center px-4">
@@ -75,7 +100,45 @@ const UnauthorizedPage: React.FC = () => {
           </div>
         )}
 
+        {/* Explain result from server */}
+        {explainResult && (
+          <div className="mb-4 rounded-xl border border-border-subtle bg-surface-muted p-4 text-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-semibold text-text-primary">Sunucu açıklaması:</span>
+              <Badge variant={EXPLAIN_REASON_LABELS[explainResult.reason]?.variant ?? 'error'} size="sm">
+                {explainResult.reason}
+              </Badge>
+            </div>
+            <p className="text-text-secondary mb-2">
+              {EXPLAIN_REASON_LABELS[explainResult.reason]?.label ?? explainResult.reason}
+            </p>
+            {explainResult.details?.roleName && (
+              <div className="flex justify-between">
+                <span className="text-text-subtle">Kaynak rol:</span>
+                <span className="font-medium text-text-primary">{explainResult.details.roleName}</span>
+              </div>
+            )}
+            {explainResult.userRoles?.length > 0 && (
+              <div className="flex justify-between mt-1">
+                <span className="text-text-subtle">Roller:</span>
+                <span className="font-medium text-text-primary">{explainResult.userRoles.join(', ')}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {explainError && (
+          <Alert variant="error" title="Explain hatası" className="mb-4">
+            {explainError}
+          </Alert>
+        )}
+
         <div className="flex flex-wrap gap-2">
+          {canExplain && !explainResult && (
+            <Button variant="secondary" onClick={handleExplain} loading={explainLoading}>
+              Neden erişemiyorum?
+            </Button>
+          )}
           <Button className="bg-action-primary text-action-primary-text hover:opacity-90">
             <Link to={fromPath}>{t('auth.unauthorized.back')}</Link>
           </Button>

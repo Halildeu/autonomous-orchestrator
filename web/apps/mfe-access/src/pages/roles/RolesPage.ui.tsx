@@ -10,6 +10,7 @@ import { useAccessRoles } from '../../features/access-management/model/use-acces
 import RolesGrid from '../../widgets/roles-grid/RolesGrid.ui';
 import RoleDrawer from '../../widgets/role-drawer/RoleDrawer.ui';
 import { useAccessI18n } from '../../i18n/useAccessI18n';
+import { pushToast } from '../../shared/notifications';
 
 const RolesPage: React.FC = () => {
   const [selectedRole, setSelectedRole] = React.useState<AccessRole | null>(null);
@@ -87,12 +88,14 @@ const RolesPage: React.FC = () => {
             onCreateRole={handleCreateRole}
             onDeleteRole={async (roleId) => {
               await deleteRoleMutation.mutateAsync(roleId);
+              pushToast('success', t('access.notifications.deleteSuccess'));
             }}
             onCloneRole={async (role) => {
               await cloneRole({
                 sourceRoleId: role.id,
                 name: `${role.name} (Kopya)`,
               });
+              pushToast('success', t('access.notifications.cloneSuccess.title'));
             }}
             t={t}
             formatNumber={formatNumber}
@@ -111,6 +114,7 @@ const RolesPage: React.FC = () => {
         }}
         onCreateRole={async (values) => {
           const created = await createRoleMutation.mutateAsync(values);
+          pushToast('success', t('access.notifications.createSuccess'));
           setSelectedRole(created);
           setDrawerMode('view');
         }}

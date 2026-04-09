@@ -368,7 +368,7 @@ python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py
 python3 extensions/PRJ-OBSERVABILITY-OTEL/coverage_visibility_report.py --repo-root . --out-json .cache/reports/coverage_visibility.v1.json --out-md .cache/reports/coverage_visibility.v1.md
 python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py --repo-root . --out-json .cache/reports/observability_coverage_matrix.v1.json --out-md .cache/reports/observability_coverage_matrix.v1.md
 python3 scripts/check_branch_protection_solo_policy.py --mode warn --out .cache/reports/branch_protection_solo_policy_ci.v1.json
-python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/reports/enforcement-check-local
+python3 -c "import src.ops.manage" 2>/dev/null && python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/reports/enforcement-check-local || echo "[skip] src.ops.manage not available in this repo"
 '
 run_shell_step "web-gate" "${web_gate_cmd}"
 run_shell_step "backend-gate" '

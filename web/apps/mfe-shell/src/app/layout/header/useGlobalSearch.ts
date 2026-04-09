@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { CommandPaletteItem } from '@mfe/design-system';
 import { usePermissions } from '@mfe/auth';
-import { useAuthorization } from '../../../features/auth/model/use-authorization.model';
 import { useAppSelector, useAppDispatch } from '../../store/store.hooks';
 import { toggleOpen } from '../../../features/notifications/model/notifications.slice';
 import {
@@ -35,7 +34,6 @@ export function useGlobalSearch(): GlobalSearchState {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { hasModule, isSuperAdmin } = usePermissions();
-  const { hasPermission } = useAuthorization(); // legacy compat for search items
   const { initialized } = useAppSelector((s) => s.auth);
   const { t, manager: i18nManager } = useShellCommonI18n();
   const suggestionsEnabled = isSuggestionsRemoteEnabled();
@@ -64,10 +62,10 @@ export function useGlobalSearch(): GlobalSearchState {
     return SEARCHABLE_ITEMS.filter((item) => {
       if (item.remoteFlag === 'suggestions' && !suggestionsEnabled) return false;
       if (item.remoteFlag === 'ethic' && !ethicEnabled) return false;
-      if (item.permission && !hasPermission(item.permission)) return false;
+      if (item.permission && !hasModule(item.permission)) return false;
       return true;
     });
-  }, [initialized, hasPermission, suggestionsEnabled, ethicEnabled]);
+  }, [initialized, hasModule, suggestionsEnabled, ethicEnabled]);
 
   // Build CommandPalette items: recent + filtered
   const items = useMemo<CommandPaletteItem[]>(() => {

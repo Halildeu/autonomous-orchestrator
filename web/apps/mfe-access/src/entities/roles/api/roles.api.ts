@@ -38,7 +38,7 @@ type ErrorResponse = {
   meta?: { traceId?: string };
 };
 
-const parseError = (err: unknown) => {
+const parseError = (err: unknown): never => {
   if (axios.isAxiosError(err)) {
     const res = err as AxiosError<ErrorResponse>;
     const data = res.response?.data;

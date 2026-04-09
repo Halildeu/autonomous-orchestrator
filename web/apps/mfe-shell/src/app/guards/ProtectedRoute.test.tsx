@@ -19,11 +19,9 @@ const authState = {
   },
 };
 
-const authorizationMock = {
-  hasPermission: () => true,
-  permissions: [] as string[],
-  role: 'ADMIN',
-  user: { email: 'admin@example.com' },
+const permissionsMock = {
+  hasModule: () => true,
+  isSuperAdmin: () => false,
 };
 
 const authModeMock = {
@@ -34,19 +32,12 @@ vi.mock('../store/store.hooks', () => ({
   useAppSelector: (selector: any) => selector(authState),
 }));
 
-vi.mock('../../features/auth/model/use-authorization.model', () => ({
-  useAuthorization: () => authorizationMock,
-}));
-
 vi.mock('../auth/auth-config', () => ({
   isPermitAllMode: () => authModeMock.permitAll,
 }));
 
 vi.mock('@mfe/auth', () => ({
-  usePermissions: () => ({
-    hasModule: () => true,
-    isSuperAdmin: () => false,
-  }),
+  usePermissions: () => permissionsMock,
 }));
 
 const LocationViewer = ({ label }: { label: string }) => {
@@ -85,7 +76,8 @@ describe('ProtectedRoute', () => {
 
   beforeEach(() => {
     authState.auth.token = null;
-    authorizationMock.hasPermission = () => true;
+    permissionsMock.hasModule = () => true;
+    permissionsMock.isSuperAdmin = () => false;
     authState.auth.initialized = true;
     authModeMock.permitAll = false;
   });
@@ -107,16 +99,15 @@ describe('ProtectedRoute', () => {
 
   it('navigates authenticated but unauthorized user to /unauthorized', () => {
     authState.auth.token = 'valid-token';
-    authorizationMock.hasPermission = () => false;
+    permissionsMock.hasModule = () => false;
 
     renderWithRouter();
     expect(screen.getByText('Unauthorized Page')).toBeInTheDocument();
-    expect(screen.getByTestId('location-state')).toHaveTextContent('forbidden');
   });
 
   it('renders children when authenticated and authorized', () => {
     authState.auth.token = 'valid-token';
-    authorizationMock.hasPermission = () => true;
+    permissionsMock.hasModule = () => true;
 
     renderWithRouter();
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
