@@ -306,37 +306,54 @@ main() {
   local compose_args=( ${compose_flags} )
 
   compose_run "${compose_args[@]}" config --services >/dev/null
-  compose_run "${compose_args[@]}" pull
 
-  # Remove stale containers whose config may have changed (prevents "name already in use" conflicts)
-  compose_run "${compose_args[@]}" down --remove-orphans --timeout 30 2>/dev/null || true
+  # --- STRATEGY ---
+  # Backend deploy ONLY recreates application services.
+  # Infrastructure (postgres, vault, keycloak, nginx, observability) stays RUNNING.
+  # This prevents: Vault timeout, Keycloak cold-start, data loss.
+  #
+  # If infra config changed, run: docker compose up -d --force-recreate <service>
 
-  # Phase 1: Infrastructure (DB, Vault, Keycloak)
-  compose_run "${compose_args[@]}" up -d postgres-db vault vault-unseal keycloak
+  # Pull new images (backend services only)
+  local backend_services=(
+    discovery-server
+    permission-service
+    auth-service
+    user-service
+    variant-service
+    core-data-service
+    report-service
+    api-gateway
+  )
+  compose_run "${compose_args[@]}" pull "${backend_services[@]}" || true
+
+  # Ensure infrastructure is up (idempotent — does nothing if already running)
+  compose_run "${compose_args[@]}" up -d postgres-db openfga-migrate openfga vault vault-unseal keycloak
   wait_for_service_state postgres-db healthy 60
-  wait_for_service_state vault healthy 90
-
-  # Phase 2: Service dependencies (OpenFGA, Discovery)
-  compose_run "${compose_args[@]}" up -d openfga-migrate openfga discovery-server
   wait_for_service_state openfga running 60
+
+  # Recreate backend services with new images (--force-recreate only touches these)
+  compose_run "${compose_args[@]}" up -d --force-recreate --no-deps discovery-server
   wait_for_service_state discovery-server healthy 90
 
-  # Phase 3: Core services (need Vault + DB + OpenFGA)
-  compose_run "${compose_args[@]}" up -d --no-deps permission-service
+  compose_run "${compose_args[@]}" up -d --force-recreate --no-deps permission-service
   wait_for_service_state permission-service healthy 120
 
-  compose_run "${compose_args[@]}" up -d --no-deps auth-service user-service variant-service core-data-service
+  compose_run "${compose_args[@]}" up -d --force-recreate --no-deps auth-service user-service variant-service core-data-service report-service
   wait_for_service_state auth-service healthy 120
   wait_for_service_state user-service healthy 120
   wait_for_service_state variant-service healthy 120
   wait_for_service_state core-data-service healthy 120
+  wait_for_service_state report-service healthy 120
 
-  # Phase 4: API Gateway (needs all upstream services)
-  compose_run "${compose_args[@]}" up -d --no-deps api-gateway
+  compose_run "${compose_args[@]}" up -d --force-recreate --no-deps api-gateway
   wait_for_service_state api-gateway healthy 90
 
-  # Phase 5: Supporting services (nginx, observability, service-manager)
+  # Ensure supporting services are up (idempotent)
   compose_run "${compose_args[@]}" up -d web-nginx service-manager vault-audit-init vault-snapshot loki promtail tempo prometheus grafana 2>/dev/null || true
+
+  # Remove orphan containers (old names, deleted services)
+  compose_run "${compose_args[@]}" up -d --remove-orphans 2>/dev/null || true
 
   compose_run "${compose_args[@]}" ps
 

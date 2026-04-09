@@ -343,7 +343,7 @@ jobs:
           REPO_DIR="${repo_dir}" \
           COMPOSE_PROFILES="${remote_profiles}" \
           REPO_BRANCH="${GITHUB_REF_NAME}" \
-          RENDER_ENV_BEFORE_DEPLOY="true" \
+          RENDER_ENV_BEFORE_DEPLOY="false" \
           DEPLOY_ENV="stage" \
           VAULT_ADDR="${vault_addr}" \
           GHCR_USERNAME="${GITHUB_ACTOR}" \
