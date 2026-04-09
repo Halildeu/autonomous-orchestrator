@@ -13,8 +13,9 @@ NGINX_SERVER_NAME="${NGINX_SERVER_NAME:-ai.acik.com}"
 NGINX_TLS_ENABLED="${NGINX_TLS_ENABLED:-true}"
 NGINX_TLS_CERT_PATH="${NGINX_TLS_CERT_PATH:-}"
 NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH:-}"
-NGINX_GATEWAY_UPSTREAM="${NGINX_GATEWAY_UPSTREAM:-http://127.0.0.1:8080}"
-NGINX_KEYCLOAK_UPSTREAM="${NGINX_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8080}"
+NGINX_GATEWAY_UPSTREAM="${NGINX_GATEWAY_UPSTREAM:-http://api-gateway:8080}"
+NGINX_KEYCLOAK_UPSTREAM="${NGINX_KEYCLOAK_UPSTREAM:-http://keycloak:8080}"
+NGINX_SERVICE_MANAGER_UPSTREAM="${NGINX_SERVICE_MANAGER_UPSTREAM:-http://service-manager:8795}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -130,6 +131,17 @@ server {
     access_log off;
     expires 1h;
     add_header Cache-Control "public, max-age=3600, immutable";
+  }
+
+  resolver 127.0.0.11 valid=10s;
+
+  location /api/services/ {
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_pass ${NGINX_SERVICE_MANAGER_UPSTREAM};
   }
 
   location /api/ {
