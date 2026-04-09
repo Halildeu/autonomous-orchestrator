@@ -8,28 +8,6 @@ on:
       - ".github/workflows/web-qa.yml"
   workflow_dispatch: {}
 
-# Shared setup anchor
-x-web-setup: &web-setup
-  - name: Checkout repository
-    uses: actions/checkout@v6
-    with:
-      fetch-depth: 0
-  - name: Set up Node
-    uses: actions/setup-node@v6
-    with:
-      node-version: 22
-  - name: Install pnpm
-    run: corepack enable && corepack prepare pnpm@latest --activate
-  - name: pnpm store cache
-    uses: actions/cache@v4
-    with:
-      path: ~/.local/share/pnpm/store/v3
-      key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
-      restore-keys: ${{ runner.os }}-pnpm-
-  - name: Install web dependencies
-    run: pnpm install --frozen-lockfile
-    working-directory: web
-
 jobs:
   # ── Lint + audit (parallel) ──────────────────────────────
   web-lint:

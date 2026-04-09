@@ -322,33 +322,23 @@ jobs:
               gateway_host_port="8080"
             fi
 
-            python3 - <<'PY' "${access_token}"
-import base64
-import json
-import sys
-
-token = sys.argv[1].strip()
-parts = token.split(".")
-payload = {}
-if len(parts) >= 2:
-    raw = parts[1]
-    raw += "=" * (-len(raw) % 4)
-    try:
-        payload = json.loads(base64.urlsafe_b64decode(raw.encode("ascii")).decode("utf-8"))
-    except Exception:
-        payload = {}
-
-aud = payload.get("aud", [])
-if isinstance(aud, str):
-    aud = [aud]
-elif not isinstance(aud, list):
-    aud = []
-
-print("[app-authz] token_iss=" + str(payload.get("iss", "-")))
-print("[app-authz] token_azp=" + str(payload.get("azp", "-")))
-print("[app-authz] token_client_id=" + str(payload.get("client_id", "-")))
-print("[app-authz] token_aud=" + ",".join(str(item) for item in aud))
-PY
+            printf '%s' "${access_token}" | python3 -c "
+            import base64, json, sys
+            token = sys.stdin.read().strip()
+            parts = token.split('.')
+            payload = {}
+            if len(parts) >= 2:
+              raw = parts[1]; raw += '=' * (-len(raw) % 4)
+              try: payload = json.loads(base64.urlsafe_b64decode(raw.encode('ascii')).decode('utf-8'))
+              except Exception: payload = {}
+            aud = payload.get('aud', [])
+            if isinstance(aud, str): aud = [aud]
+            elif not isinstance(aud, list): aud = []
+            print('[app-authz] token_iss=' + str(payload.get('iss', '-')))
+            print('[app-authz] token_azp=' + str(payload.get('azp', '-')))
+            print('[app-authz] token_client_id=' + str(payload.get('client_id', '-')))
+            print('[app-authz] token_aud=' + ','.join(str(item) for item in aud))
+            "
 
             echo "[app-authz] docker_ports_begin"
             docker ps --format '{{.Names}}|{{.Ports}}' \

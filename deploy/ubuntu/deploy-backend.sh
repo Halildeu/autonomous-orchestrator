@@ -258,6 +258,23 @@ main() {
   bootstrap_vault_credentials_from_env_file
   maybe_render_env
   load_env_file
+
+  # Fix stale HTTP→HTTPS Vault references in env file.
+  # Vault now uses TLS; old env files may still have http://vault:8200.
+  fix_vault_scheme() {
+    local current_uri
+    current_uri="$(read_env_value VAULT_URI)"
+    if [[ "${current_uri}" == http://vault:* && "${current_uri}" != https://vault:* ]]; then
+      local new_uri="${current_uri/http:\/\//https:\/\/}"
+      upsert_env_value VAULT_URI "${new_uri}"
+      upsert_env_value VAULT_SCHEME "https"
+      export VAULT_URI="${new_uri}"
+      export VAULT_SCHEME="https"
+      echo "[deploy] fixed VAULT_URI: http→https (${new_uri})"
+    fi
+  }
+  fix_vault_scheme
+
   REPO_BRANCH="${PINNED_REPO_BRANCH}"
   sync_repo
   mkdir -p "${STATE_DIR}"
