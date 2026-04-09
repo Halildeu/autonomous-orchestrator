@@ -344,9 +344,12 @@ main() {
   )
   compose_run "${compose_args[@]}" pull "${backend_services[@]}" || true
 
-  # Ensure infrastructure is up (idempotent — does nothing if already running)
-  compose_run "${compose_args[@]}" up -d postgres-db openfga-migrate openfga vault vault-unseal keycloak
+  # Ensure infrastructure is up.
+  # Force-recreate vault sidecars to pick up any script changes from this deploy.
+  compose_run "${compose_args[@]}" up -d postgres-db openfga-migrate openfga vault keycloak
+  compose_run "${compose_args[@]}" up -d --force-recreate vault-unseal vault-audit-init vault-snapshot 2>/dev/null || true
   wait_for_service_state postgres-db healthy 60
+  wait_for_service_state vault healthy 120
   wait_for_service_state openfga running 60
 
   # Recreate backend services with new images (--force-recreate only touches these)
