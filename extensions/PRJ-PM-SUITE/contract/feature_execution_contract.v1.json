@@ -1,438 +1,69 @@
 {
-  "version": "v1",
-  "kind": "feature-execution-contract",
-  "status": "ACTIVE",
-  "feature_id": "cross_plane_auth_session_audit_foundation",
-  "title": "Cross-Plane Auth Session Audit Foundation",
-  "summary": "Use the existing auth-service, permission-service, gateway, and common-auth backbone as one governed session and authorization capability for web and mobile, with audit visibility and context discipline.",
-  "source_context": {
-    "source_type": "manual",
-    "source_refs": [
-      "docs/OPERATIONS/MANAGED-REPO-CONTEXT-CONSUMPTION.v1.md",
-      "docs/OPERATIONS/MULTI-PLANE-EXECUTION-MODEL.v1.md",
-      "tenant/TENANT-DEFAULT/decision-bundle.v1.json",
-      "mobile/ARCHITECTURE.md",
-      "docs/03-delivery/STORIES/STORY-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/ACCEPTANCE/AC-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/TEST-PLANS/TP-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/INTERFACE-CONTRACTS/INTERFACE-CONTRACT-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/api/auth.api.md",
-      "docs/03-delivery/api/permission.api.md",
-      "docs/03-delivery/api/audit-events.api.md",
-      "docs/03-delivery/api/notification-preferences.api.md",
-      "docs/03-delivery/api/users.api.md",
-      "docs/03-delivery/api/common-headers.md",
+  "context_contract": {
+    "codex_read_sequence": [
+      "standards.lock",
       "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
-      "registry/technical_baseline.aistd.v1.json",
-      "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json"
+      "docs/OPERATIONS/OPO-AUTHORITY-MAP.v1.md",
+      "docs/OPERATIONS/MANAGED-REPO-CONTEXT-CONSUMPTION.v1.md",
+      "tenant/TENANT-DEFAULT/context.v1.md",
+      "tenant/TENANT-DEFAULT/decision-bundle.v1.json",
+      "docs/03-delivery/STORIES/STORY-0316-cross-plane-auth-session-audit-foundation.md",
+      "docs/03-delivery/INTERFACE-CONTRACTS/INTERFACE-CONTRACT-cross-plane-auth-session-audit-foundation.md",
+      "extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json"
     ],
-    "business_goal": "Make the existing backend identity and authorization stack the shared foundation for web and mobile growth without introducing a second auth model.",
-    "requested_outcome": "The first real multi-plane capability should prove that one execution contract can coordinate session bootstrap, permission scope resolution, and audit visibility across backend, web, mobile, and governance."
+    "context_refs": [
+      "tenant/TENANT-DEFAULT/context.v1.md",
+      "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+      "tenant/TENANT-DEFAULT/scope.v1.md",
+      "tenant/TENANT-DEFAULT/criteria.v1.md"
+    ],
+    "decision_bundle_path": "tenant/TENANT-DEFAULT/decision-bundle.v1.json"
+  },
+  "definition_of_done": {
+    "acceptance_criteria": [
+      "Spring integration profile + docker-compose local defaults"
+    ],
+    "evidence_paths": [
+      ".cache/reports/feature_execution_contract_check.v1.json"
+    ]
   },
   "delivery_scope": {
+    "affected_modules": [],
+    "change_path_globs": [
+      "backend/docker-compose.yml",
+      "backend/*/src/main/resources/application-integration.yml"
+    ],
     "repo_root": ".",
     "service_scopes": [
+      "backend"
+    ]
+  },
+  "feature_id": "integration-profile",
+  "kind": "feature-execution-contract",
+  "lane_plan": {
+    "execution_sequence": [
       "backend",
       "database",
       "api",
-      "frontend"
+      "frontend",
+      "integration",
+      "e2e"
     ],
-    "change_path_globs": [
-      "backend/auth-service/**/*",
-      "backend/.env.prod.example",
-      "backend/.gitignore",
-      "backend/permission-service/**/*",
-      "backend/permission-service/Dockerfile",
-      "backend/user-service/**/*",
-      "backend/common-auth/**/*",
-      "backend/api-gateway/**/*",
-      "backend/scripts/ci/security/*",
-      "backend/scripts/vault/**/*",
-      "backend/infra/vault/**/*",
-      "web/packages/platform-capabilities/**",
-      "web/.gitignore",
-      "web/.npmrc",
-      "mobile/App.tsx",
-      "mobile/ARCHITECTURE.md",
-      "mobile/package.json",
-      "mobile/package-lock.json",
-      "mobile/app/**/*",
-      "mobile/screens/HomeScreen.tsx",
-      "mobile/screens/**/*",
-      "mobile/features/**/*",
-      "mobile/services/**/*",
-      "mobile/packages/**/*",
-      "web/apps/mfe-shell/src/app/auth/**",
-      "web/apps/mfe-shell/src/app/auth/**/*",
-      "web/apps/mfe-shell/src/app/providers/**",
-      "web/apps/mfe-shell/src/features/auth/**/*",
-      "web/apps/mfe-shell/src/pages/unauthorized/**/*",
-      "web/apps/mfe-shell/src/widgets/app-shell/**/*",
-      "web/apps/mfe-audit/src/**/*",
-      "web/packages/shared-http/**/*",
-      "web/packages/auth/**/*",
-      "web/packages/design-system/src/lib/auth/**/*",
-      "docs/03-delivery/api/auth.api.md",
-      "docs/03-delivery/api/permission.api.md",
-      "docs/03-delivery/api/audit-events.api.md",
-      "docs/03-delivery/api/notification-preferences.api.md",
-      "docs/03-delivery/api/common-headers.md",
-      "docs/03-delivery/STORIES/STORY-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/ACCEPTANCE/AC-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/TEST-PLANS/TP-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/INTERFACE-CONTRACTS/INTERFACE-CONTRACT-cross-plane-auth-session-audit-foundation.md",
-      "docs/OPERATIONS/MANAGED-REPO-CONTEXT-CONSUMPTION.v1.md",
-      "docs/OPERATIONS/MULTI-PLANE-EXECUTION-MODEL.v1.md",
-      "tenant/TENANT-DEFAULT/**/*",
-      "extensions/PRJ-PM-SUITE/contract/**/*",
-      "web/apps/mfe-access/src/**/*",
-      "web/apps/mfe-shell/src/app/config/*",
-      "web/apps/mfe-shell/vite-plugins/*",
-      "web/apps/mfe-suggestions/src/*",
-      "backend/schema-service/**",
-      "backend/scripts/*",
-      "web/apps/mfe-schema-explorer/**",
-      "web/apps/mfe-users/src/widgets/**/*",
-      "web/packages/i18n-dicts/src/locales/**/*",
-      "web/apps/mfe-users/**/*",
-      "web/apps/mfe-reporting/**/*",
-      "web/apps/mfe-shell/src/app/layout/*",
-      "web/apps/mfe-shell/src/app/guards/*",
-      "web/apps/mfe-shell/src/app/router/*",
-      "web/apps/mfe-shell/src/app/shell-navigation.ts",
-      "web/apps/mfe-shell/src/app/shortcuts/*",
-      "web/apps/mfe-shell/src/app/createLazyRemoteModule.tsx",
-      "web/apps/mfe-shell/src/types/*",
-      "web/apps/mfe-shell/src/pages/**/*",
-      "web/packages/design-system/src/**",
-      "web/packages/design-system/src/index.ts",
-      "web/packages/design-system/scripts/**",
-      "web/packages/design-system/docs-portal/**",
-      "web/packages/design-system/*.json",
-      "web/packages/design-system/*.md",
-      "web/.storybook/**",
-      "web/packages/shared-types/**/*",
-      "web/.commitlintrc.cjs",
-      "web/.husky/*",
-      "web/.lighthouserc.json",
-      "scripts/run_lint_web.sh",
-      "scripts/check_security_remediation_contract.py"
+    "notes": [
+      "Generated by seed_feature_execution_contract.py"
     ],
-    "affected_modules": [
-      "api-gateway",
-      "auth-service",
-      "common-auth",
-      "managed-repo-governance",
-      "mobile-workspace",
-      "pm-suite-contracts",
-      "tenant-context",
-      "schema-service",
-      "mfe-schema-explorer",
-      "mfe-users",
-      "mfe-reporting",
-      "mfe-shell",
-      "mfe-audit",
-      "web-shared-http",
-      "web-auth-package",
-      "design-system",
-      "permission-service",
-      "user-service"
-    ]
-  },
-  "ux_contract": {
-    "mode": "REQUIRED",
-    "rationale": "Auth and permission foundation work must keep web and mobile entry flows aligned, minimal, and consistent while reusing shared UI surfaces.",
-    "artifacts": [
-      {
-        "path_glob": "web/apps/mfe-access/src/**",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/auth/**",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/providers/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/guards/*",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/shell-navigation.ts",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/features/auth/**",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/pages/unauthorized/**",
-        "ux_theme_id": "navigation_information_scent",
-        "ux_subtheme_id": "orientation_and_wayfinding"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/widgets/app-shell/**",
-        "ux_theme_id": "navigation_information_scent",
-        "ux_subtheme_id": "orientation_and_wayfinding"
-      },
-      {
-        "path_glob": "web/apps/mfe-audit/src/**/*",
-        "ux_theme_id": "navigation_information_scent",
-        "ux_subtheme_id": "orientation_and_wayfinding"
-      },
-      {
-        "path_glob": "web/packages/platform-capabilities/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/shared-http/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/auth/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/design-system/src/lib/auth/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/screens/HomeScreen.tsx",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "mobile/app/**/*",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "mobile/screens/**/*",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "mobile/features/**/*",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "mobile/services/api/httpClient.ts",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/auth/authClient.ts",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/auth/authStorage.ts",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/api/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/auth/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/audit/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/audit/audit.contract.ts",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/services/audit/auditClient.ts",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "mobile/packages/mobile-ui/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/.gitignore",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/.npmrc",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-access/src/features/**/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/config/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/vite-plugins/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-suggestions/src/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-schema-explorer/**",
-        "ux_theme_id": "data_entry_validation_recovery",
-        "ux_subtheme_id": "input_error_prevention_patterns"
-      },
-      {
-        "path_glob": "web/apps/mfe-users/**/*",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "web/apps/mfe-access/src/app/*",
-        "ux_theme_id": "trust_privacy_security_ux",
-        "ux_subtheme_id": "least_privilege_interaction_design"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/layout/*",
-        "ux_theme_id": "navigation_information_scent",
-        "ux_subtheme_id": "domain_based_information_architecture"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/router/*",
-        "ux_theme_id": "navigation_information_scent",
-        "ux_subtheme_id": "domain_based_information_architecture"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/createLazyRemoteModule.tsx",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/types/*",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/pages/**/*",
-        "ux_theme_id": "navigation_information_scent",
-        "ux_subtheme_id": "domain_based_information_architecture"
-      },
-      {
-        "path_glob": "web/packages/design-system/src/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/design-system/scripts/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/design-system/docs-portal/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/design-system/*.json",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/design-system/*.md",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/.storybook/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/packages/shared-types/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/apps/mfe-shell/src/app/shortcuts/**",
-        "ux_theme_id": "task_completion_architecture",
-        "ux_subtheme_id": "critical_path_minimization"
-      },
-      {
-        "path_glob": "web/.commitlintrc.cjs",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/.husky/**",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      },
-      {
-        "path_glob": "web/.lighthouserc.json",
-        "ux_theme_id": "consistency_and_pattern_governance",
-        "ux_subtheme_id": "single_component_source_of_truth"
-      }
+    "required_lanes": [
+      "unit",
+      "database",
+      "api",
+      "contract",
+      "integration",
+      "e2e"
     ]
   },
   "multi_plane_contract": {
     "mode": "multi-plane",
-    "planes": [
-      "web",
-      "mobile",
-      "backend",
-      "governance"
-    ],
-    "primary_plane": "backend",
     "plane_path_globs": {
-      "web": [
-        "web/apps/mfe-shell/src/app/auth/**/*",
-        "web/apps/mfe-shell/src/app/providers/**",
-        "web/apps/mfe-shell/src/features/auth/**/*",
-        "web/apps/mfe-shell/src/pages/unauthorized/**/*",
-        "web/apps/mfe-shell/src/widgets/app-shell/**/*",
-        "web/apps/mfe-audit/src/**/*",
-        "web/packages/shared-http/**/*",
-        "web/packages/auth/**/*",
-        "web/packages/design-system/src/lib/auth/**/*"
-      ],
-      "mobile": [
-        "mobile/App.tsx",
-        "mobile/ARCHITECTURE.md",
-        "mobile/package.json",
-        "mobile/package-lock.json",
-        "mobile/app/**/*",
-        "mobile/screens/HomeScreen.tsx",
-        "mobile/screens/**/*",
-        "mobile/features/**/*",
-        "mobile/services/**/*",
-        "mobile/packages/**/*"
-      ],
       "backend": [
         "backend/auth-service/**/*",
         "backend/permission-service/**/*",
@@ -454,14 +85,67 @@
         "docs/OPERATIONS/MULTI-PLANE-EXECUTION-MODEL.v1.md",
         "tenant/TENANT-DEFAULT/**/*",
         "extensions/PRJ-PM-SUITE/contract/**/*"
+      ],
+      "mobile": [
+        "mobile/App.tsx",
+        "mobile/ARCHITECTURE.md",
+        "mobile/package.json",
+        "mobile/package-lock.json",
+        "mobile/app/**/*",
+        "mobile/screens/HomeScreen.tsx",
+        "mobile/screens/**/*",
+        "mobile/features/**/*",
+        "mobile/services/**/*",
+        "mobile/packages/**/*"
+      ],
+      "web": [
+        "web/apps/mfe-shell/src/app/auth/**/*",
+        "web/apps/mfe-shell/src/app/providers/**",
+        "web/apps/mfe-shell/src/features/auth/**/*",
+        "web/apps/mfe-shell/src/pages/unauthorized/**/*",
+        "web/apps/mfe-shell/src/widgets/app-shell/**/*",
+        "web/apps/mfe-audit/src/**/*",
+        "web/packages/shared-http/**/*",
+        "web/packages/auth/**/*",
+        "web/packages/design-system/src/lib/auth/**/*"
       ]
-    }
+    },
+    "planes": [
+      "web",
+      "mobile",
+      "backend",
+      "governance"
+    ],
+    "primary_plane": "backend"
   },
+  "notes": [],
   "shared_contracts": {
+    "audit_actions": [
+      "SESSION_CREATED",
+      "USER_SESSION_TIMEOUT_SYNCED",
+      "USER_SESSION_TIMEOUT_SYNC_CONFLICT",
+      "ASSIGN_ROLE",
+      "UPDATE_ROLE",
+      "REVOKE_ROLE",
+      "ROLE_PERMISSIONS_UPDATED"
+    ],
     "capability_ids": [
       "platform.identity.session-bootstrap",
       "platform.auth.permission-scope",
       "platform.audit.security-events"
+    ],
+    "event_names": [
+      "auth.session.created",
+      "auth.session.expired",
+      "authz.snapshot.resolved",
+      "permission.assignment.changed",
+      "user.session-timeout.synced",
+      "user.session-timeout.conflict"
+    ],
+    "job_names": [
+      "mobile-offline-queue-drain",
+      "delivery-session-packet-build",
+      "feature-execution-contract-check"
     ],
     "permission_codes": [
       "access-read",
@@ -477,95 +161,29 @@
       "company",
       "project",
       "warehouse"
-    ],
-    "audit_actions": [
-      "SESSION_CREATED",
-      "USER_SESSION_TIMEOUT_SYNCED",
-      "USER_SESSION_TIMEOUT_SYNC_CONFLICT",
-      "ASSIGN_ROLE",
-      "UPDATE_ROLE",
-      "REVOKE_ROLE",
-      "ROLE_PERMISSIONS_UPDATED"
-    ],
-    "event_names": [
-      "auth.session.created",
-      "auth.session.expired",
-      "authz.snapshot.resolved",
-      "permission.assignment.changed",
-      "user.session-timeout.synced",
-      "user.session-timeout.conflict"
-    ],
-    "job_names": [
-      "mobile-offline-queue-drain",
-      "delivery-session-packet-build",
-      "feature-execution-contract-check"
     ]
   },
-  "context_contract": {
-    "decision_bundle_path": "tenant/TENANT-DEFAULT/decision-bundle.v1.json",
-    "context_refs": [
-      "tenant/TENANT-DEFAULT/context.v1.md",
-      "tenant/TENANT-DEFAULT/stakeholders.v1.md",
-      "tenant/TENANT-DEFAULT/scope.v1.md",
-      "tenant/TENANT-DEFAULT/criteria.v1.md"
+  "source_context": {
+    "business_goal": "Prod-like local auth testing",
+    "requested_outcome": "docker,integration profili ile JWT zorunlu local test",
+    "source_refs": [
+      "manual:unspecified"
     ],
-    "codex_read_sequence": [
-      "standards.lock",
-      "docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md",
-      "docs/OPERATIONS/OPO-AUTHORITY-MAP.v1.md",
-      "docs/OPERATIONS/MANAGED-REPO-CONTEXT-CONSUMPTION.v1.md",
-      "tenant/TENANT-DEFAULT/context.v1.md",
-      "tenant/TENANT-DEFAULT/decision-bundle.v1.json",
-      "docs/03-delivery/STORIES/STORY-0316-cross-plane-auth-session-audit-foundation.md",
-      "docs/03-delivery/INTERFACE-CONTRACTS/INTERFACE-CONTRACT-cross-plane-auth-session-audit-foundation.md",
-      "extensions/PRJ-PM-SUITE/contract/feature_execution_contract.v1.json"
-    ]
+    "source_type": "manual"
   },
+  "status": "DRAFT",
+  "summary": "Spring integration profile + docker-compose local defaults",
   "technical_contract": {
-    "baseline_profile_id": "erp-fullstack-java21-react18",
     "api_version_prefix": "/api/v1",
-    "design_system_policy": "policies/policy_ui_design_system.v1.json",
-    "db_migration_required": true
+    "baseline_profile_id": "erp-fullstack-java21-react18",
+    "db_migration_required": false,
+    "design_system_policy": "policies/policy_ui_design_system.v1.json"
   },
-  "lane_plan": {
-    "execution_sequence": [
-      "backend",
-      "database",
-      "api",
-      "frontend",
-      "integration",
-      "e2e"
-    ],
-    "required_lanes": [
-      "unit",
-      "database",
-      "api",
-      "contract",
-      "integration",
-      "e2e"
-    ],
-    "notes": [
-      "CI lanes follow module_delivery_lanes.v1.json: backend,database,api,frontend,integration,e2e execution order with unit/database/api/contract/integration/e2e lane ids.",
-      "Auth and permission backbone changes remain server-authoritative; web and mobile consume the same session and authz contracts.",
-      "Database lane stays active because auth session persistence and audit coverage may require owned-schema changes."
-    ]
+  "title": "Integration profile for local auth testing",
+  "ux_contract": {
+    "artifacts": [],
+    "mode": "NOT_APPLICABLE",
+    "rationale": "No frontend scoped change."
   },
-  "definition_of_done": {
-    "acceptance_criteria": [
-      "Cross-plane auth work can be traced to one ACTIVE feature execution contract.",
-      "Web and mobile consume the same v1 auth and authz contracts instead of inventing local endpoint variants.",
-      "Permission and session-related security events are visible through the audit contract.",
-      "Frontend changes remain mappable to locked UX themes and subthemes.",
-      "Module delivery lane sequence remains unchanged and green."
-    ],
-    "evidence_paths": [
-      ".cache/reports/feature_execution_contract_check.v1.json",
-      ".cache/reports/delivery_session_packet.v1.json"
-    ]
-  },
-  "notes": [
-    "bootstrap_contract_for_first_feature_cycle",
-    "narrow_scope_per_real_feature_before_large_domain_changes",
-    "multi_plane_governance_overlay_active"
-  ]
+  "version": "v1"
 }
