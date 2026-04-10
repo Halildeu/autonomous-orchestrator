@@ -33,10 +33,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DS_ROOT = join(__dirname, '..', '..');
 const SRC = join(DS_ROOT, 'src');
 
-const flags = new Set(process.argv.slice(2));
+const args = process.argv.slice(2);
+const flags = new Set(args);
 const JSON_MODE = flags.has('--json');
 const CI_MODE = flags.has('--ci');
 const SAVE_MODE = flags.has('--save');
+const GATE_CHECK = args.find(a => a.startsWith('--gate='))?.split('=')[1] || null;
 
 /* ------------------------------------------------------------------ */
 /*  Check infrastructure (same pattern as deps-doctor / federation-doctor) */
@@ -113,25 +115,34 @@ function readSafe(filePath) {
 /* ------------------------------------------------------------------ */
 
 check('fake-test-detection', 'Sahte / stub test dosyası tespiti', () => {
-  // Pattern 1: Files with "quality-edge-boost" marker
+  // Pattern 1: Files with "quality-edge-boost" or "quality-depth-boost" marker
   const markerFiles = findFiles(SRC, (name, full) => {
     if (!name.endsWith('.test.tsx') && !name.endsWith('.test.ts')) return false;
     const content = readSafe(full);
-    return content.includes('quality-edge-boost');
+    return content.includes('quality-edge-boost') || content.includes('quality-depth-boost');
   });
 
-  // Pattern 2: .edge.test files that render <div data-testid> without importing real component
+  // Pattern 2: .edge.test or .depth.test files that render <div data-testid> without importing real component
   const stubFiles = findFiles(SRC, (name, full) => {
-    if (!name.includes('.edge.test.')) return false;
+    if (!name.includes('.edge.test.') && !name.includes('.depth.test.')) return false;
     const content = readSafe(full);
-    // Has <div data-testid but does NOT import from parent directory
     const hasDiv = content.includes('<div data-testid=');
-    const componentName = name.split('.')[0]; // e.g. "Button" from "Button.edge.test.tsx"
     const hasRealImport = content.includes(`from '../`) || content.includes(`from "../`);
     return hasDiv && !hasRealImport;
   });
 
-  const total = new Set([...markerFiles, ...stubFiles]).size;
+  // Pattern 3: .depth.test files that never import from parent directory
+  // Files with "// depth-keep" directive are exempt (allowlist mechanism)
+  const noImportDepthFiles = findFiles(SRC, (name, full) => {
+    if (!name.endsWith('.depth.test.tsx') && !name.endsWith('.depth.test.ts')) return false;
+    const content = readSafe(full);
+    if (content.includes('// depth-keep')) return false;
+    const hasParentImport = /import\s+.*from\s+['"]\.\.\//.test(content);
+    return !hasParentImport;
+  });
+
+  const allFakes = new Set([...markerFiles, ...stubFiles, ...noImportDepthFiles]);
+  const total = allFakes.size;
 
   if (total === 0) {
     return { status: 'pass', message: 'Sahte test dosyası bulunamadı' };
@@ -139,11 +150,11 @@ check('fake-test-detection', 'Sahte / stub test dosyası tespiti', () => {
 
   return {
     status: 'fail',
-    message: `${total} sahte test dosyası bulundu (${markerFiles.length} marker, ${stubFiles.length} stub)`,
-    details: [...new Set([...markerFiles, ...stubFiles])].map(f =>
+    message: `${total} sahte test dosyası bulundu (${markerFiles.length} marker, ${stubFiles.length} stub, ${noImportDepthFiles.length} no-import)`,
+    details: [...allFakes].map(f =>
       f.replace(DS_ROOT + '/', '')
     ).slice(0, 15),
-    fix: 'Sahte test dosyalarını silin: quality-edge-boost marker veya <div> stub içerenler',
+    fix: 'Sahte test dosyalarını silin veya gerçek bileşen import edin. Özel durumlar için // depth-keep direktifi ekleyin.',
   };
 });
 
@@ -470,5 +481,27 @@ function formatMarkdown(rpt) {
 /* ------------------------------------------------------------------ */
 /*  Exit                                                               */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  Gate mode: run single check and exit                               */
+/* ------------------------------------------------------------------ */
+
+if (GATE_CHECK) {
+  const gateResult = results.find(r => r.id === GATE_CHECK);
+  if (!gateResult) {
+    console.error(`Gate check '${GATE_CHECK}' not found. Available: ${results.map(r => r.id).join(', ')}`);
+    process.exit(2);
+  }
+  if (gateResult.status === 'fail') {
+    if (!JSON_MODE) {
+      console.error(`\n\x1b[31m✗ Gate BLOCKED:\x1b[0m ${gateResult.label}\n  ${gateResult.message}\n`);
+      if (gateResult.details) gateResult.details.slice(0, 10).forEach(d => console.error(`  → ${d}`));
+      if (gateResult.fix) console.error(`  \x1b[36mFix:\x1b[0m ${gateResult.fix}\n`);
+    }
+    process.exit(1);
+  }
+  if (!JSON_MODE) console.log(`\n\x1b[32m✓ Gate PASSED:\x1b[0m ${gateResult.label}\n`);
+  process.exit(0);
+}
 
 if (CI_MODE && failCount > 0) process.exit(1);

@@ -1,70 +1,48 @@
 // @vitest-environment jsdom
-// quality-depth-boost
+// Generated depth test — regenerate: node scripts/ci/generate-depth-tests.mjs --write
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import { NavigationRail } from '../navigation-rail/NavigationRail';
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('NavigationRail — depth quality', () => {
-  it('handles disabled, readonly, error, empty and null edge cases', () => {
-    // disabled state rendering
-    const { container } = render(<div data-testid="navigation-rail" aria-disabled="true" role="button"><span>disabled</span></div>);
-    const disabledBtn = screen.getByRole('button');
-    expect(disabledBtn).toBeInTheDocument();
-    expect(disabledBtn).toHaveAttribute('aria-disabled', 'true');
-    expect(disabledBtn).toHaveTextContent('disabled');
-    cleanup();
-    // error / invalid state
-    const { container: c2 } = render(<div aria-invalid="true" role="alert"><span>error occurred</span></div>);
-    const alertEl = screen.getByRole('alert');
-    expect(alertEl).toBeInTheDocument();
-    expect(alertEl).toHaveAttribute('aria-invalid', 'true');
-    expect(alertEl).toHaveTextContent('error');
-    cleanup();
-    // empty / null / undefined data
-    const { container: c3 } = render(<div role="status" data-empty="true"><span>no data</span></div>);
-    const statusEl = screen.getByRole('status');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('data-empty', 'true');
-    // readonly state
-    expect(c3.firstElementChild).toBeInTheDocument();
+const requiredProps = {
+  items: [],
+  value: undefined as any,
+  event: undefined as any,
+};
+describe('NavigationRail — depth', () => {
+  describe('NavigationRail — depth: prop combinations', () => {
+    it('renders with compact', () => {
+      const { container } = render(<NavigationRail {...requiredProps} compact />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('supports user interaction and fire events', async () => {
-    const { container } = render(
-      <div data-testid="navigation-rail-interactive" role="textbox" tabIndex={0}>
-        <span role="option">opt1</span>
-        <span role="menuitem">item1</span>
-      </div>,
-    );
-    const el = screen.getByRole('textbox');
-    expect(el).toBeInTheDocument();
-    expect(el).toHaveAttribute('tabIndex', '0');
-    expect(el).toHaveAttribute('data-testid', 'navigation-rail-interactive');
-    await userEvent.click(el);
-    await userEvent.tab();
-    await waitFor(() => expect(el).toBeInTheDocument());
-    fireEvent.focus(el);
-    fireEvent.blur(el);
-    expect(el).toBeInTheDocument();
+  describe('NavigationRail — depth: items array edge cases', () => {
+    it('handles empty items', () => {
+      const { container } = render(<NavigationRail {...requiredProps} items={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item items', () => {
+      const { container } = render(<NavigationRail {...requiredProps} items={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('renders with aria roles for assistive technology', () => {
-    const { container } = render(
-      <div role="region" aria-label="NavigationRail">
-        <div role="heading" aria-level={2}>NavigationRail heading</div>
-        <div role="group" aria-describedby="desc">
-          <span id="desc">Description</span>
-        </div>
-      </div>,
-    );
-    expect(screen.getByRole('region')).toHaveAttribute('aria-label', 'NavigationRail');
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('NavigationRail heading');
-    expect(screen.getByRole('group')).toHaveAttribute('aria-describedby', 'desc');
+  describe('NavigationRail — depth: controlled vs uncontrolled', () => {
+    it('works in controlled mode (value + onChange)', () => {
+      const onChange = vi.fn();
+      const { container } = render(<NavigationRail {...requiredProps} value="test" onChange={onChange} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('works in uncontrolled mode (defaultValue)', () => {
+      const { container } = render(<NavigationRail {...requiredProps} defaultValue="default" />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 });

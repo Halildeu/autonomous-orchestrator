@@ -1,84 +1,52 @@
 // @vitest-environment jsdom
-// quality-depth-boost
+// Generated depth test — regenerate: node scripts/ci/generate-depth-tests.mjs --write
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import { HistogramChart } from '../HistogramChart';
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('HistogramChart — depth quality', () => {
-  it('handles disabled, readonly, error, empty and null edge cases', () => {
-    const { container } = render(<div data-testid="histogram-chart" aria-disabled="true" role="button"><span>disabled</span></div>);
-    const disabledBtn = screen.getByRole('button');
-    expect(disabledBtn).toBeInTheDocument();
-    expect(disabledBtn).toHaveAttribute('aria-disabled', 'true');
-    expect(disabledBtn).toHaveTextContent('disabled');
-    cleanup();
-    const { container: c2 } = render(<div aria-invalid="true" role="alert"><span>error occurred</span></div>);
-    const alertEl = screen.getByRole('alert');
-    expect(alertEl).toBeInTheDocument();
-    expect(alertEl).toHaveAttribute('aria-invalid', 'true');
-    expect(alertEl).toHaveTextContent('error');
-    cleanup();
-    const { container: c3 } = render(<div role="status" data-empty="true"><span>no data</span></div>);
-    const statusEl = screen.getByRole('status');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('data-empty', 'true');
-    expect(c3.firstElementChild).toBeInTheDocument();
+const requiredProps = {
+  data: [],
+};
+describe('HistogramChart — depth', () => {
+  describe('HistogramChart — depth: prop combinations', () => {
+    it('renders with showNormalCurve + showMean + showMedian simultaneously', () => {
+      render(<HistogramChart {...requiredProps} showNormalCurve showMean showMedian>Stressed</HistogramChart>);
+      expect(screen.queryByText('Stressed') || document.body.firstElementChild).toBeTruthy();
+    });
+
+    it('does not crash with all boolean props toggled', () => {
+      const { container } = render(<HistogramChart {...requiredProps} showNormalCurve showMean showMedian />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('supports user interaction and fire events', async () => {
-    const { container } = render(
-      <div data-testid="histogram-chart-interactive" role="textbox" tabIndex={0}>
-        <span role="option">bin1</span>
-        <span role="menuitem">bar1</span>
-      </div>,
-    );
-    const el = screen.getByRole('textbox');
-    expect(el).toBeInTheDocument();
-    expect(el).toHaveAttribute('tabIndex', '0');
-    expect(el).toHaveAttribute('data-testid', 'histogram-chart-interactive');
-    await userEvent.click(el);
-    await userEvent.tab();
-    await userEvent.keyboard('{Enter}');
-    fireEvent.focus(el);
-    fireEvent.blur(el);
-    fireEvent.mouseEnter(el);
-    fireEvent.mouseLeave(el);
-    const optEl = screen.getByRole('option');
-    expect(optEl).toBeInTheDocument();
-    expect(optEl).toHaveTextContent('bin1');
-    const menuEl = screen.getByRole('menuitem');
-    expect(menuEl).toBeInTheDocument();
-    expect(menuEl).toHaveTextContent('bar1');
+  describe('HistogramChart — depth: width variants', () => {
+    it.each(['number', 'string'] as const)('width=%s renders without crash', (val) => {
+      const { container } = render(<HistogramChart {...requiredProps} width={val} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('verifies a11y roles and async rendering — expectNoA11yViolations toHaveNoViolations', async () => {
-    const { container } = render(
-      <div role="region" aria-label="HistogramChart">
-        <div role="group" aria-label="inner">
-          <span role="img" aria-label="icon">*</span>
-          <span role="heading" aria-level="2">HistogramChart</span>
-        </div>
-      </div>,
-    );
-    const regionEl = screen.getByRole('region');
-    expect(regionEl).toBeInTheDocument();
-    expect(regionEl).toHaveAttribute('aria-label', 'HistogramChart');
-    const groupEl = screen.getByRole('group');
-    expect(groupEl).toBeInTheDocument();
-    const imgEl = screen.getByRole('img');
-    expect(imgEl).toBeInTheDocument();
-    const headingEl = screen.getByRole('heading');
-    expect(headingEl).toBeInTheDocument();
-    expect(headingEl).toHaveTextContent('HistogramChart');
-    expect(headingEl).toHaveAttribute('aria-level', '2');
-    await waitFor(() => {
-      expect(container.firstElementChild).toBeInTheDocument();
+  describe('HistogramChart — depth: height variants', () => {
+    it.each(['number', 'string'] as const)('height=%s renders without crash', (val) => {
+      const { container } = render(<HistogramChart {...requiredProps} height={val} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+  });
+
+  describe('HistogramChart — depth: data array edge cases', () => {
+    it('handles empty data', () => {
+      const { container } = render(<HistogramChart {...requiredProps} data={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item data', () => {
+      const { container } = render(<HistogramChart {...requiredProps} data={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
     });
   });
 });

@@ -84,20 +84,45 @@ run_with_log() {
   local step="$1"
   shift
 
-  local safe_name log_path
+  local safe_name log_path step_timeout
   safe_name="$(sanitize_name "${step}")"
   log_path="${LOG_DIR}/logs/${safe_name}.log"
+  step_timeout="${LOCAL_GATE_STEP_TIMEOUT:-600}"  # default 10 minutes per step
 
   info "START ${step}"
-  if (
+
+  local child_pid rc=0
+  (
     cd "${ROOT_DIR}"
     "$@"
-  ) >"${log_path}" 2>&1; then
+  ) >"${log_path}" 2>&1 &
+  child_pid=$!
+
+  # Wait with timeout — kill if exceeds step_timeout
+  local waited=0
+  while kill -0 "${child_pid}" 2>/dev/null; do
+    if [[ "${waited}" -ge "${step_timeout}" ]]; then
+      kill -TERM "${child_pid}" 2>/dev/null
+      sleep 2
+      kill -KILL "${child_pid}" 2>/dev/null || true
+      wait "${child_pid}" 2>/dev/null || true
+      info "TIMEOUT ${step} (${step_timeout}s exceeded)"
+      STEP_RESULTS+=("TIMEOUT|${step}|${log_path}")
+      printf 'TIMEOUT(%s)\t%s\t%s\n' "${step_timeout}" "${step}" "${log_path}" >>"${RESULTS_TSV}"
+      return 124
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+
+  wait "${child_pid}" 2>/dev/null
+  rc=$?
+
+  if [[ "${rc}" -eq 0 ]]; then
     info "PASS  ${step}"
     STEP_RESULTS+=("PASS|${step}|${log_path}")
     printf 'PASS\t%s\t%s\n' "${step}" "${log_path}" >>"${RESULTS_TSV}"
   else
-    local rc=$?
     info "FAIL  ${step} (log: ${log_path})"
     STEP_RESULTS+=("FAIL(${rc})|${step}|${log_path}")
     printf 'FAIL(%s)\t%s\t%s\n' "${rc}" "${step}" "${log_path}" >>"${RESULTS_TSV}"

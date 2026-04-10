@@ -1,88 +1,40 @@
 // @vitest-environment jsdom
-// quality-depth-boost
+// Generated depth test — regenerate: node scripts/ci/generate-depth-tests.mjs --write
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import { OrgChart } from '../OrgChart';
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('OrgChart — depth quality', () => {
-  it('handles disabled, readonly, error, empty and null edge cases', () => {
-    // disabled state rendering
-    const { container } = render(<div data-testid="org-chart" aria-disabled="true" role="button"><span>disabled</span></div>);
-    const disabledBtn = screen.getByRole('button');
-    expect(disabledBtn).toBeInTheDocument();
-    expect(disabledBtn).toHaveAttribute('aria-disabled', 'true');
-    expect(disabledBtn).toHaveTextContent('disabled');
-    cleanup();
-    // error / invalid state
-    const { container: c2 } = render(<div aria-invalid="true" role="alert"><span>error occurred</span></div>);
-    const alertEl = screen.getByRole('alert');
-    expect(alertEl).toBeInTheDocument();
-    expect(alertEl).toHaveAttribute('aria-invalid', 'true');
-    expect(alertEl).toHaveTextContent('error');
-    cleanup();
-    // empty / null / undefined data
-    const { container: c3 } = render(<div role="status" data-empty="true"><span>no data</span></div>);
-    const statusEl = screen.getByRole('status');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('data-empty', 'true');
-    // readonly state
-    expect(c3.firstElementChild).toBeInTheDocument();
+const requiredProps = {
+  data: undefined as any,
+};
+describe('OrgChart — depth', () => {
+  describe('OrgChart — depth: prop combinations', () => {
+    it('renders with compact', () => {
+      const { container } = render(<OrgChart {...requiredProps} compact />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('supports user interaction and fire events', async () => {
-    const { container } = render(
-      <div data-testid="org-chart-interactive" role="textbox" tabIndex={0}>
-        <span role="option">opt1</span>
-        <span role="menuitem">item1</span>
-      </div>,
-    );
-    const el = screen.getByRole('textbox');
-    expect(el).toBeInTheDocument();
-    expect(el).toHaveAttribute('tabIndex', '0');
-    expect(el).toHaveAttribute('data-testid', 'org-chart-interactive');
-    await userEvent.click(el);
-    await userEvent.tab();
-    await userEvent.keyboard('{Enter}');
-    fireEvent.focus(el);
-    fireEvent.blur(el);
-    fireEvent.mouseEnter(el);
-    fireEvent.mouseLeave(el);
-    const optEl = screen.getByRole('option');
-    expect(optEl).toBeInTheDocument();
-    expect(optEl).toHaveTextContent('opt1');
-    const menuEl = screen.getByRole('menuitem');
-    expect(menuEl).toBeInTheDocument();
-    expect(menuEl).toHaveTextContent('item1');
+  describe('OrgChart — depth: orientation variants', () => {
+    it.each(['vertical', 'horizontal'] as const)('orientation=%s renders without crash', (val) => {
+      const { container } = render(<OrgChart {...requiredProps} orientation={val} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('verifies a11y roles and async rendering — expectNoA11yViolations toHaveNoViolations', async () => {
-    const { container } = render(
-      <div role="region" aria-label="OrgChart">
-        <div role="group" aria-label="inner">
-          <span role="img" aria-label="icon">*</span>
-          <span role="heading" aria-level={2}>OrgChart</span>
-        </div>
-      </div>,
-    );
-    const regionEl = screen.getByRole('region');
-    expect(regionEl).toBeInTheDocument();
-    expect(regionEl).toHaveAttribute('aria-label', 'OrgChart');
-    const groupEl = screen.getByRole('group');
-    expect(groupEl).toBeInTheDocument();
-    const imgEl = screen.getByRole('img');
-    expect(imgEl).toBeInTheDocument();
-    const headingEl = screen.getByRole('heading');
-    expect(headingEl).toBeInTheDocument();
-    expect(headingEl).toHaveTextContent('OrgChart');
-    expect(headingEl).toHaveAttribute('aria-level', '2');
-    await waitFor(() => {
-      expect(container.firstElementChild).toBeInTheDocument();
+  describe('OrgChart — depth: highlightPath array edge cases', () => {
+    it('handles empty highlightPath', () => {
+      const { container } = render(<OrgChart {...requiredProps} highlightPath={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item highlightPath', () => {
+      const { container } = render(<OrgChart {...requiredProps} highlightPath={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
     });
   });
 });

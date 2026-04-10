@@ -1,88 +1,52 @@
 // @vitest-environment jsdom
-// quality-depth-boost
+// Generated depth test — regenerate: node scripts/ci/generate-depth-tests.mjs --write
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import { AILayoutBuilder } from '../ai-layout-builder/AILayoutBuilder';
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('AILayoutBuilder — depth quality', () => {
-  it('handles disabled, readonly, error, empty and null edge cases', () => {
-    // disabled state rendering
-    const { container } = render(<div data-testid="a-i-layout-builder" aria-disabled="true" role="button"><span>disabled</span></div>);
-    const disabledBtn = screen.getByRole('button');
-    expect(disabledBtn).toBeInTheDocument();
-    expect(disabledBtn).toHaveAttribute('aria-disabled', 'true');
-    expect(disabledBtn).toHaveTextContent('disabled');
-    cleanup();
-    // error / invalid state
-    const { container: c2 } = render(<div aria-invalid="true" role="alert"><span>error occurred</span></div>);
-    const alertEl = screen.getByRole('alert');
-    expect(alertEl).toBeInTheDocument();
-    expect(alertEl).toHaveAttribute('aria-invalid', 'true');
-    expect(alertEl).toHaveTextContent('error');
-    cleanup();
-    // empty / null / undefined data
-    const { container: c3 } = render(<div role="status" data-empty="true"><span>no data</span></div>);
-    const statusEl = screen.getByRole('status');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('data-empty', 'true');
-    // readonly state
-    expect(c3.firstElementChild).toBeInTheDocument();
+const requiredProps = {
+  blocks: [],
+};
+describe('AILayoutBuilder — depth', () => {
+  describe('AILayoutBuilder — depth: prop combinations', () => {
+    it('renders with draggable', () => {
+      const { container } = render(<AILayoutBuilder {...requiredProps} draggable />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('supports user interaction and fire events', async () => {
-    const { container } = render(
-      <div data-testid="a-i-layout-builder-interactive" role="textbox" tabIndex={0}>
-        <span role="option">opt1</span>
-        <span role="menuitem">item1</span>
-      </div>,
-    );
-    const el = screen.getByRole('textbox');
-    expect(el).toBeInTheDocument();
-    expect(el).toHaveAttribute('tabIndex', '0');
-    expect(el).toHaveAttribute('data-testid', 'a-i-layout-builder-interactive');
-    await userEvent.click(el);
-    await userEvent.tab();
-    await userEvent.keyboard('{Enter}');
-    fireEvent.focus(el);
-    fireEvent.blur(el);
-    fireEvent.mouseEnter(el);
-    fireEvent.mouseLeave(el);
-    const optEl = screen.getByRole('option');
-    expect(optEl).toBeInTheDocument();
-    expect(optEl).toHaveTextContent('opt1');
-    const menuEl = screen.getByRole('menuitem');
-    expect(menuEl).toBeInTheDocument();
-    expect(menuEl).toHaveTextContent('item1');
+  describe('AILayoutBuilder — depth: columns variants', () => {
+    it.each(['1', '2', '3', '4'] as const)('columns=%s renders without crash', (val) => {
+      const { container } = render(<AILayoutBuilder {...requiredProps} columns={val} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('verifies a11y roles and async rendering — expectNoA11yViolations toHaveNoViolations', async () => {
-    const { container } = render(
-      <div role="region" aria-label="AILayoutBuilder">
-        <div role="group" aria-label="inner">
-          <span role="img" aria-label="icon">*</span>
-          <span role="heading" aria-level="2">AILayoutBuilder</span>
-        </div>
-      </div>,
-    );
-    const regionEl = screen.getByRole('region');
-    expect(regionEl).toBeInTheDocument();
-    expect(regionEl).toHaveAttribute('aria-label', 'AILayoutBuilder');
-    const groupEl = screen.getByRole('group');
-    expect(groupEl).toBeInTheDocument();
-    const imgEl = screen.getByRole('img');
-    expect(imgEl).toBeInTheDocument();
-    const headingEl = screen.getByRole('heading');
-    expect(headingEl).toBeInTheDocument();
-    expect(headingEl).toHaveTextContent('AILayoutBuilder');
-    expect(headingEl).toHaveAttribute('aria-level', '2');
-    await waitFor(() => {
-      expect(container.firstElementChild).toBeInTheDocument();
+  describe('AILayoutBuilder — depth: blocks array edge cases', () => {
+    it('handles empty blocks', () => {
+      const { container } = render(<AILayoutBuilder {...requiredProps} blocks={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item blocks', () => {
+      const { container } = render(<AILayoutBuilder {...requiredProps} blocks={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+  });
+
+  describe('AILayoutBuilder — depth: onBlockReorder array edge cases', () => {
+    it('handles empty onBlockReorder', () => {
+      const { container } = render(<AILayoutBuilder {...requiredProps} onBlockReorder={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item onBlockReorder', () => {
+      const { container } = render(<AILayoutBuilder {...requiredProps} onBlockReorder={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
     });
   });
 });
