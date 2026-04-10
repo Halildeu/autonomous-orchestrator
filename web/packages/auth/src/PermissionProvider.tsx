@@ -117,9 +117,10 @@ export function PermissionProvider({
 
   useEffect(() => {
     if (!enabled) {
+      // Don't set initialized=true when disabled — ProtectedRoute should
+      // keep showing loading until auth init completes and enables us.
       setAuthz(null);
       setLoading(false);
-      setInitialized(true);
       return undefined;
     }
 
