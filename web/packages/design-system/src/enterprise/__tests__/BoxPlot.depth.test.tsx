@@ -1,84 +1,52 @@
 // @vitest-environment jsdom
-// quality-depth-boost
+// Generated depth test — regenerate: node scripts/ci/generate-depth-tests.mjs --write
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import { BoxPlot } from '../BoxPlot';
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('BoxPlot — depth quality', () => {
-  it('handles disabled, readonly, error, empty and null edge cases', () => {
-    const { container } = render(<div data-testid="box-plot" aria-disabled="true" role="button"><span>disabled</span></div>);
-    const disabledBtn = screen.getByRole('button');
-    expect(disabledBtn).toBeInTheDocument();
-    expect(disabledBtn).toHaveAttribute('aria-disabled', 'true');
-    expect(disabledBtn).toHaveTextContent('disabled');
-    cleanup();
-    const { container: c2 } = render(<div aria-invalid="true" role="alert"><span>error occurred</span></div>);
-    const alertEl = screen.getByRole('alert');
-    expect(alertEl).toBeInTheDocument();
-    expect(alertEl).toHaveAttribute('aria-invalid', 'true');
-    expect(alertEl).toHaveTextContent('error');
-    cleanup();
-    const { container: c3 } = render(<div role="status" data-empty="true"><span>no data</span></div>);
-    const statusEl = screen.getByRole('status');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('data-empty', 'true');
-    expect(c3.firstElementChild).toBeInTheDocument();
+const requiredProps = {
+  data: [],
+};
+describe('BoxPlot — depth', () => {
+  describe('BoxPlot — depth: prop combinations', () => {
+    it('renders with showOutliers + showMean simultaneously', () => {
+      render(<BoxPlot {...requiredProps} showOutliers showMean>Stressed</BoxPlot>);
+      expect(screen.queryByText('Stressed') || document.body.firstElementChild).toBeTruthy();
+    });
+
+    it('does not crash with all boolean props toggled', () => {
+      const { container } = render(<BoxPlot {...requiredProps} showOutliers showMean />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('supports user interaction and fire events', async () => {
-    const { container } = render(
-      <div data-testid="box-plot-interactive" role="textbox" tabIndex={0}>
-        <span role="option">box1</span>
-        <span role="menuitem">whisker1</span>
-      </div>,
-    );
-    const el = screen.getByRole('textbox');
-    expect(el).toBeInTheDocument();
-    expect(el).toHaveAttribute('tabIndex', '0');
-    expect(el).toHaveAttribute('data-testid', 'box-plot-interactive');
-    await userEvent.click(el);
-    await userEvent.tab();
-    await userEvent.keyboard('{Enter}');
-    fireEvent.focus(el);
-    fireEvent.blur(el);
-    fireEvent.mouseEnter(el);
-    fireEvent.mouseLeave(el);
-    const optEl = screen.getByRole('option');
-    expect(optEl).toBeInTheDocument();
-    expect(optEl).toHaveTextContent('box1');
-    const menuEl = screen.getByRole('menuitem');
-    expect(menuEl).toBeInTheDocument();
-    expect(menuEl).toHaveTextContent('whisker1');
+  describe('BoxPlot — depth: orientation variants', () => {
+    it.each(['horizontal', 'vertical'] as const)('orientation=%s renders without crash', (val) => {
+      const { container } = render(<BoxPlot {...requiredProps} orientation={val} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('verifies a11y roles and async rendering — expectNoA11yViolations toHaveNoViolations', async () => {
-    const { container } = render(
-      <div role="region" aria-label="BoxPlot">
-        <div role="group" aria-label="inner">
-          <span role="img" aria-label="icon">*</span>
-          <span role="heading" aria-level="2">BoxPlot</span>
-        </div>
-      </div>,
-    );
-    const regionEl = screen.getByRole('region');
-    expect(regionEl).toBeInTheDocument();
-    expect(regionEl).toHaveAttribute('aria-label', 'BoxPlot');
-    const groupEl = screen.getByRole('group');
-    expect(groupEl).toBeInTheDocument();
-    const imgEl = screen.getByRole('img');
-    expect(imgEl).toBeInTheDocument();
-    const headingEl = screen.getByRole('heading');
-    expect(headingEl).toBeInTheDocument();
-    expect(headingEl).toHaveTextContent('BoxPlot');
-    expect(headingEl).toHaveAttribute('aria-level', '2');
-    await waitFor(() => {
-      expect(container.firstElementChild).toBeInTheDocument();
+  describe('BoxPlot — depth: width variants', () => {
+    it.each(['number', 'string'] as const)('width=%s renders without crash', (val) => {
+      const { container } = render(<BoxPlot {...requiredProps} width={val} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+  });
+
+  describe('BoxPlot — depth: data array edge cases', () => {
+    it('handles empty data', () => {
+      const { container } = render(<BoxPlot {...requiredProps} data={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item data', () => {
+      const { container } = render(<BoxPlot {...requiredProps} data={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
     });
   });
 });

@@ -1,70 +1,50 @@
 // @vitest-environment jsdom
-// quality-depth-boost
+// Generated depth test — regenerate: node scripts/ci/generate-depth-tests.mjs --write
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
+import { ContextMenu } from '../context-menu/ContextMenu';
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('ContextMenu — depth quality', () => {
-  it('handles disabled, readonly, error, empty and null edge cases', () => {
-    // disabled state rendering
-    const { container } = render(<div data-testid="context-menu" aria-disabled="true" role="button"><span>disabled</span></div>);
-    const disabledBtn = screen.getByRole('button');
-    expect(disabledBtn).toBeInTheDocument();
-    expect(disabledBtn).toHaveAttribute('aria-disabled', 'true');
-    expect(disabledBtn).toHaveTextContent('disabled');
-    cleanup();
-    // error / invalid state
-    const { container: c2 } = render(<div aria-invalid="true" role="alert"><span>error occurred</span></div>);
-    const alertEl = screen.getByRole('alert');
-    expect(alertEl).toBeInTheDocument();
-    expect(alertEl).toHaveAttribute('aria-invalid', 'true');
-    expect(alertEl).toHaveTextContent('error');
-    cleanup();
-    // empty / null / undefined data
-    const { container: c3 } = render(<div role="status" data-empty="true"><span>no data</span></div>);
-    const statusEl = screen.getByRole('status');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('data-empty', 'true');
-    // readonly state
-    expect(c3.firstElementChild).toBeInTheDocument();
+const requiredProps = {
+  items: [],
+};
+describe('ContextMenu — depth', () => {
+  describe('ContextMenu — depth: prop combinations', () => {
+    it('renders with disabled', () => {
+      const { container } = render(<ContextMenu {...requiredProps} disabled />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('supports user interaction and fire events', async () => {
-    const { container } = render(
-      <div data-testid="context-menu-interactive" role="textbox" tabIndex={0}>
-        <span role="option">opt1</span>
-        <span role="menuitem">item1</span>
-      </div>,
-    );
-    const el = screen.getByRole('textbox');
-    expect(el).toBeInTheDocument();
-    expect(el).toHaveAttribute('tabIndex', '0');
-    expect(el).toHaveAttribute('data-testid', 'context-menu-interactive');
-    await userEvent.click(el);
-    await userEvent.tab();
-    await waitFor(() => expect(el).toBeInTheDocument());
-    fireEvent.focus(el);
-    fireEvent.blur(el);
-    expect(el).toBeInTheDocument();
+  describe('ContextMenu — depth: children edge cases', () => {
+    it('handles null children', () => {
+      const { container } = render(<ContextMenu {...requiredProps}>{null}</ContextMenu>);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles numeric zero children', () => {
+      const { container } = render(<ContextMenu {...requiredProps}>{0}</ContextMenu>);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles empty string children', () => {
+      const { container } = render(<ContextMenu {...requiredProps}>{''}</ContextMenu>);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 
-  it('renders with aria roles for assistive technology', () => {
-    const { container } = render(
-      <div role="region" aria-label="ContextMenu">
-        <div role="heading" aria-level={2}>ContextMenu heading</div>
-        <div role="group" aria-describedby="desc">
-          <span id="desc">Description</span>
-        </div>
-      </div>,
-    );
-    expect(screen.getByRole('region')).toHaveAttribute('aria-label', 'ContextMenu');
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('ContextMenu heading');
-    expect(screen.getByRole('group')).toHaveAttribute('aria-describedby', 'desc');
+  describe('ContextMenu — depth: items array edge cases', () => {
+    it('handles empty items', () => {
+      const { container } = render(<ContextMenu {...requiredProps} items={[]} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
+
+    it('handles single-item items', () => {
+      const { container } = render(<ContextMenu {...requiredProps} items={[{}] as any} />);
+      expect(container.firstElementChild).toBeTruthy();
+    });
   });
 });
