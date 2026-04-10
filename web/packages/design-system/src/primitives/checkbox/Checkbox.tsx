@@ -157,7 +157,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           densityStyles[density].gap,
           isDisabled && "cursor-not-allowed opacity-50",
           isReadonly && "cursor-default opacity-70",
-          isCard && "rounded-lg border px-3 py-2.5 transition-colors duration-150",
+          isCard && "rounded-lg border px-3 py-2.5 transition-colors duration-(--motion-duration-fast)",
           isCard &&
             (checked
               ? "border-action-primary bg-[var(--action-primary-soft)]"
@@ -192,7 +192,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           />
           <span
             className={cn(
-              "flex items-center justify-center rounded-xs border-2 transition-colors duration-150",
+              "flex items-center justify-center rounded-xs border-2 transition-colors duration-(--motion-duration-fast)",
               boxSizes[checkboxSize],
               isActive
                 ? "border-action-primary bg-action-primary"

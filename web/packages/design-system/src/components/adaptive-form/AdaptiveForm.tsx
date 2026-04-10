@@ -473,7 +473,7 @@ export const AdaptiveForm = React.forwardRef<HTMLDivElement, AdaptiveFormProps>(
               key={field.key}
               className={cn(
                 isInline ? "" : spanClass,
-                "transition-all duration-200",
+                "transition-all duration-(--motion-duration-medium)",
               )}
               style={isInline ? undefined : fieldStyle}
               data-field-key={field.key}

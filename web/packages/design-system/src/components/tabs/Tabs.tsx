@@ -205,7 +205,7 @@ export const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(({
                 disabled: item.disabled,
               })}
               className={cn(
-                "inline-flex items-center justify-center font-medium transition-all duration-150",
+                "inline-flex items-center justify-center font-medium transition-all duration-(--motion-duration-fast)",
                 "disabled:pointer-events-none disabled:opacity-40",
                 focusRingClass("outline"),
                 sizeStyles[size],

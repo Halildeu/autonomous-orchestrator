@@ -197,7 +197,7 @@ const AppSidebarRoot = React.forwardRef<HTMLElement, AppSidebarPropsBase>(({
         className={cn(
           'relative flex h-full flex-col',
           'bg-[var(--surface-default)] bg-surface-default text-text-primary border-r border-[var(--border-subtle)]',
-          resizeState.isResizing ? '' : 'transition-all duration-200',
+          resizeState.isResizing ? '' : 'transition-all duration-(--motion-duration-medium)',
           accessStyles(accessState),
           className,
         )}

@@ -288,7 +288,7 @@ export const ParetoChart: React.FC<ParetoChartProps> = ({
                 rx={2}
                 opacity={isHovered ? 1 : 0.8}
                 className={cn(
-                  'transition-opacity duration-100',
+                  'transition-opacity duration-(--motion-duration-fast)',
                   isClickable && 'cursor-pointer',
                 )}
                 onClick={() => handleClick(item)}

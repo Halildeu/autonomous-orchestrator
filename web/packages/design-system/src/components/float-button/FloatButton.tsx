@@ -217,7 +217,7 @@ export const FloatButton = React.forwardRef<HTMLDivElement, FloatButtonProps>(
     const isTopPosition = position === "top-right" || position === "top-left";
 
     const buttonClasses = cn(
-      "inline-flex items-center justify-center transition-all duration-200",
+      "inline-flex items-center justify-center transition-all duration-(--motion-duration-medium)",
       "border border-transparent",
       "bg-[var(--float-button-bg)] text-[var(--float-button-text)]",
       "shadow-lg hover:shadow-xl",
@@ -271,7 +271,7 @@ export const FloatButton = React.forwardRef<HTMLDivElement, FloatButtonProps>(
         {hasGroup && (
           <div
             className={cn(
-              "flex flex-col items-center gap-2 transition-all duration-200",
+              "flex flex-col items-center gap-2 transition-all duration-(--motion-duration-medium)",
               isOpen ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none",
               isTopPosition && "order-2",
             )}

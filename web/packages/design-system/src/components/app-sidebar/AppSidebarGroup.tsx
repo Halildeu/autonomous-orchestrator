@@ -50,7 +50,7 @@ export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupP
                 'whitespace-nowrap rounded-md px-2 py-1 text-xs',
                 'bg-[var(--text-primary)] text-[var(--surface-default)]',
                 'opacity-0 group-hover:opacity-100',
-                'transition-opacity duration-150',
+                'transition-opacity duration-(--motion-duration-fast)',
               )}
             >
               {label}
@@ -71,7 +71,7 @@ export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupP
             className={cn(
               'flex w-full items-center gap-2 text-xs font-semibold',
               'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-              'transition-colors duration-200 outline-hidden',
+              'transition-colors duration-(--motion-duration-medium) outline-hidden',
               'focus-visible:ring-2 focus-visible:ring-[var(--action-primary)] rounded',
             )}
             onClick={() => setOpen((prev) => !prev)}
@@ -95,7 +95,7 @@ export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupP
             {/* Chevron */}
             <svg
               className={cn(
-                'h-3.5 w-3.5 shrink-0 transition-transform duration-200',
+                'h-3.5 w-3.5 shrink-0 transition-transform duration-(--motion-duration-medium)',
                 !open && '-rotate-90',
               )}
               viewBox="0 0 12 12"
@@ -130,7 +130,7 @@ export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupP
       <div
         ref={contentRef}
         className={cn(
-          'overflow-hidden transition-[max-height,opacity] duration-200 ease-in-out',
+          'overflow-hidden transition-[max-height,opacity] duration-(--motion-duration-medium) ease-in-out',
           isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0',
         )}
       >

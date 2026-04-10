@@ -127,7 +127,7 @@ const ScoreCell: React.FC<ScoreCellProps> = ({
     >
       {/* Score bar background */}
       <div
-        className="absolute inset-y-0 left-0 opacity-20 transition-all duration-200"
+        className="absolute inset-y-0 left-0 opacity-20 transition-all duration-(--motion-duration-medium)"
         style={{ width: barWidth, backgroundColor: color.text }}
       />
       {/* Score value */}

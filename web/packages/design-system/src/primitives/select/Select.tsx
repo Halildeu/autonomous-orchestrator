@@ -152,7 +152,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           aria-invalid={Boolean(error) || undefined}
           {...guardAria({ access, disabled: isDisabled })}
           className={cn(
-            "appearance-none rounded-lg border transition-colors duration-150",
+            "appearance-none rounded-lg border transition-colors duration-(--motion-duration-fast)",
             "bg-surface-default text-text-primary",
             "disabled:cursor-not-allowed disabled:opacity-50",
             isReadonly && "cursor-default opacity-70",

@@ -86,7 +86,7 @@ export const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(({
 
             {subtitle && (
               <p
-                className="mt-0.5 text-sm text-text-secondary line-clamp-1 opacity-0 transition-opacity duration-200 group-hover/header:opacity-100"
+                className="mt-0.5 text-sm text-text-secondary line-clamp-1 opacity-0 transition-opacity duration-(--motion-duration-medium) group-hover/header:opacity-100"
                 aria-hidden="false"
               >
                 {subtitle}

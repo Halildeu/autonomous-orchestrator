@@ -75,7 +75,7 @@ export const AppSidebarResizer = React.forwardRef<HTMLDivElement, AppSidebarResi
         'cursor-col-resize select-none',
         'hover:bg-[color-mix(in_oklab,var(--action-primary)_20%,transparent)]',
         'active:bg-[color-mix(in_oklab,var(--action-primary)_30%,transparent)]',
-        'transition-colors duration-150',
+        'transition-colors duration-(--motion-duration-fast)',
         resize.isResizing && 'bg-[color-mix(in_oklab,var(--action-primary)_30%,transparent)]',
         className,
       )}

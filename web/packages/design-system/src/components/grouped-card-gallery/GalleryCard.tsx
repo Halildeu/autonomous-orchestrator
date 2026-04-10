@@ -39,7 +39,7 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({ item, onClick }) => {
       className={cn(
         "group relative flex w-full flex-col items-start gap-2 rounded-2xl p-4 text-start",
         "border border-border-subtle bg-surface-default",
-        "transition-all duration-150",
+        "transition-all duration-(--motion-duration-fast)",
         "hover:border-action-primary/30 hover:shadow-md",
         "active:scale-[0.99]",
         "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-action-primary/40",

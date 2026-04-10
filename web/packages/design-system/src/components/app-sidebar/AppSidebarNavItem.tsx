@@ -61,7 +61,7 @@ export const AppSidebarNavItem = React.forwardRef<HTMLDivElement, AppSidebarNavI
 
   const sharedClasses = cn(
     'group relative flex items-center gap-3 rounded-md py-2 text-sm cursor-pointer',
-    'transition-all duration-200 outline-hidden',
+    'transition-all duration-(--motion-duration-medium) outline-hidden',
     'focus-visible:ring-2 focus-visible:ring-[var(--action-primary)]',
     depthPadding,
     active

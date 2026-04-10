@@ -108,7 +108,7 @@ export const AgingBuckets: React.FC<AgingBucketsProps> = ({
                 key={bucket.id}
                 role={onBucketClick ? 'button' : undefined}
                 tabIndex={onBucketClick ? 0 : undefined}
-                className={cn('h-full transition-all duration-300 first:rounded-l-md last:rounded-r-md', onBucketClick && 'cursor-pointer hover:opacity-80 focus-visible:ring-2 focus-visible:ring-focus-outline')}
+                className={cn('h-full transition-all duration-(--motion-duration-slow) first:rounded-l-md last:rounded-r-md', onBucketClick && 'cursor-pointer hover:opacity-80 focus-visible:ring-2 focus-visible:ring-focus-outline')}
                 style={{ width: `${pct}%`, backgroundColor: toneColorMap[tone] }}
                 onClick={() => onBucketClick?.(bucket)}
                 onKeyDown={(e) => {
@@ -143,7 +143,7 @@ export const AgingBuckets: React.FC<AgingBucketsProps> = ({
               role={onBucketClick ? 'button' : undefined}
               tabIndex={onBucketClick ? 0 : undefined}
               className={cn(
-                'flex-1 min-w-[120px] rounded-lg border p-3 transition-all duration-200',
+                'flex-1 min-w-[120px] rounded-lg border p-3 transition-all duration-(--motion-duration-medium)',
                 toneClasses.border,
                 toneClasses.bg,
                 onBucketClick && 'cursor-pointer hover:shadow-md hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-focus-outline',
@@ -177,7 +177,7 @@ export const AgingBuckets: React.FC<AgingBucketsProps> = ({
               {/* Mini bar */}
               <div className="mt-2 h-1 w-full rounded-full bg-surface-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-all duration-(--motion-duration-slow)"
                   style={{ width: `${pct}%`, backgroundColor: toneColorMap[tone] }}
                 />
               </div>

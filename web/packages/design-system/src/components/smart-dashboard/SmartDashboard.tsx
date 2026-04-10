@@ -195,7 +195,7 @@ const WidgetCard: React.FC<{
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-border-subtle/80 bg-[var(--surface-card))] shadow-xs transition-all duration-200",
+        "relative overflow-hidden rounded-2xl border border-border-subtle/80 bg-[var(--surface-card))] shadow-xs transition-all duration-(--motion-duration-medium)",
         TONE_BORDER[tone],
         isCompact ? "p-3" : "p-5",
       )}

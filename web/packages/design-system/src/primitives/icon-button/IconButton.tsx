@@ -85,7 +85,7 @@ export const IconButton = forwardRef<HTMLElement, IconButtonProps>(
     const isDisabled = disabled || loading || accessState.isDisabled;
 
     const mergedClassName = cn(
-      "inline-flex items-center justify-center transition-all duration-150",
+      "inline-flex items-center justify-center transition-all duration-(--motion-duration-fast)",
       "disabled:pointer-events-none disabled:opacity-50",
       accessState.isReadonly && "cursor-default opacity-70",
       focusRingClass("ring"),

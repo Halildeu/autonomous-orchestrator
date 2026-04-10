@@ -75,7 +75,7 @@ export const HoverDescription: React.FC<HoverDescriptionProps> = ({
         <div
           className={cn(
             'fixed z-[9999] rounded-xl border border-border-subtle bg-surface-default px-4 py-3 shadow-lg',
-            'animate-in fade-in-0 slide-in-from-top-1 duration-200',
+            'animate-in fade-in-0 slide-in-from-top-1 duration-(--motion-duration-medium)',
             cardClassName,
           )}
           style={{ top: pos.top, left: pos.left, width }}

@@ -179,7 +179,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(
         : focusRingClass("ring");
 
     const mergedClassName = cn(
-      "inline-flex items-center justify-center font-medium transition-all duration-150",
+      "inline-flex items-center justify-center font-medium transition-all duration-(--motion-duration-fast)",
       "select-none whitespace-nowrap",
       "disabled:pointer-events-none disabled:opacity-50",
       accessState.isHidden && "invisible",

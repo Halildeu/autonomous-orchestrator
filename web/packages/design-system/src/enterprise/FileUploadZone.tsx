@@ -132,7 +132,7 @@ const FileItem: React.FC<FileItemProps> = ({ file, canInteract, onRemove }) => {
           <div className="mt-1.5">
             <div className="h-1 rounded-full bg-[var(--surface-muted)] overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-300"
+                className="h-full rounded-full transition-all duration-(--motion-duration-slow)"
                 style={{
                   width: `${Math.min(100, file.progress)}%`,
                   backgroundColor: statusColor,

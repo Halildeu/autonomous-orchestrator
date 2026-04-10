@@ -233,7 +233,7 @@ function StepCard({ step, isCurrent, compact, orientation, canAct, onApprove, on
       tabIndex={0}
       className={[
         widthClass,
-        'rounded-lg border p-3 transition-colors duration-150',
+        'rounded-lg border p-3 transition-colors duration-(--motion-duration-fast)',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]',
         isCurrent
           ? 'border-[var(--brand-primary)] bg-surface-default shadow-xs'

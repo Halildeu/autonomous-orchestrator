@@ -382,7 +382,7 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
           ref={triggerRef}
           type="button"
           className={cn(
-            "rounded-md border-2 border-border-subtle transition-all duration-150",
+            "rounded-md border-2 border-border-subtle transition-all duration-(--motion-duration-fast)",
             focusRingClass("ring"),
             isInteractive && "cursor-pointer hover:border-[var(--border-hover)]",
             accessState.isDisabled && "opacity-50 cursor-not-allowed",
@@ -512,7 +512,7 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
                           key={color}
                           type="button"
                           className={cn(
-                            "rounded-xs border transition-[scale] duration-100",
+                            "rounded-xs border transition-[scale] duration-(--motion-duration-fast)",
                             `hover:scale-110 ${focusRingClass("ring")}`,
                             color.toLowerCase() === currentValue.toLowerCase()
                               ? "border-[var(--border-active)] ring-1 ring-[var(--focus-outline)]"

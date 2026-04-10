@@ -121,13 +121,31 @@
   --color-on-elevated: var(--text-primary);
   --color-hover: var(--surface-muted-bg);
 
-  /* Border Radius */
+  /* Border Radius — semantic tokens */
   --radius-control: 0.375rem;
   --radius-surface: 0.75rem;
 
-  /* Shadows */
+  /* Border Radius — Tailwind scale → theme axis aware */
+  --radius-xs: calc(var(--radius-control) * 0.33);
+  --radius-sm: calc(var(--radius-control) * 0.5);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-surface);
+  --radius-xl: calc(var(--radius-surface) * 1.33);
+  --radius-2xl: calc(var(--radius-surface) * 1.67);
+  --radius-3xl: calc(var(--radius-surface) * 2);
+
+  /* Shadows — semantic tokens */
   --shadow-surface: var(--elevation-surface);
   --shadow-overlay: var(--elevation-overlay);
+
+  /* Shadows — Tailwind scale → elevation axis aware */
+  --shadow-xs: var(--elevation-sm);
+  --shadow-sm: var(--elevation-surface);
+  --shadow: var(--elevation-surface);
+  --shadow-md: var(--elevation-surface);
+  --shadow-lg: var(--elevation-overlay);
+  --shadow-xl: var(--elevation-dialog);
+  --shadow-2xl: var(--elevation-dialog);
 
   /* Spacing */
   --spacing-density: 0.5rem;

@@ -383,7 +383,7 @@ export const FineKinney: React.FC<FineKinneyProps> = ({
                   key={risk.id}
                   className={cn(
                     'border-t border-[var(--border-default)]',
-                    'transition-colors duration-100',
+                    'transition-colors duration-(--motion-duration-fast)',
                     isClickable && 'cursor-pointer hover:bg-[var(--surface-hover)]',
                   )}
                   onClick={isClickable ? () => onRiskClick!(risk) : undefined}

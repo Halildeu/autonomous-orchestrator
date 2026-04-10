@@ -207,7 +207,7 @@ export const Carousel = React.forwardRef<HTMLDivElement, CarouselProps>(function
       {/* Slide track */}
       <div
         data-testid="carousel-track"
-        className="h-full transition-transform duration-300 ease-in-out"
+        className="h-full transition-transform duration-(--motion-duration-slow) ease-in-out"
         style={{
           display: "flex",
           flexDirection: isHorizontal ? "row" : "column",

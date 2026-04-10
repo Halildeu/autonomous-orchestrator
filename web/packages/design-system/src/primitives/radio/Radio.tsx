@@ -147,7 +147,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
           />
           <span
             className={cn(
-              "flex items-center justify-center rounded-full border-2 transition-colors duration-150",
+              "flex items-center justify-center rounded-full border-2 transition-colors duration-(--motion-duration-fast)",
               dotSizes[resolvedSize].outer,
               checked
                 ? "border-action-primary"
