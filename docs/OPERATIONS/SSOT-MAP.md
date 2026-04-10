@@ -416,6 +416,42 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - src/prj_github_ops/github_ops_failure_parse_contract_test.py
 - src/ops/system_status_github_ops_failure_surface_contract_test.py
 
+## Context & Orchestration Policies (reserved/planned)
+- policies/policy_context_memory_tiers.v1.json — Context memory tier definitions
+- policies/policy_context_quality.v1.json — Context quality enforcement
+- policies/policy_domain_conventions.v1.json — Domain convention rules
+- policies/policy_intent_runbook_registry.v1.json — Intent-to-runbook mapping
+- policies/policy_scope_guard.v1.json — Scope guard enforcement
+
+## Context & Orchestration Schemas (reserved/planned)
+- schemas/bootstrap-evidence.schema.v1.json — Bootstrap evidence format
+- schemas/compiled-context.schema.v1.json — Compiled context output
+- schemas/context-evolution-proposal.schema.v1.json — Context evolution proposal
+- schemas/context-session-metrics.schema.v1.json — Session metrics schema
+- schemas/context-snapshot.schema.v1.json — Context snapshot format
+- schemas/domain-conventions.schema.v1.json — Domain conventions schema
+- schemas/policy-context-memory-tiers.schema.v1.json — Memory tiers policy schema
+- schemas/policy-context-quality.schema.v1.json — Context quality policy schema
+- schemas/policy-domain-conventions.schema.v1.json — Domain conventions policy schema
+- schemas/policy-intent-runbook-registry.schema.v1.json — Intent runbook policy schema
+- schemas/policy-scope-guard.schema.v1.json — Scope guard policy schema
+- schemas/rule-effectiveness.schema.v1.json — Rule effectiveness tracking
+- schemas/rule-packet.schema.v1.json — Rule packet format
+
+## Governance & Registry Schemas (reserved/planned)
+- schemas/active-execution-registry.schema.json — Active execution registry
+- schemas/apps-and-launch-registry.schema.json — Apps and launch profiles
+- schemas/authority-matrix.schema.json — Authority matrix
+- schemas/duplicate-surface-register.schema.json — Duplicate surface register
+- schemas/policy-execution-target-governance.schema.json — Execution target governance policy schema
+- schemas/version-registry.schema.json — Version registry
+- schemas/worktree-health.schema.json — Worktree health tracking
+
+## Roadmap Changes (orphan CHG entries)
+- roadmaps/SSOT/changes/CHG-20260326-001.json
+- roadmaps/SSOT/changes/CHG-20260326-002.json
+- roadmaps/SSOT/changes/CHG-20260329-001.json
+
 ## Notes
 - Bu listede olmayan dosyalar yardımcı olabilir; ancak kritik SSOT olarak değerlendirilmez.
 - Workspace‑bound referanslar (ISO core `*.v1.md`) tenant/workspace altında tutulur ve ayrı sınıftadır.
