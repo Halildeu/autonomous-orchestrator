@@ -93,8 +93,83 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op commit --caller claude-pre-commit 2>&1 || true",
+            "statusMessage": "Multi-agent worktree guard (commit)..."
+          },
+          {
+            "type": "command",
             "command": "python3 ci/validate_schemas.py 2>&1 | tail -3",
             "statusMessage": "Validating schemas before commit..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git push*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op push --caller claude-pre-push 2>&1 || true",
+            "statusMessage": "Multi-agent worktree guard (push)..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git checkout -- *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op destructive --caller claude-checkout 2>&1 || true",
+            "statusMessage": "Multi-agent destructive op guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git checkout . *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op destructive --caller claude-checkout-dot 2>&1 || true",
+            "statusMessage": "Multi-agent destructive op guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git restore*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op destructive --caller claude-restore 2>&1 || true",
+            "statusMessage": "Multi-agent destructive op guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git reset*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op destructive --caller claude-reset 2>&1 || true",
+            "statusMessage": "Multi-agent destructive op guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git switch*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op destructive --caller claude-switch 2>&1 || true",
+            "statusMessage": "Multi-agent destructive op guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git clean*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/multi-agent-guard.sh --op destructive --caller claude-clean 2>&1 || true",
+            "statusMessage": "Multi-agent destructive op guard..."
           }
         ]
       }

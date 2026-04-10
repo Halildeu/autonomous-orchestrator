@@ -76,6 +76,38 @@ Rules:
   env’i, yoksa repo `.env/.env.local` dosyalarını allowlist üzerinden okur;
   secret değerini loglamaz.
 
+## 0d. Multi-Agent Git Koordinasyonu (MUST)
+
+Policy: `policies/policy_multi_agent_coordination.v1.json` (orchestrator SSOT)
+
+### 4 Temel Kural
+
+1. **1 agent = 1 worktree:** Her agent/sohbet kendi git worktree'sinde çalışır.
+   - Canonical tree (`/Documents/dev`) yalnızca worktree yönetimi içindir.
+   - Worktree açma: `python3 scripts/ops/open_worktree_session.py --branch feat/<agent>-<task> --owner <agent>`
+   - Veya: `git worktree add /path/to/wt -b feat/<agent>-<task> main`
+
+2. **Her branch main'den:** Branch zincirleme YASAK.
+   - Naming: `feat/claude-<task>`, `codex/<task>`, `fix/<agent>-<desc>`
+   - Bağımlılık varsa: explicit stacked PR (PR description'da belirt)
+
+3. **Shared tree'de commit/push YASAK:**
+   - Aktif side worktree varken canonical tree'de commit/push hook tarafından BLOCKED.
+   - Override (acil): `ALLOW_CANONICAL_COMMIT=1 git commit ...`
+
+4. **Hook'lar worktree'de light mode:**
+   - Light: secrets + schema + scope-aware lint
+   - Full gate chain yalnızca CI'da (merge gate)
+   - Worktree kendi `.cache/` altına yazar (çapraz yazma yok)
+
+### Worktree Tespit
+- Authoritative: `git rev-parse --git-dir != git rev-parse --git-common-dir`
+- Fast-path: `test -f .git` (gitlink dosyası)
+
+### Fingerprint
+- Canonical: full (staged + unstaged + untracked + HEAD + branch)
+- Worktree: reduced (`--staged-only`: staged_diff + staged_paths + HEAD + branch + worktree_id)
+
 ## 1. İş tipleri
 
 - [BE]  → Backend endpoint / servis / job

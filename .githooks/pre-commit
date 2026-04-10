@@ -4,5 +4,22 @@ set -euo pipefail
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 [[ -n "${ROOT_DIR}" ]] || exit 2
 
-cd "${ROOT_DIR}"
-bash scripts/require_local_gate.sh --auto-run --caller pre-commit
+# --- Multi-agent guard (SSOT: scripts/multi-agent-guard.sh) ---
+GIT_DIR="$(git rev-parse --git-dir 2>/dev/null)"
+GIT_COMMON="$(git rev-parse --git-common-dir 2>/dev/null)"
+CANONICAL_ROOT="$(cd "${GIT_COMMON}/.." && pwd)"
+
+bash "${CANONICAL_ROOT}/scripts/multi-agent-guard.sh" --op commit --caller pre-commit || exit $?
+
+# --- Gate chain ---
+if [[ "${GIT_DIR}" != "${GIT_COMMON}" ]]; then
+  # Linked worktree: light mode
+  cd "${ROOT_DIR}"
+  LOCAL_GATE_WORKTREE_MODE=1 \
+    bash "${CANONICAL_ROOT}/scripts/require_local_gate.sh" \
+      --auto-run --caller pre-commit --worktree-mode
+else
+  # Canonical tree (single worktree or override): full gate chain
+  cd "${ROOT_DIR}"
+  bash scripts/require_local_gate.sh --auto-run --caller pre-commit
+fi

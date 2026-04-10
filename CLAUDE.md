@@ -1,8 +1,23 @@
-# CLAUDE.md — autonomous-orchestrator (control-plane)
+# CLAUDE.md — dev repo (managed execution repo)
 
 @AGENTS.md
 
 ## Claude Code-Specific (AGENTS.md'de olmayan)
+
+### Multi-Agent Worktree Zorunluluğu (MUST — İLK KONTROL)
+
+**Bu repoda birden fazla agent aynı anda çalışır. Canonical tree'de (`/Documents/dev`) çalışma YASAKTIR.**
+
+Oturum başında şunu kontrol et:
+1. `git rev-parse --git-dir` vs `git rev-parse --git-common-dir` — aynıysa canonical tree'desin
+2. `git worktree list --porcelain | grep -c '^worktree '` — 1'den fazlaysa side worktree'ler aktif
+
+**Eğer canonical tree'deysen ve side worktree varsa:**
+- Commit/push hook tarafından BLOCKED
+- Yeni worktree aç: `git worktree add /Users/halilkocoglu/Documents/dev-claude-<task> -b feat/claude-<task> main`
+- O worktree'ye geç ve orada çalış
+
+**Eğer zaten bir worktree'deysen:** Devam et, hook'lar light mode çalışır.
 
 ### Build & Run
 - Install: `pip install -e ".[dev]"`
@@ -10,7 +25,9 @@
 - Cockpit API: `python -m src.ops.manage cockpit-serve --workspace-root .cache/ws_customer_default --port 8790`
 
 ### Worktree Conventions
-- Branch naming: `claude/<worktree-name>`
+- Branch naming: `feat/claude-<task>`, `fix/claude-<task>`
+- Her branch main'den açılır (zincirleme yok)
+- Worktree kendi `.cache/` altına yazar (canonical `.cache` paylaşımı yok)
 - Always work in worktree for non-trivial changes
 - Run validation before commit (schema + standards + tests)
 
