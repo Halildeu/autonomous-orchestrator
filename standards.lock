@@ -14,7 +14,8 @@
     "security_policy": "policies/policy_security.v1.json",
     "secrets_policy": "policies/policy_secrets.v1.json",
     "ux_catalog_enforcement_policy": "policies/policy_ux_catalog_enforcement.v1.json",
-    "ux_catalog_lock": "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json"
+    "ux_catalog_lock": "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json",
+    "test_quality_policy": "policies/policy_test_quality.v1.json"
   },
   "required_files": [
     "standards.lock",
@@ -26,6 +27,14 @@
     "policies/policy_pm_suite.v1.json",
     "policies/policy_feature_execution_bridge.v1.json",
     "policies/policy_ui_design_system.v1.json",
+    "policies/policy_test_quality.v1.json",
+    "schemas/policy-test-quality.schema.v1.json",
+    "ci/check_test_quality.py",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep006_shallow_render_fake.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep007_tautological_assertion.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep008_quality_marker_ban.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep009_data_testid_render_only.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/contract/severity_matrix.v1.json",
     "registry/technical_baseline.aistd.v1.json",
     "registry/archives/legacy_standards_archive.aistd.v1.json",
     "schemas/policy-pm-suite.schema.v1.json",

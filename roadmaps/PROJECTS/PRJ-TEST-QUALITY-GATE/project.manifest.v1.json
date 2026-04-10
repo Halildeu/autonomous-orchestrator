@@ -1,0 +1,34 @@
+{
+  "version": "v1",
+  "project_id": "PRJ-TEST-QUALITY-GATE",
+  "title": "Test Quality Gate — Sahte Test Onleme Altyapisi",
+  "owner": "CORE",
+  "layer_scope": "L0",
+  "purpose": "Design Lab ve managed repo'larda sahte testlerin olusturulmasini, commit edilmesini ve merge edilmesini onleyen 6 katmanli savunma altyapisi. Schema, policy, semgrep rules, CI gate, agent rules ve maturity integration ile uçtan uca kalite kontrolu.",
+  "domain_tags": ["test-quality", "enforcement", "design-lab", "cross-repo", "semgrep"],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "selected_pack_ids": [],
+  "target_maturity_level": 3,
+  "target_milestones": ["F1", "F2", "F3", "F4", "F5", "F6"],
+  "success_metrics": [
+    "zero_bulk_generation_markers",
+    "shallow_render_ratio_below_10pct",
+    "assertion_density_above_2",
+    "duplication_ratio_below_5pct",
+    "ci_gate_blocking_in_managed_repos",
+    "maturity_test_quality_L3"
+  ],
+  "risk_category": "medium",
+  "program_led_entrypoints": ["system-status", "enforcement-check", "policy-check"],
+  "evidence_expectations": [
+    ".cache/reports/system_status.v1.json",
+    ".cache/reports/test_quality.v1.json",
+    ".cache/reports/enf_precommit/enforcement_report.v1.json"
+  ],
+  "promotion_policy": "plan-then-apply"
+}

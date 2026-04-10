@@ -1,0 +1,181 @@
+{
+  "roadmap_id": "PRJ-TEST-QUALITY-GATE",
+  "version": "v1",
+  "iso_core_required": true,
+  "global_gates": [
+    { "type": "run_cmd", "cmd": "python3 ci/validate_schemas.py", "must_succeed": true },
+    { "type": "run_cmd", "cmd": "python3 ci/policy_dry_run.py --fixtures fixtures/envelopes", "must_succeed": true }
+  ],
+  "milestones": [
+    {
+      "id": "F1",
+      "title": "Schema + Policy (SSOT kontrat)",
+      "notes": [
+        "layer=L0, core_lock_required=true",
+        "CORE_UNLOCK_REASON=PRJ-TEST-QUALITY-GATE F1",
+        "acceptance: schema $id=urn:ao:test-quality-rules:v1, additionalProperties=false",
+        "acceptance: policy 6 TQ rule, dry-run hatasiz",
+        "risk(low/medium): schema kati — detection_method enum custom opsiyonu eklendi"
+      ],
+      "steps": [
+        { "type": "note", "text": "Create schemas/test-quality-rules.schema.v1.json with $id urn:ao:test-quality-rules:v1. 6 TQ rule tanımı: rule_id, name, severity, detection_method (semgrep_pattern|semgrep_regex|ast_analysis|heuristic_metric|structural_similarity|custom), pattern_indicators, remediation." },
+        { "type": "note", "text": "Create policies/policy_test_quality.v1.json with 6 rules: TQ-001 shallow_render(HIGH), TQ-002 tautological(CRITICAL), TQ-003 duplication(HIGH), TQ-004 no_import(HIGH), TQ-005 mock_heavy(MEDIUM), TQ-006 marker_ban(CRITICAL). Thresholds: shallow<0.10, density>=2.0, duplication<0.05." },
+        { "type": "run_cmd", "cmd": "python3 ci/validate_schemas.py", "must_succeed": true }
+      ],
+      "gates": [
+        { "type": "run_cmd", "cmd": "python3 ci/validate_schemas.py", "must_succeed": true }
+      ],
+      "dod": [
+        "schemas/test-quality-rules.schema.v1.json olusturuldu, $id ve required fields tamam.",
+        "policies/policy_test_quality.v1.json 6 TQ rule tanimli (TQ-001..TQ-006).",
+        "TQ-001=HIGH, TQ-002=CRITICAL, TQ-003=HIGH, TQ-004=HIGH, TQ-005=MEDIUM, TQ-006=CRITICAL.",
+        "Esikler: max_shallow_render_ratio=0.10, min_assertion_density=2.0, max_duplication_ratio=0.05.",
+        "validate_schemas.py PASS, policy_dry_run.py hatasiz."
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "Semgrep Rules (parser-backed patterns)",
+      "notes": [
+        "layer=L0, core_lock_required=true",
+        "codex_consensus: parser-backed patterns (EP-006/007/009), regex OK for EP-008",
+        "acceptance: semgrep YAML valid, severity matrix EP-006..EP-009 tanimli",
+        "acceptance: positive/negative match dogrulama",
+        "risk(medium/low): false positive — v1_advisory basla, baseline sonra strict",
+        "risk(low/medium): semgrep JS/TS parser — fallback pattern-regex + path scoping"
+      ],
+      "steps": [
+        { "type": "note", "text": "Create ep006_shallow_render_fake.yaml: TQ-001, patterns+pattern-inside+pattern-not-inside, scope *.test.tsx/*.spec.tsx, exclude snapshot/fixture/generated." },
+        { "type": "note", "text": "Create ep007_tautological_assertion.yaml: TQ-002, two sub-rules: literal-to-literal + toBeDefined-only. Parser-backed." },
+        { "type": "note", "text": "Create ep008_quality_marker_ban.yaml: TQ-006, pattern-regex (literal signal). Severity ERROR." },
+        { "type": "note", "text": "Create ep009_data_testid_render_only.yaml: TQ-001 alt-pattern, data-testid render + toBeInTheDocument + zero interaction." },
+        { "type": "note", "text": "Update severity_matrix.v1.json: default(EP-006=WARN,EP-007=WARN,EP-008=BLOCKED,EP-009=WARN), strict(all BLOCKED)." }
+      ],
+      "gates": [
+        { "type": "assert_paths_exist", "paths": ["extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep006_shallow_render_fake.yaml", "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep007_tautological_assertion.yaml", "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep008_quality_marker_ban.yaml", "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep009_data_testid_render_only.yaml"] }
+      ],
+      "dod": [
+        "4 semgrep rule dosyasi olusturuldu (ep006..ep009).",
+        "EP-006/007/009: parser-backed patterns (patterns/pattern-inside/pattern-not-inside).",
+        "EP-008: pattern-regex (literal sinyal, zero tolerance).",
+        "Severity matrix guncellendi: default ve strict profiller.",
+        "EP-008 her iki profilde BLOCKED, digerleri advisory.",
+        "Semgrep YAML lint PASS."
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "CI Gate + Contract Test + Fixtures",
+      "notes": [
+        "layer=L0, core_lock_required=true",
+        "codex_consensus: normalized body hash (raw SHA-256 degil)",
+        "codex_revision: TQ-004 AST-lite heuristic, TQ-005 mock ratio, --scan-path arg",
+        "acceptance: ci script --dry-run exit 0, bad MATCH, good NO MATCH",
+        "acceptance: boundary tests shallow=0.10/density=2.0/duplication=0.05",
+        "acceptance: normalized hash negatif — farkli testler FARKLI hash",
+        "risk(medium/low): near-duplicate kacirir — V2'de AST"
+      ],
+      "steps": [
+        { "type": "note", "text": "Create ci/check_test_quality.py (<800 lines): load policy, run semgrep, normalized body hash duplication, TQ-004 filename-vs-import heuristic, TQ-005 mock-ratio, compute metrics, compare thresholds, JSON report. CLI: --repo-root, --scan-path, --policy-path, --out, --dry-run." },
+        { "type": "note", "text": "Create tests/contract/test_test_quality_gate.py: schema validates policy, CI script output valid, semgrep rules parse, severity matrix entries." },
+        { "type": "note", "text": "Create 5 smoke fixtures in fixtures/test_quality_smoke/: bad_shallow, bad_tautological, bad_no_import, bad_mock_heavy, good_real." },
+        { "type": "run_cmd", "cmd": "pytest tests/contract/test_test_quality_gate.py -v", "must_succeed": true, "apply_only": true }
+      ],
+      "gates": [
+        { "type": "run_cmd", "cmd": "python3 ci/check_test_quality.py --repo-root . --dry-run --out /tmp/_tq_gate.json", "must_succeed": true },
+        { "type": "run_cmd", "cmd": "pytest tests/contract/test_test_quality_gate.py -v", "must_succeed": true }
+      ],
+      "dod": [
+        "ci/check_test_quality.py olusturuldu, < 800 satir.",
+        "CLI: --repo-root, --scan-path, --policy-path, --out, --dry-run.",
+        "Normalized body hash: comment strip, whitespace normalize, test title remove.",
+        "TQ-004 heuristic: dosya adi vs import listesi karsilastirma.",
+        "TQ-005 heuristic: mock_ratio > 0.8 AND real_call_count == 0 → WARNING.",
+        "5 smoke fixture: 4 bad + 1 good.",
+        "Contract test PASS, script budget PASS."
+      ]
+    },
+    {
+      "id": "F4",
+      "title": "Agent Rules + AGENT-CODEX.md",
+      "notes": [
+        "layer=L0, core_lock_required=true",
+        "codex_consensus: AGENTS.md cross-agent MUST + AGENT-CODEX.md self-audit",
+        "acceptance: tests.md NEVER >= 4, test-quality.md userEvent ref",
+        "acceptance: AGENTS.md policy ref, AGENT-CODEX.md 5-soru checklist",
+        "risk(low): agent rules cok uzun — tests.md < 80, test-quality.md < 60 satir"
+      ],
+      "steps": [
+        { "type": "note", "text": "Expand .claude/rules/tests.md: Fake Test Prohibition (MUST) + Test Quality Metrics." },
+        { "type": "note", "text": "Create .claude/rules/test-quality.md: frontend-specific, globs web/**/*.test.tsx." },
+        { "type": "note", "text": "Create AGENT-CODEX.md: 5-question self-audit checklist for test quality." },
+        { "type": "note", "text": "Update AGENTS.md: SSOT router + cross-agent MUST rules." }
+      ],
+      "gates": [
+        { "type": "assert_paths_exist", "paths": [".claude/rules/tests.md", ".claude/rules/test-quality.md", "AGENT-CODEX.md"] }
+      ],
+      "dod": [
+        ".claude/rules/tests.md: NEVER shallow render, NEVER tautological, NEVER template copy, EVERY test min 2 assertion.",
+        ".claude/rules/test-quality.md: semantic query onceligi, interaction zorunlu.",
+        "AGENT-CODEX.md: 5 soruluk self-audit (prod import?, interaction?, tautological?, duplicate?, neden?).",
+        "AGENTS.md: policy_test_quality.v1.json SSOT router'da.",
+        "AGENTS.md: cross-agent MUST kurallari tanimli."
+      ]
+    },
+    {
+      "id": "F5",
+      "title": "Maturity + Standards Lock + Propagation Envanteri",
+      "notes": [
+        "layer=L0, core_lock_required=true",
+        "codex_revision: test_quality weight=0.04 (toplam 1.00)",
+        "codex_revision: propagation envanteri F5 DoD'sine dahil",
+        "codex_revision: severity_matrix sync listesine girmeli",
+        "risk(medium/low): weight degisikligi mevcut skorlari etkiler"
+      ],
+      "steps": [
+        { "type": "note", "text": "Update policy_maturity_assessment.v1.json: add test_quality area (weight=0.04), reduce test_coverage to 0.06." },
+        { "type": "note", "text": "Update standards.lock: required_files + standard_sources + severity_matrix." },
+        { "type": "run_cmd", "cmd": "python3 ci/validate_schemas.py", "must_succeed": true }
+      ],
+      "gates": [
+        { "type": "run_cmd", "cmd": "python3 ci/validate_schemas.py", "must_succeed": true },
+        { "type": "run_cmd", "cmd": "python3 ci/check_standards_lock.py", "must_succeed": true }
+      ],
+      "dod": [
+        "policy_maturity_assessment.v1.json: test_quality area (weight=0.04), test_coverage 0.06.",
+        "L0-L4 kriterleri tanimli, evidence_commands calisir.",
+        "standards.lock: schema, policy, 4 semgrep, ci script, severity_matrix required_files'ta.",
+        "Propagation envanteri: tek liste halinde tum artefaktlar.",
+        "check_standards_lock.py PASS."
+      ]
+    },
+    {
+      "id": "F6",
+      "title": "Cross-Repo Sync + Smoke Gate + Wiring",
+      "notes": [
+        "layer=L0, core_lock_required=true",
+        "codex_consensus: post-sync smoke fixture + rule-pack hash",
+        "codex_revision: lock_checks.py icine _check_test_quality_standard()",
+        "codex_addition: workflow wiring check",
+        "risk(medium/high): managed repo semgrep yok — if command guard",
+        "risk(low/medium): eski managed repo — if [ -f ] guard"
+      ],
+      "steps": [
+        { "type": "note", "text": "Add _check_test_quality_standard() to ci/check_standards_lock_parts/lock_checks.py." },
+        { "type": "note", "text": "Wire new check in ci/check_standards_lock.py main()." },
+        { "type": "note", "text": "Create fixtures/test_quality_smoke/README.md." },
+        { "type": "note", "text": "Verify: python3 scripts/sync_managed_repo_standards.py --dry-run lists all new files." }
+      ],
+      "gates": [
+        { "type": "run_cmd", "cmd": "python3 ci/check_standards_lock.py", "must_succeed": true }
+      ],
+      "dod": [
+        "lock_checks.py: _check_test_quality_standard() eklendi ve wired.",
+        "Smoke fixtures: bad + good ornekler fixtures/test_quality_smoke/ altinda.",
+        "sync --dry-run propagation listesinde tum yeni dosyalar.",
+        "Workflow wiring notu: gate-enforcement-check.yml ci/check_test_quality.py cagirmali.",
+        "check_standards_lock.py PASS."
+      ]
+    }
+  ]
+}

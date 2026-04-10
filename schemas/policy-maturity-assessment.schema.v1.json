@@ -68,7 +68,8 @@
               "extensions",
               "multi_agent",
               "observability",
-              "test_coverage"
+              "test_coverage",
+              "test_quality"
             ]
           },
           "weight": {

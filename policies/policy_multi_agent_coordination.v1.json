@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/policy-multi-agent-coordination.schema.v1.json",
   "schema_ref": "urn:ao:policy-multi-agent-coordination:v1",
   "version": "1.0.0",
   "worktree_isolation": {
