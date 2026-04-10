@@ -111,5 +111,9 @@ server {
 
   location / {
     try_files $uri $uri/ /index.html;
+    # index.html must never be cached — it references hashed asset URLs.
+    # Stale index.html = stale JS bundles = auth/permission bugs after deploy.
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+    add_header Pragma "no-cache";
   }
 }
