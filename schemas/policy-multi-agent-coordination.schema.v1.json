@@ -5,6 +5,10 @@
   "description": "Defines rules for multi-agent git coordination in managed repos. Ensures worktree isolation, branch hygiene, shared tree protection, and hook behavior.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path to the schema file"
+    },
     "schema_ref": {
       "type": "string",
       "description": "Reference to this schema URN"
