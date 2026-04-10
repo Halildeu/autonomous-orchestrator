@@ -57,3 +57,4 @@ backend/.vault-dev/**
 .autopilot-tmp/execution-log/**
 .autopilot-tmp/codex-chatlog/**
 .autopilot-tmp/flow-mining/**
+web/.eslintcache
