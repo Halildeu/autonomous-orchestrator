@@ -4,5 +4,37 @@ set -euo pipefail
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 [[ -n "${ROOT_DIR}" ]] || exit 2
 
+# --- Multi-agent coordination (policy: policy_multi_agent_coordination.v1) ---
+
+# Authoritative worktree detection: git-dir != git-common-dir
+GIT_DIR="$(git rev-parse --git-dir 2>/dev/null)"
+GIT_COMMON="$(git rev-parse --git-common-dir 2>/dev/null)"
+
+if [[ "${GIT_DIR}" != "${GIT_COMMON}" ]]; then
+  # === LINKED WORKTREE: light mode ===
+  CANONICAL_ROOT="$(cd "${GIT_COMMON}/.." && pwd)"
+  cd "${ROOT_DIR}"
+  LOCAL_GATE_WORKTREE_MODE=1 \
+    bash "${CANONICAL_ROOT}/scripts/require_local_gate.sh" \
+      --auto-run --caller pre-commit --worktree-mode
+  exit $?
+fi
+
+# === CANONICAL TREE ===
+# Policy: commit blocked when side worktrees exist
+if [[ -z "${ALLOW_CANONICAL_COMMIT:-}" ]]; then
+  WORKTREE_COUNT="$(git worktree list --porcelain | grep -c '^worktree ' || true)"
+  if [[ "${WORKTREE_COUNT}" -gt 1 ]]; then
+    echo "[multi-agent-guard] BLOCKED: Canonical tree'de commit yasak." >&2
+    echo "  Aktif worktree sayisi: ${WORKTREE_COUNT}" >&2
+    echo "  Worktree acmak icin: python3 scripts/ops/open_worktree_session.py --branch feat/<agent>-<task>" >&2
+    echo "  Mevcut worktree'ler: git worktree list" >&2
+    echo "" >&2
+    echo "  Override (acil): ALLOW_CANONICAL_COMMIT=1 git commit ..." >&2
+    exit 1
+  fi
+fi
+
+# Single worktree or override: full gate chain
 cd "${ROOT_DIR}"
 bash scripts/require_local_gate.sh --auto-run --caller pre-commit

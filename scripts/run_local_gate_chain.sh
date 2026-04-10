@@ -6,6 +6,15 @@ set +x
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LIGHT_MODE=0
+
+# Parse --light flag (must come before positional args)
+for arg in "$@"; do
+  case "${arg}" in
+    --light) LIGHT_MODE=1;;
+  esac
+done
+
 LOG_DIR="${LOCAL_GATE_LOG_DIR:-${ROOT_DIR}/.cache/reports/local-gate-chain}"
 STATUS_PATH="${LOG_DIR}/status.json"
 RESULTS_TSV="${LOG_DIR}/results.tsv"
@@ -353,13 +362,70 @@ gitleaks detect --source . --no-banner --redact
 '
 fi
 
-run_shell_step "docs-gate" "${docs_gate_cmd}"
-run_shell_step "layout-gate" '
+if [[ "${LIGHT_MODE}" == "1" ]]; then
+  # === LIGHT MODE (worktree) ===
+  # Policy: secrets + schema-policy-enforcement + scope-aware lint
+  info "LIGHT MODE aktif (worktree)"
+
+  run_shell_step "secrets-gate" "${secrets_cmd}"
+
+  run_shell_step "schema-policy-enforcement" '
+set -euo pipefail
+python3 ci/validate_schemas.py
+python3 ci/check_standards_lock.py
+'
+
+  # Scope-aware lint: check staged files, run lint only for changed scopes
+  staged_files="$(git diff --cached --name-only 2>/dev/null || true)"
+
+  has_backend=0
+  has_web=0
+  if echo "${staged_files}" | grep -q '^backend/'; then
+    has_backend=1
+  fi
+  if echo "${staged_files}" | grep -q '^web/'; then
+    has_web=1
+  fi
+
+  if [[ "${has_backend}" == "1" ]]; then
+    if [[ -x backend/mvnw ]] && command -v java >/dev/null 2>&1; then
+      run_shell_step "backend-lint" '
+set -euo pipefail
+cd backend
+./mvnw -q -DskipTests compile
+'
+    else
+      info "WARN: backend/ degisti ama Java/Maven bulunamadi; backend-lint skip."
+    fi
+  fi
+
+  if [[ "${has_web}" == "1" ]]; then
+    if command -v node >/dev/null 2>&1 && command -v pnpm >/dev/null 2>&1; then
+      if [[ -n "${NODE22_CMD}" ]]; then
+        run_shell_step "web-lint" "
+set -euo pipefail
+${NODE22_CMD} bash scripts/run_lint_web.sh
+"
+      else
+        run_shell_step "web-lint" '
+set -euo pipefail
+bash scripts/run_lint_web.sh
+'
+      fi
+    else
+      info "WARN: web/ degisti ama Node/pnpm bulunamadi; web-lint skip."
+    fi
+  fi
+
+else
+  # === FULL MODE (canonical tree) ===
+  run_shell_step "docs-gate" "${docs_gate_cmd}"
+  run_shell_step "layout-gate" '
 set -euo pipefail
 python3 scripts/check_backend_service_layout.py
 python3 scripts/check_web_mfe_layout.py
 '
-run_shell_step "schema-policy-enforcement" '
+  run_shell_step "schema-policy-enforcement" '
 set -euo pipefail
 python3 ci/validate_schemas.py
 python3 ci/policy_dry_run.py --fixtures fixtures/envelopes --out .cache/reports/policy_dry_run_local.json
@@ -370,12 +436,13 @@ python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.p
 python3 scripts/check_branch_protection_solo_policy.py --mode warn --out .cache/reports/branch_protection_solo_policy_ci.v1.json
 python3 -c "import src.ops.manage" 2>/dev/null && python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/reports/enforcement-check-local || echo "[skip] src.ops.manage not available in this repo"
 '
-run_shell_step "web-gate" "${web_gate_cmd}"
-run_shell_step "backend-gate" '
+  run_shell_step "web-gate" "${web_gate_cmd}"
+  run_shell_step "backend-gate" '
 set -euo pipefail
 cd backend
 ./mvnw -DskipITs=true test
 '
-run_shell_step "module-delivery" "${module_delivery_cmd}"
-run_shell_step "security-guardrails" "${security_cmd}"
-run_shell_step "secrets-gate" "${secrets_cmd}"
+  run_shell_step "module-delivery" "${module_delivery_cmd}"
+  run_shell_step "security-guardrails" "${security_cmd}"
+  run_shell_step "secrets-gate" "${secrets_cmd}"
+fi

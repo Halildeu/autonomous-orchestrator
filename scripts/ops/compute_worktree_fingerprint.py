@@ -16,12 +16,8 @@ def run_capture(args: list[str], cwd: Path) -> bytes:
     return proc.stdout
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--repo-root", default=".")
-    args = parser.parse_args()
-
-    repo_root = Path(args.repo_root).expanduser().resolve()
+def _full_fingerprint(repo_root: Path) -> str:
+    """Full fingerprint: staged + unstaged + untracked + file contents."""
     sha = hashlib.sha256()
 
     status = run_capture(["git", "status", "--porcelain=v1", "--untracked-files=all"], repo_root)
@@ -48,7 +44,50 @@ def main() -> int:
             sha.update(b"<missing>")
         sha.update(b"\n--NEXT-UNTRACKED--\n")
 
-    print(sha.hexdigest())
+    return sha.hexdigest()
+
+
+def _staged_only_fingerprint(repo_root: Path) -> str:
+    """Reduced fingerprint for worktrees: staged diff + staged paths + HEAD + branch + worktree_id."""
+    sha = hashlib.sha256()
+
+    staged_diff = run_capture(["git", "diff", "--no-ext-diff", "--cached", "--binary"], repo_root)
+    staged_paths = run_capture(["git", "diff", "--cached", "--name-only"], repo_root)
+    head = run_capture(["git", "rev-parse", "HEAD"], repo_root)
+    branch = run_capture(["git", "branch", "--show-current"], repo_root)
+    git_dir = run_capture(["git", "rev-parse", "--git-dir"], repo_root)
+
+    # worktree_id: basename of git-dir (e.g. "dev-codex-web-build-hotfix")
+    worktree_id = Path(git_dir.decode("utf-8", errors="ignore").strip()).name
+
+    sha.update(b"--STAGED-DIFF--\n")
+    sha.update(staged_diff)
+    sha.update(b"\n--STAGED-PATHS--\n")
+    sha.update(staged_paths)
+    sha.update(b"\n--HEAD--\n")
+    sha.update(head)
+    sha.update(b"\n--BRANCH--\n")
+    sha.update(branch)
+    sha.update(b"\n--WORKTREE-ID--\n")
+    sha.update(worktree_id.encode("utf-8"))
+
+    return sha.hexdigest()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--staged-only", action="store_true",
+                        help="Reduced fingerprint for worktrees: staged diff + HEAD + branch + worktree_id")
+    args = parser.parse_args()
+
+    repo_root = Path(args.repo_root).expanduser().resolve()
+
+    if args.staged_only:
+        print(_staged_only_fingerprint(repo_root))
+    else:
+        print(_full_fingerprint(repo_root))
+
     return 0
 
 

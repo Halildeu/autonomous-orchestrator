@@ -5,16 +5,25 @@ set +x
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-STATUS_PATH="${LOCAL_GATE_STATUS_PATH:-${ROOT_DIR}/.cache/reports/local-gate-chain/status.json}"
+WORKTREE_MODE="${LOCAL_GATE_WORKTREE_MODE:-0}"
 AUTO_RUN=0
 CALLER="manual"
 
+# In worktree mode, use the worktree's own .cache (not canonical)
+if [[ "${WORKTREE_MODE}" == "1" ]]; then
+  WORKTREE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  STATUS_PATH="${LOCAL_GATE_STATUS_PATH:-${WORKTREE_ROOT}/.cache/reports/local-gate-chain/status.json}"
+else
+  STATUS_PATH="${LOCAL_GATE_STATUS_PATH:-${ROOT_DIR}/.cache/reports/local-gate-chain/status.json}"
+fi
+
 usage() {
   cat <<'EOF'
-Usage: bash scripts/require_local_gate.sh [--auto-run] [--caller <name>]
+Usage: bash scripts/require_local_gate.sh [--auto-run] [--caller <name>] [--worktree-mode]
 
 - PASS artifact varsa ve mevcut worktree fingerprint ile eslesiyorsa 0 doner.
 - Aksi halde --auto-run verilmis ise local gate zincirini calistirir.
+- --worktree-mode: linked worktree'de light gate chain + staged-only fingerprint.
 - Gecerli artifact olmadan commit/push devam etmemelidir.
 EOF
 }
@@ -23,13 +32,20 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --auto-run) AUTO_RUN=1; shift 1;;
     --caller) CALLER="$2"; shift 2;;
+    --worktree-mode) WORKTREE_MODE=1; shift 1;;
     -h|--help) usage; exit 0;;
     *) echo "[local-gate-guard] Unknown arg: $1" >&2; usage; exit 2;;
   esac
 done
 
 compute_worktree_fingerprint() {
-  python3 "${SCRIPT_DIR}/ops/compute_worktree_fingerprint.py" --repo-root "${ROOT_DIR}"
+  if [[ "${WORKTREE_MODE}" == "1" ]]; then
+    # Reduced fingerprint: staged diff + staged paths + HEAD + branch + worktree_id
+    python3 "${SCRIPT_DIR}/ops/compute_worktree_fingerprint.py" \
+      --repo-root "${WORKTREE_ROOT:-${ROOT_DIR}}" --staged-only
+  else
+    python3 "${SCRIPT_DIR}/ops/compute_worktree_fingerprint.py" --repo-root "${ROOT_DIR}"
+  fi
 }
 
 validate_artifact() {
@@ -78,7 +94,12 @@ print("[local-gate-guard] PASS")
 PY
 }
 
-cd "${ROOT_DIR}"
+# In worktree mode, cd to worktree root; otherwise canonical root
+if [[ "${WORKTREE_MODE}" == "1" ]]; then
+  cd "${WORKTREE_ROOT:-${ROOT_DIR}}"
+else
+  cd "${ROOT_DIR}"
+fi
 
 if validate_artifact >/dev/null 2>&1; then
   echo "[local-gate-guard] PASS (${CALLER})"
@@ -92,6 +113,13 @@ if [[ "${AUTO_RUN}" != "1" ]]; then
 fi
 
 echo "[local-gate-guard] stale/missing artifact -> local gate zinciri calistiriliyor (${CALLER})"
-bash scripts/run_local_gate_chain.sh
+
+if [[ "${WORKTREE_MODE}" == "1" ]]; then
+  # Light mode gate chain for worktrees
+  bash "${SCRIPT_DIR}/run_local_gate_chain.sh" --light
+else
+  bash "${SCRIPT_DIR}/run_local_gate_chain.sh"
+fi
+
 validate_artifact >/dev/null
 echo "[local-gate-guard] PASS (${CALLER})"
