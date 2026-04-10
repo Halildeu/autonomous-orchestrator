@@ -102,7 +102,9 @@
     "policies/policy_domain_conventions.v1.json",
     "policies/policy_scope_guard.v1.json",
     "policies/policy_context_quality.v1.json",
-    "policies/policy_context_memory_tiers.v1.json"
+    "policies/policy_context_memory_tiers.v1.json",
+    "policies/policy_multi_agent_coordination.v1.json",
+    "schemas/policy-multi-agent-coordination.schema.v1.json"
   ],
   "required_commands": [
     "python ci/validate_schemas.py",
