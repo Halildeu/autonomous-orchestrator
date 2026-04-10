@@ -391,7 +391,7 @@ export const Segmented = React.forwardRef<HTMLDivElement, SegmentedProps>(
                 onKeyDown={(e) => handleKeyDown(e, item.value)}
                 className={cn(
                   "inline-flex items-center justify-center font-medium",
-                  "transition-all duration-150",
+                  "transition-all duration-(--motion-duration-fast)",
                   "disabled:pointer-events-none disabled:opacity-40",
                   focusRingClass("ring"),
                   sizeStyles[size],

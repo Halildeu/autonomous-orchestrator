@@ -143,7 +143,7 @@ const BottomNavigationItem = forwardRef<HTMLButtonElement, BottomNavigationItemP
     );
 
     const sharedClasses = cn(
-      'flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors duration-150',
+      'flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors duration-(--motion-duration-fast)',
       'outline-none focus-visible:bg-surface-muted',
       isActive && 'bg-action-primary/5',
       disabled && 'pointer-events-none opacity-40',

@@ -180,7 +180,7 @@ export const List = React.forwardRef<HTMLElement, ListProps>(({
                   const interactive = typeof onItemSelect === "function";
                   const blocked = shouldBlockInteraction(accessState.state, item.disabled);
                   const sharedClassName = [
-                    "w-full rounded-[24px] text-left transition duration-200",
+                    "w-full rounded-[24px] text-left transition duration-(--motion-duration-medium)",
                     densityClass[density],
                     selected
                       ? "bg-[color-mix(in_oklab,var(--action-primary-soft)_60%,transparent)] shadow-[0_18px_34px_-28px_var(--action-primary-shadow,hsl(var(--accent-hue,245)_67%_59%/0.38))]"

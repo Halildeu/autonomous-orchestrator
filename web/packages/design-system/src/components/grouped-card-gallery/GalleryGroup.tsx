@@ -61,7 +61,7 @@ export const GalleryGroup: React.FC<GalleryGroupProps> = ({
         className={cn(
           "flex w-full items-center gap-2 rounded-xl px-3 py-2.5",
           "bg-surface-muted border border-border-subtle/50",
-          "text-start transition-colors duration-100",
+          "text-start transition-colors duration-(--motion-duration-fast)",
           "hover:bg-surface-hover hover:border-border-subtle",
           "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-action-primary/40",
         )}
@@ -70,7 +70,7 @@ export const GalleryGroup: React.FC<GalleryGroupProps> = ({
         {/* Chevron */}
         <svg
           className={cn(
-            "h-4 w-4 shrink-0 text-text-secondary transition-transform duration-200",
+            "h-4 w-4 shrink-0 text-text-secondary transition-transform duration-(--motion-duration-medium)",
             expanded && "rotate-90",
           )}
           viewBox="0 0 16 16"
@@ -105,7 +105,7 @@ export const GalleryGroup: React.FC<GalleryGroupProps> = ({
       {/* Collapsible content */}
       <div
         ref={contentRef}
-        className="overflow-hidden transition-[max-height] duration-200 ease-in-out"
+        className="overflow-hidden transition-[max-height] duration-(--motion-duration-medium) ease-in-out"
         style={{
           maxHeight: height === undefined ? "none" : `${height}px`,
         }}

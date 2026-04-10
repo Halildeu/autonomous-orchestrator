@@ -181,7 +181,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
         />
         <span
           className={cn(
-            "relative inline-flex shrink-0 rounded-full transition-colors duration-200",
+            "relative inline-flex shrink-0 rounded-full transition-colors duration-(--motion-duration-medium)",
             trackSizes[resolvedSize],
             density !== "comfortable" && switchDensityStyles[density],
             isDisabled && "cursor-not-allowed",
@@ -199,7 +199,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
         >
           <span
             className={cn(
-              "pointer-events-none inline-flex items-center justify-center rounded-full bg-surface-default shadow-xs transition-[translate] duration-200",
+              "pointer-events-none inline-flex items-center justify-center rounded-full bg-surface-default shadow-xs transition-[translate] duration-(--motion-duration-medium)",
               thumbSizes[resolvedSize].base,
               "translate-y-0.5 translate-x-0.5",
               checked && thumbSizes[resolvedSize].translate,

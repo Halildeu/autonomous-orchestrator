@@ -57,7 +57,7 @@ export const GallerySearchBar: React.FC<GallerySearchBarProps> = ({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           className={cn(
-            "w-full rounded-xl border transition-colors duration-150",
+            "w-full rounded-xl border transition-colors duration-(--motion-duration-fast)",
             "h-9 ps-9 pe-9 text-sm",
             "bg-[var(--surface-canvas)] text-text-primary",
             "border-border-subtle",

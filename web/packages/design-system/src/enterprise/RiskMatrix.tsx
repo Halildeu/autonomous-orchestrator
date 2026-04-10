@@ -214,7 +214,7 @@ export function RiskMatrix({
                     } : undefined}
                     className={[
                       'flex items-center justify-center border border-surface-default',
-                      'transition-[scale] duration-100',
+                      'transition-[scale] duration-(--motion-duration-fast)',
                       isClickable ? 'cursor-pointer hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)]' : '',
                     ].join(' ')}
                     style={{

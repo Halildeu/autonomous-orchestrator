@@ -421,12 +421,17 @@ check('test-quality', 'Test kalitesi (sığ test tespiti)', () => {
 /*  Check 9: theme-axis-hardcodes                                      */
 /* ------------------------------------------------------------------ */
 
-check('theme-axis-hardcodes', 'Theme axis hardcode tespiti (radius/elevation/motion)', () => {
+check('theme-axis-hardcodes', 'Theme axis hardcode tespiti (motion)', () => {
+  // NOTE: radius (rounded-*) and shadow (shadow-*) are NO LONGER hardcodes.
+  // They are now theme-axis aware via @theme inline token mapping:
+  //   --radius-lg: var(--radius-surface)  → responds to [data-radius]
+  //   --shadow-md: var(--elevation-surface) → responds to [data-elevation]
+  // Only motion duration-* remains as a real hardcode concern.
+
   const SKIP_DIRS = new Set(['__tests__', '__visual__', 'node_modules', 'dist', '.stryker-cache']);
   const SKIP_PATTERNS = [/\.test\./, /\.stories\./, /\.figma\./, /\.d\.ts$/];
 
-  // Scan TSX files for hardcoded values that should use theme axis tokens
-  const issues = { radius: [], elevation: [], motion: [] };
+  const issues = { motion: [] };
 
   const tsxFiles = findFiles(SRC, (name, full) => {
     if (!name.endsWith('.tsx')) return false;
@@ -442,47 +447,24 @@ check('theme-axis-hardcodes', 'Theme axis hardcode tespiti (radius/elevation/mot
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // Radius: hardcoded Tailwind rounded-* (except rounded-full which is intentional for pills)
-      if (/\brounded-(?:xs|sm|md|lg|xl|2xl|3xl|none)\b/.test(line) && !line.includes('var(--radius')) {
-        issues.radius.push(`${rel}:${i + 1}`);
-      }
-
-      // Elevation: hardcoded shadow-* (except shadow-[...var(--shadow)] and shadow-none)
-      if (/\bshadow-(?:xs|sm|md|lg|xl|2xl|inner)\b/.test(line) && !line.includes('var(--elevation') && !line.includes('var(--shadow')) {
-        issues.elevation.push(`${rel}:${i + 1}`);
-      }
-
-      // Motion: hardcoded duration-* (except where using motion token)
-      if (/\bduration-(?:75|100|150|200|300|500|700|1000)\b/.test(line) && !line.includes('var(--motion')) {
+      // Motion: hardcoded duration-NNN (should use duration-(--motion-duration-*))
+      if (/\bduration-(?:75|100|150|200|300|500|700|1000)\b/.test(line) && !line.includes('var(--motion') && !line.includes('--motion-duration')) {
         issues.motion.push(`${rel}:${i + 1}`);
       }
     }
   }
 
-  const total = issues.radius.length + issues.elevation.length + issues.motion.length;
+  const total = issues.motion.length;
 
   if (total === 0) {
     return { status: 'pass', message: 'Theme axis hardcode bulunamadı' };
   }
 
-  const details = [
-    issues.radius.length > 0 && `radius: ${issues.radius.length} hardcode (rounded-* without --radius token)`,
-    issues.elevation.length > 0 && `elevation: ${issues.elevation.length} hardcode (shadow-* without --elevation token)`,
-    issues.motion.length > 0 && `motion: ${issues.motion.length} hardcode (duration-* without --motion token)`,
-  ].filter(Boolean);
-
-  // Show sample files
-  const samples = [
-    ...issues.radius.slice(0, 3),
-    ...issues.elevation.slice(0, 3),
-    ...issues.motion.slice(0, 3),
-  ];
-
   return {
     status: 'warn',
-    message: `${total} theme axis hardcode bulundu (${details.join(', ')})`,
-    details: samples,
-    fix: 'Hardcoded Tailwind class yerine theme token kullanın: var(--radius-control), var(--elevation-surface), var(--motion-duration-fast)',
+    message: `${total} motion hardcode bulundu (duration-* without --motion token)`,
+    details: issues.motion.slice(0, 8),
+    fix: 'Hardcoded duration-200 yerine duration-(--motion-duration-medium) kullanın',
   };
 });
 

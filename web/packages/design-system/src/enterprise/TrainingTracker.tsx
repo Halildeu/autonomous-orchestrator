@@ -225,7 +225,7 @@ export const TrainingTracker: React.FC<TrainingTrackerProps> = ({
                           <div className="mt-1.5 flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-surface-muted overflow-hidden max-w-[200px]">
                               <div
-                                className="h-full rounded-full transition-all duration-500"
+                                className="h-full rounded-full transition-all duration-(--motion-duration-slow)"
                                 style={{ width: `${item.progress}%`, backgroundColor: barColor }}
                               />
                             </div>

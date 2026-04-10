@@ -113,7 +113,7 @@ const LineProgress: React.FC<{
           {Array.from({ length: steps }).map((_, i) => (
             <div
               key={i}
-              className="flex-1 rounded-full transition-colors duration-300"
+              className="flex-1 rounded-full transition-colors duration-(--motion-duration-slow)"
               style={{
                 height: h,
                 backgroundColor: i < filledSteps ? fill : trail,
@@ -131,7 +131,7 @@ const LineProgress: React.FC<{
       <div className="relative flex-1 overflow-hidden rounded-full" style={{ height: h, backgroundColor: trail }}>
         <div
           className={cn(
-            'absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out',
+            'absolute inset-y-0 left-0 rounded-full transition-all duration-(--motion-duration-slow) ease-out',
             status === 'active' && 'animate-pulse',
           )}
           style={{ width: `${clamped}%`, backgroundColor: fill }}
@@ -189,7 +189,7 @@ const CircleProgress: React.FC<{
           strokeLinecap="round"
           strokeDasharray={`${arcLength} ${circumference}`}
           strokeDashoffset={dashOffset}
-          className="transition-all duration-500 ease-out"
+          className="transition-all duration-(--motion-duration-slow) ease-out"
         />
       </svg>
       {showInfo && (

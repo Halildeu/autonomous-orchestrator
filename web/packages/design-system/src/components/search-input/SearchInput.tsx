@@ -114,7 +114,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           value={value}
           disabled={disabled}
           className={cn(
-            "w-full rounded-xl border transition-colors duration-150",
+            "w-full rounded-xl border transition-colors duration-(--motion-duration-fast)",
             "bg-[var(--surface-canvas)] text-text-primary",
             "border-border-subtle",
             "placeholder:text-[var(--text-disabled)]",

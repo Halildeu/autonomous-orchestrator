@@ -175,7 +175,7 @@ const BlockCard: React.FC<{
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-border-subtle/80 bg-[var(--surface-card))] shadow-xs transition-all duration-200",
+        "relative overflow-hidden rounded-2xl border border-border-subtle/80 bg-[var(--surface-card))] shadow-xs transition-all duration-(--motion-duration-medium)",
         densityPadding[density],
         isDraggable && "cursor-grab active:cursor-grabbing",
       )}
@@ -215,7 +215,7 @@ const BlockCard: React.FC<{
                 fill="none"
                 aria-hidden="true"
                 className={cn(
-                  "transition-[rotate] duration-200",
+                  "transition-[rotate] duration-(--motion-duration-medium)",
                   collapsed && "-rotate-90",
                 )}
               >
@@ -234,7 +234,7 @@ const BlockCard: React.FC<{
 
       {/* Content */}
       {!collapsed && (
-        <div className="transition-all duration-200">{block.content}</div>
+        <div className="transition-all duration-(--motion-duration-medium)">{block.content}</div>
       )}
     </div>
   );

@@ -158,7 +158,7 @@ export const CitationPanel = React.forwardRef<HTMLElement, CitationPanelProps>((
               <button
                 key={item.id}
                 type="button"
-                className={`w-full rounded-[26px] border px-4 py-4 text-left transition duration-200 ${selected ? "border-action-primary-border/70 bg-[var(--surface-card-alt)] shadow-[0_20px_36px_-28px_var(--shadow-color)] ring-1 ring-border-subtle/20" : "border-border-subtle/75 bg-[var(--surface-card)] ring-1 ring-border-subtle/20 shadow-[0_16px_30px_-28px_var(--shadow-color)] hover:-translate-y-px hover:bg-[var(--surface-hover)] hover:shadow-[0_20px_34px_-28px_var(--shadow-color)]"} ${blocked ? "cursor-not-allowed opacity-70" : ""}`}
+                className={`w-full rounded-[26px] border px-4 py-4 text-left transition duration-(--motion-duration-medium) ${selected ? "border-action-primary-border/70 bg-[var(--surface-card-alt)] shadow-[0_20px_36px_-28px_var(--shadow-color)] ring-1 ring-border-subtle/20" : "border-border-subtle/75 bg-[var(--surface-card)] ring-1 ring-border-subtle/20 shadow-[0_16px_30px_-28px_var(--shadow-color)] hover:-translate-y-px hover:bg-[var(--surface-hover)] hover:shadow-[0_20px_34px_-28px_var(--shadow-color)]"} ${blocked ? "cursor-not-allowed opacity-70" : ""}`}
                 onClick={withAccessGuard<React.MouseEvent<HTMLButtonElement>>(
                   interactionState,
                   () => onOpenCitation(item.id, item),

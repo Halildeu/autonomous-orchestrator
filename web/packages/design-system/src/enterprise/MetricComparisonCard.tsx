@@ -170,7 +170,7 @@ const TargetBar: React.FC<TargetBarProps> = ({ current, target, color }) => {
       </div>
       <div className="h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
         <div
-          className="h-full rounded-full transition-all duration-300"
+          className="h-full rounded-full transition-all duration-(--motion-duration-slow)"
           style={{
             width: `${percent}%`,
             backgroundColor: isReached ? 'var(--state-success-text)' : color,

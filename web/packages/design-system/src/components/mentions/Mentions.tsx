@@ -283,7 +283,7 @@ export const Mentions = React.forwardRef<HTMLDivElement, MentionsProps>(function
           aria-invalid={error || undefined}
           aria-autocomplete="list"
           className={cn(
-            "w-full resize-y rounded-md border transition-colors duration-150",
+            "w-full resize-y rounded-md border transition-colors duration-(--motion-duration-fast)",
             "bg-surface-default text-text-primary",
             "placeholder:text-[var(--text-disabled)]",
             "focus:outline-hidden focus:ring-2",

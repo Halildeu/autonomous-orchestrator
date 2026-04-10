@@ -344,7 +344,7 @@ const TransferPanel: React.FC<TransferPanelProps> = ({
                 aria-disabled={itemBlocked || undefined}
                 data-testid={`transfer-item-${item.key}`}
                 className={cn(
-                  "group flex cursor-pointer items-center gap-2 border-b border-border-subtle/20 transition-colors duration-100 last:border-b-0",
+                  "group flex cursor-pointer items-center gap-2 border-b border-border-subtle/20 transition-colors duration-(--motion-duration-fast) last:border-b-0",
                   itemSizeClass[size],
                   itemBlocked
                     ? "cursor-not-allowed opacity-50"
@@ -592,7 +592,7 @@ export const Transfer = React.forwardRef<HTMLDivElement, TransferProps>(({
             if (e.key === "Enter") moveToRight();
           }}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-150",
+            "flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-(--motion-duration-fast)",
             leftSelectedCount > 0 && !blocked
               ? "border-action-primary/40 bg-action-primary text-text-inverse shadow-[0_8px_16px_-8px_var(--action-primary)] hover:shadow-[0_12px_20px_-8px_var(--action-primary)] active:translate-y-px"
               : "border-border-subtle/60 bg-surface-default text-[var(--text-disabled)] cursor-not-allowed",
@@ -610,7 +610,7 @@ export const Transfer = React.forwardRef<HTMLDivElement, TransferProps>(({
             if (e.key === "Enter") moveToLeft();
           }}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-150",
+            "flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-(--motion-duration-fast)",
             rightSelectedCount > 0 && !blocked
               ? "border-action-primary/40 bg-action-primary text-text-inverse shadow-[0_8px_16px_-8px_var(--action-primary)] hover:shadow-[0_12px_20px_-8px_var(--action-primary)] active:translate-y-px"
               : "border-border-subtle/60 bg-surface-default text-[var(--text-disabled)] cursor-not-allowed",

@@ -250,7 +250,7 @@ export const WaterfallChart: React.FC<WaterfallChartProps> = ({
                 rx={3}
                 opacity={isHovered ? 1 : 0.85}
                 className={cn(
-                  'transition-opacity duration-100',
+                  'transition-opacity duration-(--motion-duration-fast)',
                   isClickable && 'cursor-pointer',
                 )}
                 onClick={() => handleClick(bar.item)}

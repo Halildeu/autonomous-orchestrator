@@ -189,7 +189,7 @@ export const JsonViewer = React.forwardRef<HTMLElement, JsonViewerProps>(({
       <div key={path} className={`rounded-[24px] border border-border-subtle/75 bg-[var(--surface-card-alt)] p-4 shadow-[0_16px_30px_-28px_var(--shadow-color)] ring-1 ring-border-subtle/20 backdrop-blur-xs ${indentClass}`}>
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-3 text-left transition duration-200 hover:-translate-y-px"
+          className="flex w-full items-center justify-between gap-3 text-left transition duration-(--motion-duration-medium) hover:-translate-y-px"
           onClick={() =>
             setToggleState((current) => ({
               ...current,

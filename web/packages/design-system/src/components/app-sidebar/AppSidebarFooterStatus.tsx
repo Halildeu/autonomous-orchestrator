@@ -67,7 +67,7 @@ export const AppSidebarFooterStatus = React.forwardRef<
             'whitespace-nowrap rounded-md px-2 py-1 text-xs',
             'bg-[var(--text-primary)] text-[var(--surface-default)]',
             'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
-            'transition-opacity duration-150',
+            'transition-opacity duration-(--motion-duration-fast)',
           )}
         >
           {resolvedLabel}

@@ -335,7 +335,7 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
                 rx={1}
                 opacity={isHovered ? 1 : 0.75}
                 className={cn(
-                  'transition-opacity duration-100',
+                  'transition-opacity duration-(--motion-duration-fast)',
                   isClickable && 'cursor-pointer',
                 )}
                 onClick={() => handleBinClick(bin)}

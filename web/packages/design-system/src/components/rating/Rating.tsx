@@ -319,7 +319,7 @@ export const Rating = React.forwardRef<HTMLDivElement, RatingProps>(function Rat
         tabIndex={-1}
         data-access-state={accessState.state}
         className={cn(
-          "inline-flex cursor-pointer transition-transform duration-100",
+          "inline-flex cursor-pointer transition-transform duration-(--motion-duration-fast)",
           !isInteractive && "cursor-default",
           accessState.isDisabled && "opacity-50 cursor-not-allowed",
         )}

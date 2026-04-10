@@ -86,7 +86,7 @@ export const getFieldFrameClass = (
   density: FieldDensity = "comfortable",
 ) =>
   cn(
-    "group relative flex items-start overflow-hidden border transition duration-200",
+    "group relative flex items-start overflow-hidden border transition duration-(--motion-duration-medium)",
     fieldShellClass[tone],
     fieldSurfaceClass[tone],
     fieldSizeClass[size],

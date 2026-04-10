@@ -345,7 +345,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
                 fill={fill}
                 role="img"
                 className={cn(
-                  'transition-opacity duration-75',
+                  'transition-opacity duration-(--motion-duration-fast)',
                   isClickable && 'cursor-pointer',
                 )}
                 onClick={dayData ? () => handleDayClick(dayData) : undefined}

@@ -150,7 +150,7 @@ const SWOTChip: React.FC<SWOTChipProps> = ({ item, quadrant, canInteract, compac
         'inline-flex items-center gap-1.5 rounded-md',
         'bg-[var(--surface-default)] border border-[var(--border-subtle)]',
         'text-[var(--text-primary)]',
-        'transition-colors duration-100',
+        'transition-colors duration-(--motion-duration-fast)',
         compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
         isClickable && 'cursor-pointer hover:bg-[var(--surface-muted)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)]',
       )}

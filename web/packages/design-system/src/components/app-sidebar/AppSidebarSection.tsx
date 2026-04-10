@@ -43,7 +43,7 @@ export const AppSidebarSection = React.forwardRef<HTMLDivElement, AppSidebarSect
               className={cn(
                 'flex w-full items-center gap-1 text-[10px] font-semibold uppercase tracking-wider',
                 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                'transition-colors duration-200 outline-hidden',
+                'transition-colors duration-(--motion-duration-medium) outline-hidden',
                 'focus-visible:ring-2 focus-visible:ring-[var(--action-primary)] rounded',
               )}
               onClick={() => setOpen((prev) => !prev)}
@@ -51,7 +51,7 @@ export const AppSidebarSection = React.forwardRef<HTMLDivElement, AppSidebarSect
             >
               <svg
                 className={cn(
-                  'h-3 w-3 shrink-0 transition-transform duration-200',
+                  'h-3 w-3 shrink-0 transition-transform duration-(--motion-duration-medium)',
                   !open && '-rotate-90',
                 )}
                 viewBox="0 0 12 12"

@@ -474,7 +474,7 @@ const MenuSurfaceList = <TItem extends MenuSurfaceItemBase<TItem>>({
                 onRequestClose?.('select', { restoreFocus: true });
               }}
               data-testid={itemTestId?.(item.key)}
-              className={`group relative flex w-full items-start justify-between gap-3 rounded-[20px] border border-transparent px-3 py-3 text-left transition duration-200 ${
+              className={`group relative flex w-full items-start justify-between gap-3 rounded-[20px] border border-transparent px-3 py-3 text-left transition duration-(--motion-duration-medium) ${
                 item.disabled
                   ? 'cursor-not-allowed opacity-50'
                   : item.danger

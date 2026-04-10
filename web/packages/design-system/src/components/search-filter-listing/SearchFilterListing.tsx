@@ -122,7 +122,7 @@ export interface SearchFilterListingProps extends AccessControlledProps {
    */
 
 const panelBase =
-  "relative overflow-hidden rounded-[28px] border border-border-subtle/80 bg-[var(--surface-card))] shadow-[0_22px_48px_-34px_var(--shadow-color)] ring-1 ring-border-subtle/20 backdrop-blur-xs transition-all duration-200";
+  "relative overflow-hidden rounded-[28px] border border-border-subtle/80 bg-[var(--surface-card))] shadow-[0_22px_48px_-34px_var(--shadow-color)] ring-1 ring-border-subtle/20 backdrop-blur-xs transition-all duration-(--motion-duration-medium)";
 
 const SKELETON_PULSE = "animate-pulse rounded-lg bg-surface-muted";
 
@@ -137,7 +137,7 @@ const FilterChips: React.FC<{
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-2 transition-all duration-200",
+        "flex flex-wrap items-center gap-2 transition-all duration-(--motion-duration-medium)",
         compact ? "px-3 py-2" : "px-5 py-3",
       )}
       role="status"
@@ -185,7 +185,7 @@ const SelectionBar: React.FC<{
   return (
     <div
       className={cn(
-        "flex items-center justify-between rounded-2xl border border-[color-mix(in_oklab,var(--selection-outline))_40%,transparent)] bg-[var(--selection-bg)] transition-all duration-200",
+        "flex items-center justify-between rounded-2xl border border-[color-mix(in_oklab,var(--selection-outline))_40%,transparent)] bg-[var(--selection-bg)] transition-all duration-(--motion-duration-medium)",
         compact ? "px-3 py-2" : "px-5 py-3",
       )}
       role="status"

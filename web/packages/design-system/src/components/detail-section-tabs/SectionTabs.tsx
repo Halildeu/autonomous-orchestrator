@@ -109,7 +109,7 @@ function getDescriptionVisibilityClassName(
   visibility: SectionTabsDescriptionVisibility,
 ): string {
   const baseHidden =
-    'mt-0 block max-h-0 max-w-0 translate-y-[-2px] overflow-hidden whitespace-nowrap opacity-0 transition-all duration-150 ease-out';
+    'mt-0 block max-h-0 max-w-0 translate-y-[-2px] overflow-hidden whitespace-nowrap opacity-0 transition-all duration-(--motion-duration-fast) ease-out';
 
   switch (visibility) {
     case 'always':

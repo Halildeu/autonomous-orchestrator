@@ -125,7 +125,7 @@ const PreviewModal: React.FC<{
         onClick={(e) => e.stopPropagation()}
         onWheel={handleWheel}
         style={{ transform: `scale(${scale})` }}
-        className="max-h-[90vh] max-w-[90vw] cursor-zoom-in object-contain transition-transform duration-200"
+        className="max-h-[90vh] max-w-[90vw] cursor-zoom-in object-contain transition-transform duration-(--motion-duration-medium)"
       />
     </div>
   );
@@ -245,7 +245,7 @@ const ImageRoot = forwardRef<HTMLDivElement, ImageProps>(
               onLoad={() => setLoaded(true)}
               onError={() => setError(true)}
               className={cn(
-                'h-full w-full transition-opacity duration-300',
+                'h-full w-full transition-opacity duration-(--motion-duration-slow)',
                 objectFitMap[objectFit],
                 roundedClass,
                 loaded ? 'opacity-100' : 'opacity-0',

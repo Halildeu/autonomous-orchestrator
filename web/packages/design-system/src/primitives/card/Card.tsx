@@ -80,7 +80,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     ref,
   ) => {
     const mergedClassName = cn(
-      "rounded-2xl transition-all duration-150",
+      "rounded-2xl transition-all duration-(--motion-duration-fast)",
       variantStyles[variant],
       paddingStyles[padding],
       hoverable && [

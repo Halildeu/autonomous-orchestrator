@@ -217,7 +217,7 @@ export function ExecutiveKPIStrip({
               className={[
                 s.card,
                 'rounded-lg border border-border-default bg-surface-default',
-                'transition-shadow duration-150',
+                'transition-shadow duration-(--motion-duration-fast)',
                 isInteractive ? 'cursor-pointer hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]' : '',
                 metricAccess.isDisabled ? 'opacity-50 pointer-events-none' : '',
               ].join(' ')}

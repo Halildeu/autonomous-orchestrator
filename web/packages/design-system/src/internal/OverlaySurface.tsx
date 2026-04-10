@@ -124,7 +124,7 @@ export const OverlaySurface: React.FC<OverlaySurfaceProps> = ({
       aria-label={ariaLabel}
       aria-modal="true"
       className={cn(
-        "fixed inset-0 z-50 bg-surface-inverse/30 backdrop-blur-xs transition-opacity duration-300",
+        "fixed inset-0 z-50 bg-surface-inverse/30 backdrop-blur-xs transition-opacity duration-(--motion-duration-slow)",
         open ? "opacity-100" : "pointer-events-none opacity-0",
         viewportClassName,
       )}
@@ -132,7 +132,7 @@ export const OverlaySurface: React.FC<OverlaySurfaceProps> = ({
     >
       <div
         className={cn(
-          "transition-[translate] duration-300",
+          "transition-[translate] duration-(--motion-duration-slow)",
           placement === "right" && (open ? "translate-x-0" : "translate-x-full"),
           placement === "left" && (open ? "translate-x-0" : "-translate-x-full"),
           surfaceClassName,

@@ -1197,7 +1197,7 @@ export const MenuBar = React.forwardRef<HTMLElement, MenuBarProps>(function Menu
             || (resolvedLabelVisibility === 'active' && isActive)
             || (!item.icon && resolvedLabelVisibility === 'none');
           const commonClassName = cn(
-            `group relative inline-flex min-h-10 items-center gap-2 rounded-2xl border border-transparent font-medium transition duration-200 ${focusRingClass("ring")}`,
+            `group relative inline-flex min-h-10 items-center gap-2 rounded-2xl border border-transparent font-medium transition duration-(--motion-duration-medium) ${focusRingClass("ring")}`,
             sizeClassNames[size],
             isActive
               ? 'border-border-default/70 bg-[var(--surface-card)] text-accent-primary shadow-[0_16px_34px_-26px_var(--shadow-color)] ring-1 ring-border-subtle/20 before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-[var(--surface-card)] before:to-transparent'
