@@ -252,9 +252,15 @@ check('hardcoded-colors', 'Hardcoded renk tespiti', () => {
 /* ------------------------------------------------------------------ */
 
 check('component-grades', 'Bileşen grade kontrolü (D/F = fail)', () => {
-  // Scorecard writes to reports/scorecard.json — run it first, then read
-  runSiblingScriptRaw('component-scorecard.mjs');
-  const components = readReportFile('reports/scorecard.json');
+  // Run scorecard in JSON mode and parse output directly
+  const raw = runSiblingScriptRaw('component-scorecard.mjs', '--json');
+  let components = null;
+  if (raw) {
+    try { components = JSON.parse(raw); } catch { /* fallback to file */ }
+  }
+  if (!components) {
+    components = readReportFile('reports/scorecard.json');
+  }
 
   if (!components || !Array.isArray(components)) {
     return { status: 'warn', message: 'component-scorecard çalıştırılamadı veya rapor okunamadı' };
