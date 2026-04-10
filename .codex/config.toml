@@ -2,3 +2,8 @@ model = "gpt-5.3-codex"
 approval_policy = "never"
 sandbox_mode = "workspace-write"
 project_doc_fallback_filenames = ["AGENTS.md", "AGENT-CODEX.md", "TEAM_GUIDE.md"]
+
+# Multi-agent coordination: Codex MUST work in its own worktree.
+# See AGENTS.md Section 0d for rules.
+# Worktree creation: git worktree add /path -b codex/<task> main
+# Canonical tree commit/push is BLOCKED by git hooks when side worktrees exist.

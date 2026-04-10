@@ -93,8 +93,33 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash -c 'GD=$(git rev-parse --git-dir 2>/dev/null) && GC=$(git rev-parse --git-common-dir 2>/dev/null) && if [ \"$GD\" = \"$GC\" ]; then WC=$(git worktree list --porcelain 2>/dev/null | grep -c \"^worktree \" || echo 0); if [ \"$WC\" -gt 1 ] && [ -z \"${ALLOW_CANONICAL_COMMIT:-}\" ]; then echo \"[worktree-guard] BLOCKED: Canonical tree commit yasak ($WC aktif worktree). Worktree ac: git worktree add /path -b feat/claude-<task> main\" >&2; exit 1; fi; fi'",
+            "statusMessage": "Multi-agent worktree guard..."
+          },
+          {
+            "type": "command",
             "command": "python3 ci/validate_schemas.py 2>&1 | tail -3",
             "statusMessage": "Validating schemas before commit..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git checkout -- *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'GD=$(git rev-parse --git-dir 2>/dev/null) && GC=$(git rev-parse --git-common-dir 2>/dev/null) && if [ \"$GD\" = \"$GC\" ]; then WC=$(git worktree list --porcelain 2>/dev/null | grep -c \"^worktree \" || echo 0); if [ \"$WC\" -gt 1 ]; then echo \"[worktree-guard] BLOCKED: Canonical tree checkout YASAK ($WC aktif worktree). Destructive op risk!\" >&2; exit 1; fi; fi'",
+            "statusMessage": "Multi-agent destructive op guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git reset*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'GD=$(git rev-parse --git-dir 2>/dev/null) && GC=$(git rev-parse --git-common-dir 2>/dev/null) && if [ \"$GD\" = \"$GC\" ]; then WC=$(git worktree list --porcelain 2>/dev/null | grep -c \"^worktree \" || echo 0); if [ \"$WC\" -gt 1 ]; then echo \"[worktree-guard] BLOCKED: Canonical tree reset YASAK ($WC aktif worktree). Destructive op risk!\" >&2; exit 1; fi; fi'",
+            "statusMessage": "Multi-agent destructive op guard..."
           }
         ]
       }
