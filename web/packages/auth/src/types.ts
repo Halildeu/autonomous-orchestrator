@@ -21,6 +21,9 @@ export interface AuthzMeResponse {
   reports?: Record<string, GrantResult>;     // key → "ALLOW" | "DENY"
   pages?: Record<string, GrantResult>;       // key → "ALLOW" | "DENY"
   scopes?: ScopeAssignment;
+
+  // P0: Cache invalidation version (CNS-20260410-001)
+  authzVersion?: number;
 }
 
 /** Access levels for modules. EDIT removed per K1. */

@@ -6,7 +6,7 @@ export { useHasModule, useIsSuperAdmin } from './useHasPermission';
 export { useCheckPermission } from './useCheckPermission';
 export { useExplainPermission } from './useExplainPermission';
 export { ProtectedRoute, ProtectedSection } from './ProtectedRoute';
-export { fetchAuthzMe, checkPermission } from './api';
+export { fetchAuthzMe, fetchAuthzVersion, checkPermission } from './api';
 export { MODULES } from './types';
 export type {
   AuthzMeResponse, CheckRequest, CheckResponse, ModuleKey,

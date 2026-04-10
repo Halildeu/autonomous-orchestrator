@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import type { AuthzMeResponse, AccessLevel, GrantResult } from './types';
-import { fetchAuthzMe } from './api';
+import { fetchAuthzMe, fetchAuthzVersion } from './api';
 
 interface PermissionContextValue {
   /** Current user's authorization data */
@@ -72,6 +72,7 @@ export function PermissionProvider({
   const [authz, setAuthz] = useState<AuthzMeResponse | null>(initialData ?? null);
   const [initialized, setInitialized] = useState(!!initialData);
   const [loading, setLoading] = useState(false);
+  const lastVersionRef = React.useRef<number | null>(initialData?.authzVersion ?? null);
 
   const loadAuthz = useCallback(async () => {
     if (permitAll) {
@@ -104,6 +105,9 @@ export function PermissionProvider({
       const data = await fetchAuthzMe(httpGet);
       setAuthz(data);
       setInitialized(true);
+      if (data.authzVersion != null) {
+        lastVersionRef.current = data.authzVersion;
+      }
     } catch (err) {
       console.error('[PermissionProvider] Failed to fetch authz:', err);
       // Do NOT set initialized=true on failure — keep loading state so
@@ -132,13 +136,28 @@ export function PermissionProvider({
       loadAuthz();
     }
 
-    // Periodic refresh keeps permissions fresh (60s default)
+    // P0: Version-based smart refresh — poll /version (lightweight),
+    // only do full /me refresh when version changes.
     if (!permitAll && cacheTtl > 0) {
-      const interval = setInterval(loadAuthz, cacheTtl);
+      const pollVersion = async () => {
+        try {
+          const serverVersion = await fetchAuthzVersion(httpGet);
+          if (serverVersion === -1) {
+            await loadAuthz();
+            return;
+          }
+          if (lastVersionRef.current === null || serverVersion !== lastVersionRef.current) {
+            await loadAuthz();
+          }
+        } catch {
+          // Silently skip — next poll will retry
+        }
+      };
+      const interval = setInterval(pollVersion, cacheTtl);
       return () => clearInterval(interval);
     }
     return undefined;
-  }, [loadAuthz, permitAll, enabled, cacheTtl, initialData]);
+  }, [loadAuthz, httpGet, permitAll, enabled, cacheTtl, initialData]);
 
   const value = useMemo<PermissionContextValue>(() => ({
     authz,

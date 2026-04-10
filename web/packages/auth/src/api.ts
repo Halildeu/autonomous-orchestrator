@@ -31,6 +31,21 @@ export async function fetchAuthzMe(
 }
 
 /**
+ * Lightweight version check for cache invalidation polling.
+ * Frontend calls this instead of full /me to detect permission changes.
+ */
+export async function fetchAuthzVersion(
+  httpGet: (url: string) => Promise<{ data: { authzVersion: number } }>
+): Promise<number> {
+  try {
+    const { data } = await httpGet('/v1/authz/version');
+    return data.authzVersion;
+  } catch {
+    return -1;
+  }
+}
+
+/**
  * Point authorization check via backend proxy.
  */
 export async function checkPermission(
