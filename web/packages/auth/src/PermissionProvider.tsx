@@ -19,8 +19,6 @@ interface PermissionContextValue {
   isActionDenied: (action: string) => boolean;
   /** Check if user can view a report */
   canViewReport: (report: string) => boolean;
-  /** Check if user can access a page */
-  canAccessPage: (page: string) => boolean;
   /** Get user's role names */
   getUserRoles: () => string[];
   /** Check if user is superAdmin */
@@ -40,7 +38,6 @@ const PermissionContext = createContext<PermissionContextValue>({
   isActionAllowed: () => false,
   isActionDenied: () => false,
   canViewReport: () => false,
-  canAccessPage: () => false,
   getUserRoles: () => [],
   isSuperAdmin: () => false,
   canAccessCompany: () => false,
@@ -187,11 +184,6 @@ export function PermissionProvider({
       if (permitAll || authz?.superAdmin) return true;
       const grant = authz?.reports?.[report];
       return grant === 'ALLOW' || grant === undefined; // undefined = not restricted
-    },
-    canAccessPage: (page: string) => {
-      if (permitAll || authz?.superAdmin) return true;
-      const grant = authz?.pages?.[page];
-      return grant === 'ALLOW' || grant === undefined;
     },
     getUserRoles: () => authz?.roles ?? [],
     isSuperAdmin: () => permitAll || (authz?.superAdmin ?? false),

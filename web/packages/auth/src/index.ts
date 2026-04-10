@@ -11,6 +11,6 @@ export { MODULES } from './types';
 export type {
   AuthzMeResponse, CheckRequest, CheckResponse, ModuleKey,
   AccessLevel, GrantResult, ScopeAssignment, ExplainResponse,
-  PermissionCatalog, ModuleCatalogItem, ActionCatalogItem, ReportCatalogItem, PageCatalogItem,
+  PermissionCatalog, ModuleCatalogItem, ActionCatalogItem, ReportCatalogItem,
 } from './types';
 export { useAuthorization } from './compat';

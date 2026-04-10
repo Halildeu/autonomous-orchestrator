@@ -19,7 +19,6 @@ export interface AuthzMeResponse {
   modules?: Record<string, AccessLevel>;     // key → "VIEW" | "MANAGE"
   actions?: Record<string, GrantResult>;     // key → "ALLOW" | "DENY"
   reports?: Record<string, GrantResult>;     // key → "ALLOW" | "DENY"
-  pages?: Record<string, GrantResult>;       // key → "ALLOW" | "DENY"
   scopes?: ScopeAssignment;
 
   // P0: Cache invalidation version (CNS-20260410-001)
@@ -69,7 +68,6 @@ export interface PermissionCatalog {
   modules: ModuleCatalogItem[];
   actions: ActionCatalogItem[];
   reports: ReportCatalogItem[];
-  pages: PageCatalogItem[];
 }
 
 export interface ModuleCatalogItem {
@@ -91,11 +89,7 @@ export interface ReportCatalogItem {
   module: string;
 }
 
-export interface PageCatalogItem {
-  key: string;
-  label: string;
-  module: string;
-}
+/** @deprecated P1-A: PageCatalogItem removed — use hasModule instead */
 
 /**
  * Module permission constants matching OpenFGA model.
