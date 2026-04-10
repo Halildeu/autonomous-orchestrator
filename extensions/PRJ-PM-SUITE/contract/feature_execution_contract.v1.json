@@ -31,7 +31,8 @@
     "affected_modules": [],
     "change_path_globs": [
       "backend/docker-compose.yml",
-      "backend/*/src/main/resources/application-integration.yml"
+      "backend/*/src/main/resources/application-integration.yml",
+      "backend/dev-integration.sh"
     ],
     "repo_root": ".",
     "service_scopes": [
