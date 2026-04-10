@@ -453,8 +453,18 @@ main() {
   compose_run "${compose_args[@]}" up -d --force-recreate --no-deps api-gateway
   wait_for_service_state api-gateway healthy 90
 
+  # Regenerate nginx config with Docker service names (prevents 127.0.0.1 regression)
+  if [[ -x "${SCRIPT_DIR}/run-frontend-nginx-container.sh" ]]; then
+    CONFIG_ONLY=true "${SCRIPT_DIR}/run-frontend-nginx-container.sh" --config-only 2>/dev/null || true
+  fi
+
   # Ensure supporting services are up (idempotent)
   compose_run "${compose_args[@]}" up -d web-nginx service-manager vault-audit-init vault-snapshot loki promtail tempo prometheus grafana 2>/dev/null || true
+
+  # Reload nginx to pick up any config changes
+  local nginx_container
+  nginx_container="$(container_name_for web-nginx)"
+  docker exec "${nginx_container}" nginx -s reload 2>/dev/null || true
 
   # Remove orphan containers (old names, deleted services)
   compose_run "${compose_args[@]}" up -d --remove-orphans 2>/dev/null || true

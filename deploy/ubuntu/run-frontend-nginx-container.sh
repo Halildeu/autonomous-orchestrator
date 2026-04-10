@@ -11,11 +11,12 @@ NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-80}"
 NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-443}"
 NGINX_SERVER_NAME="${NGINX_SERVER_NAME:-ai.acik.com}"
 NGINX_TLS_ENABLED="${NGINX_TLS_ENABLED:-true}"
-NGINX_TLS_CERT_PATH="${NGINX_TLS_CERT_PATH:-}"
-NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH:-}"
+NGINX_TLS_CERT_PATH="${NGINX_TLS_CERT_PATH:-/home/halil/platform/state/vault/tls/tls.crt}"
+NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH:-/home/halil/platform/state/vault/tls/tls.key}"
 NGINX_GATEWAY_UPSTREAM="${NGINX_GATEWAY_UPSTREAM:-http://api-gateway:8080}"
 NGINX_KEYCLOAK_UPSTREAM="${NGINX_KEYCLOAK_UPSTREAM:-http://keycloak:8080}"
 NGINX_SERVICE_MANAGER_UPSTREAM="${NGINX_SERVICE_MANAGER_UPSTREAM:-http://service-manager:8795}"
+CONFIG_ONLY="${CONFIG_ONLY:-false}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -25,19 +26,32 @@ require_cmd() {
 }
 
 main() {
-  require_cmd docker
-  require_cmd readlink
+  local config_only_flag
+  config_only_flag="$(printf '%s' "${CONFIG_ONLY}" | tr '[:upper:]' '[:lower:]')"
 
-  if [[ ! -e "${WEB_CURRENT_LINK}" ]]; then
-    echo "[error] current frontend release not found: ${WEB_CURRENT_LINK}" >&2
-    exit 1
-  fi
+  # --config-only mode: just generate the config file, don't touch containers.
+  # Used by deploy-backend.sh when nginx is managed by docker compose.
+  for arg in "$@"; do
+    if [[ "${arg}" == "--config-only" ]]; then
+      config_only_flag="true"
+    fi
+  done
 
-  local resolved_root
-  resolved_root="$(readlink -f "${WEB_CURRENT_LINK}")"
-  if [[ -z "${resolved_root}" || ! -d "${resolved_root}" ]]; then
-    echo "[error] failed to resolve frontend release directory from ${WEB_CURRENT_LINK}" >&2
-    exit 1
+  if [[ "${config_only_flag}" != "true" ]]; then
+    require_cmd docker
+    require_cmd readlink
+
+    if [[ ! -e "${WEB_CURRENT_LINK}" ]]; then
+      echo "[error] current frontend release not found: ${WEB_CURRENT_LINK}" >&2
+      exit 1
+    fi
+
+    local resolved_root
+    resolved_root="$(readlink -f "${WEB_CURRENT_LINK}")"
+    if [[ -z "${resolved_root}" || ! -d "${resolved_root}" ]]; then
+      echo "[error] failed to resolve frontend release directory from ${WEB_CURRENT_LINK}" >&2
+      exit 1
+    fi
   fi
 
   mkdir -p "${NGINX_RUNTIME_DIR}"
@@ -48,17 +62,20 @@ main() {
   tls_enabled="$(printf '%s' "${NGINX_TLS_ENABLED}" | tr '[:upper:]' '[:lower:]')"
 
   if [[ "${tls_enabled}" == "true" ]]; then
-    if [[ -z "${NGINX_TLS_CERT_PATH}" || -z "${NGINX_TLS_KEY_PATH}" ]]; then
-      echo "[error] NGINX_TLS_ENABLED=true but cert/key paths are missing." >&2
-      exit 1
-    fi
-    if [[ ! -f "${NGINX_TLS_CERT_PATH}" ]]; then
-      echo "[error] TLS certificate not found: ${NGINX_TLS_CERT_PATH}" >&2
-      exit 1
-    fi
-    if [[ ! -f "${NGINX_TLS_KEY_PATH}" ]]; then
-      echo "[error] TLS key not found: ${NGINX_TLS_KEY_PATH}" >&2
-      exit 1
+    # In config-only mode, skip file existence checks (compose handles mounts)
+    if [[ "${config_only_flag}" != "true" ]]; then
+      if [[ -z "${NGINX_TLS_CERT_PATH}" || -z "${NGINX_TLS_KEY_PATH}" ]]; then
+        echo "[error] NGINX_TLS_ENABLED=true but cert/key paths are missing." >&2
+        exit 1
+      fi
+      if [[ ! -f "${NGINX_TLS_CERT_PATH}" ]]; then
+        echo "[error] TLS certificate not found: ${NGINX_TLS_CERT_PATH}" >&2
+        exit 1
+      fi
+      if [[ ! -f "${NGINX_TLS_KEY_PATH}" ]]; then
+        echo "[error] TLS key not found: ${NGINX_TLS_KEY_PATH}" >&2
+        exit 1
+      fi
     fi
 
     if [[ "${NGINX_HTTPS_PORT}" != "443" ]]; then
@@ -267,6 +284,11 @@ server {
   }
 }
 EOF
+  fi
+
+  if [[ "${config_only_flag}" == "true" ]]; then
+    echo "[nginx] config written to ${NGINX_CONFIG_PATH} (config-only mode)"
+    return 0
   fi
 
   docker pull "${NGINX_IMAGE}" >/dev/null
