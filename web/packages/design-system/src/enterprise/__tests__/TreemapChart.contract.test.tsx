@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { TreemapChart } from '../TreemapChart';
 import type { TreemapItem, TreemapChartProps } from '../TreemapChart';
@@ -42,5 +42,18 @@ describe('TreemapChart — contract', () => {
     const _treemapitem: TreemapItem | undefined = undefined; void _treemapitem;
     const _treemapchartprops: TreemapChartProps | undefined = undefined; void _treemapchartprops;
     expect(true).toBe(true);
+  });
+
+  it('adds role="button" and keyboard support when onItemClick provided', () => {
+    const handler = vi.fn();
+    const items = [
+      { id: 'a', label: 'Category A', value: 60 },
+      { id: 'b', label: 'Category B', value: 40 },
+    ];
+    const { container } = render(<TreemapChart items={items} onItemClick={handler} />);
+    const buttons = container.querySelectorAll('[role="button"]');
+    expect(buttons.length).toBeGreaterThan(0);
+    fireEvent.keyDown(buttons[0], { key: 'Enter' });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });
