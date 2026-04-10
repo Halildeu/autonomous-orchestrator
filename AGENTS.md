@@ -41,6 +41,8 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - roadmaps/PROJECTS/README.md (project roadmaps)
 - roadmaps/PROJECTS/project-roadmap.template.v1.json (project template)
 - roadmaps/PROJECTS/PRJ-KERNEL-API/contract.v1.md (project contract)
+- policies/policy_test_quality.v1.json (test quality enforcement — fake test prevention)
+- schemas/policy-test-quality.schema.v1.json (test quality rules schema)
 - schemas/system-status.schema.json
 - policies/policy_system_status.v1.json
 - src/ops/system_status_report.py
@@ -147,8 +149,8 @@ Davranış:
 
 ### Bootstrap komutu (agent çalıştırır)
 ```
-python -m src.ops.manage system-status --workspace-root .cache/ws_customer_default
-python -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default
+python3 -m src.ops.manage system-status --workspace-root .cache/ws_customer_default
+python3 -m src.ops.manage portfolio-status --workspace-root .cache/ws_customer_default
 ```
 
 Profil `required_files` ve `bootstrap_commands` alanları profile-specific ek yüklemeleri tanımlar.
@@ -159,6 +161,6 @@ Detay: `docs/OPERATIONS/CODING-STANDARDS.md`. Özet: `*.v1.json`, `*.schema.json
 
 ## Doğrulama (agent tarafından çalıştırılır)
 
-- Şema kontrolü: `python ci/validate_schemas.py`
-- Dry-run simülasyon: `python ci/policy_dry_run.py --fixtures fixtures/envelopes --out sim_report.json`
-- Policy-check: `python -m src.ops.manage policy-check --source both`
+- Şema kontrolü: `python3 ci/validate_schemas.py`
+- Dry-run simülasyon: `python3 ci/policy_dry_run.py --fixtures fixtures/envelopes --out sim_report.json`
+- Policy-check: `python3 -m src.ops.manage policy-check --source both`

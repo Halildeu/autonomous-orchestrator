@@ -5,14 +5,22 @@
       "EP-002": "WARN",
       "EP-003": "WARN",
       "EP-004": "WARN",
-      "EP-005": "WARN"
+      "EP-005": "WARN",
+      "EP-006": "WARN",
+      "EP-007": "WARN",
+      "EP-008": "BLOCKED",
+      "EP-009": "WARN"
     },
     "strict_profile": {
       "EP-001": "BLOCKED",
       "EP-002": "BLOCKED",
       "EP-003": "WARN",
       "EP-004": "BLOCKED",
-      "EP-005": "WARN"
+      "EP-005": "WARN",
+      "EP-006": "BLOCKED",
+      "EP-007": "BLOCKED",
+      "EP-008": "BLOCKED",
+      "EP-009": "BLOCKED"
     }
   },
   "defaults": {

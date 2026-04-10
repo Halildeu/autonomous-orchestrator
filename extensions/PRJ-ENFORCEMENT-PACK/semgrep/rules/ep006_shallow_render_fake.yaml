@@ -1,0 +1,34 @@
+rules:
+  - id: enf.v1.ep006.shallow_render_fake
+    languages: [typescript, javascript]
+    message: "EP-006 Fake Test: Shallow render with existence-only assertion. Add props, user interaction (fireEvent/userEvent), and behavioral assertions."
+    severity: WARNING
+    paths:
+      include:
+        - "**/*.test.tsx"
+        - "**/*.test.ts"
+        - "**/*.spec.tsx"
+        - "**/*.spec.ts"
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - node_modules/**
+        - "**/__snapshots__/**"
+        - "**/fixtures/**"
+        - "**/*.generated.*"
+    patterns:
+      - pattern-inside: |
+          test(..., () => { ... })
+      - pattern: |
+          render(<$COMP />);
+      - pattern-not-inside: |
+          fireEvent.$METHOD(...)
+      - pattern-not-inside: |
+          userEvent.$METHOD(...)
+      - pattern-not-inside: |
+          waitFor(...)
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-006"
+      tq_rule: "TQ-001"
+      stage: v1_advisory
+      rationale: "Detect shallow-render-only tests that provide no real behavioral coverage. Parser-backed pattern to reduce false positives vs regex."

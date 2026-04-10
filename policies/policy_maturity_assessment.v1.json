@@ -217,7 +217,7 @@
     },
     {
       "area_id": "test_coverage",
-      "weight": 0.10,
+      "weight": 0.06,
       "evidence_commands": [
         "pytest tests/ -x --co -q 2>&1 | tail -5",
         "python3 -c \"import ast,sys; t=ast.parse(open('src/ops/manage.py').read()); cmds=[n.s for n in ast.walk(t) if isinstance(n,ast.Constant) and isinstance(n.s,str) and '-' in n.s and len(n.s)<40]; print(f'ops commands: {len(cmds)}')\"",
@@ -235,6 +235,28 @@
         "l2_definition": "Contract tests for critical paths; CI runs them; but command-to-test coverage ratio < 70%",
         "l3_definition": "Command-to-test coverage ratio >= 70%; coverage matrix auto-generated; CI fails on gap. ALL conditions required.",
         "l4_definition": "L3 + golden-path CLI tests; mutation testing; coverage trend tracking"
+      }
+    },
+    {
+      "area_id": "test_quality",
+      "weight": 0.04,
+      "evidence_commands": [
+        "python3 ci/check_test_quality.py --repo-root . --dry-run --out /tmp/_tq_maturity.json 2>&1 | tail -5",
+        "grep -rl 'quality-edge-boost\\|auto-generated-test' . --include='*.test.tsx' --include='*.test.ts' 2>/dev/null | wc -l",
+        "python3 -c \"import json; r=json.load(open('/tmp/_tq_maturity.json')); m=r.get('metrics',{}); print(f'shallow={m.get(\\\"shallow_ratio\\\",\\\"N/A\\\")} density={m.get(\\\"assertion_density\\\",\\\"N/A\\\")} dup={m.get(\\\"duplication_ratio\\\",\\\"N/A\\\")}')\""
+      ],
+      "evidence_files": [
+        "policies/policy_test_quality.v1.json",
+        "schemas/policy-test-quality.schema.v1.json",
+        "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep006_shallow_render_fake.yaml",
+        "ci/check_test_quality.py"
+      ],
+      "criteria": {
+        "l0_definition": "No test quality rules or checks exist",
+        "l1_definition": "Test quality policy + schema + semgrep rules defined; but not enforced in CI",
+        "l2_definition": "Semgrep rules or check_test_quality.py running in CI advisory mode; findings tracked; threshold calibration incomplete",
+        "l3_definition": "ALL: (a) CI gate blocking mode, (b) zero bulk-generation markers, (c) shallow_render_ratio < 0.10, (d) assertion_density >= 2.0, (e) threshold calibration documented, (f) managed repo sync verified",
+        "l4_definition": "L3 + quality trend dashboard; suppression expiry policy; near-duplicate detection; sampled audit or mutation-level quality verification"
       }
     }
   ]

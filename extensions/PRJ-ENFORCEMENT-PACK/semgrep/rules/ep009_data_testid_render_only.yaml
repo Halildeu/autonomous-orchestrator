@@ -1,0 +1,31 @@
+rules:
+  - id: enf.v1.ep009.data_testid_render_only
+    languages: [typescript, javascript]
+    message: "EP-009 Fake Test: Component rendered with data-testid only assertion and no interaction. Add meaningful props, events, and behavioral assertions."
+    severity: WARNING
+    paths:
+      include:
+        - "**/*.test.tsx"
+        - "**/*.test.ts"
+        - "**/*.spec.tsx"
+        - "**/*.spec.ts"
+      exclude:
+        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - node_modules/**
+        - "**/__snapshots__/**"
+        - "**/fixtures/**"
+    patterns:
+      - pattern-inside: |
+          test(..., () => { ... })
+      - pattern: |
+          expect(screen.getByTestId($STR)).toBeInTheDocument()
+      - pattern-not-inside: |
+          fireEvent.$METHOD(...)
+      - pattern-not-inside: |
+          userEvent.$METHOD(...)
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-009"
+      tq_rule: "TQ-001"
+      stage: v1_advisory
+      rationale: "Detect the specific PR #287 pattern: data-testid render with toBeInTheDocument-only assertion and zero interaction."

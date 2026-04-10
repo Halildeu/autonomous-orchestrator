@@ -262,8 +262,26 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
         for item in feature_bridge_details.get("missing_files", []):
             details["missing_files"].append(item)
 
+    # Test quality policy (PRJ-TEST-QUALITY-GATE)
+    tq_policy = _require_json_file(root, str(standard_sources.get("test_quality_policy", "")), key="test_quality_policy")
+    if not isinstance(tq_policy, dict):
+        details["invalid_content"].append("test_quality_policy:invalid_json")
+    else:
+        if tq_policy.get("version") != "v1":
+            details["invalid_content"].append("test_quality_policy:version_must_be_v1")
+        if tq_policy.get("status") != "ACTIVE":
+            details["invalid_content"].append("test_quality_policy:status_must_be_ACTIVE")
+        rules = tq_policy.get("rules")
+        if not isinstance(rules, list) or len(rules) < 6:
+            details["invalid_content"].append("test_quality_policy:must_have_at_least_6_rules")
+        thresholds = tq_policy.get("thresholds")
+        if not isinstance(thresholds, dict):
+            details["invalid_content"].append("test_quality_policy:thresholds_missing")
+
     ok = not details["missing_keys"] and not details["missing_files"] and not details["invalid_content"]
     return ok, details
+
+
 def _check_required_commands(required_commands: Any) -> tuple[bool, dict[str, Any]]:
     details: dict[str, Any] = {"missing_commands": []}
     if not isinstance(required_commands, list):

@@ -6,8 +6,8 @@
 
 ### Build & Run
 - Install: `pip install -e ".[dev]"`
-- Cockpit UI: `python extensions/PRJ-UI-COCKPIT-LITE/server.py --port 8787`
-- Cockpit API: `python -m src.ops.manage cockpit-serve --workspace-root .cache/ws_customer_default --port 8790`
+- Cockpit UI: `python3 extensions/PRJ-UI-COCKPIT-LITE/server.py --port 8787`
+- Cockpit API: `python3 -m src.ops.manage cockpit-serve --workspace-root .cache/ws_customer_default --port 8790`
 
 ### Worktree Conventions
 - Branch naming: `claude/<worktree-name>`

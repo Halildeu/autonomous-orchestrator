@@ -124,6 +124,7 @@ REQUIRED_STANDARD_SOURCES = (
     "secrets_policy",
     "ux_catalog_enforcement_policy",
     "ux_catalog_lock",
+    "test_quality_policy",
 )
 
 REQUIRED_COMMANDS = (
