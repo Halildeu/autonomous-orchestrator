@@ -12,7 +12,8 @@
     "incubator/**",
     "tenant/**",
     "project/**",
-    "roadmaps/PROJECTS/**"
+    "roadmaps/PROJECTS/**",
+    "supply_chain/**"
   ],
   "deprecated_patterns": [
     "deprecated",

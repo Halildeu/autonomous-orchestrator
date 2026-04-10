@@ -214,7 +214,7 @@ def _load_placeholders_baseline(workspace_root: Path) -> int | None:
 
 
 def _is_external_ref(ref: str) -> bool:
-    return ref.startswith(("http://", "https://", "mailto:"))
+    return ref.startswith(("http://", "https://", "mailto:", "dev-repo:", "git:"))
 
 
 def _match_any(patterns: list[str], target: str) -> bool:
@@ -328,10 +328,24 @@ def _extract_md_refs(text: str) -> list[str]:
         r"(?:docs|schemas|policies|roadmaps|packs|capabilities|formats|workflows|registry|orchestrator|src|ci|templates|governor|modules|supply_chain|examples|fixtures|scripts|tenant|project|incubator)/[A-Za-z0-9._{}\\/-]+"
     )
     entrypoint_hint_re = re.compile(r"\b(?:bkz|see|ssot|source of truth)\b", re.IGNORECASE)
+    # Skip YAML frontmatter lines (globs, description, name, type between --- delimiters)
+    frontmatter_key_re = re.compile(r"^(?:globs|description|name|type|alwaysApply)\s*:", re.IGNORECASE)
+    # Lines with dev-repo: or git: prefixes describe external paths, not local refs
+    external_line_re = re.compile(r"dev-repo:|git:", re.IGNORECASE)
 
+    in_frontmatter = False
     for match in md_link_re.findall(text):
-        refs.append(match)
+        if not external_line_re.search(match):
+            refs.append(match)
     for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "---":
+            in_frontmatter = not in_frontmatter
+            continue
+        if in_frontmatter or frontmatter_key_re.match(stripped):
+            continue
+        if external_line_re.search(line):
+            continue
         refdef = md_refdef_re.match(line)
         if refdef:
             refs.append(refdef.group(1))
@@ -341,19 +355,25 @@ def _extract_md_refs(text: str) -> list[str]:
     return refs
 
 
-def _extract_plan_only_placeholders(roadmap_path: Path) -> set[str]:
-    if not roadmap_path.exists():
-        return set()
-    text = _read_text(roadmap_path)
+def _extract_plan_only_placeholders(*paths: Path) -> set[str]:
+    """Extract placeholder refs from roadmap and proposal documents.
+
+    Recognizes lines containing 'plan-only', 'placeholder', or '(yeni)'
+    (Turkish for 'new' — used in improvement analysis proposals).
+    """
     placeholders: set[str] = set()
-    for line in text.splitlines():
-        lowered = line.lower()
-        if "plan-only" not in lowered and "placeholder" not in lowered:
+    for roadmap_path in paths:
+        if not roadmap_path.exists():
             continue
-        for ref in _extract_md_refs(line):
-            norm = _normalize_ref(ref)
-            if norm:
-                placeholders.add(norm)
+        text = _read_text(roadmap_path)
+        for line in text.splitlines():
+            lowered = line.lower()
+            if "plan-only" not in lowered and "placeholder" not in lowered and "(yeni)" not in lowered and "yeni schema" not in lowered and "yeni dosya" not in lowered:
+                continue
+            for ref in _extract_md_refs(line):
+                norm = _normalize_ref(ref)
+                if norm:
+                    placeholders.add(norm)
     return placeholders
 
 
@@ -474,7 +494,11 @@ def generate_doc_graph_report(
             for ref in roadmap_refs:
                 refs_by_source.setdefault(src, set()).add(_normalize_ref(ref))
 
-    placeholder_refs = _extract_plan_only_placeholders(repo_root / "docs" / "ROADMAP.md")
+    placeholder_refs = _extract_plan_only_placeholders(
+        repo_root / "docs" / "ROADMAP.md",
+        repo_root / "docs" / "OPERATIONS" / "IMPROVEMENT-ANALYSIS.v1.md",
+        *(repo_root / ".claude" / "plans").glob("*.md"),
+    )
 
     entrypoints = [
         "AGENTS.md",
@@ -523,6 +547,8 @@ def generate_doc_graph_report(
             if ref in placeholder_refs:
                 ref_summary["plan_only_placeholder"] += 1
                 placeholder_items.append({"source": src, "target": ref, "kind": "plan_only_placeholder"})
+                if not ref.startswith("/") and ref and (repo_root / ref).exists():
+                    referenced_paths.add(ref)
                 continue
             kind, scope = _classify_ref(ref, repo_root=repo_root, policy=policy)
             if kind in ref_summary:

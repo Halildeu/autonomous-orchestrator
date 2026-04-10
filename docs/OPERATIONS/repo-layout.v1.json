@@ -1,12 +1,15 @@
 {
   "version": "v1",
   "allowed_top_level_dirs": [
+    ".agents",
+    ".claude",
     ".codex",
     ".git",
     ".gemini",
     ".github",
     "capabilities",
     "ci",
+    "decisions",
     "dlq",
     "docs",
     "evidence",
@@ -32,9 +35,12 @@
     "workflows"
   ],
   "allowed_top_level_files": [
+    ".claudeignore",
     ".env.example",
+    ".git",
     ".gitignore",
     "AGENTS.md",
+    "CLAUDE.md",
     "CHANGELOG.md",
     ".pre-commit-config.yaml",
     "pyproject.toml",
