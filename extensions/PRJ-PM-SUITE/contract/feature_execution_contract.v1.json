@@ -171,7 +171,7 @@
     ],
     "source_type": "manual"
   },
-  "status": "DRAFT",
+  "status": "ACTIVE",
   "summary": "Spring integration profile + docker-compose local defaults",
   "technical_contract": {
     "api_version_prefix": "/api/v1",
