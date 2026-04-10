@@ -442,8 +442,11 @@ export const ControlChart: React.FC<ControlChartProps> = ({
           return (
             <g
               key={`pt-${idx}`}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
               className={cn(isClickable && 'cursor-pointer')}
               onClick={() => handlePointClick(pt as ControlChartPoint)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePointClick(pt as ControlChartPoint); } }}
               onMouseEnter={() => setHoveredIdx(idx)}
               onMouseLeave={() => setHoveredIdx(null)}
             >

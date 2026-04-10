@@ -435,11 +435,11 @@ export function ProcessFlow({
           return (
             <g
               key={ln.id}
-              className={cn('cursor-pointer', state === 'disabled' && 'pointer-events-none')}
-              onClick={() => handleNodeClick(ln.id)}
               role="button"
               tabIndex={0}
               aria-label={`${ln.node.label} (${status})`}
+              className={cn('cursor-pointer', state === 'disabled' && 'pointer-events-none')}
+              onClick={() => handleNodeClick(ln.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') handleNodeClick(ln.id);
               }}

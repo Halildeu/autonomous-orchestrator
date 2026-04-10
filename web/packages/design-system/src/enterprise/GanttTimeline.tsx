@@ -295,8 +295,11 @@ export const GanttTimeline: React.FC<GanttTimelineProps> = ({
                 </button>
               ) : (
                 <span
+                  role={onTaskClick ? 'button' : undefined}
+                  tabIndex={onTaskClick ? 0 : undefined}
                   className={cn('text-sm text-text-primary truncate', onTaskClick && 'cursor-pointer hover:underline')}
                   onClick={() => onTaskClick?.(row.task)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTaskClick?.(row.task); } }}
                   title={row.task.title}
                 >
                   {row.task.type === 'milestone' && <span className="mr-1 text-state-warning-text">{'\u25C6'}</span>}
@@ -363,9 +366,12 @@ export const GanttTimeline: React.FC<GanttTimelineProps> = ({
                 return (
                   <div
                     key={t.id}
+                    role={onTaskClick ? 'button' : undefined}
+                    tabIndex={onTaskClick ? 0 : undefined}
                     className="absolute flex items-center justify-center cursor-pointer"
                     style={{ left: left - 8, top: i * ROW_HEIGHT + 8, width: 24, height: 24 }}
                     onClick={() => onTaskClick?.(t)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTaskClick?.(t); } }}
                     title={t.title}
                   >
                     <svg width="20" height="20" viewBox="0 0 20 20">
@@ -378,9 +384,12 @@ export const GanttTimeline: React.FC<GanttTimelineProps> = ({
               return (
                 <div
                   key={t.id}
+                  role={onTaskClick ? 'button' : undefined}
+                  tabIndex={onTaskClick ? 0 : undefined}
                   className={cn('absolute rounded-xs overflow-hidden', onTaskClick && 'cursor-pointer', onTaskDrag && 'cursor-grab active:cursor-grabbing')}
                   style={{ left, top: i * ROW_HEIGHT + 10, width, height: ROW_HEIGHT - 20 }}
                   onClick={() => onTaskClick?.(t)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTaskClick?.(t); } }}
                   onMouseDown={(e) => handleMouseDown(e, t)}
                   title={`${t.title} (${progress}%)`}
                 >

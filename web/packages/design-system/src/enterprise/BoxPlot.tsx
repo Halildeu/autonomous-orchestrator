@@ -287,8 +287,11 @@ export const BoxPlot: React.FC<BoxPlotProps> = ({
               return (
                 <g
                   key={`box-${idx}`}
+                  role={isClickable ? 'button' : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
                   className={cn(isClickable && 'cursor-pointer')}
                   onClick={() => handleBoxClick(item)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBoxClick(item); } }}
                   onMouseEnter={() => setHoveredIdx(idx)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   opacity={isHovered ? 1 : 0.85}
@@ -498,8 +501,11 @@ export const BoxPlot: React.FC<BoxPlotProps> = ({
               return (
                 <g
                   key={`hbox-${idx}`}
+                  role={isClickable ? 'button' : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
                   className={cn(isClickable && 'cursor-pointer')}
                   onClick={() => handleBoxClick(item)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBoxClick(item); } }}
                   onMouseEnter={() => setHoveredIdx(idx)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   opacity={isHovered ? 1 : 0.85}

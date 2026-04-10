@@ -364,12 +364,23 @@ export const SankeyDiagram: React.FC<SankeyDiagramProps> = ({
                 stroke={`url(#${gradientIdPrefix}-link-${i})`}
                 strokeWidth={l.thickness}
                 opacity={isDimmed ? 0.15 : isLinkHovered || isConnected ? 0.85 : 0.45}
+                role={onLinkClick ? 'button' : undefined}
+                tabIndex={onLinkClick ? 0 : undefined}
                 className={cn(onLinkClick && 'cursor-pointer')}
                 onClick={() => {
                   const original = links.find(
                     (ol) => ol.source === l.source.id && ol.target === l.target.id && ol.value === l.value,
                   );
                   if (original) onLinkClick?.(original);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const original = links.find(
+                      (ol) => ol.source === l.source.id && ol.target === l.target.id && ol.value === l.value,
+                    );
+                    if (original) onLinkClick?.(original);
+                  }
                 }}
                 onMouseEnter={() => setHoveredLinkIdx(i)}
                 onMouseLeave={() => setHoveredLinkIdx(null)}
@@ -401,10 +412,19 @@ export const SankeyDiagram: React.FC<SankeyDiagramProps> = ({
           return (
             <g
               key={n.id}
+              role={onNodeClick ? 'button' : undefined}
+              tabIndex={onNodeClick ? 0 : undefined}
               className={cn(onNodeClick && 'cursor-pointer')}
               onClick={() => {
                 const original = nodes.find((on) => on.id === n.id);
                 if (original) onNodeClick?.(original);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  const original = nodes.find((on) => on.id === n.id);
+                  if (original) onNodeClick?.(original);
+                }
               }}
               onMouseEnter={() => setHoveredNodeId(n.id)}
               onMouseLeave={() => setHoveredNodeId(null)}

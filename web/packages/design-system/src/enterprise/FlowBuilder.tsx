@@ -1034,8 +1034,11 @@ export function FlowBuilder({
                   fill="none"
                   stroke="transparent"
                   strokeWidth={12}
+                  role="button"
+                  tabIndex={0}
                   style={{ cursor: 'pointer' }}
                   onClick={(e) => handleEdgeClick(e, ed.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEdgeClick(e as unknown as React.MouseEvent, ed.id); } }}
                 />
                 <path
                   d={d}
@@ -1154,11 +1157,14 @@ export function FlowBuilder({
                 {/* Delete button on selected */}
                 {isSelected && isInteractive && (
                   <g
+                    role="button"
+                    tabIndex={0}
                     className="cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteSelected();
                     }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); deleteSelected(); } }}
                     data-testid={`delete-node-${node.id}`}
                   >
                     <circle
