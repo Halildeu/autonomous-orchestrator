@@ -280,8 +280,11 @@ export const TreemapChart: React.FC<TreemapChartProps> = ({
           return (
             <g
               key={cell.item.id}
+              role={onItemClick ? 'button' : undefined}
+              tabIndex={onItemClick ? 0 : undefined}
               className={cn(onItemClick && 'cursor-pointer')}
               onClick={() => onItemClick?.(cell.item)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onItemClick?.(cell.item); } }}
               onMouseEnter={() => setHoveredId(cell.item.id)}
               onMouseLeave={() => setHoveredId(null)}
             >

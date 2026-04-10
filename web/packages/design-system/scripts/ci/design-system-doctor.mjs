@@ -252,9 +252,15 @@ check('hardcoded-colors', 'Hardcoded renk tespiti', () => {
 /* ------------------------------------------------------------------ */
 
 check('component-grades', 'Bileşen grade kontrolü (D/F = fail)', () => {
-  // Scorecard writes to reports/scorecard.json — run it first, then read
-  runSiblingScriptRaw('component-scorecard.mjs');
-  const components = readReportFile('reports/scorecard.json');
+  // Run scorecard in JSON mode and parse output directly
+  const raw = runSiblingScriptRaw('component-scorecard.mjs', '--json');
+  let components = null;
+  if (raw) {
+    try { components = JSON.parse(raw); } catch { /* fallback to file */ }
+  }
+  if (!components) {
+    components = readReportFile('reports/scorecard.json');
+  }
 
   if (!components || !Array.isArray(components)) {
     return { status: 'warn', message: 'component-scorecard çalıştırılamadı veya rapor okunamadı' };
@@ -408,6 +414,75 @@ check('test-quality', 'Test kalitesi (sığ test tespiti)', () => {
     message: `${fGradeLines.length} test dosyası F-grade, ${dGradeLines} D-grade`,
     details: fGradeLines.slice(0, 10).map(f => `F (${f.score}%): ${f.file}`),
     fix: 'Sığ testlere assertion, interaction, semantic query ekleyin',
+  };
+});
+
+/* ------------------------------------------------------------------ */
+/*  Check 9: theme-axis-hardcodes                                      */
+/* ------------------------------------------------------------------ */
+
+check('theme-axis-hardcodes', 'Theme axis hardcode tespiti (radius/elevation/motion)', () => {
+  const SKIP_DIRS = new Set(['__tests__', '__visual__', 'node_modules', 'dist', '.stryker-cache']);
+  const SKIP_PATTERNS = [/\.test\./, /\.stories\./, /\.figma\./, /\.d\.ts$/];
+
+  // Scan TSX files for hardcoded values that should use theme axis tokens
+  const issues = { radius: [], elevation: [], motion: [] };
+
+  const tsxFiles = findFiles(SRC, (name, full) => {
+    if (!name.endsWith('.tsx')) return false;
+    if (SKIP_PATTERNS.some(p => p.test(name))) return false;
+    return true;
+  }).filter(f => !f.split('/').some(seg => SKIP_DIRS.has(seg)));
+
+  for (const file of tsxFiles) {
+    const content = readSafe(file);
+    const rel = file.replace(DS_ROOT + '/', '');
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Radius: hardcoded Tailwind rounded-* (except rounded-full which is intentional for pills)
+      if (/\brounded-(?:xs|sm|md|lg|xl|2xl|3xl|none)\b/.test(line) && !line.includes('var(--radius')) {
+        issues.radius.push(`${rel}:${i + 1}`);
+      }
+
+      // Elevation: hardcoded shadow-* (except shadow-[...var(--shadow)] and shadow-none)
+      if (/\bshadow-(?:xs|sm|md|lg|xl|2xl|inner)\b/.test(line) && !line.includes('var(--elevation') && !line.includes('var(--shadow')) {
+        issues.elevation.push(`${rel}:${i + 1}`);
+      }
+
+      // Motion: hardcoded duration-* (except where using motion token)
+      if (/\bduration-(?:75|100|150|200|300|500|700|1000)\b/.test(line) && !line.includes('var(--motion')) {
+        issues.motion.push(`${rel}:${i + 1}`);
+      }
+    }
+  }
+
+  const total = issues.radius.length + issues.elevation.length + issues.motion.length;
+
+  if (total === 0) {
+    return { status: 'pass', message: 'Theme axis hardcode bulunamadı' };
+  }
+
+  const details = [
+    issues.radius.length > 0 && `radius: ${issues.radius.length} hardcode (rounded-* without --radius token)`,
+    issues.elevation.length > 0 && `elevation: ${issues.elevation.length} hardcode (shadow-* without --elevation token)`,
+    issues.motion.length > 0 && `motion: ${issues.motion.length} hardcode (duration-* without --motion token)`,
+  ].filter(Boolean);
+
+  // Show sample files
+  const samples = [
+    ...issues.radius.slice(0, 3),
+    ...issues.elevation.slice(0, 3),
+    ...issues.motion.slice(0, 3),
+  ];
+
+  return {
+    status: 'warn',
+    message: `${total} theme axis hardcode bulundu (${details.join(', ')})`,
+    details: samples,
+    fix: 'Hardcoded Tailwind class yerine theme token kullanın: var(--radius-control), var(--elevation-surface), var(--motion-duration-fast)',
   };
 });
 
