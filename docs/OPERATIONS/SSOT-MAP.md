@@ -438,6 +438,10 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - schemas/rule-effectiveness.schema.v1.json — Rule effectiveness tracking
 - schemas/rule-packet.schema.v1.json — Rule packet format
 
+## Project Cards
+- policies/policy_project_cards.v1.json — Project context card registry
+- schemas/policy-project-cards.schema.v1.json — Project cards policy schema
+
 ## Governance & Registry Schemas (reserved/planned)
 - schemas/active-execution-registry.schema.json — Active execution registry
 - schemas/apps-and-launch-registry.schema.json — Apps and launch profiles
