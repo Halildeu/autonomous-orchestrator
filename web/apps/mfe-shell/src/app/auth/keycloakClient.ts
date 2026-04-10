@@ -126,4 +126,10 @@ export const resolveKeycloakLoginUrl = async ({
   return null;
 };
 
+// Expose to window for MFE remotes in single-domain builds where
+// @mfe/shared-http is not shared via Module Federation.
+if (typeof window !== 'undefined') {
+  (window as Record<string, unknown>).__keycloak = keycloak;
+}
+
 export default keycloak;
