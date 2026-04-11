@@ -72,6 +72,6 @@ export async function checkPermissionBatch(
   httpPost: (url: string, body: BatchCheckRequest) => Promise<{ data: BatchCheckResponse }>,
   checks: CheckRequest[]
 ): Promise<BatchCheckItem[]> {
-  const { data } = await httpPost('/v1/authz/check/batch', { checks });
+  const { data } = await httpPost('/v1/authz/batch-check', { checks });
   return data.results;
 }

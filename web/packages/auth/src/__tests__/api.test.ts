@@ -87,7 +87,7 @@ describe('checkPermissionBatch', () => {
     expect(results[1].reason).toBe('blocked');
     expect(results[2].reason).toBe('no_relation');
 
-    expect(httpPost).toHaveBeenCalledWith('/v1/authz/check/batch', {
+    expect(httpPost).toHaveBeenCalledWith('/v1/authz/batch-check', {
       checks: [
         { relation: 'can_view', objectType: 'report', objectId: 'HR' },
         { relation: 'can_edit', objectType: 'report', objectId: 'FIN' },
