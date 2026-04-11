@@ -40,7 +40,9 @@
       "web/packages/auth/**/*",
       "web/apps/mfe-shell/src/pages/admin/design-lab/**/*",
       "web/apps/mfe-access/**/*",
-      "web/apps/mfe-reporting/**/*"
+      "web/apps/mfe-reporting/**/*",
+      "web/stories/*Zanzibar*",
+      "web/stories/*zanzibar*"
     ],
     "repo_root": ".",
     "service_scopes": [
@@ -209,6 +211,16 @@
       },
       {
         "path_glob": "web/apps/mfe-reporting/src/app/*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/stories/*Zanzibar*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/stories/*zanzibar*.tsx",
         "ux_theme_id": "trust_privacy_security_ux",
         "ux_subtheme_id": "least_privilege_interaction_design"
       }

@@ -213,6 +213,9 @@ importers:
 
   apps/mfe-access:
     dependencies:
+      '@mfe/auth':
+        specifier: '*'
+        version: link:../../packages/auth
       '@mfe/design-system':
         specifier: '*'
         version: link:../../packages/design-system
@@ -402,6 +405,9 @@ importers:
 
   apps/mfe-reporting:
     dependencies:
+      '@mfe/auth':
+        specifier: '*'
+        version: link:../../packages/auth
       '@mfe/design-system':
         specifier: '*'
         version: link:../../packages/design-system
