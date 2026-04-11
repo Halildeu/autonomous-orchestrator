@@ -1,0 +1,44 @@
+---
+title: Quick Start
+description: Build your first page with @mfe/design-system in 5 minutes.
+---
+
+## Your First Page
+
+```tsx
+import { PageLayout, Card, CardHeader, CardBody, Button, Text, Badge } from '@mfe/design-system';
+
+export function Dashboard() {
+  return (
+    <PageLayout title="Dashboard">
+      <Card>
+        <CardHeader>
+          <Text variant="heading-sm">Overview</Text>
+          <Badge tone="success">Active</Badge>
+        </CardHeader>
+        <CardBody>
+          <Text>Welcome to the design system.</Text>
+          <Button onClick={() => alert('Clicked!')}>Get Started</Button>
+        </CardBody>
+      </Card>
+    </PageLayout>
+  );
+}
+```
+
+## Key Principles
+
+1. **Single Source** — All UI from `@mfe/design-system` only. No antd, MUI, or Chakra imports.
+2. **Token-Driven** — Colors via CSS variables, never hardcoded hex values.
+3. **Access Control** — Every component supports `access="full|readonly|disabled|hidden"`.
+4. **Theme-Aware** — 10-axis theming: appearance, density, radius, elevation, motion, contrast, and more.
+
+## Component Categories
+
+| Category | Import Path | Examples |
+|----------|-------------|---------|
+| Primitives | `@mfe/design-system` | Button, Input, Select, Badge, Card |
+| Components | `@mfe/design-system` | Tabs, MenuBar, DatePicker, CommandPalette |
+| Patterns | `@mfe/design-system` | PageLayout, DetailDrawer, FilterBar |
+| Advanced | `@mfe/design-system/advanced` | EntityGridTemplate, AgGridServer |
+| Charts | `@mfe/x-charts` | BarChart, PieChart, LineChart |

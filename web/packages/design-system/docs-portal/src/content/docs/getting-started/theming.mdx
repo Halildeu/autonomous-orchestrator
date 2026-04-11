@@ -1,0 +1,69 @@
+---
+title: Theming
+description: 10-axis theme system — appearance, density, radius, elevation, motion, and more.
+---
+
+## Theme Axes
+
+The design system supports 10 independent theme dimensions:
+
+| Axis | Values | Default |
+|------|--------|---------|
+| **appearance** | `light`, `dark`, `high-contrast` | `light` |
+| **density** | `comfortable`, `compact` | `comfortable` |
+| **radius** | `rounded`, `sharp` | `rounded` |
+| **elevation** | `raised`, `flat` | `raised` |
+| **motion** | `standard`, `reduced` | `standard` |
+| **contrastRatio** | `standard`, `aa`, `aaa` | `standard` |
+| **surfaceTone** | string | `soft-1` |
+| **accent** | string | `light` |
+| **overlayIntensity** | 0-60 | 10 |
+| **overlayOpacity** | 0-100 | 50 |
+
+## Usage
+
+### Via ThemeProvider (declarative)
+
+```tsx
+import { ThemeProvider, useTheme } from '@mfe/design-system';
+
+function App() {
+  return (
+    <ThemeProvider defaultAxes={{ appearance: 'dark', density: 'compact' }}>
+      <MyApp />
+    </ThemeProvider>
+  );
+}
+
+function ThemeToggle() {
+  const { axes, setAppearance } = useTheme();
+  return (
+    <button onClick={() => setAppearance(axes.appearance === 'dark' ? 'light' : 'dark')}>
+      Toggle theme
+    </button>
+  );
+}
+```
+
+### Via Controller (imperative)
+
+```tsx
+import { updateThemeAxes, getThemeAxes, subscribeThemeAxes } from '@mfe/design-system/theme';
+
+// Read
+const current = getThemeAxes();
+
+// Update
+updateThemeAxes({ appearance: 'dark', density: 'compact' });
+
+// Subscribe
+const unsub = subscribeThemeAxes((axes) => console.log('changed', axes));
+```
+
+## Dark Mode
+
+Dark mode is automatic via the `appearance` axis. All components use CSS variables that resolve differently per mode. No manual color overrides needed.
+
+## WCAG Contrast
+
+Set `contrastRatio: 'aaa'` for enhanced contrast (WCAG 2.1 AAA). This multiplies border and text alpha values to ensure 7:1 contrast ratios.

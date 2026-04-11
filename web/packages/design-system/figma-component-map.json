@@ -2,552 +2,552 @@
   "$schema": "./figma-component-map.schema.json",
   "components": {
     "Accordion": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Accordion"
     },
     "ActivityFeed": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ActivityFeed"
     },
     "AdaptiveForm": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AdaptiveForm"
     },
     "AgGridServer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AgGridServer"
     },
     "AgingBuckets": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AgingBuckets"
     },
     "AIActionAuditTimeline": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AIActionAuditTimeline"
     },
     "AIGuidedAuthoring": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AIGuidedAuthoring"
     },
     "AILayoutBuilder": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AILayoutBuilder"
     },
     "Alert": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Alert"
     },
     "AnchorToc": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AnchorToc"
     },
     "ApprovalCheckpoint": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ApprovalCheckpoint"
     },
     "ApprovalReview": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ApprovalReview"
     },
     "ApprovalWorkflow": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ApprovalWorkflow"
     },
     "AppSidebar": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AppSidebar"
     },
     "AreaChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AreaChart"
     },
     "Autocomplete": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Autocomplete"
     },
     "Avatar": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Avatar"
     },
     "AvatarGroup": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:AvatarGroup"
     },
     "Badge": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Badge"
     },
     "BoxPlot": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:BoxPlot"
     },
     "Breadcrumb": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Breadcrumb"
     },
     "BulletChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:BulletChart"
     },
     "Button": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Button"
     },
     "Calendar": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Calendar"
     },
     "Card": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Card"
     },
     "Carousel": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Carousel"
     },
     "Cascader": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Cascader"
     },
     "Checkbox": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Checkbox"
     },
     "CitationPanel": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:CitationPanel"
     },
     "ColorPicker": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ColorPicker"
     },
     "Combobox": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Combobox"
     },
     "CommandPalette": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:CommandPalette"
     },
     "CommentThread": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:CommentThread"
     },
     "ComparisonTable": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ComparisonTable"
     },
     "ConfidenceBadge": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ConfidenceBadge"
     },
     "ContextMenu": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ContextMenu"
     },
     "ControlChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ControlChart"
     },
     "DataExportDialog": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DataExportDialog"
     },
     "DatePicker": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DatePicker"
     },
     "DateRangePicker": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DateRangePicker"
     },
     "DecisionMatrix": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DecisionMatrix"
     },
     "Descriptions": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Descriptions"
     },
     "DetailDrawer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DetailDrawer"
     },
     "DetailSectionTabs": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DetailSectionTabs"
     },
     "DetailSummary": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:DetailSummary"
     },
     "Dialog": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Dialog"
     },
     "Divider": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Divider"
     },
     "Drawer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Drawer"
     },
     "Dropdown": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Dropdown"
     },
     "EmptyErrorLoading": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:EmptyErrorLoading"
     },
     "EmptyState": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:EmptyState"
     },
     "EmptyStateBuilder": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:EmptyStateBuilder"
     },
     "EntitySummaryBlock": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:EntitySummaryBlock"
     },
     "ErrorBoundary": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ErrorBoundary"
     },
     "ExecutiveKPIStrip": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ExecutiveKPIStrip"
     },
     "FileUploadZone": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FileUploadZone"
     },
     "FilterBar": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FilterBar"
     },
     "FilterPresets": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FilterPresets"
     },
     "FineKinney": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FineKinney"
     },
     "FloatButton": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FloatButton"
     },
     "FlowBuilder": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FlowBuilder"
     },
     "FormDrawer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FormDrawer"
     },
     "FormField": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FormField"
     },
     "FunnelChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:FunnelChart"
     },
     "GanttTimeline": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:GanttTimeline"
     },
     "GaugeChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:GaugeChart"
     },
     "GovernanceBoard": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:GovernanceBoard"
     },
     "HeatmapCalendar": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:HeatmapCalendar"
     },
     "HistogramChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:HistogramChart"
     },
     "IconButton": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:IconButton"
     },
     "InlineEdit": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:InlineEdit"
     },
     "InputNumber": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:InputNumber"
     },
     "JsonViewer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:JsonViewer"
     },
     "LinkInline": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:LinkInline"
     },
     "List": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:List"
     },
     "MasterDetail": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:MasterDetail"
     },
     "Mentions": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Mentions"
     },
     "MenuBar": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:MenuBar"
     },
     "MetricComparisonCard": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:MetricComparisonCard"
     },
     "MicroChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:MicroChart"
     },
     "Modal": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Modal"
     },
     "NavigationRail": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:NavigationRail"
     },
     "NotificationCenter": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:NotificationCenter"
     },
     "NotificationDrawer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:NotificationDrawer"
     },
     "OrgChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:OrgChart"
     },
     "PageHeader": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:PageHeader"
     },
     "PageLayout": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:PageLayout"
     },
     "Pagination": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Pagination"
     },
     "ParetoChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ParetoChart"
     },
     "PivotTable": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:PivotTable"
     },
     "Popover": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Popover"
     },
     "ProcessFlow": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ProcessFlow"
     },
     "PromptComposer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:PromptComposer"
     },
     "QRCode": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:QRCode"
     },
     "RadarChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:RadarChart"
     },
     "Radio": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Radio"
     },
     "Rating": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Rating"
     },
     "RecommendationCard": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:RecommendationCard"
     },
     "ReportFilterPanel": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ReportFilterPanel"
     },
     "RiskMatrix": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:RiskMatrix"
     },
     "SankeyDiagram": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:SankeyDiagram"
     },
     "SearchFilterListing": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:SearchFilterListing"
     },
     "SearchInput": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:SearchInput"
     },
     "Segmented": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Segmented"
     },
     "Select": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Select"
     },
     "Skeleton": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Skeleton"
     },
     "Slider": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Slider"
     },
     "SmartDashboard": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:SmartDashboard"
     },
     "Spinner": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Spinner"
     },
     "Stack": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Stack"
     },
     "StatusTimeline": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:StatusTimeline"
     },
     "Steps": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Steps"
     },
     "SummaryStrip": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:SummaryStrip"
     },
     "Switch": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Switch"
     },
     "SWOTMatrix": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:SWOTMatrix"
     },
     "TableSimple": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TableSimple"
     },
     "Tabs": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Tabs"
     },
     "Tag": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Tag"
     },
     "Text": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Text"
     },
     "TextInput": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TextInput"
     },
     "ThemeLayout": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ThemeLayout"
     },
     "ThemePresetCompare": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ThemePresetCompare"
     },
     "ThemePreviewCard": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ThemePreviewCard"
     },
     "Timeline": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Timeline"
     },
     "TimePicker": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TimePicker"
     },
     "Toast": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Toast"
     },
     "Tooltip": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Tooltip"
     },
     "TourCoachmarks": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TourCoachmarks"
     },
     "TrainingTracker": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TrainingTracker"
     },
     "Transfer": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Transfer"
     },
     "Tree": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Tree"
     },
     "TreemapChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TreemapChart"
     },
     "TreeTable": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:TreeTable"
     },
     "Upload": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Upload"
     },
     "ValueStream": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:ValueStream"
     },
     "WaterfallChart": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:WaterfallChart"
     },
     "Watermark": {
-      "figmaUrl": "FIGMA_URL_PLACEHOLDER",
-      "figmaNodeId": ""
+      "figmaUrl": "pending",
+      "figmaNodeId": "pending:Watermark"
     }
   }
 }

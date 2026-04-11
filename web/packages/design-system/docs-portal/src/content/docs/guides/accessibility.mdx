@@ -1,0 +1,75 @@
+---
+title: Accessibility Guide
+description: WCAG 2.1 AA/AAA compliance patterns for @mfe/design-system.
+---
+
+## Built-in Features
+
+### Access Control (4-Level)
+
+Every component supports the `access` prop:
+
+```tsx
+<Button access="full">Active</Button>
+<Button access="readonly">Read only</Button>
+<Button access="disabled">Disabled</Button>
+<Button access="hidden">Hidden (not rendered)</Button>
+```
+
+### Keyboard Navigation
+
+All interactive components follow WAI-ARIA keyboard patterns:
+
+| Component | Enter | Escape | Tab | Arrows | Space |
+|-----------|-------|--------|-----|--------|-------|
+| Button | Activate | - | Focus | - | Activate |
+| Dialog | - | Close | Trap | - | - |
+| Select | Open | Close | Focus | Navigate | Select |
+| Tabs | - | - | Focus | Switch | - |
+| Menu | Select | Close | - | Navigate | - |
+
+### Focus Management
+
+- Focus ring: `--focus-ring` token (2px width, 2px offset)
+- Focus trap in dialogs/modals
+- Focus return after overlay close
+
+### Reduced Motion
+
+```tsx
+import { useMotion } from '@mfe/design-system';
+
+function AnimatedComponent() {
+  const { reducedMotion, duration } = useMotion();
+  // duration = 0 when prefers-reduced-motion is active
+}
+```
+
+### Contrast Ratio
+
+Set `contrastRatio: 'aaa'` in theme axes for enhanced contrast:
+
+| Level | Text Contrast | UI Contrast |
+|-------|--------------|-------------|
+| standard | 4.5:1 | 3:1 |
+| aa | 4.5:1 | 3:1 |
+| aaa | 7:1 | 4.5:1 |
+
+## Testing
+
+### axe-core Integration
+
+```tsx
+import { expectNoA11yViolations } from '@mfe/design-system/__tests__/a11y-utils';
+
+it('has no a11y violations', async () => {
+  const { container } = render(<MyComponent />);
+  await expectNoA11yViolations(container);
+});
+```
+
+### CI Gates
+
+- `npm run a11y-guardian:ci` — 70% threshold
+- `npm run keyboard-matrix` — 70% coverage
+- `npm run doctor` — unified health check

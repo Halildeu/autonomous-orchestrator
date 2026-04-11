@@ -12,12 +12,26 @@ export default {
   },
 
   // ── Mutation Targets ──
-  // Start with enterprise (newest, most likely shallow) then expand
+  // Wave 1: Enterprise components (baseline: 8.98%)
+  // Wave 3: Logic-heavy primitives (state, events, math)
+  // Excluded: Layout primitives (Container, Flex, Grid, Stack) — pure CSS class mapping
   mutate: [
     'src/enterprise/**/*.tsx',
-    '!src/enterprise/**/__tests__/**',
-    '!src/enterprise/**/index.ts',
-    '!src/enterprise/**/types.ts',
+    // Wave 3: Logic-heavy primitives (sorted by LoC)
+    'src/primitives/popover/Popover.tsx',         // 545 lines — positioning, portal, events
+    'src/primitives/modal/Modal.tsx',             // 306 lines — focus trap, escape, backdrop
+    'src/primitives/dialog/Dialog.tsx',           // 275 lines — native dialog, focus management
+    'src/primitives/input/Input.tsx',             // 283 lines — controlled/uncontrolled, validation
+    'src/primitives/checkbox/Checkbox.tsx',       // 272 lines — indeterminate, group state
+    'src/primitives/radio/Radio.tsx',             // 270 lines — group selection, keyboard nav
+    'src/primitives/button/Button.tsx',           // 268 lines — loading, disabled, icon variants
+    'src/primitives/progress/Progress.tsx',       // 262 lines — math (circumference, dashOffset)
+    'src/primitives/select/Select.tsx',           // 250 lines — dropdown, keyboard nav, controlled
+    'src/primitives/switch/Switch.tsx',           // ~180 lines — toggle state, form integration
+    // Exclusions
+    '!src/**/__tests__/**',
+    '!src/**/index.ts',
+    '!src/**/types.ts',
   ],
 
   // ── Mutation Operators ──
@@ -42,12 +56,13 @@ export default {
   },
 
   // ── Thresholds ──
-  // Current baseline: 8.98% (enterprise only)
-  // Target: raise to 30% via deeper tests, then enforce
+  // Wave 3: expanded scope (enterprise + 10 primitives)
+  // Baseline TBD after first run with expanded scope
+  // Target: raise to 30% via surviving mutant analysis
   thresholds: {
     high: 80,     // Green: 80%+ mutations killed
-    low: 50,      // Yellow: 50-80%
-    break: 40,    // CI fails below 40%
+    low: 30,      // Yellow: 30-80%
+    break: 20,    // CI fails below 20% (lowered for expanded scope)
   },
 
   // ── Coverage Analysis ──

@@ -469,6 +469,39 @@ check('theme-axis-hardcodes', 'Theme axis hardcode tespiti (motion)', () => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  Check 10: bundle-budget                                            */
+/* ------------------------------------------------------------------ */
+
+check('bundle-budget', 'Bundle size budget', () => {
+  const raw = runSiblingScriptRaw('bundle-size.mjs', '--budget');
+
+  if (!raw) {
+    // dist/ may not exist — that's OK for non-build CI
+    return { status: 'warn', message: 'bundle-size çalıştırılamadı (dist/ build gerekli)' };
+  }
+
+  const clean = raw.replace(/\x1b\[[0-9;]*m/g, '');
+
+  // Check if budget was exceeded
+  if (clean.includes('BUDGET EXCEEDED') || clean.includes('exit code 1')) {
+    const overBudget = [...clean.matchAll(/(\w+)\s+[\d.]+\s*KB\s+>\s+[\d.]+\s*KB/g)]
+      .map(m => m[0]);
+    return {
+      status: 'fail',
+      message: `Bundle budget exceeded: ${overBudget.length} module(s)`,
+      details: overBudget.slice(0, 5),
+      fix: 'Tree-shake unused exports or increase budget in bundle-budget.json',
+    };
+  }
+
+  // Parse total size
+  const totalMatch = clean.match(/Total.*?:\s*([\d.]+)\s*(MB|KB)/);
+  const totalStr = totalMatch ? `${totalMatch[1]} ${totalMatch[2]}` : 'unknown';
+
+  return { status: 'pass', message: `Bundle size: ${totalStr} (within budget)` };
+});
+
+/* ------------------------------------------------------------------ */
 /*  Output                                                             */
 /* ------------------------------------------------------------------ */
 

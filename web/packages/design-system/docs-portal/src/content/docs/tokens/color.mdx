@@ -1,0 +1,41 @@
+---
+title: Color Tokens
+description: Semantic color system — palette, surface, text, action, and state tokens.
+---
+
+## Token Architecture
+
+Colors are organized in two layers:
+
+1. **Palette** — Raw color values (`palette.gray50`, `palette.primary600`)
+2. **Semantic** — Intent-mapped tokens (`--surface-default`, `--text-primary`, `--action-primary`)
+
+Components always reference semantic tokens. Palette values are only used in theme definitions.
+
+## Semantic Tokens
+
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `--surface-default` | white | gray800 | Default backgrounds |
+| `--surface-canvas` | gray50 | gray900 | Page canvas |
+| `--surface-muted` | gray100 | gray700 | Secondary surfaces |
+| `--text-primary` | gray900 | gray50 | Primary text |
+| `--text-secondary` | gray500 | gray400 | Secondary text |
+| `--action-primary` | primary600 | primary500 | Buttons, links |
+| `--border-default` | gray300 | gray600 | Default borders |
+| `--state-success-bg` | green50 | custom dark | Success states |
+| `--focus-ring` | primary500 | primary400 | Focus indicators |
+
+## Usage in Components
+
+```tsx
+{/* Correct: semantic token with fallback */}
+<div className="bg-[var(--surface-card,#fff)] text-[var(--text-primary,#1e293b)]">
+
+{/* Wrong: hardcoded color */}
+<div className="bg-white text-slate-900">
+```
+
+## CSS Variables
+
+150+ CSS custom properties are generated in `:root` from the token pipeline. See `tokens/build/tokens.css` for the full list.

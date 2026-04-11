@@ -1,0 +1,39 @@
+---
+title: "@mfe/design-system"
+description: Enterprise-grade AI-native React design system with 210+ components, 10-axis theming, and built-in accessibility.
+template: splash
+hero:
+  tagline: "210+ components, 10-axis theming, 8 AI engines, 8,200+ tests"
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+    - text: Storybook
+      link: https://chromatic.com
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="37 Primitives" icon="puzzle">
+    Button, Input, Select, Badge, Card, Dialog, Modal, Drawer, and more.
+  </Card>
+  <Card title="68 Components" icon="bars">
+    Tabs, MenuBar, DatePicker, CommandPalette, Tree, Charts, and more.
+  </Card>
+  <Card title="15 Patterns" icon="template">
+    PageLayout, DetailDrawer, FilterBar, MasterDetail, and more.
+  </Card>
+  <Card title="41 Enterprise" icon="building">
+    GanttTimeline, FlowBuilder, PivotTable, RiskMatrix, and more.
+  </Card>
+</CardGrid>
+
+## Quality
+
+- **8,200+ tests** across 6 categories (contract, depth, edge, visual, browser, a11y)
+- **Design System Doctor** — 14-check unified health monitor
+- **100% keyboard navigation** coverage
+- **WCAG 2.1 AA+AAA** with contrast ratio axis

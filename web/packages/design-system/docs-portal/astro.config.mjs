@@ -11,9 +11,9 @@ export default defineConfig({
         en: { label: 'English' },
         tr: { label: 'Türkçe' },
       },
-      social: {
-        github: 'https://github.com/mfe/design-system',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/mfe/design-system' },
+      ],
       sidebar: [
         {
           label: 'Getting Started',

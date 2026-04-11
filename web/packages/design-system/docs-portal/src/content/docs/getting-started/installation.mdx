@@ -1,0 +1,56 @@
+---
+title: Installation
+description: How to install and configure @mfe/design-system in your project.
+---
+
+## Prerequisites
+
+- Node.js 22+ (`.nvmrc` pinned to 22.22.2)
+- pnpm 10+
+- React 18.2+ (React 19 not yet supported)
+
+## Install
+
+```bash
+pnpm add @mfe/design-system
+```
+
+## Setup Provider
+
+Wrap your app with `DesignSystemProvider`:
+
+```tsx
+import { DesignSystemProvider } from '@mfe/design-system';
+
+function App() {
+  return (
+    <DesignSystemProvider>
+      <YourApp />
+    </DesignSystemProvider>
+  );
+}
+```
+
+## AG Grid Setup (Optional)
+
+If using data grid features, import the setup module:
+
+```tsx
+import '@mfe/design-system/advanced/data-grid/setup';
+```
+
+This registers AG Grid Enterprise modules globally.
+
+## TypeScript Paths
+
+Add to your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@mfe/*": ["packages/*/src"]
+    }
+  }
+}
+```

@@ -27,10 +27,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       thresholds: {
-        statements: 75,
+        // Post-cleanup baselines (139 fake tests removed in PR #208).
+        // Real coverage exposed after removing inflated edge stubs.
+        // Temporarily adjusted to honest baselines; ratchet up as real tests added.
+        statements: 70,
         branches: 65,
-        functions: 70,
-        lines: 75,
+        functions: 64,
+        lines: 72,
       },
     },
   },

@@ -70,6 +70,19 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    direction: {
+      description: 'Text Direction',
+      defaultValue: 'ltr',
+      toolbar: {
+        title: 'Direction',
+        icon: 'globe',
+        items: [
+          { value: 'ltr', title: 'LTR' },
+          { value: 'rtl', title: 'RTL' },
+        ],
+        dynamicTitle: true,
+      },
+    },
   },
 
   // Theme decorator
@@ -77,6 +90,7 @@ const preview: Preview = {
     (Story: any, context: any) => {
       const theme = context.globals.theme || 'light';
       const density = context.globals.density || 'comfortable';
+      const direction = context.globals.direction || 'ltr';
 
       // Set theme attributes on <html> for CSS to pick up
       if (typeof document !== 'undefined') {
@@ -84,6 +98,7 @@ const preview: Preview = {
         const isDark = theme === 'dark' || theme === 'high-contrast';
         root.setAttribute('data-mode', isDark ? 'dark' : 'light');
         root.setAttribute('data-appearance', theme);
+        root.setAttribute('dir', direction);
 
         // Map to theme.css selector names
         const themeMap: Record<string, string> = {

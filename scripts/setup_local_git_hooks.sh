@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [[ -z "${ROOT_DIR}" ]]; then
-  echo "[local-gate-hooks] git repo bulunamadi." >&2
-  exit 2
-fi
+# Setup local git hooks for pre-push gate enforcement.
+# Run once: bash scripts/setup_local_git_hooks.sh
 
 cd "${ROOT_DIR}"
 chmod +x .githooks/pre-commit .githooks/pre-push scripts/require_local_gate.sh scripts/run_local_gate_chain.sh scripts/ops/load_local_env.sh
