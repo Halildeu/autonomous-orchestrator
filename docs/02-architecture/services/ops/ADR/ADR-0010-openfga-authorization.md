@@ -53,7 +53,16 @@ Sorunlar:
 - OpenFGA SPOF → circuit breaker + cached fallback
 - Model eksik senaryo → iteratif genisletme
 
+## D-003 DCP: TRANSFORMED (2026-04-11)
+
+Original D-002 "permission-service REMOVED" was changed to "TRANSFORMED":
+- Permission-service IS the OpenFGA hub (TupleSyncService, AuthzVersionService, roles CRUD, /authz/me)
+- Docker Compose: service remains active (not legacy profile)
+- Gateway: /authz routes point TO permission-service
+- Ref: CNS-20260411-001 Codex consensus, PR #325
+
 ## Links
 
 - [OpenFGA docs](https://openfga.dev)
 - Related: ADR-0011-data-enforcement-rls-filter.md, ADR-0012-jwt-identity-only.md
+- D-003 DCP: decisions/topics/zanzibar-openfga.v1.json
