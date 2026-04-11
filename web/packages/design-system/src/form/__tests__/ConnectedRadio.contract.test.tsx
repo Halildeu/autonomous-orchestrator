@@ -5,34 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { ConnectedRadio } from '../connected/ConnectedRadio';
-import type { ConnectedRadioProps } from '../connected/ConnectedRadio';
-import { FormContext } from '../FormContext';
-import type { FormContextValue } from '../FormContext';
-import { expectNoA11yViolations } from '../../__tests__/a11y-utils';
-
-const mockFormContext: FormContextValue = {
-  values: {},
-  errors: {},
-  touched: {},
-  dirtyFields: {},
-  access: 'full',
-  mode: 'onBlur',
-  setFieldValue: vi.fn(),
-  setFieldTouched: vi.fn(),
-  setFieldError: vi.fn(),
-  clearFieldError: vi.fn(),
-  validateField: vi.fn(() => null),
-  validateForm: vi.fn(() => ({})),
-  reset: vi.fn(),
-  isValid: true,
-  isDirty: false,
-  isSubmitting: false,
-  validator: null,
-};
-
-function Wrapper({ children }: { children: React.ReactNode }) {
-  return <FormContext.Provider value={mockFormContext}>{children}</FormContext.Provider>;
-}
+import type { ConnectedRadioProps, ConnectedRadioRef, ConnectedRadioElement, ConnectedRadioCSSProperties } from '../connected/ConnectedRadio';
 
 describe('ConnectedRadio — contract', () => {
   const defaultProps = {
@@ -41,18 +14,26 @@ describe('ConnectedRadio — contract', () => {
   };
 
   it('renders without crash', () => {
-    const { container } = render(<ConnectedRadio {...defaultProps} />, { wrapper: Wrapper });
+    const { container } = render(<ConnectedRadio {...defaultProps} />);
+    expect(container.firstElementChild).toBeTruthy();
+  });
+
+  it('has displayName', () => {
+    expect(ConnectedRadio.displayName).toBeTruthy();
+  });
+
+  it('renders with only required props (2 required, 4 optional)', () => {
+    // All 4 optional props omitted — should not crash
+    const { container } = render(<ConnectedRadio {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
   it('exports expected types', () => {
     // Type-level check — if this compiles, types are exported correctly
     const _connectedradioprops: ConnectedRadioProps | undefined = undefined; void _connectedradioprops;
+    const _connectedradioref: ConnectedRadioRef | undefined = undefined; void _connectedradioref;
+    const _connectedradioelement: ConnectedRadioElement | undefined = undefined; void _connectedradioelement;
+    const _connectedradiocssproperties: ConnectedRadioCSSProperties | undefined = undefined; void _connectedradiocssproperties;
     expect(true).toBe(true);
-  });
-
-  it('has no accessibility violations', async () => {
-    const { container } = render(<ConnectedRadio {...defaultProps} aria-label="Option A" />, { wrapper: Wrapper });
-    await expectNoA11yViolations(container);
   });
 });

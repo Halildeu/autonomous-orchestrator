@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { DataExportDialog } from '../DataExportDialog';
-import type { ExportFormat, ExportScope, RecordCounts, DataExportDialogProps } from '../DataExportDialog';
+import type { ExportFormat, ExportScope, RecordCounts, DataExportDialogLocaleText, DataExportDialogProps } from '../DataExportDialog';
 
 describe('DataExportDialog — contract', () => {
   const defaultProps = {
@@ -17,6 +17,10 @@ describe('DataExportDialog — contract', () => {
   it('renders without crash', () => {
     const { container } = render(<DataExportDialog {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
+  });
+
+  it('has displayName', () => {
+    expect(DataExportDialog.displayName).toBeTruthy();
   });
 
   it('respects access=hidden', () => {
@@ -34,6 +38,7 @@ describe('DataExportDialog — contract', () => {
     const _exportformat: ExportFormat | undefined = undefined; void _exportformat;
     const _exportscope: ExportScope | undefined = undefined; void _exportscope;
     const _recordcounts: RecordCounts | undefined = undefined; void _recordcounts;
+    const _dataexportdialoglocaletext: DataExportDialogLocaleText | undefined = undefined; void _dataexportdialoglocaletext;
     const _dataexportdialogprops: DataExportDialogProps | undefined = undefined; void _dataexportdialogprops;
     expect(true).toBe(true);
   });

@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { FormDrawer } from '../form-drawer/FormDrawer';
-import type { FormDrawerSize, FormDrawerPlacement, FormDrawerProps } from '../form-drawer/FormDrawer';
+import type { FormDrawerSize, FormDrawerPlacement, FormDrawerProps, FormDrawerRef } from '../form-drawer/FormDrawer';
 
 describe('FormDrawer — contract', () => {
   const defaultProps = {
@@ -23,6 +23,16 @@ describe('FormDrawer — contract', () => {
     expect(FormDrawer.displayName).toBeTruthy();
   });
 
+  it('respects access=hidden', () => {
+    const { container } = render(<FormDrawer {...defaultProps} access="hidden" />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('applies disabled state via access=readonly', () => {
+    const { container } = render(<FormDrawer {...defaultProps} access="readonly" />);
+    expect(container.firstElementChild).toBeTruthy();
+  });
+
   it('renders with only required props (4 required, 8 optional)', () => {
     // All 8 optional props omitted — should not crash
     const { container } = render(<FormDrawer {...defaultProps} />);
@@ -34,6 +44,7 @@ describe('FormDrawer — contract', () => {
     const _formdrawersize: FormDrawerSize | undefined = undefined; void _formdrawersize;
     const _formdrawerplacement: FormDrawerPlacement | undefined = undefined; void _formdrawerplacement;
     const _formdrawerprops: FormDrawerProps | undefined = undefined; void _formdrawerprops;
+    const _formdrawerref: FormDrawerRef | undefined = undefined; void _formdrawerref;
     expect(true).toBe(true);
   });
 });

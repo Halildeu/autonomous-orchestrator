@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { SearchInput } from '../search-input/SearchInput';
@@ -16,6 +16,16 @@ describe('SearchInput — contract', () => {
 
   it('has displayName', () => {
     expect(SearchInput.displayName).toBeTruthy();
+  });
+
+  it('respects access=hidden', () => {
+    const { container } = render(<SearchInput  access="hidden" />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('applies disabled state via access=readonly', () => {
+    const { container } = render(<SearchInput  access="readonly" />);
+    expect(container.firstElementChild).toBeTruthy();
   });
 
   it('renders with only required props (0 required, 7 optional)', () => {

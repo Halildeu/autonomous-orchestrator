@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { ThemeLayout } from '../ThemeLayout';
@@ -9,8 +9,8 @@ import type { LayoutTheme, ThemeLayoutSlots, ThemeLayoutProps } from '../ThemeLa
 
 describe('ThemeLayout — contract', () => {
   const defaultProps = {
-    theme: 'executive' as const,
-    slots: {} as ThemeLayoutSlots,
+    theme: undefined as any,
+    slots: undefined as any,
   };
 
   it('renders without crash', () => {
