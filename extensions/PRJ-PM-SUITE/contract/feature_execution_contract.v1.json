@@ -38,11 +38,14 @@
       "backend/core-data-service/**/*",
       "backend/openfga/**/*",
       "web/packages/auth/**/*",
+      "web/packages/design-system/**/*",
+      "web/packages/x-charts/**/*",
       "web/apps/mfe-shell/src/pages/admin/design-lab/**/*",
+      "web/apps/mfe-shell/src/pages/admin/DesignLabPage.tsx",
+      "web/apps/mfe-shell/src/index.css",
       "web/apps/mfe-access/**/*",
       "web/apps/mfe-reporting/**/*",
-      "web/stories/*Zanzibar*",
-      "web/stories/*zanzibar*"
+      "web/stories/**/*"
     ],
     "repo_root": ".",
     "service_scopes": [
