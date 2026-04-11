@@ -1,0 +1,49 @@
+rules:
+  - id: enf.v1.ep013.direct_echarts
+    languages: [typescript, javascript]
+    message: "EP-013 Direct Chart Engine: Direct echarts import in app code detected. Use @mfe/x-charts wrapper for consistent chart theming and configuration."
+    severity: ERROR
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/web/packages/x-charts/**"
+        - "**/web/packages/design-system/**"
+    pattern-either:
+      - pattern-regex: "from\\s+['\"]echarts[/'\"]"
+      - pattern-regex: "from\\s+['\"]echarts/core['\"]"
+      - pattern-regex: "from\\s+['\"]echarts-gl['\"]"
+      - pattern-regex: "require\\s*\\(['\"]echarts"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-013"
+      stage: v1_real
+      policy_ref: "policies/policy_ui_design_system.v1.json#chart_platform.forbidden_imports_note"
+      rationale: "Direct echarts imports bypass x-charts wrapper that provides theme integration, responsive defaults, and accessibility. Zero tolerance in app code; x-charts package excluded."
+
+  - id: enf.v1.ep013.direct_ag_charts
+    languages: [typescript, javascript]
+    message: "EP-013 Direct Chart Engine: Direct ag-charts import in app code detected. Use @mfe/x-charts wrapper."
+    severity: ERROR
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/web/packages/x-charts/**"
+        - "**/web/packages/design-system/**"
+    pattern-either:
+      - pattern-regex: "from\\s+['\"]ag-charts-community['\"]"
+      - pattern-regex: "from\\s+['\"]ag-charts-react['\"]"
+      - pattern-regex: "from\\s+['\"]ag-charts-enterprise['\"]"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-013"
+      stage: v1_real
+      policy_ref: "policies/policy_ui_design_system.v1.json#chart_platform"
+      rationale: "Direct ag-charts imports bypass x-charts wrapper. Zero tolerance in app code."

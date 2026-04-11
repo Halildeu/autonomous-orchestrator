@@ -1,0 +1,64 @@
+rules:
+  - id: enf.v1.ep017.deep_import_design_system
+    languages: [typescript, javascript]
+    message: "EP-017 Deep Import Ban: Import from @mfe/design-system internal path detected. Use public API exports only (e.g., @mfe/design-system, @mfe/design-system/components)."
+    severity: WARNING
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/web/packages/design-system/**"
+        - "**/*.test.*"
+        - "**/*.spec.*"
+        - "**/*.stories.*"
+    pattern-regex: "from\\s+['\"]@mfe/design-system/(?:src|lib|internal|dist/esm|dist/cjs)/"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-017"
+      stage: v1_advisory
+      rationale: "Deep imports into package internals bypass the public API contract and break on internal refactoring. Only public entry points documented in package exports should be used."
+
+  - id: enf.v1.ep017.deep_import_shared_http
+    languages: [typescript, javascript]
+    message: "EP-017 Deep Import Ban: Import from @mfe/shared-http internal path detected. Use public API exports only."
+    severity: WARNING
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/web/packages/shared-http/**"
+        - "**/*.test.*"
+        - "**/*.spec.*"
+    pattern-regex: "from\\s+['\"]@mfe/shared-http/(?:src|lib|internal|dist)/"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-017"
+      stage: v1_advisory
+      rationale: "Deep imports into shared-http internals bypass the public API contract. Use @mfe/shared-http root export."
+
+  - id: enf.v1.ep017.deep_import_x_charts
+    languages: [typescript, javascript]
+    message: "EP-017 Deep Import Ban: Import from @mfe/x-charts internal path detected. Use public API exports only."
+    severity: WARNING
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/web/packages/x-charts/**"
+        - "**/*.test.*"
+        - "**/*.spec.*"
+    pattern-regex: "from\\s+['\"]@mfe/x-charts/(?:src|lib|internal|dist)/"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-017"
+      stage: v1_advisory
+      rationale: "Deep imports into x-charts internals bypass the public API contract. Use @mfe/x-charts root export."

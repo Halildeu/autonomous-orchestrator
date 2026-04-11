@@ -1,0 +1,56 @@
+rules:
+  - id: enf.v1.ep012.legacy_permission_import
+    languages: [typescript, javascript]
+    message: "EP-012 Inline Auth Check: Import from legacy permission utilities detected. Use OpenFGA authorization layer via permission-service instead."
+    severity: WARNING
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/web/packages/auth/**"
+        - "**/*.test.*"
+        - "**/*.spec.*"
+        - "**/__tests__/**"
+        - "**/__mocks__/**"
+        - "**/*.stories.*"
+        - "**/*.d.ts"
+    pattern-either:
+      - pattern-regex: "from\\s+['\"].*(?:permission-check|role-guard|auth-guard|access-control|permission-util)['\"]"
+      - pattern-regex: "from\\s+['\"].*legacy.*auth['\"]"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-012"
+      stage: v1_advisory
+      rationale: "Detect imports from legacy permission/auth utilities. Import-provenance based detection reduces false positives vs generic function name matching. Advisory until OpenFGA migration is complete."
+
+  - id: enf.v1.ep012.hardcoded_role_literal
+    languages: [typescript, javascript]
+    message: "EP-012 Inline Auth Check: Hardcoded role string in authorization logic detected. Use OpenFGA permission checks instead of inline role comparisons."
+    severity: WARNING
+    paths:
+      include:
+        - "web/apps/**/*.ts"
+        - "web/apps/**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/*.test.*"
+        - "**/*.spec.*"
+        - "**/__tests__/**"
+        - "**/__mocks__/**"
+        - "**/*.stories.*"
+        - "**/*.d.ts"
+        - "**/types/**"
+        - "**/models/**"
+        - "**/constants/**"
+    pattern-either:
+      - pattern-regex: "role\\s*===\\s*['\"](?:admin|ADMIN|superadmin|SUPERADMIN|manager|MANAGER)['\"]"
+      - pattern-regex: "\\.roles\\.includes\\s*\\("
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-012"
+      stage: v1_advisory
+      rationale: "Detect hardcoded role literals used for authorization decisions. Narrowed to specific admin-class role strings and .roles.includes() pattern to minimize false positives."

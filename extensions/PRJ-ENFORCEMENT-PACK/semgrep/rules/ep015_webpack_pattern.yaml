@@ -1,0 +1,24 @@
+rules:
+  - id: enf.v1.ep015.webpack_api
+    languages: [typescript, javascript]
+    message: "EP-015 Webpack Pattern: Webpack-specific API detected in Vite codebase. Use Vite equivalents (import.meta.glob, import.meta.hot, dynamic import())."
+    severity: WARNING
+    paths:
+      include:
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/webpack.config.*"
+        - "**/vite.config.*"
+    pattern-either:
+      - pattern-regex: "require\\.ensure\\s*\\("
+      - pattern-regex: "module\\.hot\\b"
+      - pattern-regex: "import\\s*\\(\\s*/\\*\\s*webpackChunkName"
+      - pattern-regex: "__webpack_require__"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-015"
+      stage: v1_real
+      rationale: "Webpack-specific APIs are non-functional in the Vite build pipeline. require.ensure, module.hot, webpackChunkName magic comments, and __webpack_require__ must be replaced with Vite equivalents."
