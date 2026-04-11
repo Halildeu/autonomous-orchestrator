@@ -149,6 +149,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: [
         { find: '@mfe/design-system', replacement: path.resolve(__dirname, '../../packages/design-system/src') },
+        { find: '@mfe/auth', replacement: path.resolve(__dirname, '../../packages/auth/src') },
         { find: '@mfe/shared-http', replacement: path.resolve(__dirname, '../../packages/shared-http/src') },
         // mfe_shell/i18n: only alias in test mode — in dev/prod, MF remote handles it
         ...(isTest ? [{ find: 'mfe_shell/i18n', replacement: path.resolve(__dirname, '__mocks__/mfe-shell-i18n.ts') }] : []),
