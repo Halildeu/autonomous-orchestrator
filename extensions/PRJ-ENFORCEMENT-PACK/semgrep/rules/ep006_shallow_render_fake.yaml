@@ -10,8 +10,8 @@ rules:
         - "**/*.spec.tsx"
         - "**/*.spec.ts"
       exclude:
-        - extensions/PRJ-ENFORCEMENT-PACK/**
-        - node_modules/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/node_modules/**"
         - "**/__snapshots__/**"
         - "**/fixtures/**"
         - "**/*.generated.*"

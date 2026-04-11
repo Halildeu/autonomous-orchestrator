@@ -36,7 +36,14 @@
         "EP-002",
         "EP-003",
         "EP-004",
-        "EP-005"
+        "EP-005",
+        "EP-010",
+        "EP-011",
+        "EP-012",
+        "EP-013",
+        "EP-014",
+        "EP-015",
+        "EP-017"
       ],
       "notes": [
         "Rule sources are excluded from scan scope to prevent self-hit findings."
@@ -97,6 +104,34 @@
           "false_positive_count": 0,
           "false_positive_ratio": 0,
           "status": "PASS"
+        },
+        {
+          "rule_id": "EP-010",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
+        },
+        {
+          "rule_id": "EP-011",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
+        },
+        {
+          "rule_id": "EP-012",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
+        },
+        {
+          "rule_id": "EP-013",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
+        },
+        {
+          "rule_id": "EP-014",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
+        },
+        {
+          "rule_id": "EP-015",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
+        },
+        {
+          "rule_id": "EP-017",
+          "findings_count": 0, "sampled_count": 0, "false_positive_count": 0, "false_positive_ratio": 0, "status": "PASS"
         }
       ],
       "source_report": ".cache/reports/enforcement_false_positive_baseline.v1.json",

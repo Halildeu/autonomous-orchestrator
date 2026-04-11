@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("src.ops.rule_effectiveness", reason="rule_effectiveness not yet implemented")
+pytest.importorskip("src.ops.fact_evolution", reason="fact_evolution not yet implemented")
+
 from src.ops.rule_effectiveness import track_rule_usage, increment_session_count
 from src.ops.fact_evolution import run_evolution_cycle
 

@@ -25,7 +25,7 @@ jobs:
           else
             echo "requirements-dev.txt bulunamadi; enforcement baseline mode ile devam."
           fi
-          pip install semgrep==1.146.0
+          pip install semgrep==1.157.0
 
       - name: Standards lock + ownership baseline
         run: |
