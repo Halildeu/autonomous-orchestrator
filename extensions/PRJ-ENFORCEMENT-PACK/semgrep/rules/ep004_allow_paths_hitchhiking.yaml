@@ -11,7 +11,7 @@ rules:
       exclude:
         - src/shared/utils.py
         - src/shared/wal.py
-        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
         - "**/*test*"
         - "**/*contract*"
     patterns:

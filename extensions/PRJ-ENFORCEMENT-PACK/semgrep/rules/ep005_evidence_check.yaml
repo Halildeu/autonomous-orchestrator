@@ -10,7 +10,7 @@ rules:
       exclude:
         - src/evidence/**
         - src/shared/wal.py
-        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
         - "**/*test*"
     patterns:
       - pattern-regex: "validate_(?:transition|run_transition|node_transition)\\("

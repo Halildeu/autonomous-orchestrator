@@ -10,8 +10,8 @@ rules:
         - "**/*.spec.tsx"
         - "**/*.spec.ts"
       exclude:
-        - extensions/PRJ-ENFORCEMENT-PACK/**
-        - node_modules/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/node_modules/**"
     pattern-regex: "quality-edge-boost|auto-generated-test|test-scaffold|bulk-test-gen"
     metadata:
       enforcement_pack: ENF_V1

@@ -10,8 +10,8 @@ rules:
         - "**/*.spec.tsx"
         - "**/*.spec.ts"
       exclude:
-        - extensions/PRJ-ENFORCEMENT-PACK/**
-        - node_modules/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/node_modules/**"
         - "**/fixtures/**"
     pattern-either:
       - pattern: expect(true).toBe(true)
@@ -36,8 +36,8 @@ rules:
         - "**/*.spec.tsx"
         - "**/*.spec.ts"
       exclude:
-        - extensions/PRJ-ENFORCEMENT-PACK/**
-        - node_modules/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+        - "**/node_modules/**"
         - "**/fixtures/**"
     pattern-regex: "expect\\s*\\([^)]+\\)\\s*\\.\\s*toBeDefined\\s*\\(\\s*\\)\\s*;?\\s*$"
     metadata:

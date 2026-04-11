@@ -10,7 +10,7 @@ rules:
       exclude:
         - src/shared/utils.py
         - src/utils/jsonio.py
-        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
         - "**/*test*"
         - "**/*contract*"
     patterns:
@@ -31,7 +31,7 @@ rules:
         - ci/**
       exclude:
         - src/shared/utils.py
-        - extensions/PRJ-ENFORCEMENT-PACK/**
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
         - "**/*test*"
     patterns:
       - pattern-regex: "def\\s+_(?:now_iso|now_utc|now_iso_utc|iso_now)\\s*\\("
