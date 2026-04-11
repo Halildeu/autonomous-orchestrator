@@ -40,7 +40,8 @@ class TestOverallStatusSignal:
             {"overall_status": "FAIL", "version": "v1"},
         )
         signals = _gather_context_signals(workspace)
-        assert signals["system_status"]["overall_status"] == "FAIL"
+        ss = signals.get("system_status", {})
+        assert ss.get("overall_status") == "FAIL", f"Expected FAIL, got signals={signals}"
 
     def test_fallback_to_status_field_if_overall_missing(self, workspace: Path) -> None:
         _write_json(
@@ -74,18 +75,20 @@ class TestManualRequestKindSignal:
         _write_json(req_dir / "req_001.json", {"kind": "review"})
         _write_json(req_dir / "req_002.json", {"kind": "assessment"})
         signals = _gather_context_signals(workspace)
-        # Sorted reverse → req_002 is latest
-        assert signals["manual_request"]["kind"] == "assessment"
+        mr = signals.get("manual_request", {})
+        assert mr.get("kind") == "assessment", f"Expected assessment, got signals={signals}"
 
     def test_empty_kind_when_no_requests(self, workspace: Path) -> None:
         signals = _gather_context_signals(workspace)
-        assert signals["manual_request"]["kind"] == ""
+        mr = signals.get("manual_request", {})
+        assert mr.get("kind", "") == "", f"Expected empty kind, got signals={signals}"
 
     def test_empty_kind_when_dir_missing(self, tmp_path: Path) -> None:
         ws = tmp_path / "no_ws"
         ws.mkdir()
         signals = _gather_context_signals(ws)
-        assert signals["manual_request"]["kind"] == ""
+        mr = signals.get("manual_request", {})
+        assert mr.get("kind", "") == "", f"Expected empty kind, got signals={signals}"
 
 
 # ── integration: resolve_profile uses fixed signals ─────────────
