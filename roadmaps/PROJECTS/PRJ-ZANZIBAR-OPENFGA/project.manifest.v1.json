@@ -1,0 +1,72 @@
+{
+  "version": "v1",
+  "project_id": "PRJ-ZANZIBAR-OPENFGA",
+  "title": "Zanzibar / OpenFGA Authorization Migration",
+  "owner": "CROSS-REPO",
+  "layer_scope": "L3",
+  "purpose": "JWT-based statik permission sisteminin 4 katmanli fail-closed yetkilendirmeye donusumu. Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + RLS (data) → Frontend SDK (UI). Stale permission, hardcoded admin ve inline check tutarsizligi sorunlarini cozer.",
+  "domain_tags": ["authorization", "openfga", "zanzibar", "security", "cross-repo", "managed-repo"],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "selected_pack_ids": [],
+  "target_maturity_level": 3,
+  "target_milestones": ["FAZ-0", "FAZ-1", "FAZ-1.5", "FAZ-2", "FAZ-3", "FAZ-3.5", "FAZ-4", "FAZ-5"],
+  "success_metrics": [
+    "openfga_check_success_rate_99_9",
+    "p95_latency_under_15ms",
+    "zero_data_leak_incidents",
+    "rollback_under_5_minutes",
+    "decision_log_coverage_100",
+    "legacy_transformed_d003",
+    "test_coverage_authz_80",
+    "zero_broken_frontend_gates",
+    "filter_rls_all_company_tables",
+    "zero_downtime_prod_transition",
+    "batch_check_p95_under_50ms",
+    "design_lab_scenarios_3_plus"
+  ],
+  "risk_category": "high",
+  "program_led_entrypoints": ["system-status", "policy-check"],
+  "evidence_expectations": [
+    ".cache/reports/system_status.v1.json",
+    ".cache/reports/portfolio_status.v1.json"
+  ],
+  "promotion_policy": "plan-then-apply",
+  "decision_refs": [
+    "decisions/topics/zanzibar-openfga.v1.json"
+  ],
+  "consultation_refs": [
+    "CNS-20260410-001",
+    "CNS-20260410-002",
+    "CNS-20260411-001",
+    "CNS-20260411-002",
+    "CNS-20260411-003"
+  ],
+  "plan_ref": ".claude/plans/zanzibar-master-plan.md",
+  "cross_repo_refs": [
+    "dev-repo: src/services/permission-service/",
+    "dev-repo: packages/shared/erp-auth/",
+    "dev-repo: docker-compose.yml (OpenFGA container)"
+  ],
+  "phase_status": {
+    "FAZ-0": "done",
+    "FAZ-1": "done",
+    "FAZ-1.5": "done",
+    "FAZ-2": "planned",
+    "FAZ-3": "planned",
+    "FAZ-3.5": "done",
+    "FAZ-4": "in_progress",
+    "FAZ-5": "in_progress",
+    "FAZ-6": "deferred"
+  },
+  "wave_status": {
+    "DALGA-1": "done",
+    "DALGA-2": "done",
+    "DALGA-3": "planned",
+    "DALGA-4": "planned"
+  }
+}
