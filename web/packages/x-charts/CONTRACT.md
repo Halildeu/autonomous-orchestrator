@@ -1,6 +1,9 @@
-# @mfe/x-charts — API Contract v1
+# @mfe/x-charts — API Contract v2
 
-## Status: DRAFT | Date: 2026-03-21
+## Status: ACTIVE | Date: 2026-04-11
+
+> **Engine:** Apache ECharts 5.x (primary). AG Charts Community used only for grid-linked
+> embedded charts via `@mfe/x-data-grid`. Decision: `decisions/topics/chart-viz-engine-selection.v1.json`
 
 ## 1. Public API Surface
 
@@ -27,8 +30,23 @@ RadarChart
 TreemapChart
   props: { data: TreemapNode[]; valueKey: string; labelKey: string; colorKey?: string }
 
+SunburstChart
+  props: { data: TreemapNode[]; valueKey: string; labelKey: string }
+
 HeatmapChart
   props: { data: ChartData[]; xKey: string; yKey: string; valueKey: string; colorScale?: ColorScale }
+
+FunnelChart
+  props: { data: ChartData[]; categoryKey: string; valueKey: string; orientation?: 'vertical' | 'horizontal' }
+
+SankeyChart
+  props: { data: SankeyData; nodeKey: string; linkKey: string }
+
+GaugeChart
+  props: { value: number; min?: number; max?: number; segments?: GaugeSegment[] }
+
+WaterfallChart
+  props: { data: ChartData[]; categoryKey: string; valueKey: string }
 
 ChartContainer
   props: { width?: number | string; height?: number | string; responsive?: boolean; children: ReactNode }
@@ -47,16 +65,17 @@ ChartTooltip
 ### Utilities
 - `createColorScale(domain, range)` — builds a color interpolation function
 - `formatChartValue(value, format)` — locale-aware number/date formatting for axes and tooltips
+- `sanitizeChartText(text)` — XSS sanitization for all user-provided text in charts
 
 ### Type Exports
-- `ChartData` (= `Record<string, unknown>`)
-- `TreemapNode`, `ColorScale`, `ChartTheme`
+- `ChartData`, `TreemapNode`, `SankeyData`, `ColorScale`, `ChartTheme`, `GaugeSegment`
 - Props interfaces for all chart components
-- `ChartContainerProps`, `ChartLegendProps`, `ChartTooltipProps`
+- `ChartSpec` (engine-agnostic declarative format)
 
 ### Base
-- AG Charts 12.3.1 (Community edition)
-- Extends existing chart component patterns in design system
+- Apache ECharts 5.x (runtime dependency)
+- Tree-shakeable per chart type
+- Renderer auto-detect: <5K SVG, 5K-50K Canvas, >50K WebGL
 
 ## 2. Theme / Token Integration
 
@@ -68,167 +87,91 @@ ChartTooltip
 - Typography: `--font-family-data`, `--font-size-axis`, `--font-size-legend`
 
 ### Dark Mode
-- Palette auto-adjusts to darker background via luminance-aware token set
+- Palette auto-adjusts via luminance-aware token set
 - Grid lines, axis text, and tooltip chrome switch via `[data-theme="dark"]`
-- AG Charts `theme: 'ag-default-dark'` base + token overrides
+- ECharts theme preset: `DesignLabEChartsDarkTheme` + token overrides
+
+### High Contrast Mode
+- ECharts theme preset: `DesignLabEChartsHighContrastTheme`
+- Decal patterns for non-color differentiation
+- 4.5:1 minimum contrast ratio enforced
 
 ### Density Support
 - `compact` — reduced padding, smaller legend items, thinner axis lines
-- `comfortable` — default spacing (balanced readability)
+- `comfortable` — default spacing
 - `spacious` — larger labels, wider legend spacing, thicker lines
 
-### Custom Theme Extension
-- `theme` prop accepts partial `ChartTheme` override
-- Individual color overrides per series via `series[n].color`
-- CSS custom property layer for container and tooltip styling
-
 ## 3. Access Control
-
-### Granularity
-- **Component-level**: entire chart visible/hidden based on dashboard permission
-- **Section-level**: legend, tooltip, export action individually controllable
 
 ### AccessControlledProps Integration
 ```tsx
 <BarChart
-  accessControl={{
-    resource: 'dashboard.chart.revenue',
-    actions: { export: Permission; drillDown: Permission }
-  }}
+  access={resolveZanzibarAccessProps('can_view', 'report', reportId)}
+  accessReason="Bu raporu goruntuleme yetkiniz yok"
 />
 ```
 
 ### Policy-Based Visibility States
 - `full` — interactive with tooltips, legend click, export, drill-down
-- `readonly` — rendered with tooltips but no interactive actions (export, drill-down disabled)
+- `readonly` — rendered with tooltips but no interactive actions
 - `disabled` — chart rendered with overlay, no interaction
 - `hidden` — component not rendered, space collapsed
 
+> **D-007 compliance:** Chart layer does NOT filter data. Data authorization
+> handled by backend/query pipeline via OpenFGA. UI only controls visibility/affordance.
+
 ## 4. SSR / Client Boundary
 
-### Server-Renderable
-- Chart container dimensions and layout shell
-- Legend (static text list)
-- Skeleton placeholder with correct aspect ratio
-
 ### Client-Only (`'use client'`)
-- AG Charts canvas rendering engine
+- ECharts canvas/SVG rendering engine
 - All interactive features: tooltips, legend toggle, zoom, pan
 - Resize observer and responsive recalculation
-- Animation and transitions
 
 ### Hydration Strategy
 - SSR renders a sized placeholder `<div>` matching chart dimensions
-- AG Charts instance mounts on client, renders into placeholder
-- Optional: server can inline a static SVG snapshot for instant visual
+- ECharts instance mounts on client, renders into placeholder
 
-### Streaming SSR
-- Chart metadata (title, legend labels) can stream
-- Data fetch and chart render happen client-side
+## 5. Security
 
-## 5. Data Model
+- `sanitizeChartText()` applied to all user-provided text
+- URL whitelist validation for image/link content
+- No `innerHTML` usage — all text via ECharts text API
 
-### Input Data Shape
-```typescript
-type ChartData = Record<string, unknown>;
+## 6. Accessibility (WCAG AA)
 
-interface TreemapNode {
-  label: string;
-  value: number;
-  children?: TreemapNode[];
-  color?: string;
-}
-
-interface ChartSeriesConfig {
-  type: 'bar' | 'line' | 'area' | 'pie' | 'scatter' | 'radar' | 'treemap' | 'heatmap';
-  xKey: string;
-  yKey: string | string[];
-  label?: string;
-  color?: string;
-}
-
-interface ColorScale {
-  type: 'linear' | 'quantize' | 'quantile';
-  domain: [number, number];
-  range: [string, string];
-}
-```
-
-### Validation
-- Runtime key existence check: warns if `xKey`/`yKey` not found in first data row (dev mode)
-- TypeScript generic inference from data array type
-
-### State Management
-- **Controlled**: data, highlighted series, zoom range can be externally driven
-- **Uncontrolled**: internal AG Charts state for hover, tooltip position
-- `onSeriesClick`, `onLegendClick` callbacks for external state sync
-
-### Async Data Loading
-- `loading` prop shows skeleton/spinner overlay
-- Data can be swapped at any time; AG Charts handles transition animation
-- No built-in data fetching — consumer provides data
-
-## 6. Accessibility
-
-### WCAG Target
-- **AA** minimum
-
-### Keyboard Navigation
-- `Tab` to focus chart container
-- Arrow keys to navigate between data points / series
-- `Enter` to activate drill-down (if enabled)
-- `Escape` to dismiss tooltip
-- Legend items focusable and toggleable via `Space`
-
-### Screen Reader Announcements
-- Chart type and title announced on focus
-- Data summary announced (e.g., "Bar chart showing revenue across 12 months, range $10K to $95K")
-- Individual data point value announced on arrow key navigation
-- `aria-live="polite"` for data updates
-
-### Focus Management
-- Visible focus ring on chart container and legend items
-- Focus returns to chart container when tooltip dismissed
-
-### ARIA Attributes
-- `role="img"` on chart container with `aria-label` summarizing chart
-- `aria-roledescription="chart"` for enhanced semantics
-- Hidden data table alternative via `aria-describedby` linking to a `<table>` summary
+- Keyboard navigation: Tab, Arrow, Enter, Escape
+- Data table fallback via `aria-describedby`
+- Colorblind-safe palettes with decal patterns
+- Screen reader announcements for chart type, data summary, point values
+- Focus ring on chart container and legend items
 
 ## 7. Performance Budget
 
 ### Bundle Size
-- **< 30 KB** gzipped (excluding AG Charts core ~150KB)
+- **< 350 KB** gzipped total (ECharts + x-charts wrapper)
 - Each chart type tree-shakeable independently
-- AG Charts modules loaded per chart type
+- CI gate enforces bundle limit
 
 ### Render Targets
-- **1,000 data points**: initial render < 100ms
-- **10,000 data points** (scatter/heatmap): initial render < 300ms
-- **Tooltip display**: < 16ms (single frame)
-- **Resize recalculation**: < 50ms
-
-### Memory Budget
-- Single chart instance: < 3MB for 1K points
-- Canvas cleanup on unmount (no leaked contexts)
-
-### Lazy Loading
-- Chart types loaded via dynamic import per component
-- Tooltip and legend components loaded with chart
-- Export-to-image feature loaded on first use
+- 1,000 data points: < 100ms
+- 10,000 data points: < 300ms
+- 100,000+ data points: WebGL renderer auto-selected
+- Tooltip: < 16ms (single frame)
 
 ## 8. Test & Docs Exit Criteria
 
 ### Tests
-- **30 unit tests** — data transforms, color scale, theme resolution, format utilities
-- **8 integration tests** — full chart render per type, responsive resize, theme switching
-- **10 visual regression tests** — each chart type default, dark mode variants, density variants
+- Unit tests: data transforms, color scale, theme resolution, format utilities, XSS sanitization
+- Integration tests: full chart render per type, responsive resize, theme switching
+- Visual regression: each chart type default, dark mode, high contrast
+- Accessibility: axe-core audit, keyboard navigation, screen reader
 
-### Contract Tests
-- AG Charts series config compatibility verified against v12.3.1 API
-- Data shape validation for each chart type
-
-### Documentation
-- API reference page with full props table per chart component
-- **10 examples** — one per chart type, plus combined dashboard example
-- **3 recipes** — real-time updating chart, dashboard grid layout, drill-down pattern
+### CI Gates
+- bundle-size-check (< 350KB gzip)
+- a11y-axe-audit
+- contrast-ratio-check (4.5:1)
+- xss-sanitization-check
+- memory-leak-test (100-cycle mount/unmount)
+- chart-spec-validation
+- visual-regression
+- tree-shaking-verify
