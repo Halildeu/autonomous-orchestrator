@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Autocomplete, Badge, Button, Checkbox, DetailDrawer, Select, Switch, TextInput } from '@mfe/design-system';
 import type { AutocompleteOption } from '@mfe/design-system';
+import { useZanzibarAccess } from '@mfe/auth';
 import type { AccessRole, AccessLevel } from '../../features/access-management/model/access.types';
 import { getPermissions } from '../../entities/permissions/api/permissions.api';
 import { api } from '@mfe/shared-http';
@@ -53,6 +54,9 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const queryClient = useQueryClient();
   const [createName, setCreateName] = React.useState('');
   const [createDesc, setCreateDesc] = React.useState('');
+
+  // Zanzibar object-level access check: can current user edit the ACCESS module?
+  const { access: editAccess } = useZanzibarAccess('can_edit', 'module', 'ACCESS');
 
   // --- Catalog query ---
   const catalogQuery = useQuery({
@@ -418,7 +422,13 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
         {/* --- FOOTER --- */}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={onClose}>{t('access.clone.cancelText')}</Button>
-          <Button onClick={() => saveGranulesMutation.mutate()} loading={saveGranulesMutation.isPending} disabled={!dirty}>
+          <Button
+            onClick={() => saveGranulesMutation.mutate()}
+            loading={saveGranulesMutation.isPending}
+            disabled={!dirty}
+            access={editAccess}
+            accessReason={editAccess !== 'full' ? t('access.drawer.noEditPermission') : undefined}
+          >
             {t('common.save')}
           </Button>
         </div>

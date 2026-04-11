@@ -5,6 +5,7 @@ import {
   GalleryCard,
 } from '@mfe/design-system';
 import type { GalleryItem } from '@mfe/design-system';
+import { ZanzibarGate } from '@mfe/auth';
 import { useCatalog, catalogTypeTone } from './useCatalog';
 import type { CatalogItem } from './useCatalog';
 
@@ -115,16 +116,22 @@ const ReportingHub: React.FC = () => {
     (item: GalleryItem) => {
       const ci = item as CatalogItem;
       return (
-        <GalleryCard
-          item={{
-            ...ci,
-            badge: {
-              label: ci.type === 'dashboard' ? 'Dashboard' : 'Grid',
-              tone: catalogTypeTone[ci.type] ?? 'default',
-            },
-          }}
-          onClick={() => handleItemClick(ci)}
-        />
+        <ZanzibarGate
+          relation="can_view"
+          objectType="report"
+          objectId={ci.route}
+        >
+          <GalleryCard
+            item={{
+              ...ci,
+              badge: {
+                label: ci.type === 'dashboard' ? 'Dashboard' : 'Grid',
+                tone: catalogTypeTone[ci.type] ?? 'default',
+              },
+            }}
+            onClick={() => handleItemClick(ci)}
+          />
+        </ZanzibarGate>
       );
     },
     [handleItemClick],

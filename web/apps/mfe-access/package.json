@@ -14,6 +14,7 @@
     "@mfe/shared-http": "*",
     "@tanstack/react-query": "^5.90.10",
     "@mfe/shared-types": "*",
+    "@mfe/auth": "*",
     "@mfe/design-system": "*",
     "ag-grid-community": "34.3.1",
     "ag-grid-enterprise": "34.3.1",

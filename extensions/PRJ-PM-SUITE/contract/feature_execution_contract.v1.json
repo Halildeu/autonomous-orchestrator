@@ -38,7 +38,9 @@
       "backend/core-data-service/**/*",
       "backend/openfga/**/*",
       "web/packages/auth/**/*",
-      "web/apps/mfe-shell/src/pages/admin/design-lab/**/*"
+      "web/apps/mfe-shell/src/pages/admin/design-lab/**/*",
+      "web/apps/mfe-access/**/*",
+      "web/apps/mfe-reporting/**/*"
     ],
     "repo_root": ".",
     "service_scopes": [
@@ -197,6 +199,16 @@
       },
       {
         "path_glob": "web/packages/auth/src/*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/apps/mfe-access/src/widgets/*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/apps/mfe-reporting/src/app/*.tsx",
         "ux_theme_id": "trust_privacy_security_ux",
         "ux_subtheme_id": "least_privilege_interaction_design"
       }

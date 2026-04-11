@@ -13,6 +13,7 @@
     "@mfe/shared-http": "*",
     "@mfe/shared-types": "*",
     "@mfe/i18n-dicts": "*",
+    "@mfe/auth": "*",
     "@mfe/design-system": "*",
     "@mfe/x-charts": "*",
     "ag-grid-community": "34.3.1",
