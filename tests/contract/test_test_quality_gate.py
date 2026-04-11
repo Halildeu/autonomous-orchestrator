@@ -53,11 +53,11 @@ def test_policy_thresholds():
 
 def test_semgrep_rules_exist_and_parse():
     rules_dir = REPO_ROOT / "extensions" / "PRJ-ENFORCEMENT-PACK" / "semgrep" / "rules"
+    # Only AST-required rules remain in semgrep; regex rules moved to ci/check_enforcement_rules.py
     expected_rules = [
         "ep006_shallow_render_fake.yaml",
-        "ep007_tautological_assertion.yaml",
-        "ep008_quality_marker_ban.yaml",
         "ep009_data_testid_render_only.yaml",
+        "ep014_react19_api.yaml",
     ]
     for rule_name in expected_rules:
         rule_path = rules_dir / rule_name
@@ -125,6 +125,7 @@ def test_smoke_fixtures_detect_bad_patterns(tmp_path):
     report = json.loads(out_file.read_text())
     violations = report["violations"]
     rules_found = {v["rule"] for v in violations}
-    # Must detect shallow render and tautological at minimum
-    assert "TQ-001" in rules_found, "TQ-001 (shallow render) not detected in bad fixtures"
-    assert "TQ-002" in rules_found, "TQ-002 (tautological) not detected in bad fixtures"
+    # TQ-001/002/006 violation detection moved to ci/check_enforcement_rules.py (EP-007/008)
+    # check_test_quality.py now only produces TQ-003 (duplication), TQ-004 (import), TQ-005 (mock)
+    assert "TQ-004" in rules_found, "TQ-004 (import mismatch) not detected in bad fixtures"
+    assert "TQ-005" in rules_found, "TQ-005 (mock-heavy) not detected in bad fixtures"
