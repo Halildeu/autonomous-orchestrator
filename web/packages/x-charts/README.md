@@ -1,23 +1,25 @@
-# @corp/x-charts
+# @mfe/x-charts
 
-Composable charting library for dashboards, reports, and inline data visualization. Wraps Recharts with design-system tokens, responsive defaults, and interaction hooks.
+Composable charting library for dashboards, reports, and inline data visualization. Internally wraps **Apache ECharts** with design-system tokens, responsive defaults, accessibility (WCAG AA), and interaction hooks.
+
+> **Engine decision:** ECharts (Apache 2.0) is the primary rendering engine. AG Charts Community is used only for grid-linked embedded charts via `@mfe/x-data-grid`. See `decisions/topics/chart-viz-engine-selection.v1.json` in the orchestrator repo.
 
 ## Installation
 
 ```bash
-pnpm add @corp/x-charts
+pnpm add @mfe/x-charts
 ```
 
 Peer dependencies:
 
 ```bash
-pnpm add @corp/design-system recharts
+pnpm add @mfe/design-system echarts
 ```
 
 ## Quick Start
 
 ```tsx
-import { BarChart } from '@corp/x-charts';
+import { BarChart } from '@mfe/x-charts';
 
 const data = [
   { month: 'Jan', revenue: 4000 },
@@ -41,7 +43,7 @@ export function RevenueChart() {
 ## Dashboard with KPIs
 
 ```tsx
-import { KPICard, ChartDashboard, LineChart } from '@corp/x-charts';
+import { KPICard, ChartDashboard, LineChart } from '@mfe/x-charts';
 
 export function SalesDashboard() {
   return (
@@ -62,16 +64,32 @@ export function SalesDashboard() {
 
 ## Available Components
 
-| Component | Description |
-|-----------|-------------|
-| `BarChart` | Vertical / horizontal bar charts |
-| `LineChart` | Line and area charts |
-| `PieChart` | Pie and donut charts |
-| `SparklineChart` | Inline mini charts for tables and cards |
-| `FunnelChart` | Funnel / conversion charts |
-| `WaterfallChart` | Waterfall (bridge) charts |
-| `KPICard` | Key performance indicator card with trend |
-| `ChartDashboard` | Grid layout for chart + KPI composition |
+| Component | Description | Engine |
+|-----------|-------------|--------|
+| `BarChart` | Vertical / horizontal bar charts | ECharts |
+| `LineChart` | Line and area charts | ECharts |
+| `AreaChart` | Stacked / gradient area charts | ECharts |
+| `PieChart` | Pie and donut charts | ECharts |
+| `ScatterChart` | Scatter / bubble charts | ECharts |
+| `SparklineChart` | Inline mini charts for tables and cards | ECharts |
+| `FunnelChart` | Funnel / conversion charts | ECharts |
+| `WaterfallChart` | Waterfall (bridge) charts | ECharts |
+| `GaugeChart` | Gauge / speedometer charts | ECharts |
+| `RadarChart` | Radar / spider charts | ECharts |
+| `TreemapChart` | Treemap hierarchical charts | ECharts |
+| `SunburstChart` | Sunburst hierarchical charts | ECharts |
+| `SankeyChart` | Sankey flow diagrams | ECharts |
+| `HeatmapChart` | Heatmap matrix charts | ECharts |
+| `KPICard` | Key performance indicator card with trend | — |
+| `ChartDashboard` | Grid layout for chart + KPI composition | — |
+
+## Accessibility
+
+All charts meet WCAG AA:
+- Keyboard navigation (tab, arrow, enter)
+- Data table fallback for screen readers
+- Colorblind-safe palettes (4.5:1 contrast minimum)
+- Decal patterns for non-color differentiation
 
 ## Hooks
 
@@ -80,9 +98,9 @@ export function SalesDashboard() {
 | `useChartInteractions` | Adds zoom, pan, and brush to any chart |
 | `useRealTimeData` | Streams data updates into chart state |
 
-## API Reference
+## Bundle Size
 
-Full props documentation: [/api/x-charts](/api/x-charts)
+Target: < 350KB gzip (tree-shaking enabled). CI gate enforces this limit.
 
 ## License
 
