@@ -1,0 +1,58 @@
+{
+  "version": "v1",
+  "project_id": "PRJ-ZANZIBAR-OPENFGA",
+  "title": "Zanzibar / OpenFGA Authorization Migration",
+  "owner": "CROSS-REPO",
+  "layer_scope": "L3",
+  "purpose": "JWT-based statik permission sisteminin 4 katmanli fail-closed yetkilendirmeye donusumu. Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + RLS (data) → Frontend SDK (UI). Stale permission, hardcoded admin ve inline check tutarsizligi sorunlarini cozer.",
+  "domain_tags": [
+    "authorization",
+    "openfga",
+    "zanzibar",
+    "security",
+    "cross-repo",
+    "managed-repo"
+  ],
+  "iso_refs": {
+    "context": "tenant/TENANT-DEFAULT/context.v1.md",
+    "stakeholders": "tenant/TENANT-DEFAULT/stakeholders.v1.md",
+    "scope": "tenant/TENANT-DEFAULT/scope.v1.md",
+    "criteria": "tenant/TENANT-DEFAULT/criteria.v1.md"
+  },
+  "selected_pack_ids": [],
+  "target_maturity_level": 3,
+  "target_milestones": [
+    "FAZ-0",
+    "FAZ-1",
+    "FAZ-1.5",
+    "FAZ-2",
+    "FAZ-3",
+    "FAZ-3.5",
+    "FAZ-4",
+    "FAZ-5"
+  ],
+  "success_metrics": [
+    "openfga_check_success_rate_99_9",
+    "p95_latency_under_15ms",
+    "zero_data_leak_incidents",
+    "rollback_under_5_minutes",
+    "decision_log_coverage_100",
+    "legacy_transformed_d003",
+    "test_coverage_authz_80",
+    "zero_broken_frontend_gates",
+    "filter_rls_all_company_tables",
+    "zero_downtime_prod_transition",
+    "batch_check_p95_under_50ms",
+    "design_lab_scenarios_3_plus"
+  ],
+  "risk_category": "high",
+  "program_led_entrypoints": [
+    "system-status",
+    "policy-check"
+  ],
+  "evidence_expectations": [
+    ".cache/reports/system_status.v1.json",
+    ".cache/reports/portfolio_status.v1.json"
+  ],
+  "promotion_policy": "plan-then-apply"
+}
