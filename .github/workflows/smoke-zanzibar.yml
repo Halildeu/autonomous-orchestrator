@@ -1,0 +1,64 @@
+name: Zanzibar Smoke Test
+
+on:
+  workflow_run:
+    workflows: [deploy-backend]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      timeout:
+        description: 'Smoke test timeout (seconds)'
+        default: '120'
+
+jobs:
+  smoke-zanzibar:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, stage-backend]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Zanzibar smoke test
+        run: |
+          bash scripts/docker-smoke-test.sh \
+            --timeout "${{ inputs.timeout || '120' }}" \
+            || true
+        env:
+          SMOKE_OUTPUT: .cache/reports/docker-smoke/smoke-result.v1.json
+
+      - name: Check result
+        run: |
+          RESULT_FILE=".cache/reports/docker-smoke/smoke-result.v1.json"
+          if [ ! -f "$RESULT_FILE" ]; then
+            echo "::error::Smoke result file not found"
+            exit 1
+          fi
+          STATUS=$(python3 -c "import json; print(json.load(open('$RESULT_FILE'))['status'])")
+          echo "smoke_status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" != "PASS" ]; then
+            echo "::error::Zanzibar smoke test FAILED"
+            cat "$RESULT_FILE"
+            exit 1
+          fi
+          echo "✅ Zanzibar smoke test PASSED"
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zanzibar-smoke-report
+          path: .cache/reports/docker-smoke/
+          retention-days: 14
+
+      - name: Restricted user deny probe
+        run: |
+          bash backend/scripts/ci/canary/zanzibar-restricted-probe.sh
+        env:
+          KC_BASE_URL: ${{ secrets.KC_BASE_URL || 'http://localhost:8081' }}
+          KC_REALM: ${{ vars.KC_REALM || 'serban' }}
+          RESTRICTED_USER_EMAIL: ${{ vars.RESTRICTED_SMOKE_USER || 'user3@example.com' }}
+          RESTRICTED_USER_PASSWORD: ${{ secrets.PW_REAL_USER_PASSWORD }}
+          AUTHZ_ME_URL: ${{ vars.AUTHZ_ME_URL || 'http://localhost:8090/api/v1/authz/me' }}
