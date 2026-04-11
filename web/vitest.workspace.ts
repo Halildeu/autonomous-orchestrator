@@ -1,6 +1,7 @@
 import { defineWorkspace } from 'vitest/config';
 
 export default defineWorkspace([
+  'packages/auth/vitest.config.ts',
   'packages/design-system/vitest.config.ts',
   'packages/x-charts/vitest.config.ts',
   'packages/x-data-grid/vitest.config.ts',

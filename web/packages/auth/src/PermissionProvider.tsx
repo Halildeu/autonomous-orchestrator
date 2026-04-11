@@ -183,7 +183,7 @@ export function PermissionProvider({
     canViewReport: (report: string) => {
       if (permitAll || authz?.superAdmin) return true;
       const grant = authz?.reports?.[report];
-      return grant === 'ALLOW' || grant === undefined; // undefined = not restricted
+      return grant === 'ALLOW';
     },
     getUserRoles: () => authz?.roles ?? [],
     isSuperAdmin: () => permitAll || (authz?.superAdmin ?? false),

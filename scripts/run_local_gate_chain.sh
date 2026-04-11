@@ -179,7 +179,7 @@ write_status_artifacts() {
     printf 'nvd_api_key_loaded=%s\n' "$([[ -n "${NVD_API_KEY:-}" ]] && printf yes || printf no)"
     printf 'dependency_scan_mode=%s\n' "${LOCAL_GATE_DEPENDENCY_SCAN_MODE}"
     printf 'gitleaks_mode=%s\n' "$([[ -n "${secrets_range:-}" ]] && printf git-range || printf full-detect)"
-    for row in "${STEP_RESULTS[@]}"; do
+    for row in "${STEP_RESULTS[@]+"${STEP_RESULTS[@]}"}"; do
       IFS='|' read -r status step log_path <<<"${row}"
       printf '%s\t%s\t%s\n' "${status}" "${step}" "${log_path}"
     done

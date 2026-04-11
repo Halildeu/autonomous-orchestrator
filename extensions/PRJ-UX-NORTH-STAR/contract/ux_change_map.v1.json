@@ -417,6 +417,16 @@
       "path": "web/packages/auth/src/zanzibar-cache.ts",
       "ux_theme_id": "trust_privacy_security_ux",
       "ux_subtheme_id": "secure_session_step_up_authentication"
+    },
+    {
+      "path": "web/packages/auth/src/authzTargetRegistry.ts",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "secure_session_step_up_authentication"
+    },
+    {
+      "path": "web/packages/auth/src/useBatchZanzibarAccess.ts",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "secure_session_step_up_authentication"
     }
   ]
 }

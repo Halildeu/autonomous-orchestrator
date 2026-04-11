@@ -22,6 +22,10 @@ comment:
   require_changes: true
 
 flags:
+  auth:
+    paths:
+      - packages/auth/src/
+    carryforward: true
   design-system:
     paths:
       - packages/design-system/src/

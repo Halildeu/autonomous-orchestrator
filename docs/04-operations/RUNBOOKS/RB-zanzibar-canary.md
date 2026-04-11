@@ -1,4 +1,4 @@
-# RB-zanzibar-canary – Zanzibar Canary Deployment Runbook
+# RUNBOOK – Zanzibar Canary Deployment
 
 ID: RB-zanzibar-canary
 Service: permission-service, core-data-service, openfga
@@ -32,21 +32,20 @@ Pre-conditions:
 -------------------------------------------------------------------------------
 
 Stage 1 — Deploy (Flags OFF, Day 1):
-1. Merge main branch to prod deploy.
-2. docker compose pull && docker compose up -d
-3. Verify: all containers healthy.
-4. Verify: ERP_OPENFGA_ENABLED=false in all services.
-5. Run: smoke-zanzibar.yml workflow (manual dispatch).
-Rollback: Standard rollback (previous image tag).
+- Merge main branch to prod deploy.
+- docker compose pull && docker compose up -d
+- Verify: all containers healthy.
+- Verify: ERP_OPENFGA_ENABLED=false in all services.
+- Run: smoke-zanzibar.yml workflow (manual dispatch).
+- Rollback: Standard rollback (previous image tag).
 
 Stage 2 — Canary (Flags ON, Admin + Restricted, Day 2-4):
-1. Set ERP_OPENFGA_ENABLED=true for permission-service + core-data-service.
-2. Set SCOPE_CACHE_ENABLED=true, AUTHZ_VERSION_ENABLED=true.
-3. Restart: docker compose restart permission-service core-data-service
-4. Monitor 48h (guardrails below).
-5. Run restricted probe: zanzibar-restricted-probe.sh
-   - superAdmin=false, THEME denied, ACCESS granted.
-Rollback: ERP_OPENFGA_ENABLED=false + restart (< 1 min).
+- Set ERP_OPENFGA_ENABLED=true for permission-service + core-data-service.
+- Set SCOPE_CACHE_ENABLED=true, AUTHZ_VERSION_ENABLED=true.
+- Restart: docker compose restart permission-service core-data-service
+- Monitor 48h (guardrails below).
+- Run restricted probe: zanzibar-restricted-probe.sh (superAdmin=false, THEME denied, ACCESS granted).
+- Rollback: ERP_OPENFGA_ENABLED=false + restart (< 1 min).
 
 Stage 3 — Full Rollout (Day 5-14):
 - Stage 2 stable 48h → keep flags ON.
@@ -73,7 +72,7 @@ Loglar:
 
 Metrikler:
 - Prometheus: http://localhost:9090 (permission-service, core-data, openfga targets)
-- Grafana: authz-zanzibar alert rules (6 rule)
+- Grafana: authz-zanzibar alert rules (10 rule)
 
 -------------------------------------------------------------------------------
 5. ARIZA DURUMLARI VE ADIMLAR
@@ -106,7 +105,7 @@ Metrikler:
 7. LİNKLER (İSTEĞE BAĞLI)
 -------------------------------------------------------------------------------
 
-- Master plan: .claude/plans/zanzibar-master-plan.md (rev 4)
+- Master plan: .claude/plans/zanzibar-master-plan.md (rev 6)
 - Decision registry: decisions/topics/zanzibar-openfga.v1.json
 - Guardrails config: backend/scripts/ci/canary/zanzibar-guardrails.json
 - Doctor script: backend/scripts/doctor-zanzibar.sh

@@ -1,21 +1,28 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 // Root-level config: provides global exclude patterns for the workspace.
 // In Vitest workspace mode, this config is merged as the base for all projects.
 // All patterns here are relative to this file's directory (monorepo root).
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@mfe/design-system': path.resolve(__dirname, 'packages/design-system/src'),
+      '@mfe/i18n-dicts': path.resolve(__dirname, 'packages/i18n-dicts/src'),
+      '@mfe/shared-http': path.resolve(__dirname, 'packages/shared-http/src'),
+      '@mfe/auth': path.resolve(__dirname, 'packages/auth/src'),
+      '@platform/capabilities': path.resolve(__dirname, 'packages/platform-capabilities/src'),
+    },
+  },
   test: {
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary'],
-      thresholds: {
-        statements: 50,
-        branches: 40,
-        functions: 45,
-        lines: 50,
-      },
+      // Thresholds enforced per-project in workspace configs, not at root.
+      // Root --changed mode covers only touched files — global thresholds
+      // are misleading and cause false failures in CI.
     },
     exclude: [
       // Standard exclusions

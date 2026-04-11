@@ -1209,6 +1209,33 @@
       "notes": [
         "Lokal pre-push hook kurar. Remote side-effect yok."
       ]
+    },
+    {
+      "id": "ROB-0131",
+      "name": "smoke-zanzibar",
+      "kind": "workflow",
+      "path": ".github/workflows/smoke-zanzibar.yml",
+      "default_mode": "observe",
+      "allowed_modes": [
+        "observe",
+        "plan"
+      ],
+      "side_effects": [],
+      "required_auth_refs": [],
+      "required_env": [],
+      "required_confirm": null,
+      "inputs": [
+        "workflow_dispatch"
+      ],
+      "guardrails": [
+        "Read-only smoke test, no deployments or state changes"
+      ],
+      "outputs": [
+        "GitHub Actions log"
+      ],
+      "notes": [
+        "Zanzibar OpenFGA health check smoke workflow. Manual trigger only."
+      ]
     }
   ]
 }

@@ -31,7 +31,7 @@ function createWrapper(httpGet: any, cacheTtl = 60_000) {
 
 describe('PermissionProvider version-based refresh', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: false });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
