@@ -45,9 +45,31 @@ export interface CheckRequest {
   objectId: string;
 }
 
+/** Reason for check result — CNS-20260411-005: Codex MODIFY (reason field mandatory). */
+export type CheckReason = 'granted' | 'blocked' | 'no_relation' | 'not_found' | 'error';
+
 export interface CheckResponse {
   allowed: boolean;
+  reason?: CheckReason;
 }
+
+/** Batch check types — CNS-20260411-005: Codex REJECT (without batch). */
+export interface BatchCheckRequest {
+  checks: CheckRequest[];
+}
+
+export interface BatchCheckItem extends CheckResponse {
+  relation: string;
+  objectType: string;
+  objectId: string;
+}
+
+export interface BatchCheckResponse {
+  results: BatchCheckItem[];
+}
+
+/** Design-system compatible access level for Zanzibar object-level checks. */
+export type ZanzibarAccessLevel = 'full' | 'readonly' | 'disabled' | 'hidden';
 
 /** Explain response from /v1/authz/explain. */
 export interface ExplainResponse {

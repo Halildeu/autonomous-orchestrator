@@ -32,11 +32,18 @@
     "change_path_globs": [
       "backend/docker-compose.yml",
       "backend/*/src/main/resources/application-integration.yml",
-      "backend/dev-integration.sh"
+      "backend/dev-integration.sh",
+      "backend/common-auth/**/*",
+      "backend/permission-service/**/*",
+      "backend/core-data-service/**/*",
+      "backend/openfga/**/*",
+      "web/packages/auth/**/*",
+      "web/apps/mfe-shell/src/pages/admin/design-lab/**/*"
     ],
     "repo_root": ".",
     "service_scopes": [
-      "backend"
+      "backend",
+      "frontend"
     ]
   },
   "feature_id": "integration-profile",
@@ -182,9 +189,20 @@
   },
   "title": "Integration profile for local auth testing",
   "ux_contract": {
-    "artifacts": [],
-    "mode": "NOT_APPLICABLE",
-    "rationale": "No frontend scoped change."
+    "artifacts": [
+      {
+        "path_glob": "web/packages/auth/src/*.ts",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/packages/auth/src/*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      }
+    ],
+    "mode": "REQUIRED",
+    "rationale": "Frontend auth SDK: useZanzibarAccess hook, ZanzibarGate component, batch check API — object-level Zanzibar permission gates."
   },
   "version": "v1"
 }

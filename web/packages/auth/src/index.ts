@@ -6,11 +6,15 @@ export { useHasModule, useIsSuperAdmin } from './useHasPermission';
 export { useCheckPermission } from './useCheckPermission';
 export { useExplainPermission } from './useExplainPermission';
 export { ProtectedRoute, ProtectedSection } from './ProtectedRoute';
-export { fetchAuthzMe, fetchAuthzVersion, checkPermission } from './api';
+export { useZanzibarAccess } from './useZanzibarAccess';
+export { ZanzibarGate } from './ZanzibarGate';
+export { fetchAuthzMe, fetchAuthzVersion, checkPermission, checkPermissionBatch } from './api';
 export { MODULES } from './types';
 export type {
   AuthzMeResponse, CheckRequest, CheckResponse, ModuleKey,
   AccessLevel, GrantResult, ScopeAssignment, ExplainResponse,
   PermissionCatalog, ModuleCatalogItem, ActionCatalogItem, ReportCatalogItem,
+  CheckReason, BatchCheckRequest, BatchCheckItem, BatchCheckResponse,
+  ZanzibarAccessLevel,
 } from './types';
 export { useAuthorization } from './compat';

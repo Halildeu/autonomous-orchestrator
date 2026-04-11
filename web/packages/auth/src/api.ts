@@ -1,4 +1,11 @@
-import type { AuthzMeResponse, CheckRequest, CheckResponse } from './types';
+import type {
+  AuthzMeResponse,
+  CheckRequest,
+  CheckResponse,
+  BatchCheckRequest,
+  BatchCheckResponse,
+  BatchCheckItem,
+} from './types';
 
 /**
  * Fetch current user's authorization context from backend.
@@ -47,11 +54,24 @@ export async function fetchAuthzVersion(
 
 /**
  * Point authorization check via backend proxy.
+ * CNS-20260411-005: Returns full CheckResponse with reason (not just boolean).
  */
 export async function checkPermission(
   httpPost: (url: string, body: CheckRequest) => Promise<{ data: CheckResponse }>,
   request: CheckRequest
-): Promise<boolean> {
+): Promise<CheckResponse> {
   const { data } = await httpPost('/v1/authz/check', request);
-  return data.allowed;
+  return data;
+}
+
+/**
+ * Batch authorization check — multiple object-level checks in a single request.
+ * CNS-20260411-005: Codex REJECT (without batch) — max 20 per call.
+ */
+export async function checkPermissionBatch(
+  httpPost: (url: string, body: BatchCheckRequest) => Promise<{ data: BatchCheckResponse }>,
+  checks: CheckRequest[]
+): Promise<BatchCheckItem[]> {
+  const { data } = await httpPost('/v1/authz/check/batch', { checks });
+  return data.results;
 }
