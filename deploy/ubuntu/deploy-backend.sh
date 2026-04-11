@@ -405,10 +405,10 @@ main() {
     compose_run "${compose_args[@]}" pull "${backend_services[@]}" || true
   fi
 
-  # Ensure infrastructure is up.
-  # Force-recreate vault sidecars to pick up any script changes from this deploy.
-  compose_run "${compose_args[@]}" up -d postgres-db openfga-migrate openfga vault keycloak
-  compose_run "${compose_args[@]}" up -d --force-recreate vault-unseal vault-audit-init vault-snapshot 2>/dev/null || true
+  # Ensure infrastructure is up (no recreate — prevents Vault seal, Keycloak cold-start).
+  # Only starts containers if not already running.
+  compose_run "${compose_args[@]}" up -d --no-recreate postgres-db openfga-migrate openfga vault keycloak
+  compose_run "${compose_args[@]}" up -d --no-recreate vault-unseal vault-audit-init vault-snapshot 2>/dev/null || true
   wait_for_service_state postgres-db healthy 60
   wait_for_service_state vault healthy 120
   wait_for_service_state openfga running 60
@@ -456,7 +456,7 @@ main() {
   # Ensure supporting services are up (idempotent).
   # Nginx config is generated from template via envsubst at container start —
   # Docker service names (keycloak, api-gateway) are ALWAYS correct.
-  compose_run "${compose_args[@]}" up -d web-nginx service-manager vault-audit-init vault-snapshot loki promtail tempo prometheus grafana 2>/dev/null || true
+  compose_run "${compose_args[@]}" up -d --no-recreate web-nginx service-manager vault-audit-init vault-snapshot loki promtail tempo prometheus grafana 2>/dev/null || true
 
   # Kill any standalone nginx container from old frontend deploys
   docker rm -f platform-web-nginx 2>/dev/null || true

@@ -393,3 +393,8 @@ jobs:
             docker logs --tail 100 "platform-${service}-1" 2>&1 || true
             echo "::endgroup::"
           done
+
+      - name: Post-deploy health validation
+        if: ${{ env.DEPLOY_ENABLED == 'true' }}
+        shell: bash
+        run: bash deploy/ubuntu/post-deploy-health-check.sh
