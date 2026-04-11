@@ -146,6 +146,8 @@ export type SharedReportCatalogItem = {
   type?: "grid" | "dashboard" | "mixed";
   /** Icon for sidebar/hub display */
   icon?: string;
+  /** OpenFGA report group key for authorization (e.g., "HR_REPORTS") */
+  reportGroup?: string;
 };
 
 export type ReportChannel = "web" | "mobile";
@@ -322,6 +324,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     webRoute: "/admin/reports/users",
     webModuleId: "reports.users",
     category: "Genel",
+  
+    reportGroup: "HR_REPORTS",
   },
   {
     id: "roles-access",
@@ -347,6 +351,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     webRoute: "/admin/reports/access",
     webModuleId: "reports.access",
     category: "Erişim & Güvenlik",
+  
+    reportGroup: "ANALYTICS_REPORTS",
   },
   {
     id: "audit-activity",
@@ -375,6 +381,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     webRoute: "/admin/reports/audit",
     webModuleId: "reports.audit",
     category: "Denetim",
+  
+    reportGroup: "ANALYTICS_REPORTS",
   },
   {
     id: "hr-demografik-yapi",
@@ -404,6 +412,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     webRoute: "/admin/reports/hr-demografik-yapi",
     webModuleId: "reports.hr-demographic",
     category: "İnsan Kaynakları",
+  
+    reportGroup: "HR_REPORTS",
   },
   {
     id: "monthly-login-summary",
@@ -427,6 +437,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     category: "Periyodik",
     tags: ["periodic", "monthly"],
     icon: "📅",
+  
+    reportGroup: "ANALYTICS_REPORTS",
   },
   {
     id: "weekly-audit-digest",
@@ -451,6 +463,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     category: "Periyodik",
     tags: ["periodic", "weekly"],
     icon: "📋",
+  
+    reportGroup: "ANALYTICS_REPORTS",
   },
   {
     id: "hr-compensation",
@@ -478,6 +492,8 @@ const SHARED_REPORT_CATALOG: readonly SharedReportCatalogItem[] = [
     category: "İnsan Kaynakları",
     type: "mixed",
     icon: "💰",
+  
+    reportGroup: "HR_REPORTS",
   },
 ] as const;
 

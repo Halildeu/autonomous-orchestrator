@@ -43,7 +43,9 @@
       "backend/permission-service/**/*",
       "backend/core-data-service/**/*",
       "backend/openfga/**/*",
+      "backend/report-service/src/main/resources/reports/**/*",
       "web/packages/auth/**/*",
+      "web/packages/platform-capabilities/**/*",
       "web/packages/design-system/**/*",
       "web/packages/x-charts/**/*",
       "web/apps/mfe-shell/src/pages/admin/design-lab/**/*",
@@ -233,6 +235,11 @@
         "path_glob": "web/stories/*zanzibar*.tsx",
         "ux_theme_id": "trust_privacy_security_ux",
         "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/packages/platform-capabilities/src/*.ts",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "secure_session_step_up_authentication"
       }
     ],
     "mode": "REQUIRED",

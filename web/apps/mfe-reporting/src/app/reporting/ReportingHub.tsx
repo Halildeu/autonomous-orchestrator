@@ -5,7 +5,7 @@ import {
   GalleryCard,
 } from '@mfe/design-system';
 import type { GalleryItem } from '@mfe/design-system';
-import { ZanzibarGate } from '@mfe/auth';
+import { usePermissions } from '@mfe/auth';
 import { useCatalog, catalogTypeTone } from './useCatalog';
 import type { CatalogItem } from './useCatalog';
 
@@ -69,6 +69,7 @@ const ReportingHub: React.FC = () => {
   const location = useLocation();
   const basePath = resolveBasePath(location.pathname);
   const { items, isLoading } = useCatalog();
+  const { canViewReport, isSuperAdmin } = usePermissions();
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* -- Search -------------------------------------------------------- */
@@ -92,17 +93,23 @@ const ReportingHub: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const filteredItems = useMemo(() => filterItems(items, query), [items, query]);
+  // TB-14/18: Filter by reportGroup using canViewReport (deny-default coarse gate)
+  const authorizedItems = useMemo(() => {
+    if (isSuperAdmin()) return items;
+    return items.filter((item) => !item.reportGroup || canViewReport(item.reportGroup));
+  }, [items, canViewReport, isSuperAdmin]);
+
+  const filteredItems = useMemo(() => filterItems(authorizedItems, query), [authorizedItems, query]);
 
   /* -- Summary ------------------------------------------------------- */
   const summary = useMemo(() => {
-    const dashCount = items.filter((i) => i.type === 'dashboard').length;
-    const reportCount = items.length - dashCount;
+    const dashCount = authorizedItems.filter((i) => i.type === 'dashboard').length;
+    const reportCount = authorizedItems.length - dashCount;
     const parts: string[] = [];
     if (reportCount > 0) parts.push(`${reportCount} rapor`);
     if (dashCount > 0) parts.push(`${dashCount} dashboard`);
     return parts.join(' \u00B7 ') || `${items.length} oge`;
-  }, [items]);
+  }, [authorizedItems]);
 
   /* -- Handlers ------------------------------------------------------ */
   const handleItemClick = useCallback(
@@ -116,22 +123,16 @@ const ReportingHub: React.FC = () => {
     (item: GalleryItem) => {
       const ci = item as CatalogItem;
       return (
-        <ZanzibarGate
-          relation="can_view"
-          objectType="report"
-          objectId={ci.route}
-        >
-          <GalleryCard
-            item={{
-              ...ci,
-              badge: {
-                label: ci.type === 'dashboard' ? 'Dashboard' : 'Grid',
-                tone: catalogTypeTone[ci.type] ?? 'default',
-              },
-            }}
-            onClick={() => handleItemClick(ci)}
-          />
-        </ZanzibarGate>
+        <GalleryCard
+          item={{
+            ...ci,
+            badge: {
+              label: ci.type === 'dashboard' ? 'Dashboard' : 'Grid',
+              tone: catalogTypeTone[ci.type] ?? 'default',
+            },
+          }}
+          onClick={() => handleItemClick(ci)}
+        />
       );
     },
     [handleItemClick],

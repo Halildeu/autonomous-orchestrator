@@ -23,6 +23,7 @@ export interface CatalogItem extends GalleryItem {
   category: string;
   source: 'static' | 'dynamic' | 'dashboard';
   route: string;
+  reportGroup?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -55,6 +56,7 @@ function mapStatic(report: SharedReportCatalogItem): CatalogItem {
     type: report.type ?? 'grid',
     category: report.category ?? 'Genel',
     source: 'static',
+    reportGroup: report.reportGroup,
   };
 }
 
