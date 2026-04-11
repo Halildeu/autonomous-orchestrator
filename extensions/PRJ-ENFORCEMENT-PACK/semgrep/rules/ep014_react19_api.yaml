@@ -1,0 +1,45 @@
+rules:
+  - id: enf.v1.ep014.react19_named_hooks
+    languages: [typescript, javascript]
+    message: "EP-014 React 19 API: React 19 hook imported in React 18.2 codebase. useFormStatus, useOptimistic, and useActionState are not available in React 18.2."
+    severity: ERROR
+    paths:
+      include:
+        - "**/*.tsx"
+        - "**/*.ts"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+    patterns:
+      - pattern-either:
+          - pattern: import { ..., useFormStatus, ... } from "react-dom"
+          - pattern: import { ..., useFormStatus, ... } from "react-dom/client"
+          - pattern: import { ..., useOptimistic, ... } from "react"
+          - pattern: import { ..., useActionState, ... } from "react"
+          - pattern: import { ..., useFormState, ... } from "react-dom"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-014"
+      stage: v1_real
+      rationale: "React 19 APIs are not available in React 18.2 runtime. AST + import-provenance based detection ensures zero false positives. Only fires when imports come from react or react-dom."
+
+  - id: enf.v1.ep014.react19_use_hook
+    languages: [typescript, javascript]
+    message: "EP-014 React 19 API: React 19 use() hook import detected. The use() hook for reading promises and context is not available in React 18.2. Use useEffect/useState or useContext instead."
+    severity: ERROR
+    paths:
+      include:
+        - "**/*.tsx"
+        - "**/*.ts"
+      exclude:
+        - "**/node_modules/**"
+        - "**/extensions/PRJ-ENFORCEMENT-PACK/**"
+    patterns:
+      - pattern-either:
+          - pattern: import { ..., use, ... } from "react"
+          - pattern: import { ..., use } from "react"
+    metadata:
+      enforcement_pack: ENF_V1
+      ep_id: "EP-014"
+      stage: v1_advisory
+      rationale: "Detect React 19 use() hook via import provenance. Only fires when 'use' is explicitly imported from 'react'. Advisory stage due to potential edge cases with named re-exports."

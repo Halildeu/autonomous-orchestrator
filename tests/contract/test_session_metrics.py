@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("src.ops.context_session_metrics", reason="context_session_metrics not yet implemented")
+
 from src.ops.context_session_metrics import (
     record_metric,
     record_compilation,

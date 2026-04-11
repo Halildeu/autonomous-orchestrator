@@ -139,7 +139,7 @@ def _analyze_file(filepath: Path) -> dict:
     # Count mocks
     result["mock_count"] = len(MOCK_RE.findall(content))
 
-    # Check shallow render (TQ-001)
+    # Shallow render detection (for metric calculation only — violation via EP-006/enforcement script)
     has_render = bool(re.search(r"\brender\s*\(", content))
     shallow_only = True
     if has_render and expect_count > 0:
@@ -154,17 +154,14 @@ def _analyze_file(filepath: Path) -> dict:
                     break
         if shallow_only and result["interaction_count"] == 0:
             result["is_shallow"] = True
-            result["issues"].append({"rule": "TQ-001", "message": "Shallow render with existence-only assertions"})
 
-    # Check tautological (TQ-002)
+    # Tautological detection (for metric only — violation via EP-007/enforcement script)
     if TAUTOLOGICAL_RE.search(content):
         result["has_tautological"] = True
-        result["issues"].append({"rule": "TQ-002", "message": "Tautological assertion detected"})
 
-    # Check marker (TQ-006)
+    # Marker detection (for metric only — violation via EP-008/enforcement script)
     if MARKER_RE.search(content):
         result["has_marker"] = True
-        result["issues"].append({"rule": "TQ-006", "message": "Bulk-generation marker found"})
 
     # Check import mismatch (TQ-004)
     expected_component = _extract_component_from_filename(filepath)

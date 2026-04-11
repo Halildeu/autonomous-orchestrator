@@ -47,6 +47,55 @@
       "sampled_count": 1,
       "false_positive_count": 0,
       "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-010",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-011",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-012",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-013",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-014",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-015",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
+    },
+    {
+      "rule_id": "EP-017",
+      "findings_count": 0,
+      "sampled_count": 0,
+      "false_positive_count": 0,
+      "false_positive_ratio": 0
     }
   ],
   "notes": [
