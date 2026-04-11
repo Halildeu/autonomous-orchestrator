@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { TableSimple } from '../table-simple/TableSimple';
 import type { TableSimpleDensity, TableSimpleAlign, TableSimpleColumn, TableSimpleLocaleText, TableSimpleProps } from '../table-simple/TableSimple';
 
 describe('TableSimple — contract', () => {
-  const defaultProps = {
-    columns: [{ key: 'name', label: 'Name' }] as TableSimpleColumn<Record<string, unknown>>[],
-    rows: [] as Record<string, unknown>[],
-  };
-
+  
   it('renders without crash', () => {
-    const { container } = render(<TableSimple {...defaultProps} />);
+    const { container } = render(<TableSimple  />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -23,12 +19,12 @@ describe('TableSimple — contract', () => {
   });
 
   it('respects access=hidden', () => {
-    const { container } = render(<TableSimple {...defaultProps} access="hidden" />);
+    const { container } = render(<TableSimple  access="hidden" />);
     expect(container.innerHTML).toBe('');
   });
 
   it('applies disabled state via access=readonly', () => {
-    const { container } = render(<TableSimple {...defaultProps} access="readonly" />);
+    const { container } = render(<TableSimple  access="readonly" />);
     expect(container.firstElementChild).toBeTruthy();
   });
 

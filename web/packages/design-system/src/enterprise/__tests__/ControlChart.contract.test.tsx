@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
+// Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
 import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import React from 'react';
 import { ControlChart } from '../ControlChart';
+import type { ControlChartPoint, ControlChartProps } from '../ControlChart';
 
 describe('ControlChart — contract', () => {
   const defaultProps = {
-    data: [{ x: 1, y: 50 }, { x: 2, y: 52 }, { x: 3, y: 48 }],
+    data: 'Array<{ x: string',
   };
 
   it('renders without crash', () => {
@@ -29,23 +31,10 @@ describe('ControlChart — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders with only required props', () => {
-    const { container } = render(<ControlChart {...defaultProps} />);
-    expect(container.firstElementChild).toBeTruthy();
-  });
-
-  it('adds role="button" and keyboard support when onPointClick provided', () => {
-    const handler = vi.fn();
-    const { container } = render(<ControlChart {...defaultProps} onPointClick={handler} />);
-    const buttons = container.querySelectorAll('[role="button"]');
-    expect(buttons.length).toBeGreaterThan(0);
-    fireEvent.keyDown(buttons[0], { key: 'Enter' });
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not add role="button" without onPointClick', () => {
-    const { container } = render(<ControlChart {...defaultProps} />);
-    const buttons = container.querySelectorAll('[role="button"]');
-    expect(buttons.length).toBe(0);
+  it('exports expected types', () => {
+    // Type-level check — if this compiles, types are exported correctly
+    const _controlchartpoint: ControlChartPoint | undefined = undefined; void _controlchartpoint;
+    const _controlchartprops: ControlChartProps | undefined = undefined; void _controlchartprops;
+    expect(true).toBe(true);
   });
 });

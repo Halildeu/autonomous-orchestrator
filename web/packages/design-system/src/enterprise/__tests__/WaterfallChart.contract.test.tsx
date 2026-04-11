@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { WaterfallChart } from '../WaterfallChart';
@@ -31,8 +31,8 @@ describe('WaterfallChart — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders with only required props (1 required, 8 optional)', () => {
-    // All 8 optional props omitted — should not crash
+  it('renders with only required props (1 required, 6 optional)', () => {
+    // All 6 optional props omitted — should not crash
     const { container } = render(<WaterfallChart {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });

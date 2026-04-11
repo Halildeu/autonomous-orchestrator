@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
+// Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
 import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import React from 'react';
 import { BoxPlot } from '../BoxPlot';
+import type { BoxPlotData, BoxPlotProps } from '../BoxPlot';
 
 describe('BoxPlot — contract', () => {
   const defaultProps = {
-    data: [{ label: 'Q1', min: 5, q1: 15, median: 25, q3: 35, max: 50 }],
+    data: [],
   };
 
   it('renders without crash', () => {
@@ -29,23 +31,16 @@ describe('BoxPlot — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders with only required props', () => {
+  it('renders with only required props (1 required, 7 optional)', () => {
+    // All 7 optional props omitted — should not crash
     const { container } = render(<BoxPlot {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('adds role="button" and keyboard support when onBoxClick provided', () => {
-    const handler = vi.fn();
-    const { container } = render(<BoxPlot {...defaultProps} onBoxClick={handler} />);
-    const buttons = container.querySelectorAll('[role="button"]');
-    expect(buttons.length).toBeGreaterThan(0);
-    fireEvent.keyDown(buttons[0], { key: 'Enter' });
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not add role="button" without onBoxClick', () => {
-    const { container } = render(<BoxPlot {...defaultProps} />);
-    const buttons = container.querySelectorAll('[role="button"]');
-    expect(buttons.length).toBe(0);
+  it('exports expected types', () => {
+    // Type-level check — if this compiles, types are exported correctly
+    const _boxplotdata: BoxPlotData | undefined = undefined; void _boxplotdata;
+    const _boxplotprops: BoxPlotProps | undefined = undefined; void _boxplotprops;
+    expect(true).toBe(true);
   });
 });

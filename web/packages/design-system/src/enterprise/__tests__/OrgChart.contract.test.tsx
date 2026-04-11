@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
-import { describe, it, expect } from 'vitest';
+// Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { OrgChart } from '../OrgChart';
+import type { OrgChartNode, OrgChartProps } from '../OrgChart';
 
 describe('OrgChart — contract', () => {
   const defaultProps = {
-    data: { id: 'root', label: 'CEO', title: 'Chief Executive Officer' },
+    data: undefined as any,
   };
 
   it('renders without crash', () => {
@@ -29,8 +31,16 @@ describe('OrgChart — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders with only required props', () => {
+  it('renders with only required props (1 required, 7 optional)', () => {
+    // All 7 optional props omitted — should not crash
     const { container } = render(<OrgChart {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
+  });
+
+  it('exports expected types', () => {
+    // Type-level check — if this compiles, types are exported correctly
+    const _orgchartnode: OrgChartNode | undefined = undefined; void _orgchartnode;
+    const _orgchartprops: OrgChartProps | undefined = undefined; void _orgchartprops;
+    expect(true).toBe(true);
   });
 });

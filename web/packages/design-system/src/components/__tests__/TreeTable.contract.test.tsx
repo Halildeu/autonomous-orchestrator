@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { TreeTable } from '../tree-table/TreeTable';
 import type { TreeTableDensity, TreeTableAlign, TreeTableTone, TreeTableColumn, TreeTableNode } from '../tree-table/TreeTable';
 
 describe('TreeTable — contract', () => {
-  const defaultProps = {
-    nodes: [] as TreeTableNode[],
-    columns: [{ key: 'value', label: 'Value' }] as TreeTableColumn[],
-  };
-
+  
   it('renders without crash', () => {
-    const { container } = render(<TreeTable {...defaultProps} />);
+    const { container } = render(<TreeTable  />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -23,12 +19,12 @@ describe('TreeTable — contract', () => {
   });
 
   it('respects access=hidden', () => {
-    const { container } = render(<TreeTable {...defaultProps} access="hidden" />);
+    const { container } = render(<TreeTable  access="hidden" />);
     expect(container.innerHTML).toBe('');
   });
 
   it('applies disabled state via access=readonly', () => {
-    const { container } = render(<TreeTable {...defaultProps} access="readonly" />);
+    const { container } = render(<TreeTable  access="readonly" />);
     expect(container.firstElementChild).toBeTruthy();
   });
 

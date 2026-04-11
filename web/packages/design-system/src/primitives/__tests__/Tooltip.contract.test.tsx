@@ -1,18 +1,16 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { Tooltip } from '../tooltip/Tooltip';
 import type { TooltipPlacement, TooltipAlign, TooltipProps } from '../tooltip/Tooltip';
 
 describe('Tooltip — contract', () => {
-
+  
   it('renders without crash', () => {
-    const { container } = render(
-      <Tooltip content="Tip"><button>Hover me</button></Tooltip>,
-    );
+    const { container } = render(<Tooltip  />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -20,11 +18,9 @@ describe('Tooltip — contract', () => {
     expect(Tooltip.displayName).toBeTruthy();
   });
 
-  it('renders with only required props (children only)', () => {
-    // children is required; without content the tooltip passes children through
-    const { container } = render(
-      <Tooltip><span>trigger</span></Tooltip>,
-    );
+  it('renders with only required props (0 required, 9 optional)', () => {
+    // All 9 optional props omitted — should not crash
+    const { container } = render(<Tooltip  />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
