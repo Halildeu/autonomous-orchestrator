@@ -4,6 +4,8 @@ set -euo pipefail
 # Ensures ALL services are healthy, Vault unsealed, endpoints reachable.
 
 echo "[health-check] Starting post-deploy validation..."
+echo "[health-check] Waiting 30s for services to stabilize..."
+sleep 30
 
 FAILURES=0
 
