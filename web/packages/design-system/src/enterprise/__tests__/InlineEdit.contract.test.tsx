@@ -18,6 +18,10 @@ describe('InlineEdit — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
+  it('has displayName', () => {
+    expect(InlineEdit.displayName).toBeTruthy();
+  });
+
   it('respects access=hidden', () => {
     const { container } = render(<InlineEdit {...defaultProps} access="hidden" />);
     expect(container.innerHTML).toBe('');

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { Button } from '../button/Button';
-import type { ButtonVariant, ButtonSize, ButtonDensity, ButtonProps } from '../button/Button';
+import type { ButtonVariant, ButtonSize, ButtonDensity, ButtonProps, ButtonDefaultProps } from '../button/Button';
 
 describe('Button — contract', () => {
   
@@ -20,9 +20,7 @@ describe('Button — contract', () => {
 
   it('respects access=hidden', () => {
     const { container } = render(<Button  access="hidden" />);
-    // Button renders as invisible (CSS) rather than unmounting
-    const el = container.firstElementChild;
-    expect(el?.classList.contains('invisible') || container.innerHTML === '').toBe(true);
+    expect(container.innerHTML).toBe('');
   });
 
   it('applies disabled state via access=readonly', () => {
@@ -36,6 +34,7 @@ describe('Button — contract', () => {
     const _buttonsize: ButtonSize | undefined = undefined; void _buttonsize;
     const _buttondensity: ButtonDensity | undefined = undefined; void _buttondensity;
     const _buttonprops: ButtonProps | undefined = undefined; void _buttonprops;
+    const _buttondefaultprops: ButtonDefaultProps | undefined = undefined; void _buttondefaultprops;
     expect(true).toBe(true);
   });
 });

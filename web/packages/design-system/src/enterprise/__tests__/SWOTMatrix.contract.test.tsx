@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
-import { describe, it, expect } from 'vitest';
+// Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { SWOTMatrix } from '../SWOTMatrix';
+import type { SWOTItem, SWOTQuadrant, SWOTMatrixProps } from '../SWOTMatrix';
 
 describe('SWOTMatrix — contract', () => {
   const defaultProps = {
@@ -32,8 +34,17 @@ describe('SWOTMatrix — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders with only required props', () => {
+  it('renders with only required props (4 required, 4 optional)', () => {
+    // All 4 optional props omitted — should not crash
     const { container } = render(<SWOTMatrix {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
+  });
+
+  it('exports expected types', () => {
+    // Type-level check — if this compiles, types are exported correctly
+    const _swotitem: SWOTItem | undefined = undefined; void _swotitem;
+    const _swotquadrant: SWOTQuadrant | undefined = undefined; void _swotquadrant;
+    const _swotmatrixprops: SWOTMatrixProps | undefined = undefined; void _swotmatrixprops;
+    expect(true).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { AnchorToc } from '../anchor-toc/AnchorToc';
@@ -9,7 +9,7 @@ import type { AnchorTocDensity, AnchorTocItem, AnchorTocProps } from '../anchor-
 
 describe('AnchorToc — contract', () => {
   const defaultProps = {
-    items: [{ id: 'section-1', label: 'Section 1' }] as AnchorTocItem[],
+    items: [],
   };
 
   it('renders without crash', () => {

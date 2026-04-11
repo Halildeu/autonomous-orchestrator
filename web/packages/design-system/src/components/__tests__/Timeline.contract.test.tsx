@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { Timeline } from '../timeline/Timeline';
@@ -9,7 +9,7 @@ import type { TimelineColor, TimelineMode, TimelineSize, TimelineItemProps, Time
 
 describe('Timeline — contract', () => {
   const defaultProps = {
-    items: [{ key: 'item-1', children: React.createElement('span', null, 'Event 1') }] as TimelineItemProps[],
+    key: undefined as any,
   };
 
   it('renders without crash', () => {

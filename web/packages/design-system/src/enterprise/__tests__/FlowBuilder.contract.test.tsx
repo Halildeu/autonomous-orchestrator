@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
+// Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
 import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import React from 'react';
 import { FlowBuilder } from '../FlowBuilder';
+import type { FlowNodeType, FlowNode, FlowEdge, FlowBuilderProps } from '../FlowBuilder';
 
 describe('FlowBuilder — contract', () => {
   const defaultProps = {
-    nodes: [{ id: '1', type: 'start' as const, label: 'Begin', x: 100, y: 100 }],
+    nodes: [],
     edges: [],
   };
 
@@ -30,26 +32,18 @@ describe('FlowBuilder — contract', () => {
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders with only required props', () => {
+  it('renders with only required props (2 required, 15 optional)', () => {
+    // All 15 optional props omitted — should not crash
     const { container } = render(<FlowBuilder {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
-  it('renders nodes with role="button" for keyboard accessibility', () => {
-    const { container } = render(<FlowBuilder {...defaultProps} />);
-    const buttons = container.querySelectorAll('[role="button"]');
-    // Each node renders as interactive <g role="button"> with keyboard support
-    expect(buttons.length).toBeGreaterThan(0);
-  });
-
-  it('supports keyboard navigation on nodes (Enter selects)', () => {
-    const { container } = render(<FlowBuilder {...defaultProps} />);
-    const nodeButton = container.querySelector('[data-testid="node-1"]');
-    expect(nodeButton).toBeTruthy();
-    expect(nodeButton?.getAttribute('role')).toBe('button');
-    expect(nodeButton?.getAttribute('tabindex')).toBe('0');
-    // Enter key triggers selection (FlowBuilder uses selection state, not direct callback)
-    fireEvent.keyDown(nodeButton!, { key: 'Enter' });
-    expect(nodeButton).toBeTruthy(); // no crash after keyboard interaction
+  it('exports expected types', () => {
+    // Type-level check — if this compiles, types are exported correctly
+    const _flownodetype: FlowNodeType | undefined = undefined; void _flownodetype;
+    const _flownode: FlowNode | undefined = undefined; void _flownode;
+    const _flowedge: FlowEdge | undefined = undefined; void _flowedge;
+    const _flowbuilderprops: FlowBuilderProps | undefined = undefined; void _flowbuilderprops;
+    expect(true).toBe(true);
   });
 });

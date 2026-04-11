@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { DetailSummary } from '../detail-summary/DetailSummary';
-import type { DetailSummaryProps } from '../detail-summary/DetailSummary';
+import type { DetailSummaryProps, DetailSummaryRef, DetailSummaryElement, DetailSummaryCSSProperties } from '../detail-summary/DetailSummary';
 
 describe('DetailSummary — contract', () => {
   const defaultProps = {
     title: 'content',
-    entity: { title: 'Entity', items: [{ key: 'k1', label: 'Key', value: 'Value' }] },
+    entity: undefined as any,
   };
 
   it('renders without crash', () => {
@@ -41,6 +41,9 @@ describe('DetailSummary — contract', () => {
   it('exports expected types', () => {
     // Type-level check — if this compiles, types are exported correctly
     const _detailsummaryprops: DetailSummaryProps | undefined = undefined; void _detailsummaryprops;
+    const _detailsummaryref: DetailSummaryRef | undefined = undefined; void _detailsummaryref;
+    const _detailsummaryelement: DetailSummaryElement | undefined = undefined; void _detailsummaryelement;
+    const _detailsummarycssproperties: DetailSummaryCSSProperties | undefined = undefined; void _detailsummarycssproperties;
     expect(true).toBe(true);
   });
 });
