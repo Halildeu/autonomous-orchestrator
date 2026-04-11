@@ -52,7 +52,7 @@ Request → JWT'den userId cikart → OpenFGA check(userId, relation, object) �
 2. Phase 3: @PreAuthorize → OpenFGA check ile degistir (feature flag)
 3. Phase 3: Keycloak realm config'den permission mapper kaldir
 4. Phase 3: JWT converter'lardan permission okuma kaldir
-5. Phase 3: permission-service kaldir
+5. Phase 3: permission-service role'u donusturuldu — artik OpenFGA sync hub (D-003 DCP, 2026-04-11)
 
 ## Links
 

@@ -2,7 +2,7 @@
   "$schema": "urn:ao:decisions:registry:v1",
   "version": "1.0.0",
   "description": "Canonical decision registry — all architectural decisions that AI agents MUST respect. Agents must check this file before modifying any related code.",
-  "last_updated": "2026-03-30T10:00:00Z",
+  "last_updated": "2026-04-11T10:00:00Z",
   "topics": [
     {
       "id": "zanzibar-openfga",
@@ -11,7 +11,8 @@
       "revision": 1,
       "file": "topics/zanzibar-openfga.v1.json",
       "scope": ["backend/**", "web/apps/mfe-shell/**", "web/packages/auth/**"],
-      "summary": "Keycloak (authn) + OpenFGA (authz) + Hibernate @Filter + RLS (data enforcement). Permission-service REMOVED."
+      "revision": 2,
+      "summary": "Keycloak (authn) + OpenFGA (authz) + Hibernate @Filter + RLS (data enforcement). Permission-service TRANSFORMED to OpenFGA hub (TupleSyncService, AuthzVersionService, roles CRUD)."
     },
     {
       "id": "security-local-dev",

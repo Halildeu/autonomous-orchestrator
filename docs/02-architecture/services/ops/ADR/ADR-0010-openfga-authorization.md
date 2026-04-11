@@ -20,7 +20,7 @@ Sorunlar:
 **OpenFGA'yi kullan, kendi authorization engine'i yazma.**
 
 - OpenFGA (Apache 2.0, Google Zanzibar implementasyonu) self-hosted deploy
-- Mevcut permission-service kademeli olarak kaldirilacak
+- Mevcut permission-service OpenFGA hub'ina donusturuldu (TupleSyncService, AuthzVersionService, roles CRUD, /authz/me endpoint)
 - Keycloak = authentication only (identity JWT)
 - OpenFGA = authorization (ReBAC tuple store)
 - Hibernate @Filter + PostgreSQL RLS = data enforcement
