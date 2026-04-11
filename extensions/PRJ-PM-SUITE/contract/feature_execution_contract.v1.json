@@ -31,6 +31,10 @@
     "affected_modules": [],
     "change_path_globs": [
       "backend/docker-compose.yml",
+      "backend/docker-compose.prod.yml",
+      "backend/.env.example",
+      "backend/scripts/vault/**/*",
+      "deploy/**/*",
       "backend/*/src/main/resources/application-integration.yml",
       "backend/dev-integration.sh",
       "backend/common-auth/**/*",
