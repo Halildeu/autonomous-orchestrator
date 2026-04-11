@@ -38,6 +38,7 @@
       "deploy/ubuntu/*",
       "backend/*/src/main/resources/application-integration.yml",
       "backend/dev-integration.sh",
+      "backend/auth-service/**/*",
       "backend/common-auth/**/*",
       "backend/permission-service/**/*",
       "backend/core-data-service/**/*",
@@ -55,6 +56,7 @@
     "repo_root": ".",
     "service_scopes": [
       "backend",
+      "api",
       "frontend"
     ]
   },

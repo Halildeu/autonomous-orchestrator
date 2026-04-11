@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { UserSummary } from '@mfe/shared-types';
 import { useUserMutations } from '../../../features/user-management/model/use-users-query.model';
 import { usePermissions } from '@mfe/auth';
-import { useAuthorization } from '../../../features/user-management/model/use-authorization.model';
 import { PERMISSIONS } from '../../../features/user-management/lib/permissions.constants';
 import { useUsersI18n } from '../../../i18n/useUsersI18n';
 import { pushToast } from '../../../shared/notifications';
@@ -15,7 +14,11 @@ interface UserActionsProps {
 
 const UserActions: React.FC<UserActionsProps> = ({ user, onSelect }) => {
   const { resetPasswordMutation, toggleStatusMutation } = useUserMutations();
-  const { hasPermission } = useAuthorization();
+  const { hasModule, isSuperAdmin } = usePermissions();
+  const hasPermission = (perm: string | string[] | undefined) => {
+    if (!perm || isSuperAdmin()) return true;
+    return hasModule('USER_MANAGEMENT');
+  };
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);

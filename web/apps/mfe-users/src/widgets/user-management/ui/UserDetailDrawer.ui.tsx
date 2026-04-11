@@ -3,7 +3,6 @@ import { UserDetail } from '@mfe/shared-types';
 import { useUserMutations } from '../../../features/user-management/model/use-users-query.model';
 import { PERMISSIONS } from '../../../features/user-management/lib/permissions.constants';
 import { usePermissions } from '@mfe/auth';
-import { useAuthorization } from '../../../features/user-management/model/use-authorization.model';
 import { DetailDrawer, Tabs, Checkbox, Button, Badge } from '@mfe/design-system';
 import { useUsersI18n } from '../../../i18n/useUsersI18n';
 import { pushToast } from '../../../shared/notifications';
@@ -55,9 +54,10 @@ const resolveFallbackRoleOptions = (currentRole: string | undefined): RoleOption
 const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user }) => {
   const { t, locale } = useUsersI18n();
   const queryClient = useQueryClient();
-  const { hasPermission, userId: currentUserId, role: currentRole } = useAuthorization();
-  const isAdmin = currentRole?.toUpperCase() === 'ADMIN';
-  const canEdit = hasPermission('EDIT_USERS') || hasPermission(PERMISSIONS.USER_MANAGEMENT_EDIT);
+  const { hasModule, isSuperAdmin, authz } = usePermissions();
+  const currentUserId = authz?.userId ?? null;
+  const isAdmin = isSuperAdmin();
+  const canEdit = isAdmin || hasModule('USER_MANAGEMENT');
 
   const storedScope = useMemo(() => {
     try {
