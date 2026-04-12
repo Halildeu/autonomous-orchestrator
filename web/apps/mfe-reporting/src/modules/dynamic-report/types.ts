@@ -31,6 +31,8 @@ export type ReportListItem = {
   title: string;
   description: string;
   category: string;
+  /** CNS-006 R18: reportGroup from access_config for deny-default filtering */
+  reportGroup?: string;
 };
 
 export type ReportMetadata = {

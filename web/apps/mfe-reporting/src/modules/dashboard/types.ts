@@ -8,6 +8,8 @@ export type DashboardListItem = {
   defaultTimeRange: string;
   kpiCount: number;
   chartCount: number;
+  /** CNS-006 R18: reportGroup for deny-default filtering */
+  reportGroup?: string;
 };
 
 export type LayoutSection = {

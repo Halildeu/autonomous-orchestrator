@@ -73,6 +73,8 @@ function mapDynamic(report: ReportListItem): CatalogItem {
     type: 'grid',
     category: report.category || 'Diger',
     source: 'dynamic',
+    // CNS-006 R18: propagate reportGroup from backend access_config
+    reportGroup: report.reportGroup,
   };
 }
 
@@ -89,6 +91,8 @@ function mapDashboard(db: DashboardListItem): CatalogItem {
     type: 'dashboard',
     category: db.category || 'Dashboard',
     source: 'dashboard',
+    // CNS-006 R18: propagate reportGroup from backend dashboard config
+    reportGroup: db.reportGroup,
   };
 }
 
