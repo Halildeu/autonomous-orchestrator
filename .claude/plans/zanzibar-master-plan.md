@@ -1,33 +1,39 @@
-# ZANZIBAR / OpenFGA — KAPSAMLI PROJE PLANI (rev 9)
+# ZANZIBAR / OpenFGA — KAPSAMLI PROJE PLANI (rev 11)
 
 **Proje Kodu:** PRJ-ZANZIBAR-OPENFGA
 **Tarih:** 2026-04-12
-**Revizyon:** 9 (Cross-validation + 2 yeni guvenlik acigi + 13 kalan is)
+**Revizyon:** 11 (Deploy SUCCESS. 12/13 rev9 is kapatildi. 31 kalan is listesi.)
 **Karar Referansi:** D-001 → D-007 (D-003 TRANSFORMED)
-**Durum:** 11 PR merged+deployed (#334-345). Canary 48h doldu. 2 yeni guvenlik acigi tespit edildi.
+**Durum:** PR #346+#347 merged+deployed. Orch #73 merged. Staging 18 healthy. SK-2 11-15ms PASS.
 **Istisare:** CNS-001..006b (7 Codex istisare, tumu uzlasi ile kapandi)
-**Merged PRs onceki oturum:** #334, #335, #336, #338, #339, #340, #341, #342, #343, #344, #345 + Orch #71
+**Merged PRs:** #334-345 + #346 + #347 + Orch #71 + Orch #73
 
 ---
 
-## OTURUM OZETI — REV 9 (2026-04-12 cross-validation)
+## OTURUM OZETI — REV 11 (2026-04-12 deploy + final audit)
 
-Bu oturumda rev 8 plan'i dev repo gercegine karsi capraz dogrulandi. 2 yeni Codex istisaresi (CNS-006, CNS-006b) yapildi.
+Bu oturumda: cross-validation → 2 guvenlik fix → 53 test → SK-2 latency fix → vault retry → deploy SUCCESS → kapsamli kalan is audit.
 
-### Rev 8 → Rev 9 Degisiklikler
+### Bu Oturumda Tamamlanan (rev 9'daki 13 isten 12'si + ek isler)
 
-| Degisiklik | Detay |
-|---|---|
-| 2 YENI guvenlik acigi | ReportController CRUD yetki yok + CustomReport access_config uygulanmiyor |
-| Playwright KIRIK | authz.zanzibar.spec.ts mevcut (350 satir) ama EPERM ile FAIL |
-| ANALYTICS_REPORTS tutarsiz | Seed/registry'de var, report JSON'larda yok, dashboard'larda yok |
-| ReportingHub bypass | Dinamik rapor + dashboard reportGroup tasimiyor → filtre bypass |
-| OpenFGA pin eksik | latest → v1.11.2 pinlenmeli (breaking change riski) |
-| PR #332 | Hala OPEN, #342 superseded — kapatilmali |
-| SK tablosu guncellendi | Cross-validated olcumlerle |
-| 13 kalan is | 5 P0 + 4 P1 + 2 P2 + 2 P3 |
-| 6 yeni teknik borc | TB-22..TB-27 |
-| 2 yeni risk | R16, R17 |
+| # | Is | PR | Durum |
+|---|---|---|---|
+| P0-1 | R16: ReportController CRUD authz | #346 | ✅ MERGED+DEPLOYED |
+| P0-2 | R17: CustomReport access_config | #346 | ✅ MERGED+DEPLOYED |
+| P0-3 | Playwright EPERM fix | quarantine | ✅ |
+| P0-4 | PR #332 kapat | gh pr close | ✅ |
+| P0-5 | Stage 3 karari (blocker'lar kapandi) | — | ✅ |
+| P1-1 | SK-7: 53 yeni test | #346 | ✅ MERGED+DEPLOYED |
+| P1-2 | R18: ReportingHub reportGroup | #346 | ✅ MERGED+DEPLOYED |
+| P1-3 | ANALYTICS_REPORTS temizlik | #346 | ✅ MERGED+DEPLOYED |
+| P1-4 | OpenFGA v1.11.2 pin | #346 | ✅ MERGED+DEPLOYED |
+| P2-1 | SK-2: Parallel + cache (11-15ms) | #346 | ✅ MERGED+DEPLOYED |
+| P2-2 | Deploy contract globs fix | #346 | ✅ MERGED+DEPLOYED |
+| P3-1 | Vault retry health check | #347 | ✅ MERGED+DEPLOYED |
+| P3-2 | Orchestrator extension + 11 test | Orch #73 | ✅ MERGED |
+| EK | CNS-006 + CNS-006b Codex istisare | — | ✅ 7 tespit + 3 uzlasi |
+| EK | JaCoCo gercek olcum | — | ✅ 51.9% / 13.4% |
+| EK | Staging canli dogrulama | SSH | ✅ 18 healthy, SK-2 PASS |
 
 ### CNS-006 Sonuclari (Claude→Codex, dev repo taramasi)
 
@@ -221,77 +227,97 @@ TB-05..TB-21 tumu KAPATILDI (degisiklik yok).
 
 ---
 
-## 7. KALAN IS LISTESI (rev 9 — oncelik sirali)
+## 7. KALAN IS LISTESI (rev 11 — 31 madde, derinlesmis)
 
-### P0 — Stage 3 Oncesi Zorunlu
-
-| # | Is | Efor | Detay |
-|---|---|---|---|
-| P0-1 | **R16: ReportController guvenlik fix** | 1-2 gun | CRUD endpoint'lere OpenFGA check ekle |
-| P0-2 | **R17: CustomReport access_config enforce** | 1 gun | List query'ye filtre ekle |
-| P0-3 | **TB-22: Playwright EPERM fix** | 0.5 gun | Transform cache permission coz, E2E calistir |
-| P0-4 | **TB-25: PR #332 kapat** | 5 dk | `gh pr close 332 --comment "Superseded by #342"` |
-| P0-5 | **Faz 2 Stage 3 karari** | Karar | Canary 48h doldu — yukaridaki 4 fix sonrasi rollout baslat |
-
-### P1 — Kisa Vadeli
+### P0 — Rollout Oncesi (3 is)
 
 | # | Is | Efor | Detay |
 |---|---|---|---|
-| P1-1 | **TB-26: SK-7 test coverage >=80%** | 2-3 gun | common-auth 45→80%, report-service 7→80% |
-| P1-2 | **R18: ReportingHub dinamik reportGroup** | 1 gun | useCatalog.ts dinamik/dashboard map'e reportGroup ekle |
-| P1-3 | **TB-23: ANALYTICS_REPORTS temizlik** | 0.5 gun | Ya report JSON'lara ata ya da seed/registry'den kaldir |
-| P1-4 | **TB-24: OpenFGA image pin** | 0.5 gun | `openfga/openfga:${OPENFGA_VERSION:-v1.11.2}` |
+| K-3 | **Stage 3 kademeli rollout** | 5-10 gun gozlem | %10→%25→%50→%100, her asamada 24h |
+| H-1 | **Rollout altyapisi** | 1-2 gun | Feature flag gradual mekanizmasi (user cohort secimi) |
+| H-2 | **Rollout monitoring dashboard** | 1 gun | Error rate, latency, deny dagilimi, cache hit rate izleme |
 
-### P2 — Orta Vadeli
-
-| # | Is | Efor | Detay |
-|---|---|---|---|
-| P2-1 | **SK-2: p95 <15ms optimize** | Arastirma | OpenFGA proximity, connection pool, cache TTL |
-| P2-2 | **Deploy stability dogrulama** | Sonraki deploy | --no-recreate + health check test |
-
-### P3 — Uzun Vadeli
+### P1 — Kisa Vade (5 is)
 
 | # | Is | Efor | Detay |
 |---|---|---|---|
-| P3-1 | **Vault auto-unseal** | Arastirma | Transit auto-unseal veya cron job |
-| P3-2 | **TB-27: Orchestrator entegrasyonu** | 1-2 gun | extensions/PRJ-ZANZIBAR-OPENFGA/ + SSOT roadmap milestone + managed repo onboard |
+| K-1 | **SK-7 common-auth 51.9%→80%** | 2-3 gun | ScopeContextFilter(9%), OpenFgaAuthzService(17%) → 40-53 test |
+| K-2 | **SK-7 report-service 13.4%→80%** | 4-6 gun | SqlBuilder, Registry, QueryEngine, DashboardQE → 92-118 test |
+| O-1 | **ScopeContextFilter testi** | 1 gun | MockMvc + Mockito: doFilterInternal, cache HIT/MISS, fallback (12-15 test) |
+| O-2 | **OpenFgaAuthzService testi** | 1.5 gun | Mockito: listObjects, check, batchCheck, timeout, dev fallback (20-25 test) |
+| H-3 | **Rollback playbook staging testi** | 0.5 gun | RB-zanzibar-canary.md gercek rollback ile test |
 
-**Toplam: 5 P0 + 4 P1 + 2 P2 + 2 P3 = 13 is**
+### P2 — Orta Vade (11 is)
+
+| # | Is | Efor | Detay |
+|---|---|---|---|
+| K-5 | **Dependabot PR triage** | 1-2 saat | 6 acik PR (TS 5.9, zod 4, react-router 7, vite-react 6, commons-compress) |
+| O-3 | **DashboardQueryEngine testi** | 1.5 gun | Mockito: KPI/chart, time range, filter injection (15-20 test) |
+| O-4 | **QueryEngine testi** | 1 gun | Mockito: SQL build, pagination, RLS injection (8-10 test) |
+| O-5 | **SqlBuilder testi** | 1 gun | Pure unit: SELECT/COUNT/EXPORT, UNION ALL, schema (10-12 test) |
+| O-6 | **Registry testleri** | 1 gun | Pure unit: JSON loading, validation, dangerous keyword (12-16 test) |
+| O-7 | **Playwright E2E staging** | 1 gun | PW_REAL_USER_PASSWORD ENV ayari + CI entegrasyonu |
+| H-4 | **ContextHealth modul testleri** | 2-3 gun | 10 dosya, 1146 LOC, file reading + chart/grid/KPI service |
+| H-5 | **Export/Repository testleri** | 1-2 gun | CSV, Excel exporter + CustomReport, Schedule, Alert repo |
+| H-10 | **ADR-0012 Phase 3: JWT claim removal** | 3-5 gun | @PreAuthorize→OpenFGA runtime, Keycloak mapper kaldir |
+| H-11 | **k6 CI entegrasyonu** | 1 gun | k6 script var, CI'da otomatik calistirma |
+| T-2 | **Playwright CI entegrasyonu** | 1 gun | ENV secret + CI workflow |
+
+### P3 — Uzun Vade (5 is)
+
+| # | Is | Efor | Detay |
+|---|---|---|---|
+| K-6 | **Stale branch temizligi** | 5 dk | claude/theme-axis-tokens sil |
+| H-6 | **SecurityConfig testi** | 0.5 gun | Spring Security chain integration test |
+| H-7 | **Managed repo onboarding** | 1 gun | Dev repo → managed_repos.v1.json, ilk sync dry-run |
+| H-8 | **SSOT roadmap milestone** | 0.5 gun | roadmaps/SSOT/roadmap.v1.json'a Zanbibar milestone |
+| H-12 | **OpenFGA model version management** | 1-2 gun | model.fga otomatik migration |
+
+### DEFERRED (7 is — SaaS/gelecege bagimli)
+
+| # | Is | Detay |
+|---|---|---|
+| H-9 | Faz 6 P3 SaaS | Condition/context, event-driven invalidation, multi-tenant, Caffeine→Redis |
+| T-1 | service-manager unhealthy | Pre-existing, scope disi |
+| T-3 | compat.ts useAuthorization kaldir | Consumer yok, export kaldirabilir |
+| T-4 | OpenFGA HTTP/2 tuning | Client HTTP/2 multiplexing |
+| T-5 | RemoteAuthzVersionProvider WireMock | 55% → WireMock testi |
+| T-6 | Grafana dashboard staging dogrulama | JSON var, Grafana import dogrulanmadi |
+| K-4 | Plan orchestrator main sync | Worktree conflict sonrasi plan kaybi duzeltilmeli |
+
+**Toplam: 3 P0 + 5 P1 + 11 P2 + 5 P3 + 7 DEFERRED = 31 is (~25-40 gun)**
 
 ---
 
-## 8. ZAMAN CIZELGESI (rev 9)
+## 8. ZAMAN CIZELGESI (rev 11)
 
 ```
-✅ Dalga 1-4:   DONE (11 PR merged)
-✅ Faz 0-1:     DONE
-✅ Faz 1.5:     DONE
-✅ Faz 3.5:     DONE
-✅ Faz 5:       DONE
-⚡ Faz 2:       Canary 48h DOLDU
+✅ TAMAMLANDI (bu oturum dahil):
+   ├── Dalga 1-4 (14 PR)
+   ├── Faz 0, 1, 1.5, 3, 3.5, 5
+   ├── Canary 48h (Faz 2 Stage 2)
+   ├── R16+R17+R18 guvenlik fix (PR #346)
+   ├── SK-2 latency 11-15ms (PR #346)
+   ├── 53 yeni test (PR #346)
+   ├── OpenFGA v1.11.2 pin (PR #346)
+   ├── Vault retry (PR #347)
+   ├── Orchestrator extension (Orch #73)
+   └── Deploy SUCCESS — 18 healthy
 
-→ HEMEN (1-3 gun):
-   ├── P0-1: ReportController guvenlik fix
-   ├── P0-2: CustomReport access_config enforce
-   ├── P0-3: Playwright EPERM fix
-   └── P0-4: PR #332 kapat
+→ SPRINT 1 (1-2 hafta):
+   ├── H-1: Rollout altyapisi (1-2 gun)
+   ├── H-2: Monitoring dashboard (1 gun)
+   └── K-3: Stage 3 rollout %10→%100 (5-10 gun gozlem)
 
-→ Stage 3 BASLAT (P0'lar kapandiktan sonra):
-   └── Kademeli rollout %10→%25→%50→%100 (5-10 gun gozlem)
+→ SPRINT 2 (2-3 hafta, Stage 3 paralel):
+   ├── K-1: SK-7 common-auth 80% (2-3 gun)
+   ├── K-2: SK-7 report-service 80% (4-6 gun)
+   └── H-3: Rollback playbook test (0.5 gun)
 
-→ PARALEL (Stage 3 sirasinda):
-   ├── P1-1: SK-7 test coverage (2-3 gun)
-   ├── P1-2: ReportingHub dinamik fix (1 gun)
-   ├── P1-3: ANALYTICS_REPORTS temizlik (0.5 gun)
-   └── P1-4: OpenFGA pin (0.5 gun)
-
-→ SONRA:
-   ├── P2-1: SK-2 optimize (arastirma)
-   ├── P2-2: Deploy dogrulama (sonraki deploy)
-   ├── P3-1: Vault auto-unseal
-   └── P3-2: Orchestrator entegrasyonu
-
-→ Faz 6:        P3 ERTELENMIS (SaaS kararina bagimli)
+→ SPRINT 3 (sonrasi):
+   ├── P2 isler (dependabot, Playwright CI, ADR-0012)
+   ├── P3 isler (managed repo, SSOT roadmap)
+   └── DEFERRED (SaaS kararina bagimli)
 ```
 
 ---
