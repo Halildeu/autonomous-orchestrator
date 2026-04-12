@@ -118,11 +118,13 @@ def normalize_response(
 ) -> Dict[str, Any]:
     """Normalize a provider response into a standard dict.
 
-    Returns: {text, usage, raw_json, provider_id}
-    Future PRs will add: tool_calls, parsed_json, validation_errors
+    Returns: {text, usage, raw_json, provider_id, tool_calls}
     """
+    from src.prj_kernel_api.tool_calling import extract_tool_calls
+
     text = extract_llm_output_text(resp_bytes)
     usage = extract_usage(resp_bytes)
+    tool_calls = extract_tool_calls(provider_id, resp_bytes)
 
     raw_json: dict[str, Any] | None = None
     try:
@@ -135,6 +137,56 @@ def normalize_response(
     return {
         "text": text,
         "usage": usage,
+        "tool_calls": tool_calls,
         "raw_json": raw_json,
         "provider_id": provider_id,
     }
+
+
+def extract_embeddings(resp_bytes: bytes, *, provider_id: str) -> list[float] | None:
+    """Extract embedding vector from provider response.
+
+    Google: embedding.values
+    OpenAI: data[0].embedding
+    """
+    try:
+        obj = json.loads(resp_bytes.decode("utf-8", errors="ignore"))
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+
+    if provider_id == "google":
+        emb = obj.get("embedding")
+        if isinstance(emb, dict):
+            values = emb.get("values")
+            if isinstance(values, list):
+                return values
+        return None
+
+    data = obj.get("data")
+    if isinstance(data, list) and data:
+        first = data[0] if isinstance(data[0], dict) else {}
+        embedding = first.get("embedding")
+        if isinstance(embedding, list):
+            return embedding
+    return None
+
+
+def extract_moderation(resp_bytes: bytes) -> Dict[str, Any] | None:
+    """Extract moderation results from OpenAI-compatible response."""
+    try:
+        obj = json.loads(resp_bytes.decode("utf-8", errors="ignore"))
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    results = obj.get("results")
+    if isinstance(results, list) and results:
+        first = results[0] if isinstance(results[0], dict) else {}
+        return {
+            "flagged": bool(first.get("flagged", False)),
+            "categories": first.get("categories", {}),
+            "category_scores": first.get("category_scores", {}),
+        }
+    return None
