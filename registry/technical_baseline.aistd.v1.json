@@ -13,7 +13,7 @@
       "language": "java",
       "java_major": 21,
       "framework": "spring-boot",
-      "framework_line": "3.2.x",
+      "framework_line": "3.5.x",
       "build_tool": "maven-wrapper",
       "maven_line": "3.9.x",
       "service_architecture": "microservice",
@@ -36,7 +36,7 @@
       "framework": "react",
       "framework_line": "18.x",
       "runtime": "node",
-      "node_major": 20,
+      "node_major": 22,
       "package_manager": "npm",
       "mfe_architecture": "module-federation",
       "style_system": [
@@ -45,8 +45,8 @@
         "tailwind"
       ],
       "design_contract": {
-        "single_ui_library": "mfe-ui-kit",
-        "ui_package_manifest_path": "web/packages/ui-kit/package.json",
+        "single_ui_library": "@mfe/design-system",
+        "ui_package_manifest_path": "web/packages/design-system/package.json",
         "design_catalog_index_path": "web/apps/mfe-shell/src/pages/admin/design-lab.index.json",
         "forbidden_imports": [
           "antd",
@@ -64,12 +64,12 @@
           "DetailDrawer",
           "FormDrawer"
         ],
-        "ui_import_prefix": "from 'mfe-ui-kit'",
+        "ui_import_prefix": "from '@mfe/design-system'",
         "pages_root": "web/apps"
       },
       "parametric_data": {
-        "query_builder_path": "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts",
-        "theme_contract_runtime_path": "web/packages/ui-kit/src/runtime/theme-contract.ts",
+        "query_builder_path": "web/packages/design-system/src/advanced/data-grid/buildEntityGridQueryParams.ts",
+        "theme_contract_runtime_path": "web/packages/design-system/src/theme/core/theme-contract.ts",
         "theme_context_provider_path": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
       }
     },
