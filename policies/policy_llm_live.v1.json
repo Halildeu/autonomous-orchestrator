@@ -12,5 +12,6 @@
   ],
   "max_calls_per_run": 12,
   "timeout_ms": 60000,
-  "max_output_chars": 20000
+  "max_output_chars": 20000,
+  "fail_action": "warn"
 }

@@ -57,10 +57,10 @@
       ],
       "properties": {
         "package_name": {
-          "const": "@mfe/design-system"
+          "const": "mfe-ui-kit"
         },
         "package_manifest_path": {
-          "const": "web/packages/design-system/package.json"
+          "const": "web/packages/ui-kit/package.json"
         },
         "design_catalog_index_path": {
           "const": "web/apps/mfe-shell/src/pages/admin/design-lab.index.json"
@@ -79,6 +79,10 @@
           },
           "minItems": 2,
           "uniqueItems": true
+        },
+        "forbidden_imports_note": {
+          "type": "string",
+          "description": "Human-readable note explaining why certain imports are forbidden."
         }
       }
     },
@@ -123,7 +127,7 @@
           "minItems": 3
         },
         "ui_usage_import_prefix": {
-          "const": "from '@mfe/design-system'"
+          "const": "from 'mfe-ui-kit'"
         },
         "pages_root": {
           "const": "web/apps"
@@ -140,15 +144,65 @@
       ],
       "properties": {
         "query_builder_path": {
-          "const": "web/packages/design-system/src/advanced/data-grid/buildEntityGridQueryParams.ts"
+          "const": "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts"
         },
         "theme_contract_runtime_path": {
-          "const": "web/packages/design-system/src/theme/core/theme-contract.ts"
+          "const": "web/packages/ui-kit/src/runtime/theme-contract.ts"
         },
         "theme_context_provider_path": {
           "const": "web/apps/mfe-shell/src/app/theme/theme-context.provider.tsx"
         }
       }
+    },
+    "chart_platform": {
+      "type": "object",
+      "description": "Chart & visualization platform configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "primary_engine": { "type": "string" },
+        "primary_engine_license": { "type": "string" },
+        "grid_linked_engine": { "type": "string" },
+        "grid_linked_engine_license": { "type": "string" },
+        "spec_schema": { "type": "string" },
+        "decision_topic": { "type": "string" },
+        "internal_packages": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "bundle_size_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_gzip_kb": { "type": "integer", "minimum": 1 },
+            "tree_shaking_required": { "type": "boolean" }
+          }
+        },
+        "accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "wcag_level": { "type": "string", "enum": ["A", "AA", "AAA"] },
+            "keyboard_navigation": { "type": "boolean" },
+            "data_table_fallback": { "type": "boolean" },
+            "colorblind_palettes": { "type": "boolean" },
+            "contrast_ratio_min": { "type": "number" }
+          }
+        },
+        "ci_gates": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": [
+        "block",
+        "warn",
+        "log"
+      ],
+      "description": "Action to take when this policy check fails. block=hard stop, warn=log+continue, log=record only."
     }
   }
 }

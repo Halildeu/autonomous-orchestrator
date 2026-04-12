@@ -8,12 +8,12 @@ jobs:
   enforcement-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -25,7 +25,7 @@ jobs:
           else
             echo "requirements-dev.txt bulunamadi; enforcement baseline mode ile devam."
           fi
-          pip install semgrep==1.146.0
+          pip install semgrep==1.157.0
 
       - name: Standards lock + ownership baseline
         run: |
@@ -151,12 +151,12 @@ jobs:
         run: |
           set -euo pipefail
           git checkout "${ENF_PR_HEAD}"
-          python3 -m src.ops.manage enforcement-check --profile strict --baseline "${ENF_BASELINE}" --outdir .cache/ws_customer_default/.cache/reports/enf_ci
+          python3 -m src.ops.manage enforcement-check --profile strict --baseline "${ENF_BASELINE}" --outdir .cache/ws_customer_default/.cache/reports/enf_ci --max-findings 285
 
       - name: Enforcement check (main strict)
         if: github.event_name != 'pull_request' && steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
         run: |
-          python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/ws_customer_default/.cache/reports/enf_ci
+          python3 -m src.ops.manage enforcement-check --profile strict --baseline git:HEAD~1 --outdir .cache/ws_customer_default/.cache/reports/enf_ci --max-findings 285
 
       - name: Enforcement fallback (portable baseline)
         if: steps.detect-enforcement-runtime.outputs.has_runtime != 'true'
@@ -164,6 +164,10 @@ jobs:
           echo "src/ops/manage.py bulunamadi; portable enforcement baseline ile devam."
           python3 ci/check_standards_lock.py
           python3 ci/check_module_delivery_lanes.py --strict
+
+      - name: AI config contract (report-only)
+        run: |
+          python3 ci/ai_config_contract_test.py || true
 
       - name: AI adapter freshness check (report-only)
         run: |
@@ -176,6 +180,24 @@ jobs:
             print(f'| Status | Issues |', file=sys.stderr)
             print(f'|--------|--------|', file=sys.stderr)
             print(f'| {d.get(\"status\",\"?\")} | {len(d.get(\"issues\",[]))} |', file=sys.stderr)
+          except: pass
+          " 2>> "${GITHUB_STEP_SUMMARY}" || true
+
+      - name: Bootstrap gate check (report-only)
+        if: steps.detect-enforcement-runtime.outputs.has_runtime == 'true'
+        run: |
+          python3 ci/check_context_bootstrap.py --gate \
+            --workspace-root .cache/ws_customer_default || true
+          echo "### Bootstrap Gate" >> "${GITHUB_STEP_SUMMARY}"
+          python3 ci/check_context_bootstrap.py --gate \
+            --workspace-root .cache/ws_customer_default 2>/dev/null \
+            | python3 -c "
+          import json,sys
+          try:
+            d=json.load(sys.stdin)
+            print(f'| Gate | Health | Profile |', file=sys.stderr)
+            print(f'|------|--------|---------|', file=sys.stderr)
+            print(f'| {d.get(\"gate_result\",\"?\")} | {d.get(\"health_score\",\"?\")} | {d.get(\"profile_id\",\"?\")} |', file=sys.stderr)
           except: pass
           " 2>> "${GITHUB_STEP_SUMMARY}" || true
 

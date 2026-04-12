@@ -37,11 +37,11 @@
       "framework_line": "18.x",
       "runtime": "node",
       "node_major": 22,
-      "package_manager": "pnpm",
+      "package_manager": "npm",
       "mfe_architecture": "module-federation",
       "style_system": [
         "design-tokens",
-        "design-system",
+        "ui-kit",
         "tailwind"
       ],
       "design_contract": {

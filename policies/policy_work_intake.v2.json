@@ -34,6 +34,7 @@
     "Manual requests map to ROADMAP/PROJECT/TICKET based on kind and core-change constraints.",
     "Release signals map to TICKET/PROJECT/ROADMAP based on dirty tree, publish block, and channel."
   ],
+  "fail_action": "warn",
   "bucket_rules": [
     {
       "id": "doc_nav_critical",

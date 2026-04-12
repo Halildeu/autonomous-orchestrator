@@ -2,7 +2,7 @@
 
 ID: RB-zanzibar-canary
 Service: permission-service, core-data-service, openfga
-Status: Draft
+Status: Active
 Owner: @halil
 
 -------------------------------------------------------------------------------
@@ -22,10 +22,14 @@ kademeli gecisini yonetmek. Ref: CNS-20260411-001, Dalga 2 Plan.
 - SLA: Authz check p95 < 50ms, error rate < 0.5%, deny rate < 10%.
 
 Pre-conditions:
-- [ ] Dalga 1+2 PR'lar merged
-- [ ] Staging 24h stable (error rate < 0.1%)
-- [ ] doctor-zanzibar.sh PASS (pre-existing haric)
-- [ ] Restricted smoke user seeded (stage-keycloak-smoke-user seed-smoke-role)
+- [x] Dalga 1+2 PR'lar merged (#305-#318, #346, #347)
+- [x] Staging 24h stable (error rate < 0.1%) — 18 healthy verified
+- [x] doctor-zanzibar.sh PASS (47/47 quick check, 0 error)
+- [x] Restricted smoke user seeded (stage-keycloak-smoke-user seed-smoke-role)
+- [x] OpenFGA v1.11.2 pinned (was :latest)
+- [x] SK-2 latency PASS (11-15ms, target <15ms)
+- [x] Vault auto-unseal watcher active (PR #347)
+- [ ] Canary authz guardrail wiring complete (4/4 metrics)
 
 -------------------------------------------------------------------------------
 3. BAŞLATMA / DURDURMA
@@ -105,7 +109,7 @@ Metrikler:
 7. LİNKLER (İSTEĞE BAĞLI)
 -------------------------------------------------------------------------------
 
-- Master plan: .claude/plans/zanzibar-master-plan.md (rev 6)
+- Master plan: .claude/plans/zanzibar-master-plan.md (rev 15)
 - Decision registry: decisions/topics/zanzibar-openfga.v1.json
 - Guardrails config: backend/scripts/ci/canary/zanzibar-guardrails.json
 - Doctor script: backend/scripts/doctor-zanzibar.sh

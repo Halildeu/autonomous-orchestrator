@@ -107,9 +107,9 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
         if not isinstance(single_ui, dict):
             details["invalid_content"].append("ui_design_system_policy:single_ui_library_missing")
         else:
-            if single_ui.get("package_name") != "@mfe/design-system":
+            if single_ui.get("package_name") != "mfe-ui-kit":
                 details["invalid_content"].append("ui_design_system_policy:single_ui_library.package_name_invalid")
-            if str(single_ui.get("package_manifest_path") or "") != "web/packages/design-system/package.json":
+            if str(single_ui.get("package_manifest_path") or "") != "web/packages/ui-kit/package.json":
                 details["invalid_content"].append(
                     "ui_design_system_policy:single_ui_library.package_manifest_path_invalid"
                 )
@@ -176,7 +176,7 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
                     "ui_design_system_policy:page_modularity.layout_exports_required_missing_"
                     + ",".join(missing_layout_exports)
                 )
-            if str(page_modularity.get("ui_usage_import_prefix") or "") != "from '@mfe/design-system'":
+            if str(page_modularity.get("ui_usage_import_prefix") or "") != "from 'mfe-ui-kit'":
                 details["invalid_content"].append("ui_design_system_policy:page_modularity.ui_usage_import_prefix_invalid")
             if str(page_modularity.get("pages_root") or "") != "web/apps":
                 details["invalid_content"].append("ui_design_system_policy:page_modularity.pages_root_invalid")
@@ -186,12 +186,12 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
         else:
             if (
                 str(parametric_data.get("query_builder_path") or "")
-                != "web/packages/design-system/src/advanced/data-grid/buildEntityGridQueryParams.ts"
+                != "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts"
             ):
                 details["invalid_content"].append("ui_design_system_policy:parametric_data.query_builder_path_invalid")
             if (
                 str(parametric_data.get("theme_contract_runtime_path") or "")
-                != "web/packages/design-system/src/theme/core/theme-contract.ts"
+                != "web/packages/ui-kit/src/runtime/theme-contract.ts"
             ):
                 details["invalid_content"].append(
                     "ui_design_system_policy:parametric_data.theme_contract_runtime_path_invalid"
@@ -262,8 +262,26 @@ def _check_standard_sources(root: Path, standard_sources: dict[str, Any]) -> tup
         for item in feature_bridge_details.get("missing_files", []):
             details["missing_files"].append(item)
 
+    # Test quality policy (PRJ-TEST-QUALITY-GATE)
+    tq_policy = _require_json_file(root, str(standard_sources.get("test_quality_policy", "")), key="test_quality_policy")
+    if not isinstance(tq_policy, dict):
+        details["invalid_content"].append("test_quality_policy:invalid_json")
+    else:
+        if tq_policy.get("version") != "v1":
+            details["invalid_content"].append("test_quality_policy:version_must_be_v1")
+        if tq_policy.get("status") != "ACTIVE":
+            details["invalid_content"].append("test_quality_policy:status_must_be_ACTIVE")
+        rules = tq_policy.get("rules")
+        if not isinstance(rules, list) or len(rules) < 6:
+            details["invalid_content"].append("test_quality_policy:must_have_at_least_6_rules")
+        thresholds = tq_policy.get("thresholds")
+        if not isinstance(thresholds, dict):
+            details["invalid_content"].append("test_quality_policy:thresholds_missing")
+
     ok = not details["missing_keys"] and not details["missing_files"] and not details["invalid_content"]
     return ok, details
+
+
 def _check_required_commands(required_commands: Any) -> tuple[bool, dict[str, Any]]:
     details: dict[str, Any] = {"missing_commands": []}
     if not isinstance(required_commands, list):
@@ -535,9 +553,9 @@ def _check_module_delivery_workflow(root: Path) -> tuple[bool, dict[str, Any]]:
             details["issues"].append(f"missing:{marker}")
     required_sequence_markers = (
         "module-lane-database:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
-        "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
-        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-unit]",
-        "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database, module-lane-api, module-lane-contract]",
+        "module-lane-api:\n    runs-on: ubuntu-latest\n    needs: [module-lane-database]",
+        "module-lane-contract:\n    runs-on: ubuntu-latest\n    needs: [module-lane-api]",
+        "module-lane-integration:\n    runs-on: ubuntu-latest\n    needs: [module-lane-contract]",
         "module-lane-e2e:\n    runs-on: ubuntu-latest\n    needs: [module-lane-integration]",
     )
     for marker in required_sequence_markers:

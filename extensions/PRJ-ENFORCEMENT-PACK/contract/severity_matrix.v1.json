@@ -1,0 +1,44 @@
+{
+  "profiles": {
+    "default_profile": {
+      "EP-001": "WARN",
+      "EP-002": "WARN",
+      "EP-003": "WARN",
+      "EP-004": "WARN",
+      "EP-005": "WARN",
+      "EP-006": "WARN",
+      "EP-007": "WARN",
+      "EP-008": "BLOCKED",
+      "EP-009": "WARN",
+      "EP-010": "BLOCKED",
+      "EP-011": "WARN",
+      "EP-012": "WARN",
+      "EP-013": "BLOCKED",
+      "EP-014": "BLOCKED",
+      "EP-015": "WARN",
+      "EP-017": "WARN"
+    },
+    "strict_profile": {
+      "EP-001": "BLOCKED",
+      "EP-002": "BLOCKED",
+      "EP-003": "WARN",
+      "EP-004": "BLOCKED",
+      "EP-005": "WARN",
+      "EP-006": "BLOCKED",
+      "EP-007": "BLOCKED",
+      "EP-008": "BLOCKED",
+      "EP-009": "BLOCKED",
+      "EP-010": "BLOCKED",
+      "EP-011": "BLOCKED",
+      "EP-012": "WARN",
+      "EP-013": "BLOCKED",
+      "EP-014": "BLOCKED",
+      "EP-015": "BLOCKED",
+      "EP-017": "BLOCKED"
+    }
+  },
+  "defaults": {
+    "unknown_rule": "WARN",
+    "advisory_mode": false
+  }
+}

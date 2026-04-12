@@ -114,7 +114,7 @@
     },
     {
       "id": "C-004",
-      "constraint": "NEVER reference port 8090 (permission-service) in Vite proxy",
+      "constraint": "Vite proxy /api/v1/authz, /api/v1/roles, /api/v1/permissions → localhost:8090 (permission-service hub). NEVER route these through gateway.",
       "scope": "web/apps/mfe-shell/vite.config.ts"
     },
     {

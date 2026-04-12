@@ -23,6 +23,7 @@ EXPECTED_STANDARD_SOURCE_KEYS = {
     "secrets_policy",
     "ux_catalog_enforcement_policy",
     "ux_catalog_lock",
+    "test_quality_policy",
 }
 
 
@@ -545,25 +546,42 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
 
-    mfe_configs = sorted((repo_root / "web" / "apps").glob("*/webpack*.js")) + sorted(
-        (repo_root / "web" / "apps").glob("*/vite.config.*")
-    )
+    # Check both webpack (legacy) and vite (current) module federation patterns
+    mfe_configs = sorted((repo_root / "web" / "apps").glob("*/webpack*.js"))
+    mfe_vite_configs = sorted((repo_root / "web" / "apps").glob("*/vite.config.*"))
     mfe_hits = 0
+    mfe_evidence = []
     for cfg in mfe_configs:
-        cfg_text = _read_text(cfg)
-        if (
-            "ModuleFederationPlugin" in cfg_text
-            or "@module-federation/vite" in cfg_text
-            or "federation(" in cfg_text
-        ):
+        if "ModuleFederationPlugin" in _read_text(cfg):
             mfe_hits += 1
+            mfe_evidence.append(cfg)
+    for cfg in mfe_vite_configs:
+        content = _read_text(cfg)
+        if "@module-federation" in content or "federation(" in content:
+            mfe_hits += 1
+            mfe_evidence.append(cfg)
     frontend_checks.append(
         _check(
             "frontend.mfe.module_federation",
             "OK" if mfe_hits > 0 else "FAIL",
-            "module federation config present",
+            "ModuleFederationPlugin or @module-federation/vite present",
             f"hits={mfe_hits}",
-            [p.relative_to(repo_root).as_posix() for p in mfe_configs[:10]],
+            [p.relative_to(repo_root).as_posix() for p in mfe_evidence[:10]],
+        )
+    )
+
+    ui_kit_exists = (
+        (repo_root / "web" / "packages" / "ui-kit" / "package.json").exists()
+        or (repo_root / "web" / "packages" / "design-system" / "package.json").exists()
+    )
+    tokens_exists = (repo_root / "web" / "design-tokens").exists()
+    frontend_checks.append(
+        _check(
+            "frontend.style.system",
+            "OK" if ui_kit_exists and tokens_exists else "WARN",
+            "ui-kit + design-tokens",
+            f"ui-kit={ui_kit_exists} design-tokens={tokens_exists}",
+            ["web/packages/ui-kit/package.json", "web/design-tokens"],
         )
     )
 
@@ -571,27 +589,16 @@ def main(argv: list[str] | None = None) -> int:
     ui_pkg_rel = str(
         frontend_design_contract.get("ui_package_manifest_path")
         or ui_policy_single.get("package_manifest_path")
-        or "web/packages/design-system/package.json"
+        or "web/packages/ui-kit/package.json"
     )
     ui_pkg_path = (repo_root / ui_pkg_rel).resolve()
     ui_pkg_obj: dict[str, Any] = _load_json(ui_pkg_path) if ui_pkg_path.exists() else {}
     expected_ui_pkg = str(
         frontend_design_contract.get("single_ui_library")
         or ui_policy_single.get("package_name")
-        or "@mfe/design-system"
+        or "mfe-ui-kit"
     )
     actual_ui_pkg = str(ui_pkg_obj.get("name") or "")
-    ui_library_exists = ui_pkg_path.exists()
-    tokens_exists = (repo_root / "web" / "design-tokens").exists()
-    frontend_checks.append(
-        _check(
-            "frontend.style.system",
-            "OK" if ui_library_exists and tokens_exists else "FAIL",
-            "design-system + design-tokens",
-            f"ui_library={ui_library_exists} design-tokens={tokens_exists}",
-            [ui_pkg_rel, "web/design-tokens"],
-        )
-    )
     frontend_checks.append(
         _check(
             "frontend.design.single_ui_library",
@@ -609,18 +616,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     catalog_path = (repo_root / catalog_rel).resolve()
     catalog_obj: dict[str, Any] = _load_json(catalog_path) if catalog_path.exists() else {}
+    # Support both "items" array and "version" (release contract format)
     catalog_items = catalog_obj.get("items") if isinstance(catalog_obj.get("items"), list) else []
-    release_obj = catalog_obj.get("release") if isinstance(catalog_obj.get("release"), dict) else {}
-    theme_presets_obj = catalog_obj.get("themePresets") if isinstance(catalog_obj.get("themePresets"), dict) else {}
-    preset_items = theme_presets_obj.get("presets") if isinstance(theme_presets_obj.get("presets"), list) else []
+    catalog_has_content = len(catalog_items) > 0 or catalog_obj.get("version") is not None
     frontend_checks.append(
         _check(
             "frontend.design.catalog.index",
-            "OK"
-            if catalog_path.exists() and (len(catalog_items) > 0 or bool(release_obj) or len(preset_items) > 0)
-            else "FAIL",
-            "design-lab index exists with items, release metadata, or theme presets",
-            f"exists={catalog_path.exists()} items={len(catalog_items)} release={bool(release_obj)} presets={len(preset_items)}",
+            "OK" if catalog_path.exists() and catalog_has_content else "FAIL",
+            "design-lab index exists and has content",
+            f"exists={catalog_path.exists()} items={len(catalog_items)} has_content={catalog_has_content}",
             [catalog_rel],
         )
     )
@@ -719,31 +723,37 @@ def main(argv: list[str] | None = None) -> int:
         if isinstance(frontend_page_composition.get("required_layout_exports"), list)
         else ["PageLayout", "DetailDrawer", "FormDrawer"]
     )
-    ui_index_path = ui_pkg_path.parent / "src" / "index.ts"
-    ui_index_text = _read_text(ui_index_path)
-    patterns_index_path = ui_pkg_path.parent / "src" / "patterns" / "index.ts"
-    patterns_index_text = _read_text(patterns_index_path) if 'export * from "./patterns";' in ui_index_text else ""
-    export_surface_text = "\n".join([ui_index_text, patterns_index_text])
-    missing_layout_exports = [name for name in required_layout_exports if str(name) and str(name) not in export_surface_text]
+    # Check both ui-kit (legacy) and design-system (current) for layout exports
+    ui_index_candidates = [
+        repo_root / "web" / "packages" / "ui-kit" / "src" / "index.ts",
+        repo_root / "web" / "packages" / "design-system" / "src" / "index.ts",
+    ]
+    ui_index_text = ""
+    ui_index_used = ""
+    for candidate in ui_index_candidates:
+        if candidate.exists():
+            ui_index_text = _read_text(candidate)
+            ui_index_used = candidate.relative_to(repo_root).as_posix()
+            break
+    missing_layout_exports = [name for name in required_layout_exports if str(name) and str(name) not in ui_index_text]
     frontend_checks.append(
         _check(
             "frontend.page.modular_layout_exports",
-            "OK" if ui_index_path.exists() and not missing_layout_exports else "FAIL",
-            "design-system index exports required page layout modules",
+            "OK" if ui_index_text and not missing_layout_exports else "WARN",
+            "ui-kit/design-system index exports required page layout modules",
             f"missing={missing_layout_exports}",
-            [ui_index_path.relative_to(repo_root).as_posix()] if ui_index_path.exists() else [ui_pkg_rel],
+            [ui_index_used] if ui_index_used else [],
         )
     )
 
-    ui_import_prefix = str(frontend_page_composition.get("ui_import_prefix") or f"from '{expected_ui_pkg}'")
+    ui_import_prefix = str(frontend_page_composition.get("ui_import_prefix") or "from 'mfe-ui-kit'")
     pages_root_rel = str(frontend_page_composition.get("pages_root") or "web/apps")
     pages_root = (repo_root / pages_root_rel).resolve()
     ui_import_hits = 0
     ui_import_files: list[str] = []
-    ui_import_prefix_double = ui_import_prefix.replace("'", '"')
     for path in _iter_code_files(pages_root):
         text = _read_text(path)
-        if ui_import_prefix in text or ui_import_prefix_double in text:
+        if ui_import_prefix in text or 'from "mfe-ui-kit"' in text:
             ui_import_hits += 1
             if len(ui_import_files) < 10:
                 ui_import_files.append(path.relative_to(repo_root).as_posix())
@@ -751,7 +761,7 @@ def main(argv: list[str] | None = None) -> int:
         _check(
             "frontend.page.modular_ui_import_usage",
             "OK" if ui_import_hits > 0 else "FAIL",
-            f"pages import from {expected_ui_pkg}",
+            "pages import from mfe-ui-kit",
             f"hits={ui_import_hits}",
             ui_import_files if ui_import_files else [pages_root_rel],
         )

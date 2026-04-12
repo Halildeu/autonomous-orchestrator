@@ -44,7 +44,7 @@ python3 scripts/sync_managed_repo_standards.py --target-repo-root /path/to/dev -
 # Session link
 python3 -m src.ops.manage session-link-parent \
   --workspace-root /path/to/dev/.cache/ws_customer_default \
-  --parent-workspace /path/to/orchestrator/.cache/ws_customer_default
+  --parent-workspace ${WORKSPACE_ROOT}
 
 # Session sync
 python3 -m src.ops.manage session-sync \

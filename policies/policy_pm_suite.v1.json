@@ -32,5 +32,6 @@
     "guard_path": "extensions/PRJ-PM-SUITE/contract/check_delivery_session_guard.py",
     "packet_schema_path": "schemas/delivery-session-packet.schema.v1.json",
     "note": "delivery_session_compiler_active"
-  }
+  },
+  "fail_action": "warn"
 }

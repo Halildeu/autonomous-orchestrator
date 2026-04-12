@@ -14,7 +14,8 @@
     "security_policy": "policies/policy_security.v1.json",
     "secrets_policy": "policies/policy_secrets.v1.json",
     "ux_catalog_enforcement_policy": "policies/policy_ux_catalog_enforcement.v1.json",
-    "ux_catalog_lock": "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json"
+    "ux_catalog_lock": "extensions/PRJ-UX-NORTH-STAR/contract/ux_katalogu.final_lock.v1.json",
+    "test_quality_policy": "policies/policy_test_quality.v1.json"
   },
   "required_files": [
     "standards.lock",
@@ -26,6 +27,14 @@
     "policies/policy_pm_suite.v1.json",
     "policies/policy_feature_execution_bridge.v1.json",
     "policies/policy_ui_design_system.v1.json",
+    "policies/policy_test_quality.v1.json",
+    "schemas/policy-test-quality.schema.v1.json",
+    "ci/check_test_quality.py",
+    "ci/check_enforcement_rules.py",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep006_shallow_render_fake.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep009_data_testid_render_only.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/semgrep/rules/ep014_react19_api.yaml",
+    "extensions/PRJ-ENFORCEMENT-PACK/contract/severity_matrix.v1.json",
     "registry/technical_baseline.aistd.v1.json",
     "registry/archives/legacy_standards_archive.aistd.v1.json",
     "schemas/policy-pm-suite.schema.v1.json",
@@ -88,7 +97,23 @@
     "docs/OPERATIONS/CONTEXT-HEALTH-RUNBOOK.v1.md",
     "CLAUDE.md",
     ".claudeignore",
-    ".claude/settings.json"
+    ".claude/settings.json",
+    "src/ops/context_compiler.py",
+    "src/ops/domain_scope_engine.py",
+    "src/ops/scope_guard.py",
+    "src/ops/impact_analyzer.py",
+    "src/ops/context_session_metrics.py",
+    "src/ops/rule_effectiveness.py",
+    "src/ops/context_snapshot.py",
+    "schemas/compiled-context.schema.v1.json",
+    "schemas/bootstrap-evidence.schema.v1.json",
+    "schemas/context-snapshot.schema.v1.json",
+    "policies/policy_domain_conventions.v1.json",
+    "policies/policy_scope_guard.v1.json",
+    "policies/policy_context_quality.v1.json",
+    "policies/policy_context_memory_tiers.v1.json",
+    "policies/policy_multi_agent_coordination.v1.json",
+    "schemas/policy-multi-agent-coordination.schema.v1.json"
   ],
   "required_commands": [
     "python ci/validate_schemas.py",
@@ -108,7 +133,9 @@
     "python3 extensions/PRJ-OBSERVABILITY-OTEL/export_observability_coverage_matrix.py --repo-root . --out-json .cache/reports/observability_coverage_matrix.v1.json --out-md .cache/reports/observability_coverage_matrix.v1.md",
     "python3 extensions/PRJ-WORK-INTAKE/check_policy_work_intake_modularization.py --repo-root .",
     "python3 scripts/check_context_health.py --workspace-root .cache/ws_customer_default",
-    "python3 scripts/check_ai_adapter_freshness.py ."
+    "python3 scripts/check_ai_adapter_freshness.py .",
+    "python3 -m src.ops.manage compile-context --workspace-root .cache/ws_customer_default --target-path schemas/test.schema.v1.json",
+    "python3 ci/check_context_bootstrap.py --gate --workspace-root .cache/ws_customer_default"
   ],
   "required_gates": [
     "enforcement-check",
