@@ -1,346 +1,369 @@
-# ZANZIBAR / OpenFGA — KAPSAMLI PROJE PLANI (rev 9)
+# ZANZIBAR / OpenFGA — KAPSAMLI PROJE PLANI
 
 **Proje Kodu:** PRJ-ZANZIBAR-OPENFGA
 **Tarih:** 2026-04-12
-**Revizyon:** 9 (Cross-validation + 2 yeni guvenlik acigi + 13 kalan is)
-**Karar Referansi:** D-001 → D-007 (D-003 TRANSFORMED)
-**Durum:** 11 PR merged+deployed (#334-345). Canary 48h doldu. 2 yeni guvenlik acigi tespit edildi.
-**Istisare:** CNS-001..006b (7 Codex istisare, tumu uzlasi ile kapandi)
-**Merged PRs onceki oturum:** #334, #335, #336, #338, #339, #340, #341, #342, #343, #344, #345 + Orch #71
+**Revizyon:** 15 (CNS-007/008/009 + dev repo gap analizi + rollout wiring eksikleri)
+**Karar Referansı:** D-001 → D-007 (tümü FINAL)
+**Durum:** Faz 0-3.5 DONE, Faz 4 kısmen, Faz 5 devam ediyor
 
 ---
 
-## OTURUM OZETI — REV 9 (2026-04-12 cross-validation)
+## 0. DENETİM BULGULARI VE DÜZELTMELER (rev 12, 2026-04-12)
 
-Bu oturumda rev 8 plan'i dev repo gercegine karsi capraz dogrulandi. 2 yeni Codex istisaresi (CNS-006, CNS-006b) yapildi.
+Bu revizyon Claude + Codex bağımsız denetim (CNS-007) sonuçlarını içerir.
 
-### Rev 8 → Rev 9 Degisiklikler
+### Tespit Edilen Yapısal Sorunlar
 
-| Degisiklik | Detay |
-|---|---|
-| 2 YENI guvenlik acigi | ReportController CRUD yetki yok + CustomReport access_config uygulanmiyor |
-| Playwright KIRIK | authz.zanzibar.spec.ts mevcut (350 satir) ama EPERM ile FAIL |
-| ANALYTICS_REPORTS tutarsiz | Seed/registry'de var, report JSON'larda yok, dashboard'larda yok |
-| ReportingHub bypass | Dinamik rapor + dashboard reportGroup tasimiyor → filtre bypass |
-| OpenFGA pin eksik | latest → v1.11.2 pinlenmeli (breaking change riski) |
-| PR #332 | Hala OPEN, #342 superseded — kapatilmali |
-| SK tablosu guncellendi | Cross-validated olcumlerle |
-| 13 kalan is | 5 P0 + 4 P1 + 2 P2 + 2 P3 |
-| 6 yeni teknik borc | TB-22..TB-27 |
-| 2 yeni risk | R16, R17 |
+| # | Bulgu | Kaynak | Durum |
+|---|-------|--------|-------|
+| D-01 | Plan dosyası untracked (`??`) — version control dışında | Codex | **AÇIK** |
+| D-02 | `roadmaps/PROJECTS/PRJ-ZANZIBAR-OPENFGA/roadmap.v1.json` yok | İkisi | **AÇIK** |
+| D-03 | `extensions/PRJ-ZANZIBAR-OPENFGA/` main'de yok (branch `329299d`'de var) | İkisi | **AÇIK** |
+| D-04 | Extension manifest'te typo: `zanbibar-openfga.v1.json` | Codex | **AÇIK** |
+| D-05 | Portfolio status'ta PRJ-ZANZIBAR-OPENFGA girişi yok | Codex | **AÇIK** |
+| D-06 | Decision registry stale: rev 3, 2026-03-28 (15 gün eski) | İkisi | **AÇIK** |
+| D-07 | SK-6 referansı: manifest `legacy_transformed_d003` — YANLIŞ, doğrusu D-002 | İkisi | **AÇIK** |
+| D-08 | Plan 10 SK, manifest 12 SK — SK-11 (batch p95) ve SK-12 (design lab) plan'da eksik | İkisi | **AÇIK** |
+| D-09 | Faz numaralama: plan FAZ 0-6, manifest FAZ-0/1/1.5/2/3/3.5/4/5 — tutarsız | İkisi | **AÇIK** |
+| D-10 | RESOLVED consultation kararları plana yansımamış (CNS-001/002 action items) | İkisi | **AÇIK** |
+| D-11 | Commit d80b17b mesajı ile diff uyuşmuyor | Codex | BİLGİ |
+| D-12 | Backend/frontend rules hâlâ "permission-service" referansı — D-002'ye aykırı | Claude | **AÇIK** |
+| D-13 | Zanzibar-specific enforcement policy yok (D-003/D-007 enforce edilmiyor) | İkisi | **AÇIK** |
+| D-14 | T-01..T-13, RACI, Risk, TB tabloları machine-readable değil (sadece prose) | İkisi | **AÇIK** |
+| D-15 | Cross-repo sync (standards.lock, feature exec contract) Zanzibar izi yok | İkisi | **AÇIK** |
+| D-16 | Bozuk consultation referansları (CNS ID mismatch manifest'te) | Codex | **AÇIK** |
+| D-17 | Memory `project_openfga_migration.md` stale ("PR #158 open" — eski) | Claude | **AÇIK** |
 
-### CNS-006 Sonuclari (Claude→Codex, dev repo taramasi)
+### Önceki Planla Karşılaştırma
 
-| Madde | Codex Verdikti | Kanit |
-|---|---|---|
-| @Filter 6/6 | DOGRU | check-filter-gate.sh PASS |
-| ANALYTICS_REPORTS | KISMI | Seed/registry var, JSON yok |
-| PR #332 | KISMI | Repo icinden dogrulanamadi |
-| OpenFGA latest | KISMI | Keycloak/Vault pinli, OpenFGA degil |
-| Playwright | KISMI | EPERM ile FAIL, 12 Nisan artifact failed |
-| @Filter eksik entity | YANLIS (eksik yok) | Gate script PASS |
-| Legacy useAuthorization | DOGRU (sifir) | Sadece compat.ts |
-| canViewReport deny-default | DOGRU | 11/11 test PASS |
-| ReportingHub filtering | KISMI | Statik OK, dinamik/dashboard bypass |
-| Ek guvenlik acigi | DOGRU — 2 YENI | ReportController + CustomReport |
-
-### CNS-006b Uzlasi (3 anlasmazlik noktasi)
-
-| Nokta | Claude | Codex Son Verdikt | Uzlasi |
-|---|---|---|---|
-| ANALYTICS_REPORTS | Orphan/tutarsiz | "Orphan degil ama tutarsiz ve temizlenmeli" | ✅ Uzlasi |
-| PR #332 | Kapatilmali | "Claude'a katiliyorum, korunmali delta yok" | ✅ Uzlasi |
-| OpenFGA pin | Zorunlu | "Hard zorunlu diyemem ama operasyonel olarak fiilen zorunlu hijyen" | ✅ Uzlasi |
+| Konu | Eski Plan (rev 8) | Doğru Durum |
+|------|-------------------|-------------|
+| SK sayısı | 10 (SK-1..SK-10) | 12 (SK-11: batch p95 <50ms, SK-12: design lab 3+ senaryo) |
+| Faz modeli | FAZ 0-6 (düz) | FAZ 0, 1, 1.5, 2, 3, 3.5, 4, 5, 6 (ara fazlar var) |
+| SK-6 referansı | D-002 ✅ | Manifest'te D-003 ❌ — düzeltilecek |
+| Plan tracking | Untracked | Git'e commit edilecek |
+| Extension | Yok | Branch'te var ama typo'lu, main'e merge gerek |
 
 ---
 
 ## 1. PROJE AMACI
 
-Mevcut JWT-based statik permission sistemi 3 kritik sorun iceriyor:
-1. **Stale permission** — rol degistiginde JWT yenilenene kadar eski izinler aktif
-2. **Hardcoded admin** — yeni roller icin kod degisikligi gerekiyor
-3. **Inline check tutarsizligi** — her servis farkli kontrol yapiyor, data leak riski
+Mevcut JWT-based statik permission sistemi 3 kritik sorun içeriyor:
+1. **Stale permission** — rol değiştiğinde JWT yenilenene kadar eski izinler aktif
+2. **Hardcoded admin** — yeni roller için kod değişikliği gerekiyor
+3. **Inline check tutarsızlığı** — her servis farklı kontrol yapıyor, data leak riski
 
-**Hedef:** 4 katmanli, fail-closed, auditlenebilir yetkilendirme:
+**Hedef:** 4 katmanlı, fail-closed, auditlenebilir yetkilendirme:
 ```
 Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + RLS (data) → Frontend SDK (UI)
 ```
 
 ---
 
-## 2. BASARI KRITERLERI (rev 9 — cross-validated)
+## 2. BAŞARI KRİTERLERİ (12 adet — manifest ile hizalı)
 
-| # | Kriter | Hedef | Olcum (dogrulanmis) | Durum |
-|---|--------|-------|---------------------|-------|
-| SK-1 | OpenFGA check basari orani | >= %99.9 | %100 (50/50 check) | ✅ PASS |
-| SK-2 | p95 latency artisi | < 15ms | 32-39ms warm (cache 10s) | ❌ FAIL |
-| SK-3 | Data leak | 0 incident | 0 (deny-default aktif) | ✅ PASS |
-| SK-4 | Rollback suresi | < 5 dakika | < 1 dk (flag OFF) | ✅ PASS |
-| SK-5 | Decision log kapsami | %100 | authz.decision log aktif, 5 endpoint | ✅ PASS |
-| SK-6 | Legacy permission-service | TRANSFORMED | D-003 DCP + ADR-0010 | ✅ PASS |
-| SK-7 | Test coverage (authz kodu) | >= %80 | common-auth 45%, report-service 7% | ❌ FAIL |
+| # | Kriter | Hedef | Mevcut | Durum |
+|---|--------|-------|--------|-------|
+| SK-1 | OpenFGA check başarı oranı | >= %99.9 | %100 | ✅ PASS |
+| SK-2 | p95 latency artışı | < 15ms | 11-15ms | ✅ PASS |
+| SK-3 | Data leak | 0 incident | 0 | ✅ PASS |
+| SK-4 | Rollback süresi | < 5 dakika | < 1dk | ✅ PASS |
+| SK-5 | Decision log kapsamı | %100 | Aktif | ✅ PASS |
+| SK-6 | Permission-service transformed (D-003) | Hub olarak dönüştürüldü | TRANSFORMED | ✅ PASS |
+| SK-7 | Test coverage (authz kodu) | >= %80 | common-auth 51.9%, report-service 13.4% | ❌ GAP |
 | SK-8 | Frontend permission gate | 0 broken gate | 0 | ✅ PASS |
-| SK-9 | @Filter/RLS kapsami | Tum company-scoped | 6/6 entity (gate script PASS) | ✅ PASS |
-| SK-10 | Prod gecis downtime | 0 dakika | Canary'de, henuz prod degil | ⏳ PENDING |
-| SK-11 | Batch-check p95 | < 50ms | 29-30ms warm | ✅ PASS |
-| SK-12 | Design Lab senaryo sayisi | >= 3 | 4 + 14 story | ✅ PASS |
+| SK-9 | @Filter/RLS kapsamı | Tüm company-scoped tablolar | 4/4 entity, 4/4 tablo | ✅ PASS |
+| SK-10 | Prod geçiş downtime | 0 dakika | PENDING (canary aşaması) | ⏳ PENDING |
+| SK-11 | Batch check p95 | < 50ms | 29-30ms | ✅ PASS |
+| SK-12 | Design Lab senaryoları | 3+ senaryo | 4 senaryo | ✅ PASS |
 
-**Skor: 8 PASS, 2 FAIL, 1 PENDING = %67 (onceki %58)**
+**Skor: 10 PASS + 1 GAP + 1 PENDING = %83**
 
----
-
-## 3. FAZLAR
-
-### FAZ 0: STAGING FLAGS ON TEST — ✅ DONE
-
-- 11/13 test PASS, 0 ERROR
-- Report groups: HR_REPORTS(9), FINANCE_REPORTS(20), SALES_REPORTS(2), ANALYTICS_REPORTS(seed/registry var ama report JSON atamasi yok)
-
-### FAZ 1: @FILTER / RLS GENISLETME — ✅ DONE (PR #314)
-
-- 6 entity @Filter (dogrulanmis: Company, User, Scope, UPS, URA, VariantVisibility)
-- 4 RLS SQL dosyasi (devops/postgres/02-05)
-- check-filter-gate.sh PASS
-
-### FAZ 1.5: OBJECT-LEVEL CHECK — ✅ DONE (PR #305)
-
-- /check, /batch-check endpoint
-- useZanbibarAccess + ZanbibarGate + 2 pilot entegrasyon
-
-### FAZ 2: PROD DEPLOY — ⚡ CANARY 48H DOLDU, STAGE 3 KARARI GEREKLI
-
-**Asama 2 (Canary) durumu:**
-- 19/19 servis UP, batch-check 5.2ms, doctor 47/47 PASS
-- Canary 48h gozlem tamamlandi (2026-04-12)
-
-**Stage 3 giris kosullari (YENI — CNS-006):**
-- [ ] ReportController guvenlik acigi KAPATILMALI (R16)
-- [ ] CustomReport access_config enforce edilmeli (R17)
-- [ ] OpenFGA image pinlenmeli (TB-24)
-- [ ] Playwright E2E calisir hale gelmeli (TB-22)
-- [x] Canary 48h doldu
-- [x] Error rate < %0.1
-- [x] Alerting aktif
-
-**DoD (degismedi):**
-- [ ] %100 rollout, 1 hafta stabil
-- [ ] Error rate < %0.1
-- [ ] Latency p95 < 15ms ek
-- [ ] Canary'de restricted user deny senaryosu PASS
-
-### FAZ 3: REPORT PERMISSION GROUPS — ⚠️ PARTIAL (CNS-006 revizyonu)
-
-**Onceki durum:** ✅ DONE (PR #339)
-**Revize durum:** ⚠️ PARTIAL — 3 sorun tespit edildi:
-
-1. **ANALYTICS_REPORTS tutarsizligi:** Seed + registry + catalog'da tanimli, report JSON'larda atamasi yok, dashboard'larda yok
-2. **ReportingHub bypass:** Dinamik rapor + dashboard `reportGroup` tasimiyor → `!item.reportGroup || canViewReport(...)` bypass
-3. **DashboardController:** report-group bazli kontrol yapmiyorr
-
-**Revize DoD:**
-- [x] 3/4 report group report JSON'larda aktif (FINANCE=20, HR=9, SALES=2)
-- [ ] ANALYTICS_REPORTS ya raporlara atanmali ya da temizlenmeli
-- [ ] Dinamik rapor/dashboard catalog'a reportGroup eklenmeli
-- [ ] DashboardController'a reportGroup check eklenmeli
-
-### FAZ 3.5: DESIGN LAB SHOWCASE — ✅ DONE (PR #305 + #318)
-
-### FAZ 4: MIGRATION TAMAMLAMA + LEGACY TEMIZLIK
-
-| Alt Faz | Is | Durum |
-|---------|-----|-------|
-| **4-a** | AFTER_COMMIT dispatch | ✅ DONE (PR #335 + #338) |
-| **4-b** | D-003 DCP + deprecated temizlik | ✅ DONE (PR #335) |
-| **4-c** | Audit hardening | ⚠️ PARTIAL |
-| **4-d** | Frontend mutation refresh | ✅ DONE |
-
-### FAZ 5: TEST ALTYAPISI — ✅ DONE (PR #334, #340, #341)
-
-(icerik degismedi — 12/12 item tamamlandi)
-
-### FAZ 6: P3 — ERTELENMIS (SaaS kararina bagimli)
+**NOT:** SK-6 referansı D-003'tür (permission-service TRANSFORMED — OpenFGA hub). Dev repo DCP (CNS-20260411-001) ile uzlaşılmış karar: kaldırma değil, dönüştürme. Manifest `legacy_permission_service_removed_d002` → düzeltilecek.
 
 ---
 
-## 4. GUVENLIK BULGULARI (rev 9 — CNS-006 konsolide)
+## 3. FAZ DURUMU (geçmiş — tamamlananlar)
 
-### Duzeltilmis Bulgular
+| Faz | Açıklama | Durum | PR |
+|-----|----------|-------|----|
+| 0 | Staging flags ON test (8/8) | ✅ DONE | #305-#318 |
+| 1 | @Filter/RLS (4 entity, 4 tablo, isolation test) | ✅ DONE | #314, #317 |
+| 1.5 | can_edit, checkWithReason, batch-check, hooks, gates | ✅ DONE | #305 |
+| 2 | Prod deploy flags ON (0% error, p95=15ms, Prometheus+Loki) | ✅ DONE | #316 |
+| 3 | Report permission groups (4 group, 31 rapor, ZanzibarGate) | ✅ DONE | #346 |
+| 3.5 | Design Lab (4 senaryo, playground, live demo, 14 story) | ✅ DONE | #318 |
+| 4-d | Frontend mutation refresh (60s version polling + smart) | ✅ DONE | — |
+| 4-c | Audit hardening (deny log var, alert mekanizması YOK) | ⚠️ KISMEN | — |
+| 4-a | propagateRoleChange (senkron — async/durable gerekli) | ❌ YAPILMADI | — |
+| 4-b | Legacy permission-service kaldır (D-002 scope netleşmeli) | ❌ YAPILMADI | — |
+| 5 | Test altyapısı (devam ediyor) | 🔄 DEVAM | — |
+| 6 | P3 SaaS (DEFERRED — D-005) | 📋 DEFERRED | — |
 
-| # | Bulgu | Ciddiyet | PR | Durum |
-|---|---|---|---|---|
-| R3-6 | canViewReport(undefined) = allow | KRITIK | PR #334 | ✅ DUZELTILDI |
-| R4-1 | AFTER_COMMIT stale state | YUKSEK | PR #335+#338 | ✅ DUZELTILDI |
-| R4-8 | auth-service legacy endpoint | YUKSEK | PR #335+#338 | ✅ DUZELTILDI |
-| Q7 | ReportAccessEvaluator string | ORTA | PR #334 | ✅ DUZELTILDI (test 11/11 PASS) |
-
-### YENI Bulgular (CNS-006 — ACIK)
-
-| # | Bulgu | Ciddiyet | Kanit | Aksiyon |
-|---|---|---|---|---|
-| **R16** | ReportController CRUD/history endpoint'leri sadece `authenticated()` arkasinda — reportGroup/OpenFGA check YOK | **YUKSEK** | ReportController.java:101, SecurityConfig.java:49 | OpenFGA check ekle |
-| **R17** | CustomReport `access_config` saklaniyor ama list endpoint'te UYGULANMIYOR | **ORTA** | CustomReportRepository.java:28,45 | List query'ye access_config filtresi ekle |
-| **R18** | ReportingHub dinamik rapor/dashboard `reportGroup` tasimiyor → filtre bypass | **ORTA** | useCatalog.ts:63,79 — `!item.reportGroup \|\| canViewReport(...)` | Catalog map'e reportGroup ekle |
-
----
-
-## 5. TEKNIK BORC (rev 9)
-
-### Kapatilmis (21/21 — onceki oturumdan)
-
-TB-05..TB-21 tumu KAPATILDI (degisiklik yok).
-
-### YENI Teknik Borc (CNS-006)
-
-| # | Borc | Ciddiyet | Kaynak |
-|---|------|----------|--------|
-| **TB-22** | Playwright authz.zanzibar.spec.ts EPERM ile FAIL — transform cache permission sorunu | YUKSEK | CNS-006 #5 |
-| **TB-23** | ANALYTICS_REPORTS tutarsizligi — seed/registry var, JSON/dashboard atamasi yok | ORTA | CNS-006 #2, CNS-006b #1 |
-| **TB-24** | OpenFGA image `latest` → `v1.11.2` pin (breaking change riski: pgxpool migration) | ORTA | CNS-006 #4, CNS-006b #3 |
-| **TB-25** | PR #332 hala OPEN — #342 superseded, kapatilmali | DUSUK | CNS-006b #2 |
-| **TB-26** | SK-7 test coverage 45%/7% — hedef >=80% | YUKSEK | Cross-validation |
-| **TB-27** | Orchestrator entegrasyonu eksik (extension dir + SSOT roadmap + managed repo) | ORTA | Cross-validation |
-
-**Toplam: 21 kapatilmis + 6 yeni = 27 (6 acik)**
+### Dev Repo Merge Geçmişi (toplam 11 PR)
+Oturum 1: #305, #307, #313, #314, #315, #316, #317, #318
+Oturum 2: #346, #347
+Orchestrator: #70, #71, #72, #73 (Orch #74 merge bekliyor)
 
 ---
 
-## 6. RISK MATRISI (rev 9)
+## 4. STAGING DURUMU
 
-| Risk | Olasilik × Etki | Mitigation | Durum |
+| Metrik | Değer |
+|--------|-------|
+| Servis health | 18 healthy |
+| OpenFGA | SERVING, v1.11.2 (pinli) |
+| Vault | Unsealed (vault-unseal watcher + PR #347 health retry) |
+| SK-2 latency | 11-15ms (parallel OpenFGA + cache enable + TTL 120s) |
+| Model ID | 01KNX1PH3V4EQE4K25H8D77PHX |
+| RLS | 4 tablo aktif (devops/postgres/ scripts) |
+
+### Port Mapping (DİKKAT — localhost:8080 = Keycloak, gateway DEĞİL!)
+| Servis | Host Port | Docker Internal |
+|--------|-----------|-----------------|
+| Keycloak | 8080 | keycloak:8080 |
+| Gateway | 8082 | api-gateway:8080 |
+| Permission-service | 8090 | permission-service:8084 |
+| OpenFGA | 4000 | openfga:8080 |
+| Eureka | 8761 | — |
+| Prometheus | 9090 | — |
+
+### Bilinen Sorunlar
+1. **/authz/me boş dönüyor** — JWT audience mismatch (gateway vs servis)
+2. **Vault auto-unseal** — PR #347 watcher çalışıyor ama health yetişemeyebilir
+3. **JaCoCo coverage** — common-auth 51.9%, report-service 13.4% (hedef %80)
+
+---
+
+## 5. KALAN İŞLER — 43 MADDE (rev 14: orch + dev repo birleşik)
+
+*CNS-007/008 + dev repo gap analizi (3 agent taraması) + decision drift closure entegre.*
+*P0-S tamamlandı bu oturumda. Orchestrator → dev repo 37 dosya sync edildi (0 drift).*
+
+### P0-S: SSOT Yapısal Düzeltmeler — ✅ TAMAMLANDI
+
+| # | İş | Durum |
+|---|-----|-------|
+| S-01 | Commit + PR #75 (plan, roadmap, extension, decisions, rules, manifest) | ✅ DONE |
+| S-02 | Decision drift closure (D-002/D-003 dev repo DCP ile hizalandı) | ✅ DONE |
+| S-03 | Cross-repo sync (37 dosya → 0 drift) | ✅ DONE |
+
+### P0-R: Rollout Hazırlık (6 iş — CNS-009 bulgularıyla genişletildi)
+
+| # | İş | Efor | Dosya(lar) | Not |
+|---|-----|------|-----------|-----|
+| R-01 | Runbook Draft→Final + pre-condition checklist tamamla | 0.5 gün | `docs/04-operations/RUNBOOKS/RB-zanzibar-canary.md` | CNS-009: hâlâ "Draft" |
+| R-02 | Canary authz metric integration (4/4 metrik) | 0.5 gün | `scripts/ci/canary/guardrail-check.mjs`, `pull-grafana-metrics.mjs` | CNS-009: sadece 2/4 metrik okunuyor, `error_rate` + `cache_miss` eksik |
+| R-03 | Prod Grafana alert provisioning | 0.5 gün | `docker-compose.prod.yml` | CNS-009: dev compose mount ediyor, prod ETMİYOR |
+| R-04 | k6 env var fix (AUTH_TOKEN vs TOKEN) | XS | `scripts/perf/k6-zanzibar-check.js`, `perf-run.sh` | CNS-009: wrapper TOKEN, k6 AUTH_TOKEN bekliyor |
+| R-05 | Decision SSOT reconcile (dev decisions sync) | XS | `decisions/topics/zanzibar-openfga.v1.json` | CNS-009: C-004 constraint vs vite.config.ts çelişki |
+| R-06 | Stage 3 gate-based rollout execution | 5-10 gün | — | Guardrails: p95<50ms, deny<10%, error<0.5%, cache_miss<50% |
+
+### P1: SK-7 Coverage — Authz Core (8 iş — CNS-009 scope split uygulandı)
+
+*CNS-009: "full module %80" ile "authz slice %80" ayrılmalı. P1 = authz core, P2 = full module.*
+
+| # | İş | Efor | Dosya(lar) | Not |
+|---|-----|------|-----------|-----|
+| C-03 | SqlBuilder pure unit (10-12 test) | 0.5 gün | `report-service/.../SqlBuilder.java` | ← **BAŞLA BURADAN** (EN HIZLI) |
+| C-01 | ScopeContextFilter MockMvc (12-15 test) | 1.5 gün | `common-auth/.../ScopeContextFilter.java` | 9% → 60%+ |
+| C-02 | OpenFgaAuthzService mock (20-25 test) | 2 gün | `common-auth/.../OpenFgaAuthzService.java` | 17% → 70%+, 393 LOC |
+| C-04 | DashboardQueryEngine (15-20 test) | 1.5 gün | `report-service/.../DashboardQueryEngine.java` | 0% → 60%+ |
+| C-05 | QueryEngine (8-10 test) | 0.5 gün | `report-service/.../QueryEngine.java` | 0% → 60%+ |
+| C-06 | Registry (12-16 test) | 1 gün | `report-service/.../Registry*.java` | 0% → 60%+ |
+| R-07 | Prod alert provisioning (Grafana zanzibar receiver) | 0.5 gün | `docker-compose.prod.yml`, Grafana config | CNS-009 |
+| R-08 | Doctor runtime alignment (B3/B5/B7) | 0.5 gün | `scripts/doctor-zanzibar.sh` | CNS-009: current arch uyumsuz |
+
+**SK-7 Coverage Hedefleri (scope split per CNS-009):**
+- **P1 authz core:** common-auth authz slice 51.9%→80%, report-service authz slice 13.4%→50%+
+- **P2 full module:** report-service full module → 80% (ayrı efor)
+- **Toplam P1: 77-98 test, ~8 gün**
+
+### P2: Orta Vade (14 iş)
+
+| # | İş | Efor | Repo | Not |
+|---|-----|------|------|-----|
+| H-03 | Rollback playbook staging testi | 0.5 gün | dev | |
+| L-02 | SecurityConfig testi (Spring Security chain) | 1-2 gün | dev | ↑ P3'ten, güvenlik kritik |
+| M-01 | 6 dependabot PR triage | 0.5 gün | dev | TS 5.9, zod 4, react-router 7 |
+| M-02 | Export/Repository testleri (CSV, Excel, CustomReport) | 1.5 gün | dev | |
+| M-03 | ContextHealth modül testleri (1146 LOC, 0%) | 2 gün | dev | |
+| M-04 | Playwright E2E staging çalıştırma | 0.5 gün | dev | PW_REAL_USER_PASSWORD ENV |
+| M-05 | ADR-0012 Phase 3: JWT claim removal, @PreAuthorize→OpenFGA | 3-5 gün | dev | |
+| M-06 | k6 CI entegrasyonu (script var, workflow yok) | 0.5-1 gün | dev | |
+| T-02 | Playwright CI entegrasyonu (ENV secret + workflow) | 0.5 gün | dev | |
+| M-14 | Faz 4-c: Audit alert mekanizması (deny log var, alert YOK) | 1 gün | dev | YENİ |
+| M-15 | Faz 4-a: propagateRoleChange best-effort→durable (outbox/retry) | 3-5 gün | dev | CNS-009: @Async var ama durable değil |
+| M-16 | variant-service OpenFGA env var ekleme (docker-compose) | XS | dev | YENİ |
+| M-09 | Risk/TB/T-01..T-13 → machine-readable JSON | 0.5 gün | orch | |
+| M-10 | EP-016 legacy auth import ban implement et | 0.5 gün | orch | |
+
+### P3: Uzun Vade (7 iş)
+
+| # | İş | Repo |
+|---|-----|------|
+| L-01 | Stale branch temizliği (claude/theme-axis-tokens) | dev |
+| L-03 | Managed repo contract hardening | orch |
+| L-04 | SSOT roadmap milestone güncelle | orch |
+| L-05 | OpenFGA model version management (otomatik migration) | dev |
+| L-06 | /authz/me audience fix (JWT gateway vs servis) | dev | 
+| L-07 | compat.ts useAuthorization kaldırma | dev |
+| L-08 | Faz 4-b scope netleştirme (D-003 TRANSFORMED → tam scope tanımı) | dev |
+
+### DEFERRED (5 iş)
+
+| # | İş | Neden |
+|---|-----|-------|
+| F-01 | Faz 6 SaaS features (condition, event-driven, Redis) | D-005 |
+| F-02 | service-manager unhealthy fix | Scope dışı |
+| F-05 | OpenFGA HTTP/2 tuning | Performans |
+| F-06 | RemoteAuthzVersionProvider WireMock testi | Nice-to-have |
+| F-07 | Grafana dashboard staging doğrulama | Observability |
+
+### DEV REPO MEVCUT ARTIFACT ENVANTERİ (agent taraması doğruladı)
+
+| Kategori | Dosya Sayısı | Durum |
+|----------|-------------|-------|
+| Backend OpenFGA Java | 67 | ✅ Çalışıyor |
+| Frontend @mfe/auth | 14 | ✅ Çalışıyor, 0 broken import |
+| Storybook stories | 14 | ✅ |
+| Backend testler | 27+ | ⚠️ Coverage yetersiz |
+| Frontend testler | 5 suite | ✅ |
+| ADR dokümanlar | 3 (0010, 0011, 0012) | ✅ |
+| CI workflows | 3 (enforce, smoke, deploy) | ✅ |
+| Doctor script | 25 check (17 kod + 8 runtime) | ✅ |
+| k6 perf scripts | 3 | ✅ Script var, CI yok |
+| Canary runbook + probe | 2 | ✅ |
+| Grafana dashboard + alerts | 2 | ✅ Wiring doğrulanmamış |
+| Docker OpenFGA + Vault | Tam config | ✅ v1.11.2 + 1.21.4 |
+| Flyway migrations | V1-V10 | ✅ |
+| RLS scripts | 1 (devops/postgres/) | ✅ 4 tablo aktif |
+
+---
+
+## 6. SK-7 DETAYLI YOL HARİTASI
+
+### common-auth (51.9% → 80%)
+| Modül | Mevcut | Test Sayısı | Öncelik |
+|-------|--------|-------------|---------|
+| ScopeContextFilter | 9% | 12-15 test (MockMvc + Mockito) | P1 |
+| OpenFgaAuthzService | 17% | 20-25 test (Mockito OpenFgaClient mock) | P1 |
+| RemoteAuthzVersionProvider | 55% | 5-8 test (WireMock) | P2 |
+| AuthorizationContextBuilder | 75% | 3-5 test (edge cases) | P3 |
+
+### report-service (13.4% → 80%)
+| Modül | Mevcut | Test Sayısı | Öncelik |
+|-------|--------|-------------|---------|
+| SqlBuilder | 0% | 10-12 test (pure unit) | P1 ← EN HIZLI |
+| Registry | 0% | 12-16 test (fixture JSON) | P1 |
+| ReportController | 25% | 10-12 test (MockMvc) | P2 |
+| DashboardQueryEngine | 0% | 15-20 test (Mockito) | P2 |
+| QueryEngine | 0% | 8-10 test (Mockito) | P2 |
+| Diğer (audit, filter, export) | — | 20-30 test | P3 |
+
+**Toplam: 132-171 ek test, 8-12 gün efor (CNS-008 efor düzeltmesi ile)**
+
+---
+
+## 7. TEST PLANI
+
+| Tip | Kapsam | Araçlar |
+|-----|--------|---------|
+| **Unit** | TupleSyncService, AuthzVersion, Cache, Filter | JUnit 5 + Mockito |
+| **Integration** | JWT→OpenFGA→Cache→Response, RLS isolation | Testcontainers |
+| **E2E** | Login→sayfa erişim, rol değişikliği→UI | Cypress/Playwright |
+| **Performance** | Check latency (cold/warm), cache ratio, RLS etkisi | k6 |
+| **Security** | RLS bypass, JWT tampering, IDOR, cross-company leak | Manual pentest |
+| **Regression** | Mevcut CRUD, flag OFF davranış, frontend snapshot | Mevcut test suite |
+
+---
+
+## 8. RİSK MATRİSİ
+
+| Risk | Olasılık × Etki | Mitigation | Durum |
 |------|-----------------|-----------|-------|
-| **R16** ReportController CRUD yetki yok | 16 (Y×Y) | OpenFGA check + @PreAuthorize | ❌ ACIK — Stage 3 BLOCKER |
-| **R3** RLS sorgu kirma | 16 (Y×Y) | Entity bazinda staging test | ✅ Mitigated |
-| **R8** Bus factor = 1 | 16 (Y×Y) | Runbook + dokumantasyon | ⚠️ Devam |
-| **R17** CustomReport access_config uygulanmiyor | 12 (O×Y) | List query filtre | ❌ ACIK |
-| **R18** ReportingHub dinamik bypass | 12 (O×Y) | Catalog reportGroup | ❌ ACIK |
-| **R15** Batch-check kullanim drift | 12 (O×Y) | ReportingHub adoption | ⚠️ BEKLIYOR |
-| **R1** OpenFGA performans (SK-2) | 12 (O×Y) | Cache + proximity | ⚠️ SK-2 FAIL |
-| **R19** OpenFGA latest image drift | 9 (O×O) | Version pin | ❌ ACIK |
-| **R14** canViewReport implicit allow | 16 (Y×K) | deny-default | ✅ Mitigated |
-| **R11** Deploy zinciri | 16 (Y×Y) | PR #329 | ✅ Mitigated |
+| **R3** RLS sorgu kırma | 16 (Y×Y) | Entity bazında staging test | ✅ Mitigated (Faz 1 test) |
+| **R8** Bus factor = 1 | 16 (Y×Y) | Dokümantasyon, runbook | ⚠️ Açık |
+| **R1** OpenFGA performans | 12 (O×Y) | Cache + warm-up | ✅ Mitigated (SK-2 PASS) |
+| **R2** Legacy kaldırma geri dönüş | 12 (D×K) | 2 hafta parallel | ⏳ Faz 4-b'de |
+| **R4** Cache version uyumsuzluğu | 12 (O×Y) | Single source of truth | ✅ Mitigated |
+| **R10** Staging-prod parity | 12 (O×Y) | IaC | ⚠️ Kısmen |
+| **R11** Deploy materialization chain | — (O×Y) | CNS-001 bulgular | ⚠️ Açık (plana yansıtılmadı) |
 
 ---
 
-## 7. KALAN IS LISTESI (rev 9 — oncelik sirali)
+## 9. TEKNİK BORÇ
 
-### P0 — Stage 3 Oncesi Zorunlu
-
-| # | Is | Efor | Detay |
-|---|---|---|---|
-| P0-1 | **R16: ReportController guvenlik fix** | 1-2 gun | CRUD endpoint'lere OpenFGA check ekle |
-| P0-2 | **R17: CustomReport access_config enforce** | 1 gun | List query'ye filtre ekle |
-| P0-3 | **TB-22: Playwright EPERM fix** | 0.5 gun | Transform cache permission coz, E2E calistir |
-| P0-4 | **TB-25: PR #332 kapat** | 5 dk | `gh pr close 332 --comment "Superseded by #342"` |
-| P0-5 | **Faz 2 Stage 3 karari** | Karar | Canary 48h doldu — yukaridaki 4 fix sonrasi rollout baslat |
-
-### P1 — Kisa Vadeli
-
-| # | Is | Efor | Detay |
-|---|---|---|---|
-| P1-1 | **TB-26: SK-7 test coverage >=80%** | 2-3 gun | common-auth 45→80%, report-service 7→80% |
-| P1-2 | **R18: ReportingHub dinamik reportGroup** | 1 gun | useCatalog.ts dinamik/dashboard map'e reportGroup ekle |
-| P1-3 | **TB-23: ANALYTICS_REPORTS temizlik** | 0.5 gun | Ya report JSON'lara ata ya da seed/registry'den kaldir |
-| P1-4 | **TB-24: OpenFGA image pin** | 0.5 gun | `openfga/openfga:${OPENFGA_VERSION:-v1.11.2}` |
-
-### P2 — Orta Vadeli
-
-| # | Is | Efor | Detay |
-|---|---|---|---|
-| P2-1 | **SK-2: p95 <15ms optimize** | Arastirma | OpenFGA proximity, connection pool, cache TTL |
-| P2-2 | **Deploy stability dogrulama** | Sonraki deploy | --no-recreate + health check test |
-
-### P3 — Uzun Vadeli
-
-| # | Is | Efor | Detay |
-|---|---|---|---|
-| P3-1 | **Vault auto-unseal** | Arastirma | Transit auto-unseal veya cron job |
-| P3-2 | **TB-27: Orchestrator entegrasyonu** | 1-2 gun | extensions/PRJ-ZANZIBAR-OPENFGA/ + SSOT roadmap milestone + managed repo onboard |
-
-**Toplam: 5 P0 + 4 P1 + 2 P2 + 2 P3 = 13 is**
+| # | Borç | Öncelik | Faz | Durum |
+|---|------|---------|-----|-------|
+| TB-06 | Docker smoke test yok | Yüksek | Faz 5 | 🔄 Devam |
+| TB-10 | @Filter CI gate kontrolü yok | Yüksek | Faz 1 | ✅ Mitigated |
+| TB-11 | permission-service referans envanteri yok | Yüksek | Faz 4-b | ❌ Açık |
+| TB-05 | ConditionalOnProperty kombinasyon testleri | Orta | Faz 5 | ❌ Açık |
+| TB-07 | OpenFGA model version yönetimi yok | Orta | Faz 4-c | ❌ Açık |
 
 ---
 
-## 8. ZAMAN CIZELGESI (rev 9)
+## 10. KARAR UYUM KONTROLÜ
 
-```
-✅ Dalga 1-4:   DONE (11 PR merged)
-✅ Faz 0-1:     DONE
-✅ Faz 1.5:     DONE
-✅ Faz 3.5:     DONE
-✅ Faz 5:       DONE
-⚡ Faz 2:       Canary 48h DOLDU
-
-→ HEMEN (1-3 gun):
-   ├── P0-1: ReportController guvenlik fix
-   ├── P0-2: CustomReport access_config enforce
-   ├── P0-3: Playwright EPERM fix
-   └── P0-4: PR #332 kapat
-
-→ Stage 3 BASLAT (P0'lar kapandiktan sonra):
-   └── Kademeli rollout %10→%25→%50→%100 (5-10 gun gozlem)
-
-→ PARALEL (Stage 3 sirasinda):
-   ├── P1-1: SK-7 test coverage (2-3 gun)
-   ├── P1-2: ReportingHub dinamik fix (1 gun)
-   ├── P1-3: ANALYTICS_REPORTS temizlik (0.5 gun)
-   └── P1-4: OpenFGA pin (0.5 gun)
-
-→ SONRA:
-   ├── P2-1: SK-2 optimize (arastirma)
-   ├── P2-2: Deploy dogrulama (sonraki deploy)
-   ├── P3-1: Vault auto-unseal
-   └── P3-2: Orchestrator entegrasyonu
-
-→ Faz 6:        P3 ERTELENMIS (SaaS kararina bagimli)
-```
+Her fazda kontrol:
+- D-001: OpenFGA dışında auth engine YOK
+- D-002: Keycloak = authentication ONLY (JWT'ye permission claim gömülmez)
+- D-003: Permission-service = OpenFGA hub (kaldırılmayacak, SK-6 referansı BU)
+- D-004: Shadow mode değil, flag ile geçiş
+- D-007: Yeni endpoint'lerde tenant_id var
 
 ---
 
-## 9. ISTISARE KAYDI (rev 9)
+## 11. CONSULTATION GEÇMİŞİ
 
-| ID | Tarih | Taraflar | Konu | Sonuc |
-|----|-------|----------|------|-------|
-| CNS-001 | 2026-04-11 | Claude → Codex | Dalga 1+2 roadmap | 3 itiraz kabul |
-| CNS-002 | 2026-04-11 | Claude → Codex | Dalga 3+4 plan | 5 itiraz kabul |
-| CNS-003 | 2026-04-11 | Claude → Codex | 7 itiraz + repo dogrulama | 7/7 kabul |
-| CNS-004 | 2026-04-11 | Codex bug hunt | 5 bug bulundu | Tumu duzeltildi |
-| CNS-005 | 2026-04-11 | Codex kritik bulgu | auth-service, @Transactional | Tumu duzeltildi |
-| **CNS-006** | **2026-04-12** | **Claude → Codex** | **Cross-validation: 10 tespit dogrulamasi** | **2 yeni guvenlik acigi, Playwright KIRIK, ReportingHub bypass** |
-| **CNS-006b** | **2026-04-12** | **Claude → Codex** | **3 anlasmazlik uzlasi** | **3/3 uzlasi: ANALYTICS tutarsiz, #332 kapat, OpenFGA pin zorunlu** |
-
----
-
-## 10. RACI (degismedi)
-
-| | Human | Claude | Codex |
-|--|-------|--------|-------|
-| Karar onay | **A** | R | C |
-| Kod yazim | A | **R** | C (review) |
-| Test yurutme | **R** | C | I |
-| Prod deploy | **R** | C | I |
-| Incident response | **R** | C | I |
-| Dokumantasyon | A | **R** | C |
-| Istisare | I | **R** | **R** |
+| CNS | Konu | Durum | Ana Karar |
+|-----|------|-------|-----------|
+| CNS-001 | 4-Wave Strategic Plan | RESOLVED | Wave 1 expand, restricted smoke user, deploy chain fix |
+| CNS-002 | Dalga 3+4 Detay | RESOLVED | authzTarget registry, @TransactionalEventListener, auth-service prereq |
+| CNS-003 | System NOT_READY→READY | OPEN | 4 wave readiness plan |
+| CNS-004 | Design System Analysis | OPEN | Independent Codex analysis |
+| CNS-005 | Design Lab + Zanzibar-Aware | OPEN | 3-layer ZanzibarGate önerisi |
+| CNS-006/b | PRJ-DESIGN-LAB Evolution | OPEN | 6-phase plan, 10 tespit, 3 uzlaşı |
+| CNS-007 | **Zanzibar Bağımsız Denetim** | RESOLVED | 17 bulgu (rev 12) |
+| CNS-008 | **Kalan İş Listesi Denetimi** | RESOLVED | Efor düzeltmeleri, 4 ekleme, 6 öncelik değişikliği (rev 13) |
+| CNS-009 | **Dev Repo Birleşik Backlog Denetimi** | RESOLVED | 7 itiraz (hepsi kabul), 8 ekleme, rollout wiring eksikleri (rev 15) |
 
 ---
 
-## 11. CROSS-REPO SYNC (degismedi)
+## 12. ÖĞRENILEN DERSLER
 
-| Mekanizma | Ne yapar |
-|-----------|----------|
-| Orchestrator SSOT | Zanbibar roadmap + status artifact |
-| Dev repo mirror | sync_managed_repo_standards.py |
-| CI drift check | feature_execution_contract freshness |
-| Oturum sonu SOP | Her PR merge'de orchestrator memory + plan guncelle |
+1. CI bekleme: `sleep(150)` YAPMA, 30s'de kontrol et
+2. Deploy: önce lokal test → commit → deploy (geriye dönme)
+3. IMAGE_TAG: her PR merge sonrası güncellenmeli
+4. enforcement-check: yeni dosyalar feature_execution_contract scope'una eklenmeli
+5. UX catalog: yeni .tsx dosyaları ux_change_map.v1.json'a eklenmeli
+6. FilterDef name conflict: aynı persistence unit'te unique isim zorunlu
+7. ScopeFilterInterceptor: @PersistenceContext + @ConditionalOnBean gerekli
+8. Flyway RLS: H2 desteklemez, devops/postgres/ scripts olarak yönet
+9. **Plan version control dışı bırakılmamalı** (rev 12 bulgusu)
+10. **Commit mesajı ile diff uyuşmalı** (rev 12 bulgusu)
 
 ---
 
-## 12. KARAR UYUM KONTROLU (rev 9)
+## 13. BAŞLANGIÇ REHBERİ (Sonraki Oturum)
 
-- D-001: OpenFGA disinda auth engine YOK ✅
-- D-003: TRANSFORMED — permission-service OpenFGA hub ✅
-- D-004: Shadow mode degil, flag ile gecis ✅
-- D-007: Yeni endpoint'lerde tenant_id var ✅
-- CNS-003 #3: Backend deny-default ✅
-- **CNS-006 YENI:** ReportController deny-default eksik ❌ → P0-1
-- **CNS-006 YENI:** CustomReport access_config enforce eksik ❌ → P0-2
+### Oku (sırasıyla)
+1. **Bu plan:** `.claude/plans/zanzibar-master-plan.md` (rev 12)
+2. **Memory:** `project_openfga_p0_cache.md`
+3. **Staging ops:** `reference_staging_ops.md`
+
+### Başla
+1. **P0-S grubunu kapat** (9 SSOT düzeltmesi — 1-2 saat toplam)
+2. **P0-R: Rollout altyapısı** (production'a giden yol)
+3. **Veya P1 C-03: SqlBuilder** test (en hızlı SK-7 kazancı)
+
+### Ortam
+| Ortam | Durum |
+|-------|-------|
+| Dev repo main | ✅ (#346 squash, 5a1122c6) |
+| Dev repo staging | ✅ 18 healthy, deploy SUCCESS |
+| Orchestrator main | ✅ (#73 merged, PR #74 plan rev 11 bekliyor) |
+| Vault | ✅ Unsealed (watcher + PR #347) |
+| OpenFGA | ✅ SERVING, v1.11.2 |
+| SK-2 | ✅ 11-15ms PASS |
