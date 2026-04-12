@@ -13,7 +13,8 @@ from typing import Any
 from src.providers.provider import Provider
 
 
-_SUPPORTED_CAPABILITIES = frozenset(["chat"])
+from src.providers.capability_model import get_provider_capabilities
+_SUPPORTED_CAPABILITIES = get_provider_capabilities("claude")
 _BASE_URL = "https://api.anthropic.com/v1"
 _API_VERSION = "2023-06-01"
 
