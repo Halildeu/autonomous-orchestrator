@@ -21,8 +21,6 @@ export type {
   CheckReason, BatchCheckRequest, BatchCheckItem, BatchCheckResponse,
   ZanzibarAccessLevel,
 } from './types';
-export { useAuthorization } from './compat';
-
 // Object-level permission cache (authzVersion-driven)
 export { createZanzibarCache } from './zanzibar-cache';
 export type { ZanzibarCache, ZanzibarCacheConfig, ZanzibarCacheEntry } from './zanzibar-cache';

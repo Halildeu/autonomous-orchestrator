@@ -190,6 +190,23 @@ RULES: list[dict[str, Any]] = [
         ],
     },
     {
+        "id": "EP-016",
+        "message": "EP-016 Legacy Auth Import Ban: Legacy authorization imports are banned. Use @mfe/auth hooks instead of useAuthorization, and OpenFGA instead of PermissionServiceClient.",
+        "severity": "WARNING",
+        "stage": "v1_advisory",
+        "globs": ["web/apps/**/*.ts", "web/apps/**/*.tsx",
+                  "web/packages/**/*.ts", "web/packages/**/*.tsx",
+                  "backend/**/*.java"],
+        "file_excludes": ["**/node_modules/**", "**/dist/**", "**/target/**",
+                          "**/__tests__/**", "*.test.*", "**/compat.ts"],
+        "patterns": [
+            re.compile(r"from\s+['\"].*compat['\"]"),
+            re.compile(r"useAuthorization\s*\("),
+            re.compile(r"import.*PermissionServiceClient"),
+            re.compile(r"new\s+PermissionServiceClient"),
+        ],
+    },
+    {
         "id": "EP-017",
         "message": "EP-017 Deep Import Ban: Use public API exports, not internal package paths.",
         "severity": "WARNING",

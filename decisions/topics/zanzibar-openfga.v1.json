@@ -3,9 +3,9 @@
   "id": "zanzibar-openfga",
   "title": "Authorization: OpenFGA Zanzibar Migration",
   "status": "ACTIVE",
-  "revision": 2,
+  "revision": 3,
   "created_at": "2026-03-29T00:00:00Z",
-  "updated_at": "2026-04-11T10:00:00Z",
+  "updated_at": "2026-04-13T00:00:00Z",
   "owner": "halil",
   "decisions": [
     {
@@ -121,6 +121,16 @@
       "id": "C-005",
       "constraint": "Permission-service is the OpenFGA hub — do NOT remove it; do NOT duplicate TupleSyncService or AuthzVersionService in other services",
       "scope": "backend/permission-service/**"
+    },
+    {
+      "id": "C-006",
+      "constraint": "schema-service AUTH_MODE kill-switch REMOVED — always authenticated() in non-local profiles. Do NOT re-add permitAll bypass.",
+      "scope": "backend/schema-service/**/SecurityConfig.java"
+    },
+    {
+      "id": "C-007",
+      "constraint": "Production SecurityConfig catch-all must be authenticated() or denyAll(), NEVER permitAll(). Only SecurityConfigLocal (@Profile local/dev) may use permitAll.",
+      "scope": "backend/**/SecurityConfig.java"
     }
   ],
   "validation": {
@@ -138,6 +148,11 @@
       "revision": 2,
       "date": "2026-04-11",
       "changes": "D-003 DCP: 'Permission-service REMOVED' → 'TRANSFORMED — OpenFGA hub'. C-005 updated to protect hub role. Ref: CNS-20260411-001 (Claude+Codex consultation, Seçenek B uzlaşı)."
+    },
+    {
+      "revision": 3,
+      "date": "2026-04-13",
+      "changes": "4 pending decisions resolved (K-1..K-4). C-006 added: schema-service AUTH_MODE kill-switch removed. C-007 added: prod SecurityConfig must use authenticated() catch-all. ERP_OPENFGA_ENABLED staged rollout via PR-D (docker-compose default true). MFE standalone auth deferred (shell protection sufficient). Vault naming fixed in compose. Ref: CNS-20260413-001."
     }
   ]
 }
