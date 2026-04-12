@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging as _logging
+
 import src.prj_kernel_api.adapter_llm_actions as _core
+
+_log = _logging.getLogger(__name__)
 
 for _name in dir(_core):
     if _name.startswith("__"):
@@ -989,6 +993,40 @@ def maybe_handle_llm_actions(
         max_response_bytes = guard.get("max_response_bytes", 131072)
         max_response_bytes_value = int(max_response_bytes) if isinstance(max_response_bytes, int) and max_response_bytes > 0 else 131072
 
+        # --- Pre-flight: capability check (PR4b) ---
+        from src.prj_kernel_api.llm_request_builder import check_capabilities_before_request
+        cap_ok, _, cap_missing = check_capabilities_before_request(
+            provider_id=provider_id, model=model,
+        )
+        # Capability check is advisory — log but don't block (fail-open for now)
+        if not cap_ok:
+            _log.info("Capability gap: provider=%s missing=%s", provider_id, cap_missing)
+
+        # --- Pre-flight: token counting + budget check (PR5) ---
+        _token_estimate = None
+        try:
+            from src.providers.token_counter import count_tokens
+            _token_info = count_tokens(messages, provider_id=provider_id, model=model)
+            _token_estimate = _token_info.get("estimated_tokens", 0)
+        except Exception:
+            pass  # Token counting is best-effort, don't block call
+
+        # --- Pre-flight: rate limiting (PR2) ---
+        from src.prj_kernel_api.rate_limiter import get_rate_limiter
+        _rate_limit_rps = float(provider_policy.get("rate_limit_rps", 1)) if isinstance(provider_policy.get("rate_limit_rps"), (int, float)) else 1.0
+        _rl = get_rate_limiter(provider_id, _rate_limit_rps)
+        if not _rl.acquire(timeout_s=5.0):
+            return build_response(
+                status="FAIL",
+                payload={"provider_id": provider_id, "model": model},
+                notes=["PROGRAM_LED=true", "no_secrets=true"],
+                request_id=request_id,
+                error_code="RATE_LIMITED",
+                message=f"Rate limit exceeded for {provider_id} ({_rate_limit_rps} rps).",
+                auth_checked=auth_checked,
+                rate_limited=True,
+            )
+
         # --- Seam: request building (llm_request_builder) ---
         from src.prj_kernel_api.llm_request_builder import build_live_request
         live_req = build_live_request(
@@ -1033,6 +1071,61 @@ def maybe_handle_llm_actions(
             request_id=str(request_id or ""),
             max_output_chars=max_output_chars_value,
         )
+
+        # --- Post-flight: eval harness (PR6) ---
+        try:
+            from src.orchestrator.eval_harness import eval_scorecard, run_eval_suite
+            from src.prj_kernel_api.llm_response_normalizer import extract_llm_output_text
+            _output_text = extract_llm_output_text(resp_bytes) if resp_bytes else ""
+            if _output_text and status == "OK":
+                _eval_results = run_eval_suite(_output_text)
+                _eval_card = eval_scorecard(_eval_results)
+                payload["eval_scorecard"] = _eval_card
+        except Exception:
+            pass  # Eval is best-effort, don't block response
+
+        # --- Post-flight: token usage recording (PR5) ---
+        if _token_estimate is not None:
+            payload["token_estimate"] = _token_estimate
+        try:
+            from src.prj_kernel_api.llm_response_normalizer import extract_usage
+            _usage = extract_usage(resp_bytes) if resp_bytes else None
+            if _usage:
+                payload["usage"] = _usage
+        except Exception:
+            pass
+
+        # --- Post-flight: decision quality recording (PR6 → connects existing module) ---
+        try:
+            from src.orchestrator.decision_quality import record_decision_quality
+            _gate_results = payload.get("eval_scorecard", {}).get("checks", [])
+            record_decision_quality(
+                workspace_root=Path(workspace_root),
+                run_id=str(request_id or ""),
+                decision_boundary_used="llm_call_live",
+                quality_gate_results=_gate_results,
+                provider=provider_id,
+                model=model,
+                outcome="SUCCESS" if status == "OK" else "FAILURE",
+                latency_ms=transport_result.get("elapsed_ms", 0),
+            )
+        except Exception:
+            pass  # Decision quality is best-effort
+
+        # --- Post-flight: prompt lineage (PR7) ---
+        try:
+            from src.prj_kernel_api.prompt_registry import record_prompt_lineage
+            record_prompt_lineage(
+                workspace_root=workspace_root,
+                prompt_id="llm_call_live",
+                prompt_version="1.0.0",
+                prompt_hash="",
+                model=model,
+                provider_id=provider_id,
+                run_id=str(request_id or ""),
+            )
+        except Exception:
+            pass  # Lineage is best-effort
 
         return build_response(
             status=status,
