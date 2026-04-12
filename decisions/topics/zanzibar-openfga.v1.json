@@ -15,14 +15,14 @@
     },
     {
       "decision_id": "D-002",
-      "statement": "Permission-service kaldırılacak — OpenFGA geçişi tamamlanınca archive sonra sil",
-      "rationale": "JWT'ye gömülü permission stale, hardcoded admin mapping, inline check tutarsız.",
+      "statement": "Keycloak = authentication ONLY (identity JWT, permission claim YOK)",
+      "rationale": "JWT sadece sub, email, realm_role içerir. Authorization claim embedded edilmez. Tüm permission check OpenFGA üzerinden.",
       "status": "FINAL"
     },
     {
       "decision_id": "D-003",
-      "statement": "4 katmanlı mimari: Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + PostgreSQL RLS (data) → Frontend JS SDK",
-      "rationale": "Her katman tek sorumluluk. Keycloak sadece identity, OpenFGA sadece authorization, DB katmanı veri sızıntısını önler.",
+      "statement": "Permission-service TRANSFORMED — OpenFGA authorization hub (kaldırılmayacak)",
+      "rationale": "Permission-service artık bağımsız authz engine değil, OpenFGA senkronizasyon hub'ı: TupleSyncService, AuthzVersionService, AccessControllerV1, /authz/me+/authz/version. Kaldırmak Zanzibar'ı bozar. 'REMOVED' etiketi aspirasyoneldi; gerçek evrim TRANSFORMATION. DCP ref: CNS-20260411-001.",
       "status": "FINAL"
     },
     {

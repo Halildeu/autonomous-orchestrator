@@ -69,7 +69,7 @@ Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + RLS (data) → Fron
 | SK-3 | Data leak | 0 incident | 0 | ✅ PASS |
 | SK-4 | Rollback süresi | < 5 dakika | < 1dk | ✅ PASS |
 | SK-5 | Decision log kapsamı | %100 | Aktif | ✅ PASS |
-| SK-6 | Legacy permission-service | Transformed (D-002) | TRANSFORMED | ✅ PASS |
+| SK-6 | Permission-service transformed (D-003) | Hub olarak dönüştürüldü | TRANSFORMED | ✅ PASS |
 | SK-7 | Test coverage (authz kodu) | >= %80 | common-auth 51.9%, report-service 13.4% | ❌ GAP |
 | SK-8 | Frontend permission gate | 0 broken gate | 0 | ✅ PASS |
 | SK-9 | @Filter/RLS kapsamı | Tüm company-scoped tablolar | 4/4 entity, 4/4 tablo | ✅ PASS |
@@ -79,7 +79,7 @@ Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + RLS (data) → Fron
 
 **Skor: 10 PASS + 1 GAP + 1 PENDING = %83**
 
-**NOT:** SK-6 referansı D-002'dir (permission-service deprecation). Manifest'teki `legacy_transformed_d003` YANLIŞ — düzeltilecek.
+**NOT:** SK-6 referansı D-003'tür (permission-service TRANSFORMED — OpenFGA hub). Dev repo DCP (CNS-20260411-001) ile uzlaşılmış karar: kaldırma değil, dönüştürme. Manifest `legacy_permission_service_removed_d002` → düzeltilecek.
 
 ---
 
@@ -284,8 +284,8 @@ Orchestrator: #70, #71, #72, #73 (Orch #74 merge bekliyor)
 
 Her fazda kontrol:
 - D-001: OpenFGA dışında auth engine YOK
-- D-002: Permission-service kaldırılacak (SK-6 referansı BU)
-- D-003: Katman sorumluluk sınırı korunuyor
+- D-002: Keycloak = authentication ONLY (JWT'ye permission claim gömülmez)
+- D-003: Permission-service = OpenFGA hub (kaldırılmayacak, SK-6 referansı BU)
 - D-004: Shadow mode değil, flag ile geçiş
 - D-007: Yeni endpoint'lerde tenant_id var
 

@@ -25,13 +25,13 @@ class TestZanzibarManifest:
         metrics = self.manifest["success_metrics"]
         assert len(metrics) == 12, f"Expected 12 SK, got {len(metrics)}: {metrics}"
 
-    def test_manifest_sk6_references_d002(self):
-        """SK-6 must reference D-002 (permission-service deprecation), not D-003."""
+    def test_manifest_sk6_references_d003(self):
+        """SK-6 must reference D-003 (permission-service TRANSFORMED to OpenFGA hub)."""
         metrics = self.manifest["success_metrics"]
         sk6 = [m for m in metrics if "legacy" in m.lower() or "transformed" in m.lower()]
         for m in sk6:
-            assert "d002" in m.lower() or "d_002" in m.lower(), (
-                f"SK-6 metric '{m}' should reference D-002, not D-003"
+            assert "d003" in m.lower() or "d_003" in m.lower(), (
+                f"SK-6 metric '{m}' should reference D-003 (transformed), not D-002"
             )
 
     def test_manifest_milestone_phases(self):
@@ -61,13 +61,13 @@ class TestZanzibarDecisions:
         expected = [f"D-{i:03d}" for i in range(1, 8)]
         assert ids == expected, f"Expected {expected}, got {ids}"
 
-    def test_d002_is_deprecation(self):
+    def test_d002_is_keycloak_auth_only(self):
         d002 = [d for d in self.decisions["decisions"] if d["decision_id"] == "D-002"][0]
-        assert "kaldır" in d002["statement"].lower() or "deprecat" in d002["statement"].lower()
+        assert "keycloak" in d002["statement"].lower() or "authentication" in d002["statement"].lower()
 
-    def test_d003_is_architecture(self):
+    def test_d003_is_transformation(self):
         d003 = [d for d in self.decisions["decisions"] if d["decision_id"] == "D-003"][0]
-        assert "katman" in d003["statement"].lower() or "layer" in d003["statement"].lower()
+        assert "transform" in d003["statement"].lower() or "hub" in d003["statement"].lower()
 
 
 class TestZanzibarRoadmap:

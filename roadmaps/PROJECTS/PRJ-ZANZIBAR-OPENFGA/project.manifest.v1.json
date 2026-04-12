@@ -37,7 +37,7 @@
     "zero_data_leak_incidents",
     "rollback_under_5_minutes",
     "decision_log_coverage_100",
-    "legacy_permission_service_removed_d002",
+    "legacy_permission_service_transformed_d003",
     "test_coverage_authz_80",
     "zero_broken_frontend_gates",
     "filter_rls_all_company_tables",
