@@ -23,6 +23,9 @@ backend/.vault-dev/**
 .autopilot-tmp/
 .autopilot-tmp/**
 
+# Claude worktrees (never commit gitlinks)
+.claude/worktrees/
+
 # OS noise
 .DS_Store
 
