@@ -1,12 +1,60 @@
-# ZANZIBAR / OpenFGA — KAPSAMLI PROJE PLANI (rev 7)
+# ZANZIBAR / OpenFGA — KAPSAMLI PROJE PLANI (rev 8 — FINAL SESSION)
 
 **Proje Kodu:** PRJ-ZANZIBAR-OPENFGA
 **Tarih:** 2026-04-12
-**Revizyon:** 7 (Dalga 1-4 + Faz 3 DONE, Faz 2 canary AKTIF)
+**Revizyon:** 8 (Tum fazlar DONE. Faz 2 canary aktif. 21/21 TB kapatildi.)
 **Karar Referansi:** D-001 → D-007 (D-003 TRANSFORMED)
-**Durum:** PR #334-339 merged+deployed. Staging canary flags ON. 48h gozlem basladi.
+**Durum:** 11 PR merged+deployed (#334-345). Staging canary flags ON. Deploy stability fix aktif.
 **Istisare:** CNS-001..005 (5 Codex istisare, 15+ itiraz kabul, tumu duzeltildi)
-**Merged PRs:** #334 (Dalga3), #335 (Dalga4), #336 (hotfix), #338 (CNS-005), #339 (Faz3)
+**Merged PRs bu oturum:** #334, #335, #336, #338, #339, #340, #341, #342, #343, #344, #345 + Orch #71
+
+## OTURUM OZETI (2026-04-11/12)
+
+Bu oturumda Zanzibar projesi Dalga 3'ten Faz 5'e kadar tamamlandi.
+
+| PR | Icerik | SK/TB |
+|---|---|---|
+| #334 | Dalga 3: deny-default, batch-check, JaCoCo, testcontainers, codecov | SK-3, SK-7, SK-9, TB-12-14 |
+| #335 | Dalga 4: AFTER_COMMIT, legacy cleanup, Grafana dashboard | SK-6, TB-11, TB-20 |
+| #336 | Hotfix: mfe-users @mfe/auth alias | CI fix |
+| #338 | CNS-005: auth-service migration, @Transactional, dashboard path | SK-6, R4-1, R4-8 |
+| #339 | Faz 3: 31 report JSON + 7 catalog reportGroup + ReportingHub filter | TB-18, TB-14 |
+| #340 | Faz 5: AFTER_COMMIT test (5/5), combo test, @Filter gate (6/6) | TB-15, TB-05, TB-10 |
+| #341 | TB cleanup: PermissionCodes inline (8 file), PAGE/FIELD enum removed | TB-20, TB-21 |
+| #342 | Native BatchCheck API, per-decision audit log, k6 script, ADR, HikariCP | SK-11, SK-5, TB-07 |
+| #343 | Batch audit log path fix + check result cache (10s Caffeine) | SK-2, SK-5 |
+| #344 | Deploy infra stability (--no-recreate) + post-deploy health check | INFRA |
+| #345 | Health check 30s stabilization wait | INFRA |
+
+## KARSILASILAN SORUNLAR VE COZUMLERI
+
+| Sorun | Root Cause | Cozum |
+|---|---|---|
+| Doctor 73/76 (3 fail) | D-003 TRANSFORMED yansitilmamis | Doctor script guncellendi → 72/72 PASS |
+| canViewReport implicit allow | `grant === undefined` = true | Deny-default: sadece `ALLOW` true doner |
+| Batch-check 85ms | parallelStream N HTTP call | Native SDK BatchCheck (tek call) |
+| ReportingHub route≠group key | ZanzibarGate slug, canViewReport group key | ReportingHub canViewReport(reportGroup) pre-filter |
+| Auth-service legacy endpoint | /api/permissions/assignments | /api/v1/authz/me + userId param (CNS-005) |
+| @Transactional AFTER_COMMIT | Controller'da transaction yok | @Transactional annotation eklendi |
+| Decision log batch path | client.batchCheck() checkWithReason bypass | Batch path'e explicit log eklendi |
+| Staging Vault seal her deploy | compose up infra container restart | --no-recreate flag |
+| HaloApplicationTests fail | H2 context Vault/Eureka bean | @Disabled + Testcontainers profile |
+| UX change map missing | Yeni dosyalar kayitsiz | Her yeni dosya icin entry eklendi |
+| web-test CI fail | @mfe/design-system resolve + coverage threshold | Root vitest alias + threshold kaldirildi |
+| Robots drift | smoke-zanzibar.yml kayitsiz | ROB-0131 eklendi |
+| FlywayMigrationTest | V4 duplicate migration | Pre-existing, scope disi |
+
+## KALAN EKSIKLER (SONRAKI OTURUM)
+
+| # | Eksik | Ciddiyet | Tahmini Efor | Not |
+|---|---|---|---|---|
+| 1 | **SK-7: Test coverage >=80%** (simdi 45%/7%) | YUKSEK | 2-3 gun | 50+ test yazilmali (common-auth + report-service) |
+| 2 | **E2E/Playwright zanzibar flow testi** | YUKSEK | 1-2 gun | Login→sayfa erisim→rol degisikligi→UI |
+| 3 | **SK-2: p95 <15ms** (simdi 32-39ms warm) | ORTA | Arastirma | Check cache 10s eklendi ama yeterli degil. OpenFGA proximity/connection pool gerekebilir |
+| 4 | **Faz 2 Stage 3: Kademeli rollout** | OPERASYONEL | 5-10 gun gozlem | 48h canary sonrasi %10→%25→%50→%100 |
+| 5 | **PR #332 kapanmali** | DUSUK | 5 dk | Eski PR, Dalga 2'de zaten merge edildi |
+| 6 | **Deploy stability dogrulama** | ORTA | Sonraki deploy | --no-recreate + health check ilk kez calisacak |
+| 7 | **Vault auto-unseal** | DUSUK | Arastirma | Staging'de Vault her restart'ta sealed |
 
 ---
 
