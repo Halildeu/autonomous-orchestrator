@@ -11,7 +11,7 @@
 - Styling: Tailwind CSS via @tailwindcss/vite plugin — no separate CSS frameworks
 - Component exports: PageLayout, DetailDrawer, FormDrawer patterns from design-system
 - State management: @reduxjs/toolkit + react-redux for global, @tanstack/react-query for server
-- Auth: keycloak-js for login only — authorization handled by permission-service (NOT in frontend)
+- Auth: keycloak-js for login only — authorization handled by OpenFGA via usePermissions hook (D-001, D-003)
 - HTTP: @mfe/shared-http (axios wrapper) — never raw fetch() or axios directly
 - TypeScript strict mode enabled, paths aliased via tsconfig (@mfe/* → packages/*)
 - Testing: vitest + @testing-library/react — not jest

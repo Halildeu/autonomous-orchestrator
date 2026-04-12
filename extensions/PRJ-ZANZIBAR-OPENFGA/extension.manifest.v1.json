@@ -1,0 +1,68 @@
+{
+  "version": "v1",
+  "extension_id": "PRJ-ZANZIBAR-OPENFGA",
+  "semver": "0.1.0",
+  "origin": "CROSS-REPO",
+  "owner": "CROSS-REPO",
+  "enabled": true,
+  "model_kind": "governance_model",
+  "notes": [
+    "Zanzibar/OpenFGA authorization migration governance extension.",
+    "Cross-repo project: orchestrator (control-plane) + dev (execution).",
+    "Decision refs: decisions/topics/zanzibar-openfga.v1.json (D-001..D-007 FINAL).",
+    "Faz 0-3.5 DONE, Faz 4 kısmen, Faz 5 devam."
+  ],
+  "policies": [],
+  "policy_files": [],
+  "ai_context_refs": [
+    "AGENTS.md",
+    "decisions/topics/zanzibar-openfga.v1.json",
+    "decisions/registry.v1.json",
+    "roadmaps/PROJECTS/PRJ-ZANZIBAR-OPENFGA/project.manifest.v1.json",
+    "roadmaps/PROJECTS/PRJ-ZANZIBAR-OPENFGA/roadmap.v1.json",
+    ".claude/plans/zanzibar-master-plan.md"
+  ],
+  "entrypoints": {
+    "ops": [],
+    "ops_single_gate": [],
+    "tests": [
+      "extensions/PRJ-ZANZIBAR-OPENFGA/tests/contract_zanzibar_test.py"
+    ],
+    "cockpit_sections": [],
+    "kernel_api_actions": []
+  },
+  "tests_entrypoints": [
+    "extensions/PRJ-ZANZIBAR-OPENFGA/tests/contract_zanzibar_test.py"
+  ],
+  "tests_policy": {
+    "network_allowed": false,
+    "notes": [
+      "contract_validation_only"
+    ]
+  },
+  "guardrails": {
+    "network_default": false,
+    "offline": true
+  },
+  "layer_contract": {
+    "notes": [
+      "cross_repo_governance",
+      "no_ci_precommit_v1"
+    ],
+    "read_roots_allowlist": [
+      "extensions/PRJ-ZANZIBAR-OPENFGA/",
+      "decisions/topics/",
+      "roadmaps/PROJECTS/PRJ-ZANZIBAR-OPENFGA/"
+    ],
+    "write_roots_allowlist": [
+      ".cache/"
+    ]
+  },
+  "compat": {
+    "core_min": "0.0.0",
+    "core_max": "",
+    "notes": []
+  },
+  "ui_surfaces": [],
+  "docs_ref": ""
+}
