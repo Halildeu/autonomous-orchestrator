@@ -2,9 +2,9 @@
 
 **Proje Kodu:** PRJ-ZANZIBAR-OPENFGA
 **Tarih:** 2026-04-12
-**Revizyon:** 15 (CNS-007/008/009 + dev repo gap analizi + rollout wiring eksikleri)
+**Revizyon:** 16 (Stage 3 %100 rollout + ADR-0012 Phase 3 + durable outbox)
 **Karar Referansı:** D-001 → D-007 (tümü FINAL)
-**Durum:** Faz 0-3.5 DONE, Faz 4 kısmen, Faz 5 devam ediyor
+**Durum:** Faz 0-3.5 DONE, Faz 4 büyük kısmı DONE (4-b kaldı), Faz 5 devam
 
 ---
 
@@ -94,10 +94,10 @@ Keycloak (authn) → OpenFGA (authz) → Hibernate @Filter + RLS (data) → Fron
 | 3 | Report permission groups (4 group, 31 rapor, ZanzibarGate) | ✅ DONE | #346 |
 | 3.5 | Design Lab (4 senaryo, playground, live demo, 14 story) | ✅ DONE | #318 |
 | 4-d | Frontend mutation refresh (60s version polling + smart) | ✅ DONE | — |
-| 4-c | Audit hardening (deny log var, alert mekanizması YOK) | ⚠️ KISMEN | — |
-| 4-a | propagateRoleChange (senkron — async/durable gerekli) | ❌ YAPILMADI | — |
-| 4-b | Legacy permission-service kaldır (D-002 scope netleşmeli) | ❌ YAPILMADI | — |
-| 5 | Test altyapısı (devam ediyor) | 🔄 DEVAM | — |
+| 4-c | Audit hardening (deny log + alert route + Grafana 5 rule) | ✅ DONE | PR #348 |
+| 4-a | propagateRoleChange durable outbox (V11 migration + poller) | ✅ PR #350 | PR #350 AÇIK |
+| 4-b | Faz 4-b scope netleştirme (D-003 TRANSFORMED) | ⏳ P3 | — |
+| 5 | Test altyapısı (94 test yazıldı, SK-7 devam) | 🔄 DEVAM | PR #348 |
 | 6 | P3 SaaS (DEFERRED — D-005) | 📋 DEFERRED | — |
 
 ### Dev Repo Merge Geçmişi (toplam 11 PR)
@@ -135,90 +135,83 @@ Orchestrator: #70, #71, #72, #73 (Orch #74 merge bekliyor)
 
 ---
 
-## 5. KALAN İŞLER — 43 MADDE (rev 14: orch + dev repo birleşik)
+## 5. KALAN İŞLER — Rev 16 (2026-04-13)
 
-*CNS-007/008 + dev repo gap analizi (3 agent taraması) + decision drift closure entegre.*
-*P0-S tamamlandı bu oturumda. Orchestrator → dev repo 37 dosya sync edildi (0 drift).*
+### ✅ TAMAMLANAN (bu session)
 
-### P0-S: SSOT Yapısal Düzeltmeler — ✅ TAMAMLANDI
+| # | İş | PR / Kanıt |
+|---|-----|-----------|
+| P0-S | SSOT yapısal düzeltmeler (plan, roadmap, extension, decisions, rules) | Orch PR #77 MERGED |
+| P0-R R-01..R-05 | Rollout wiring (runbook, metrics 4/4, prod alert, k6 env, C-004) | Dev PR #348 MERGED |
+| P0-R R-06 | Stage 3 rollout %100 (4/4 servis ON) | Staging 18 healthy |
+| P0-R R-07 | Audit alert notification route (Faz 4-c) | Dev PR #348 |
+| P0-R R-08 | Doctor B7 D-003 alignment | Dev PR #348 |
+| P1 C-01..C-06 | SK-7 authz core 94 test (SqlBuilder 12, ScopeCtxFilter 12, OpenFgaAuthz 25, DashQE 13, QueryEngine 6, Registry 15) | Dev PR #348 |
+| P2 L-02 | SecurityConfig 11 test | Dev PR #348 |
+| P2 M-16 | variant-service OpenFGA env var | Dev PR #348 |
+| P2 M-14 | Faz 4-c audit alert route | Dev PR #348 |
+| P2 M-01 | Dependabot triage (4 defer, 2 safe) | GitHub comments |
+| P2 M-05 | ADR-0012 Phase 3: @PreAuthorize → @RequireModule (18/19 migrated) | Dev PR #349 AÇIK |
+| P2 M-15 | Faz 4-a durable outbox (V11 migration, poller, dual-write) | Dev PR #350 AÇIK |
+| — | Baseline fix (Spring 3.5, Node 22, @mfe/design-system) | Orch PR #77 + Dev PR #348 |
+| — | CI fix (integration lane Java setup, work intake, schemas, checker) | Dev PR #348 |
+| — | Vault re-init + unseal (backend-vault-1) | Manual staging fix |
+| — | Cross-repo sync (37 dosya → 0 drift) | Orch → Dev |
 
-| # | İş | Durum |
-|---|-----|-------|
-| S-01 | Commit + PR #75 (plan, roadmap, extension, decisions, rules, manifest) | ✅ DONE |
-| S-02 | Decision drift closure (D-002/D-003 dev repo DCP ile hizalandı) | ✅ DONE |
-| S-03 | Cross-repo sync (37 dosya → 0 drift) | ✅ DONE |
+### ⏳ AÇIK PR'LAR (merge bekliyor)
 
-### P0-R: Rollout Hazırlık (6 iş — CNS-009 bulgularıyla genişletildi)
+| PR | İş | Blocker |
+|----|-----|---------|
+| Dev #349 | ADR-0012 Phase 3 (@RequireModule) | 2 @WebMvcTest @Disabled — interceptor mock integration gerekli |
+| Dev #350 | Faz 4-a durable outbox | Staging integration test gerekli |
 
-| # | İş | Efor | Dosya(lar) | Not |
-|---|-----|------|-----------|-----|
-| R-01 | Runbook Draft→Final + pre-condition checklist tamamla | 0.5 gün | `docs/04-operations/RUNBOOKS/RB-zanzibar-canary.md` | CNS-009: hâlâ "Draft" |
-| R-02 | Canary authz metric integration (4/4 metrik) | 0.5 gün | `scripts/ci/canary/guardrail-check.mjs`, `pull-grafana-metrics.mjs` | CNS-009: sadece 2/4 metrik okunuyor, `error_rate` + `cache_miss` eksik |
-| R-03 | Prod Grafana alert provisioning | 0.5 gün | `docker-compose.prod.yml` | CNS-009: dev compose mount ediyor, prod ETMİYOR |
-| R-04 | k6 env var fix (AUTH_TOKEN vs TOKEN) | XS | `scripts/perf/k6-zanzibar-check.js`, `perf-run.sh` | CNS-009: wrapper TOKEN, k6 AUTH_TOKEN bekliyor |
-| R-05 | Decision SSOT reconcile (dev decisions sync) | XS | `decisions/topics/zanzibar-openfga.v1.json` | CNS-009: C-004 constraint vs vite.config.ts çelişki |
-| R-06 | Stage 3 gate-based rollout execution | 5-10 gün | — | Guardrails: p95<50ms, deny<10%, error<0.5%, cache_miss<50% |
+### ❌ KALAN İŞLER (13 madde)
 
-### P1: SK-7 Coverage — Authz Core (8 iş — CNS-009 scope split uygulandı)
+**P2 (6 iş — orta vade):**
 
-*CNS-009: "full module %80" ile "authz slice %80" ayrılmalı. P1 = authz core, P2 = full module.*
+| # | İş | Efor | Bağlam |
+|---|-----|------|--------|
+| H-03 | Rollback playbook staging testi | 0.5 gün | `RB-zanzibar-canary.md` Stage 2→1 rollback test |
+| M-02 | Export/Repository testleri (CSV, Excel, CustomReport) | 1.5 gün | `report-service/.../export/`, `repository/` — 0% coverage |
+| M-03 | ContextHealth modül testleri | 2 gün | `report-service/.../contexthealth/` — 1146 LOC, 0% coverage |
+| M-04 | Playwright E2E staging çalıştırma | 0.5 gün | `web/tests/playwright/authz.zanzibar.spec.ts` — PW_REAL_USER_PASSWORD ENV gerekli |
+| M-06 | k6 CI entegrasyonu | 0.5-1 gün | `scripts/perf/k6-zanzibar-check.js` — CI workflow yok |
+| T-02 | Playwright CI entegrasyonu | 0.5 gün | `.github/workflows/` — ENV secret + workflow |
 
-| # | İş | Efor | Dosya(lar) | Not |
-|---|-----|------|-----------|-----|
-| C-03 | SqlBuilder pure unit (10-12 test) | 0.5 gün | `report-service/.../SqlBuilder.java` | ← **BAŞLA BURADAN** (EN HIZLI) |
-| C-01 | ScopeContextFilter MockMvc (12-15 test) | 1.5 gün | `common-auth/.../ScopeContextFilter.java` | 9% → 60%+ |
-| C-02 | OpenFgaAuthzService mock (20-25 test) | 2 gün | `common-auth/.../OpenFgaAuthzService.java` | 17% → 70%+, 393 LOC |
-| C-04 | DashboardQueryEngine (15-20 test) | 1.5 gün | `report-service/.../DashboardQueryEngine.java` | 0% → 60%+ |
-| C-05 | QueryEngine (8-10 test) | 0.5 gün | `report-service/.../QueryEngine.java` | 0% → 60%+ |
-| C-06 | Registry (12-16 test) | 1 gün | `report-service/.../Registry*.java` | 0% → 60%+ |
-| R-07 | Prod alert provisioning (Grafana zanzibar receiver) | 0.5 gün | `docker-compose.prod.yml`, Grafana config | CNS-009 |
-| R-08 | Doctor runtime alignment (B3/B5/B7) | 0.5 gün | `scripts/doctor-zanzibar.sh` | CNS-009: current arch uyumsuz |
+**P2 Orchestrator (2 iş):**
 
-**SK-7 Coverage Hedefleri (scope split per CNS-009):**
-- **P1 authz core:** common-auth authz slice 51.9%→80%, report-service authz slice 13.4%→50%+
-- **P2 full module:** report-service full module → 80% (ayrı efor)
-- **Toplam P1: 77-98 test, ~8 gün**
+| # | İş | Efor | Bağlam |
+|---|-----|------|--------|
+| M-09 | Risk/TB/T-01..T-13 → machine-readable JSON | 0.5 gün | Plan prose → `roadmaps/PROJECTS/PRJ-ZANZIBAR-OPENFGA/` |
+| M-10 | EP-016 legacy auth import ban | 0.5 gün | `ci/check_enforcement_rules.py` — Dalga 4 sonrası |
 
-### P2: Orta Vade (14 iş)
+**P3 (5 iş — uzun vade):**
 
-| # | İş | Efor | Repo | Not |
-|---|-----|------|------|-----|
-| H-03 | Rollback playbook staging testi | 0.5 gün | dev | |
-| L-02 | SecurityConfig testi (Spring Security chain) | 1-2 gün | dev | ↑ P3'ten, güvenlik kritik |
-| M-01 | 6 dependabot PR triage | 0.5 gün | dev | TS 5.9, zod 4, react-router 7 |
-| M-02 | Export/Repository testleri (CSV, Excel, CustomReport) | 1.5 gün | dev | |
-| M-03 | ContextHealth modül testleri (1146 LOC, 0%) | 2 gün | dev | |
-| M-04 | Playwright E2E staging çalıştırma | 0.5 gün | dev | PW_REAL_USER_PASSWORD ENV |
-| M-05 | ADR-0012 Phase 3: JWT claim removal, @PreAuthorize→OpenFGA | 3-5 gün | dev | |
-| M-06 | k6 CI entegrasyonu (script var, workflow yok) | 0.5-1 gün | dev | |
-| T-02 | Playwright CI entegrasyonu (ENV secret + workflow) | 0.5 gün | dev | |
-| M-14 | Faz 4-c: Audit alert mekanizması (deny log var, alert YOK) | 1 gün | dev | YENİ |
-| M-15 | Faz 4-a: propagateRoleChange best-effort→durable (outbox/retry) | 3-5 gün | dev | CNS-009: @Async var ama durable değil |
-| M-16 | variant-service OpenFGA env var ekleme (docker-compose) | XS | dev | YENİ |
-| M-09 | Risk/TB/T-01..T-13 → machine-readable JSON | 0.5 gün | orch | |
-| M-10 | EP-016 legacy auth import ban implement et | 0.5 gün | orch | |
+| # | İş | Bağlam |
+|---|-----|--------|
+| L-01 | Stale branch temizliği | `claude/theme-axis-tokens` dev repo |
+| L-05 | OpenFGA model version management | Otomatik migration yok — `backend/openfga/model.fga` |
+| L-06 | /authz/me audience fix | JWT gateway vs servis mismatch — `auth-service` JWT config |
+| L-07 | compat.ts useAuthorization kaldırma | `web/packages/auth/src/compat.ts` — consumer audit önce |
+| L-08 | Faz 4-b scope netleştirme | D-003 TRANSFORMED → tam scope tanımı `decisions/topics/` |
 
-### P3: Uzun Vade (7 iş)
-
-| # | İş | Repo |
-|---|-----|------|
-| L-01 | Stale branch temizliği (claude/theme-axis-tokens) | dev |
-| L-03 | Managed repo contract hardening | orch |
-| L-04 | SSOT roadmap milestone güncelle | orch |
-| L-05 | OpenFGA model version management (otomatik migration) | dev |
-| L-06 | /authz/me audience fix (JWT gateway vs servis) | dev | 
-| L-07 | compat.ts useAuthorization kaldırma | dev |
-| L-08 | Faz 4-b scope netleştirme (D-003 TRANSFORMED → tam scope tanımı) | dev |
-
-### DEFERRED (5 iş)
+**DEFERRED (3 iş):**
 
 | # | İş | Neden |
 |---|-----|-------|
-| F-01 | Faz 6 SaaS features (condition, event-driven, Redis) | D-005 |
-| F-02 | service-manager unhealthy fix | Scope dışı |
-| F-05 | OpenFGA HTTP/2 tuning | Performans |
+| F-01 | Faz 6 SaaS features | D-005 |
+| F-05 | OpenFGA HTTP/2 tuning | Performans — gerek yok şu an |
 | F-06 | RemoteAuthzVersionProvider WireMock testi | Nice-to-have |
-| F-07 | Grafana dashboard staging doğrulama | Observability |
+
+### ⚠️ YARIM / SIĞ İŞLER (dikkat gerektiren)
+
+| # | İş | Sorun | Aksiyon |
+|---|-----|-------|---------|
+| **PR #349** | ADR-0012 Phase 3 | 2 @WebMvcTest test @Disabled — `RequireModuleInterceptor` mock'u `@WebMvcTest` ile çalışmıyor | `@Import(WebMvcConfig.class)` + `@MockitoBean(OpenFgaAuthzService)` ile test yeniden yazılmalı |
+| **PR #350** | Durable outbox | Outbox poller test yok — sadece compile + mevcut 5 test PASS | `TupleSyncOutboxPollerTest` yazılmalı (mock TupleSyncService + H2 outbox table) |
+| **Vault** | backend-vault-1 | Container adı `platform-vault-1` değil `backend-vault-1` — compose project name uyumsuz | Deploy script compose project name kontrol etmeli veya `.env`'de `COMPOSE_PROJECT_NAME=platform` pin |
+| **SK-7 coverage** | JaCoCo yeniden ölç | 94 test eklendi ama JaCoCo re-run yapılmadı — gerçek coverage bilinmiyor | `mvn verify -pl common-auth,report-service` ile JaCoCo raporu üret |
+| **Baseline** | checklist 1 WARN | `PageLayout` design-system index'ten re-export edilmemiş | `web/packages/design-system/src/index.ts`'e PageLayout export ekle |
 
 ### DEV REPO MEVCUT ARTIFACT ENVANTERİ (agent taraması doğruladı)
 
