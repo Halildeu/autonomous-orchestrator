@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -15,28 +14,7 @@ from src.providers.provider import Provider
 from src.tools.gateway import PolicyViolation
 
 
-def _extract_first_json_object(text: str) -> dict | None:
-    text = text.strip()
-    if not text:
-        return None
-    try:
-        value = json.loads(text)
-        if isinstance(value, dict):
-            return value
-        return None
-    except json.JSONDecodeError:
-        pass
-
-    m = re.search(r"\{.*\}", text, flags=re.DOTALL)
-    if not m:
-        return None
-    try:
-        value = json.loads(m.group(0))
-        if isinstance(value, dict):
-            return value
-        return None
-    except json.JSONDecodeError:
-        return None
+from src.providers.response_parser import extract_first_json_object as _extract_first_json_object
 
 
 @dataclass(frozen=True)

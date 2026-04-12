@@ -449,71 +449,9 @@ def _to_anthropic_messages(messages: List[Dict[str, Any]]) -> tuple[str | None, 
 
 
 def _extract_llm_output_text(resp_bytes: bytes) -> str:
-    try:
-        obj = json.loads(resp_bytes.decode("utf-8", errors="ignore"))
-    except Exception:
-        return resp_bytes.decode("utf-8", errors="ignore").strip()
-
-    if not isinstance(obj, dict):
-        return resp_bytes.decode("utf-8", errors="ignore").strip()
-
-    # Anthropic Messages API: {"content":[{"type":"text","text":"..."}], ...}
-    content = obj.get("content")
-    if isinstance(content, list) and content:
-        texts = []
-        for block in content:
-            if not isinstance(block, dict):
-                continue
-            text = block.get("text")
-            if isinstance(text, str) and text.strip():
-                texts.append(text)
-        if texts:
-            return "\n".join(texts).strip()
-
-    choices = obj.get("choices")
-    if isinstance(choices, list) and choices:
-        first = choices[0] if isinstance(choices[0], dict) else None
-        if isinstance(first, dict):
-            msg = first.get("message")
-            if isinstance(msg, dict):
-                content_val = msg.get("content")
-                if isinstance(content_val, str):
-                    return content_val.strip()
-                if isinstance(content_val, list) and content_val:
-                    parts = []
-                    for block in content_val:
-                        if not isinstance(block, dict):
-                            continue
-                        text = block.get("text")
-                        if isinstance(text, str) and text.strip():
-                            parts.append(text)
-                    if parts:
-                        return "\n".join(parts).strip()
-            if isinstance(first.get("text"), str):
-                return first.get("text", "").strip()
-
-    output = obj.get("output")
-    if isinstance(output, list) and output:
-        texts = []
-        for item in output:
-            if not isinstance(item, dict):
-                continue
-            content = item.get("content")
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not isinstance(block, dict):
-                    continue
-                text = block.get("text")
-                if isinstance(text, str) and text.strip():
-                    texts.append(text)
-        if texts:
-            return "\n".join(texts).strip()
-
-    if isinstance(obj.get("output_text"), str):
-        return str(obj.get("output_text", "")).strip()
-
-    return resp_bytes.decode("utf-8", errors="ignore").strip()
+    """Delegate to llm_response_normalizer (seam extraction — PR0)."""
+    from src.prj_kernel_api.llm_response_normalizer import extract_llm_output_text
+    return extract_llm_output_text(resp_bytes)
 
 
 def _redact(text: str) -> str:

@@ -989,135 +989,50 @@ def maybe_handle_llm_actions(
         max_response_bytes = guard.get("max_response_bytes", 131072)
         max_response_bytes_value = int(max_response_bytes) if isinstance(max_response_bytes, int) and max_response_bytes > 0 else 131072
 
-        if provider_id == "claude":
-            system, anthropic_messages = _to_anthropic_messages(messages)
-            req_body = {
-                "model": model,
-                "messages": anthropic_messages,
-                # Anthropic Messages API requires max_tokens.
-                "max_tokens": int(max_tokens) if isinstance(max_tokens, int) and max_tokens > 0 else 256,
-            }
-            if system:
-                req_body["system"] = system
-            if temperature is not None:
-                req_body["temperature"] = temperature
-            headers = {
-                "Content-Type": "application/json",
-                "x-api-key": api_key_value,
-                "anthropic-version": "2023-06-01",
-            }
-        else:
-            req_body = {
-                "model": model,
-                "messages": messages,
-            }
-            if temperature is not None:
-                req_body["temperature"] = temperature
-            if max_tokens is not None:
-                req_body["max_tokens"] = max_tokens
-            # Some providers reject unknown top-level request fields. Keep
-            # request_id for internal correlation only (audit/response),
-            # and avoid sending it to these provider APIs.
-            if req_id and provider_id not in {"google", "openai", "qwen", "xai", "claude"}:
-                req_body["request_id"] = req_id
-
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key_value}",
-            }
-        if provider_id == "xai":
-            # xAI is fronted by Cloudflare and may block requests without a
-            # browser-like User-Agent (error 1010 / 403).
-            headers["Accept"] = "application/json"
-            headers["User-Agent"] = _XAI_USER_AGENT
-        req = url_request.Request(
-            base_url,
-            data=json.dumps(req_body, ensure_ascii=False).encode("utf-8"),
-            headers=headers,
-            method="POST",
+        # --- Seam: request building (llm_request_builder) ---
+        from src.prj_kernel_api.llm_request_builder import build_live_request
+        live_req = build_live_request(
+            provider_id=provider_id,
+            model=model,
+            messages=messages,
+            base_url=base_url,
+            api_key=api_key_value,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            request_id=req_id,
         )
 
-        start = time.monotonic()
-        http_status = None
-        resp_bytes = b""
-        error_code = None
-        error_type: str | None = None
-        error_detail: str | None = None
-        status = "OK"
-        message = "LLM live call completed."
-        tls_context, tls_cafile = _resolve_tls_context()
-        try:
-            with url_request.urlopen(
-                req,
-                timeout=timeout_seconds_live,
-                context=tls_context,
-            ) as resp:
-                http_status = int(getattr(resp, "status", 0) or 0)
-                resp_bytes = resp.read(max_response_bytes_value)
-        except url_error.HTTPError as exc:
-            http_status = int(getattr(exc, "code", 0) or 0)
-            try:
-                resp_bytes = exc.read(max_response_bytes_value)
-            except Exception:
-                resp_bytes = b""
-            status = "FAIL"
-            error_code = "PROVIDER_HTTP_ERROR"
-            message = "LLM provider HTTP error."
-        except Exception as exc:
-            status = "FAIL"
-            error_code = "PROVIDER_REQUEST_FAILED"
-            message = "LLM provider request failed."
-            error_type = type(exc).__name__
-            error_detail = _redact(str(exc))[:400] if str(exc) else None
-        finally:
-            elapsed_ms = _bucket_elapsed_ms((time.monotonic() - start) * 1000.0)
+        # --- Seam: transport with resilience (llm_transport) ---
+        from src.prj_kernel_api.llm_transport import execute_http_request_with_resilience
+        # Retry config: providers_registry.policy.max_retries is canonical SSOT
+        _provider_policy_max_retries = int(provider_policy.get("max_retries", 0)) if isinstance(provider_policy.get("max_retries"), int) else 0
+        transport_result = execute_http_request_with_resilience(
+            url=live_req["url"],
+            headers=live_req["headers"],
+            body_bytes=live_req["body_bytes"],
+            timeout_seconds=timeout_seconds_live,
+            max_response_bytes=max_response_bytes_value,
+            provider_id=provider_id,
+            request_id=str(request_id or ""),
+            max_retries=_provider_policy_max_retries,
+        )
 
-        output_text = _extract_llm_output_text(resp_bytes) if resp_bytes else ""
-        output_sha256 = _sha256_hex(resp_bytes) if resp_bytes else _sha256_hex(b"")
+        resp_bytes = transport_result["resp_bytes"]
+        status = transport_result["status"]
+        error_code = transport_result["error_code"]
+        message = "LLM live call completed." if status == "OK" else "LLM provider error."
 
-        output_full_path = None
-        if output_text:
-            try:
-                ws_root = Path(workspace_root).resolve()
-                out_dir = ws_root / ".cache" / "reports" / "llm_live_outputs"
-                out_dir.mkdir(parents=True, exist_ok=True)
-                safe_request = _sanitize_name(str(request_id or "request"))
-                safe_provider = _sanitize_name(str(provider_id or "provider"))
-                out_path = out_dir / f"{safe_request}_{safe_provider}.txt"
-                write_text_atomic(out_path, output_text)
-                output_full_path = str(out_path)
-            except Exception:
-                output_full_path = None
-
-        output_preview = ""
-        output_truncated = False
-        if max_output_chars_value > 0:
-            if len(output_text) > max_output_chars_value:
-                output_preview = output_text[:max_output_chars_value]
-                output_truncated = True
-            else:
-                output_preview = output_text
-        else:
-            if output_text:
-                output_truncated = True
-
-        payload = {
-            "provider_id": provider_id,
-            "model": model,
-            "dry_run": False,
-            "api_key_present": True,
-            "timeout_seconds": timeout_seconds_live,
-            "tls_cafile": tls_cafile,
-            "http_status": http_status,
-            "elapsed_ms": elapsed_ms,
-            "error_type": error_type,
-            "error_detail": error_detail,
-            "output_sha256": output_sha256,
-            "output_preview": output_preview,
-            "output_truncated": output_truncated,
-            "output_full_path": output_full_path,
-            "nondeterministic": True,
-        }
+        # --- Seam: post-processing (llm_post_processors) ---
+        from src.prj_kernel_api.llm_post_processors import process_live_response
+        payload = process_live_response(
+            resp_bytes=resp_bytes,
+            transport_result=transport_result,
+            provider_id=provider_id,
+            model=model,
+            workspace_root=workspace_root,
+            request_id=str(request_id or ""),
+            max_output_chars=max_output_chars_value,
+        )
 
         return build_response(
             status=status,

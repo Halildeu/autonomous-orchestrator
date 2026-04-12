@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -19,27 +18,8 @@ _BASE_URL = "https://api.anthropic.com/v1"
 _API_VERSION = "2023-06-01"
 
 
-def _extract_first_json_object(text: str) -> dict | None:
-    text = text.strip()
-    if not text:
-        return None
-    try:
-        value = json.loads(text)
-        if isinstance(value, dict):
-            return value
-        return None
-    except json.JSONDecodeError:
-        pass
-    m = re.search(r"\{.*\}", text, flags=re.DOTALL)
-    if not m:
-        return None
-    try:
-        value = json.loads(m.group(0))
-        if isinstance(value, dict):
-            return value
-        return None
-    except json.JSONDecodeError:
-        return None
+from src.providers.response_parser import extract_first_json_object as _extract_first_json_object
+from src.providers.structured_output import build_response_format_claude, model_supports_structured_output
 
 
 def _to_anthropic_messages(
@@ -96,6 +76,8 @@ class ClaudeProvider:
         messages: list[dict[str, Any]],
         max_tokens: int = 256,
         temperature: float | None = None,
+        response_format: dict[str, Any] | None = None,
+        response_schema: dict | None = None,
     ) -> dict[str, Any]:
         system, anthropic_messages = _to_anthropic_messages(messages)
         body: dict[str, Any] = {
@@ -107,6 +89,12 @@ class ClaudeProvider:
             body["system"] = system
         if temperature is not None:
             body["temperature"] = temperature
+        # Structured output: explicit response_format or auto-build from schema
+        effective_format = response_format
+        if effective_format is None and response_schema is not None:
+            effective_format = build_response_format_claude(self.model, response_schema)
+        if effective_format is not None:
+            body["response_format"] = effective_format
 
         url = f"{self.base_url.rstrip('/')}/messages"
         req = urllib.request.Request(
