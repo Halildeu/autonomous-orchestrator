@@ -14,6 +14,9 @@ def build_http_request(
     temperature: float | None,
     max_tokens: int | None,
     request_id: str | None,
+    response_format: Dict[str, Any] | None = None,
+    tools: List[Dict[str, Any]] | None = None,
+    tool_choice: str | None = None,
 ) -> Dict[str, Any]:
     body: Dict[str, Any] = {"model": model, "messages": messages}
     if temperature is not None:
@@ -22,6 +25,12 @@ def build_http_request(
         body["max_tokens"] = max_tokens
     if request_id:
         body["request_id"] = request_id
+    if response_format is not None:
+        body["response_format"] = response_format
+    if tools:
+        body["tools"] = tools
+    if tool_choice is not None:
+        body["tool_choice"] = tool_choice
 
     return {
         "provider_id": provider_id,

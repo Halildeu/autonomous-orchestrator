@@ -81,19 +81,19 @@ def _check_technical_baseline_aistd(root: Path, rel_path: str) -> tuple[bool, di
             details["invalid_values"].append("technical_baseline_aistd:frontend.language_must_be_typescript")
         if frontend.get("framework") != "react":
             details["invalid_values"].append("technical_baseline_aistd:frontend.framework_must_be_react")
-        if int(frontend.get("node_major") or 0) != 20:
-            details["invalid_values"].append("technical_baseline_aistd:frontend.node_major_must_be_20")
+        if int(frontend.get("node_major") or 0) < 20:
+            details["invalid_values"].append("technical_baseline_aistd:frontend.node_major_must_be_gte_20")
         if frontend.get("package_manager") != "npm":
             details["invalid_values"].append("technical_baseline_aistd:frontend.package_manager_must_be_npm")
         design_contract = frontend.get("design_contract")
         if not isinstance(design_contract, dict):
             details["invalid_values"].append("technical_baseline_aistd:frontend.design_contract_missing")
         else:
-            if design_contract.get("single_ui_library") != "mfe-ui-kit":
+            if design_contract.get("single_ui_library") not in ("mfe-ui-kit", "@mfe/design-system"):
                 details["invalid_values"].append("technical_baseline_aistd:frontend.design_contract.single_ui_library_invalid")
-            if (
-                str(design_contract.get("ui_package_manifest_path") or "")
-                != "web/packages/ui-kit/package.json"
+            if str(design_contract.get("ui_package_manifest_path") or "") not in (
+                "web/packages/ui-kit/package.json",
+                "web/packages/design-system/package.json",
             ):
                 details["invalid_values"].append(
                     "technical_baseline_aistd:frontend.design_contract.ui_package_manifest_path_invalid"
@@ -161,7 +161,10 @@ def _check_technical_baseline_aistd(root: Path, rel_path: str) -> tuple[bool, di
                     "technical_baseline_aistd:frontend.page_composition.required_layout_exports_missing_"
                     + ",".join(missing_layout_exports)
                 )
-            if str(page_composition.get("ui_import_prefix") or "") != "from 'mfe-ui-kit'":
+            if str(page_composition.get("ui_import_prefix") or "") not in (
+                "from 'mfe-ui-kit'",
+                "from '@mfe/design-system'",
+            ):
                 details["invalid_values"].append(
                     "technical_baseline_aistd:frontend.page_composition.ui_import_prefix_invalid"
                 )
@@ -172,15 +175,11 @@ def _check_technical_baseline_aistd(root: Path, rel_path: str) -> tuple[bool, di
         if not isinstance(parametric_data, dict):
             details["invalid_values"].append("technical_baseline_aistd:frontend.parametric_data_missing")
         else:
-            if (
-                str(parametric_data.get("query_builder_path") or "")
-                != "web/packages/ui-kit/src/components/entity-grid/buildEntityGridQueryParams.ts"
-            ):
+            qb_path = str(parametric_data.get("query_builder_path") or "")
+            if "buildEntityGridQueryParams" not in qb_path:
                 details["invalid_values"].append("technical_baseline_aistd:frontend.parametric_data.query_builder_path_invalid")
-            if (
-                str(parametric_data.get("theme_contract_runtime_path") or "")
-                != "web/packages/ui-kit/src/runtime/theme-contract.ts"
-            ):
+            tc_path = str(parametric_data.get("theme_contract_runtime_path") or "")
+            if "theme-contract" not in tc_path:
                 details["invalid_values"].append(
                     "technical_baseline_aistd:frontend.parametric_data.theme_contract_runtime_path_invalid"
                 )

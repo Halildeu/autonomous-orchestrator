@@ -1,0 +1,147 @@
+{
+  "roadmap_id": "PRJ-ZANZIBAR-OPENFGA",
+  "version": "v1",
+  "iso_core_required": false,
+  "global_gates": [
+    {
+      "type": "run_cmd",
+      "cmd": "python3 ci/validate_schemas.py",
+      "must_succeed": true
+    }
+  ],
+  "milestones": [
+    {
+      "id": "FAZ-0",
+      "title": "Staging flags ON test — 13 test maddesi",
+      "status": "done",
+      "notes": [
+        "8/8 staging test PASSED",
+        "PR #305-#318 merged"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "13/13 test PASSED",
+        "24 saat stabil (error rate < %0.1)",
+        "Flag OFF rollback test basarili"
+      ]
+    },
+    {
+      "id": "FAZ-1",
+      "title": "@Filter / RLS genisletme — data leak onleme",
+      "status": "done",
+      "notes": [
+        "4 entity @Filter, 4 tablo RLS, isolation test",
+        "PR #314, #317 merged"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "@Filter olmayan company-scoped entity = 0",
+        "Cross-company data isolation integration test PASSED",
+        "DashboardQueryEngine RLS uyumlu"
+      ]
+    },
+    {
+      "id": "FAZ-1.5",
+      "title": "Frontend SDK — can_edit, checkWithReason, batch-check, hooks, gates",
+      "status": "done",
+      "notes": [
+        "Model, check, batch, hook, gate, pilot, 23+12 test",
+        "PR #305 merged"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "useZanzibarAccess hook calisiyor",
+        "ZanbibarGate component calisiyor",
+        "batch-check entegrasyonu calisiyor"
+      ]
+    },
+    {
+      "id": "FAZ-2",
+      "title": "Prod deploy — flags ON, canary",
+      "status": "done",
+      "notes": [
+        "Flags ON, 0% error, p95=15ms",
+        "Prometheus + Loki aktif",
+        "PR #316 merged"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "Flags ON staging'de basarili",
+        "Error rate < %0.1",
+        "Latency p95 < 15ms ek"
+      ]
+    },
+    {
+      "id": "FAZ-3",
+      "title": "Report permission groups",
+      "status": "done",
+      "notes": [
+        "4 report group, 31 rapor, ZanbibarGate entegre",
+        "PR #346 merged"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "Report permission group'lari OpenFGA'da tanimli",
+        "report-service check entegrasyonu",
+        "Frontend'de erisilemez raporlar gizli"
+      ]
+    },
+    {
+      "id": "FAZ-3.5",
+      "title": "Design Lab — 4 senaryo, playground, live demo, Storybook",
+      "status": "done",
+      "notes": [
+        "4 senaryo, playground, live demo, 14 Storybook story",
+        "PR #318 merged"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "3+ Design Lab senaryosu (SK-12)",
+        "Storybook story'leri yesil"
+      ]
+    },
+    {
+      "id": "FAZ-4",
+      "title": "Migration tamamlama + legacy kaldirma",
+      "status": "in_progress",
+      "notes": [
+        "4-d DONE (60s version polling)",
+        "4-c KISMEN (deny log var, alert yok)",
+        "4-a TODO (async durable gerekli)",
+        "4-b TODO (D-002 scope netlesinecek)"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "propagateRoleChange durable async job (4-a)",
+        "Audit hardening — deny log + alert (4-c)",
+        "Frontend mutation refresh (4-d) — DONE",
+        "Legacy permission-service kaldirilmis (4-b, D-002)"
+      ]
+    },
+    {
+      "id": "FAZ-5",
+      "title": "Test altyapisi — SK-7 coverage >= %80",
+      "status": "in_progress",
+      "notes": [
+        "common-auth 51.9%, report-service 13.4%",
+        "132-171 ek test gerekli",
+        "Docker smoke test yaziliyor"
+      ],
+      "steps": [],
+      "gates": [],
+      "dod": [
+        "common-auth coverage >= %80",
+        "report-service coverage >= %80",
+        "Docker smoke test yesil",
+        "CI pipeline gate"
+      ]
+    }
+  ]
+}
