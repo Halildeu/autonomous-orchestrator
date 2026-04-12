@@ -2,7 +2,7 @@
 
 **Proje Kodu:** PRJ-ZANZIBAR-OPENFGA
 **Tarih:** 2026-04-12
-**Revizyon:** 13 (CNS-007 denetim + CNS-008 kalan iş istişaresi entegre)
+**Revizyon:** 15 (CNS-007/008/009 + dev repo gap analizi + rollout wiring eksikleri)
 **Karar Referansı:** D-001 → D-007 (tümü FINAL)
 **Durum:** Faz 0-3.5 DONE, Faz 4 kısmen, Faz 5 devam ediyor
 
@@ -135,85 +135,109 @@ Orchestrator: #70, #71, #72, #73 (Orch #74 merge bekliyor)
 
 ---
 
-## 5. KALAN İŞLER — 41 MADDE (CNS-007 + CNS-008 uzlaşısı)
+## 5. KALAN İŞLER — 43 MADDE (rev 14: orch + dev repo birleşik)
 
-*Codex CNS-008 istişaresi sonucu mükerrerler elendi, eforlar düzeltildi, öncelikler revize edildi.*
-*Eski S-06/S-07/S-08/S-09/E-02/E-03 merge paketi içinde kapandı.*
+*CNS-007/008 + dev repo gap analizi (3 agent taraması) + decision drift closure entegre.*
+*P0-S tamamlandı bu oturumda. Orchestrator → dev repo 37 dosya sync edildi (0 drift).*
 
-### P0-S: SSOT Yapısal Düzeltmeler (5 iş — merge paketi)
+### P0-S: SSOT Yapısal Düzeltmeler — ✅ TAMAMLANDI
 
-| # | İş | Ref | Efor | Durum |
-|---|-----|-----|------|-------|
-| S-01 | Commit + PR (plan, roadmap, extension, decisions, rules, manifest) | D-01..D-09 | XS | ✅ Dosyalar hazır |
-| S-02 | Decision drift closure (orch vs dev D-002/D-003 yorum hizala) | CNS-008 | 0.5 gün | AÇIK |
-| S-03 | Extension typo temizliği (zanbibar→zanzibar, docs_ref doldur) | CNS-008 | XS | AÇIK |
-| S-04 | Worktree birleştirme (quirky-bohr kalan parçaları al) | CNS-008 | XS | AÇIK |
-| S-05 | Cross-repo sync çalıştır (dev repo drift ölç) | D-15 | 0.5 gün | AÇIK |
+| # | İş | Durum |
+|---|-----|-------|
+| S-01 | Commit + PR #75 (plan, roadmap, extension, decisions, rules, manifest) | ✅ DONE |
+| S-02 | Decision drift closure (D-002/D-003 dev repo DCP ile hizalandı) | ✅ DONE |
+| S-03 | Cross-repo sync (37 dosya → 0 drift) | ✅ DONE |
 
-*NOT: Eski S-06 (SK-6 fix), S-07 (faz hizala), S-08 (consultation ref), S-09 (stale memory), E-02 (SK hizala), E-03 (rules fix) bu oturumda S-01 merge paketi içinde çözüldü.*
+### P0-R: Rollout Hazırlık (6 iş — CNS-009 bulgularıyla genişletildi)
 
-### P0-R: Rollout (3 iş — production, scope düzeltildi per CNS-008)
+| # | İş | Efor | Dosya(lar) | Not |
+|---|-----|------|-----------|-----|
+| R-01 | Runbook Draft→Final + pre-condition checklist tamamla | 0.5 gün | `docs/04-operations/RUNBOOKS/RB-zanzibar-canary.md` | CNS-009: hâlâ "Draft" |
+| R-02 | Canary authz metric integration (4/4 metrik) | 0.5 gün | `scripts/ci/canary/guardrail-check.mjs`, `pull-grafana-metrics.mjs` | CNS-009: sadece 2/4 metrik okunuyor, `error_rate` + `cache_miss` eksik |
+| R-03 | Prod Grafana alert provisioning | 0.5 gün | `docker-compose.prod.yml` | CNS-009: dev compose mount ediyor, prod ETMİYOR |
+| R-04 | k6 env var fix (AUTH_TOKEN vs TOKEN) | XS | `scripts/perf/k6-zanzibar-check.js`, `perf-run.sh` | CNS-009: wrapper TOKEN, k6 AUTH_TOKEN bekliyor |
+| R-05 | Decision SSOT reconcile (dev decisions sync) | XS | `decisions/topics/zanzibar-openfga.v1.json` | CNS-009: C-004 constraint vs vite.config.ts çelişki |
+| R-06 | Stage 3 gate-based rollout execution | 5-10 gün | — | Guardrails: p95<50ms, deny<10%, error<0.5%, cache_miss<50% |
 
-| # | İş | Efor | Not |
-|---|-----|------|-----|
-| R-01 | Mevcut flag promotion + runbook operationalize (greenfield DEĞİL) | 0.5 gün | Dev repo'da `RB-zanzibar-canary.md` mevcut |
-| R-02 | Monitoring wiring doğrulama (mevcut dashboard threshold check) | 0.5 gün | Prometheus/Loki zaten var, efor daraltıldı |
-| R-03 | Stage 3 gate-based rollout %10→%25→%50→%100 | 5-10 gün gözlem | |
+### P1: SK-7 Coverage — Authz Core (8 iş — CNS-009 scope split uygulandı)
 
-### P1: SK-7 Coverage + Enforcement (10 iş — eforlar CNS-008 ile düzeltildi)
+*CNS-009: "full module %80" ile "authz slice %80" ayrılmalı. P1 = authz core, P2 = full module.*
 
-| # | İş | Efor | Not |
-|---|-----|------|-----|
-| C-01 | ScopeContextFilter MockMvc (12-15 test) | 1.5 gün | ↑ CNS-008: MockMvc tarafı pahalı |
-| C-02 | OpenFgaAuthzService mock (20-25 test) | 2 gün | ↑ CNS-008: 393 LOC, branch yoğun |
-| C-03 | SqlBuilder pure unit (10-12 test) — EN HIZLI KAZANÇ | 0.5 gün | = değişmedi |
-| C-04 | DashboardQueryEngine testi (15-20 test) | 1.5 gün | ↑ CNS-008: boyut/branch yoğunluğu |
-| C-05 | QueryEngine testi (8-10 test) | 0.5 gün | = değişmedi |
-| C-06 | Registry testleri (12-16 test) | 1 gün | ↑ CNS-008: 2 registry + fixture yükü |
-| C-07 | Rollback playbook staging testi | 0.5 gün | |
-| E-01 | Consultation kararlarını plana yansıt (CNS-001/002 actions) | XS | |
-| M-07 | Zanzibar enforcement policy (D-003 katman, D-007 tenant) | 1 gün | ↑ P2'den yükseltildi per CNS-008 |
-| M-08 | Cross-repo sync Zanzibar izi (standards.lock + feature exec) | 0.5 gün | ↑ P2'den yükseltildi per CNS-008 |
+| # | İş | Efor | Dosya(lar) | Not |
+|---|-----|------|-----------|-----|
+| C-03 | SqlBuilder pure unit (10-12 test) | 0.5 gün | `report-service/.../SqlBuilder.java` | ← **BAŞLA BURADAN** (EN HIZLI) |
+| C-01 | ScopeContextFilter MockMvc (12-15 test) | 1.5 gün | `common-auth/.../ScopeContextFilter.java` | 9% → 60%+ |
+| C-02 | OpenFgaAuthzService mock (20-25 test) | 2 gün | `common-auth/.../OpenFgaAuthzService.java` | 17% → 70%+, 393 LOC |
+| C-04 | DashboardQueryEngine (15-20 test) | 1.5 gün | `report-service/.../DashboardQueryEngine.java` | 0% → 60%+ |
+| C-05 | QueryEngine (8-10 test) | 0.5 gün | `report-service/.../QueryEngine.java` | 0% → 60%+ |
+| C-06 | Registry (12-16 test) | 1 gün | `report-service/.../Registry*.java` | 0% → 60%+ |
+| R-07 | Prod alert provisioning (Grafana zanzibar receiver) | 0.5 gün | `docker-compose.prod.yml`, Grafana config | CNS-009 |
+| R-08 | Doctor runtime alignment (B3/B5/B7) | 0.5 gün | `scripts/doctor-zanzibar.sh` | CNS-009: current arch uyumsuz |
 
-### P2: Orta Vade (12 iş — L-02 eklendi, eforlar düzeltildi)
+**SK-7 Coverage Hedefleri (scope split per CNS-009):**
+- **P1 authz core:** common-auth authz slice 51.9%→80%, report-service authz slice 13.4%→50%+
+- **P2 full module:** report-service full module → 80% (ayrı efor)
+- **Toplam P1: 77-98 test, ~8 gün**
 
-| # | İş | Efor | Not |
-|---|-----|------|-----|
-| M-01 | 6 dependabot PR triage | 0.5 gün | |
-| M-02 | report-service export/repository testleri | 1.5 gün | ↑ CNS-008 |
-| M-03 | ContextHealth modül testleri (1146 LOC, 0%) | 2 gün | ↑ CNS-008: birden fazla servis |
-| M-04 | Playwright E2E staging çalıştırma | 0.5 gün | |
-| M-05 | ADR-0012 Phase 3: JWT claim removal, @PreAuthorize→OpenFGA | 3-5 gün | |
-| M-06 | k6 CI entegrasyonu | 0.5-1 gün | ↑ CNS-008: CI wiring + gate |
-| M-09 | T-01..T-13, Risk, TB → machine-readable JSON | 0.5 gün | |
-| M-10 | EP-016 legacy auth import ban implement et | 0.5 gün | |
-| M-11 | EP-012 severity WARN→BLOCKED (Faz 4-b sonrası) | XS | |
-| L-02 | SecurityConfig testi (Spring Security chain) | 1-2 gün | ↑ P3'ten yükseltildi, güvenlik kritik |
-| M-12 | Extension/test kontrat temizliği (typo, boş ref) | 0.5 gün | YENİ per CNS-008 |
-| M-13 | Portfolio kalıcılık doğrulaması | XS | YENİ per CNS-008 |
+### P2: Orta Vade (14 iş)
 
-### P3: Uzun Vade (4 iş)
+| # | İş | Efor | Repo | Not |
+|---|-----|------|------|-----|
+| H-03 | Rollback playbook staging testi | 0.5 gün | dev | |
+| L-02 | SecurityConfig testi (Spring Security chain) | 1-2 gün | dev | ↑ P3'ten, güvenlik kritik |
+| M-01 | 6 dependabot PR triage | 0.5 gün | dev | TS 5.9, zod 4, react-router 7 |
+| M-02 | Export/Repository testleri (CSV, Excel, CustomReport) | 1.5 gün | dev | |
+| M-03 | ContextHealth modül testleri (1146 LOC, 0%) | 2 gün | dev | |
+| M-04 | Playwright E2E staging çalıştırma | 0.5 gün | dev | PW_REAL_USER_PASSWORD ENV |
+| M-05 | ADR-0012 Phase 3: JWT claim removal, @PreAuthorize→OpenFGA | 3-5 gün | dev | |
+| M-06 | k6 CI entegrasyonu (script var, workflow yok) | 0.5-1 gün | dev | |
+| T-02 | Playwright CI entegrasyonu (ENV secret + workflow) | 0.5 gün | dev | |
+| M-14 | Faz 4-c: Audit alert mekanizması (deny log var, alert YOK) | 1 gün | dev | YENİ |
+| M-15 | Faz 4-a: propagateRoleChange best-effort→durable (outbox/retry) | 3-5 gün | dev | CNS-009: @Async var ama durable değil |
+| M-16 | variant-service OpenFGA env var ekleme (docker-compose) | XS | dev | YENİ |
+| M-09 | Risk/TB/T-01..T-13 → machine-readable JSON | 0.5 gün | orch | |
+| M-10 | EP-016 legacy auth import ban implement et | 0.5 gün | orch | |
 
-| # | İş |
-|---|-----|
-| L-01 | Stale branch temizliği (claude/theme-axis-tokens) |
-| L-03 | Managed repo contract hardening / sync completion | 
-| L-04 | SSOT roadmap milestone güncelle (roadmaps/SSOT/roadmap.v1.json) |
-| L-05 | OpenFGA model version management (otomatik migration) |
+### P3: Uzun Vade (7 iş)
 
-*NOT: L-02 SecurityConfig P2'ye yükseltildi. L-03 "onboarding" → "contract hardening" olarak yeniden yazıldı per CNS-008.*
+| # | İş | Repo |
+|---|-----|------|
+| L-01 | Stale branch temizliği (claude/theme-axis-tokens) | dev |
+| L-03 | Managed repo contract hardening | orch |
+| L-04 | SSOT roadmap milestone güncelle | orch |
+| L-05 | OpenFGA model version management (otomatik migration) | dev |
+| L-06 | /authz/me audience fix (JWT gateway vs servis) | dev | 
+| L-07 | compat.ts useAuthorization kaldırma | dev |
+| L-08 | Faz 4-b scope netleştirme (D-003 TRANSFORMED → tam scope tanımı) | dev |
 
-### DEFERRED (7 iş — SaaS kararına / geleceğe bağımlı)
+### DEFERRED (5 iş)
 
 | # | İş | Neden |
 |---|-----|-------|
 | F-01 | Faz 6 SaaS features (condition, event-driven, Redis) | D-005 |
 | F-02 | service-manager unhealthy fix | Scope dışı |
-| F-03 | Playwright CI entegrasyonu (ENV secret + workflow) | CI altyapı |
-| F-04 | compat.ts useAuthorization kaldırma | Migration sonrası |
 | F-05 | OpenFGA HTTP/2 tuning | Performans |
 | F-06 | RemoteAuthzVersionProvider WireMock testi | Nice-to-have |
 | F-07 | Grafana dashboard staging doğrulama | Observability |
+
+### DEV REPO MEVCUT ARTIFACT ENVANTERİ (agent taraması doğruladı)
+
+| Kategori | Dosya Sayısı | Durum |
+|----------|-------------|-------|
+| Backend OpenFGA Java | 67 | ✅ Çalışıyor |
+| Frontend @mfe/auth | 14 | ✅ Çalışıyor, 0 broken import |
+| Storybook stories | 14 | ✅ |
+| Backend testler | 27+ | ⚠️ Coverage yetersiz |
+| Frontend testler | 5 suite | ✅ |
+| ADR dokümanlar | 3 (0010, 0011, 0012) | ✅ |
+| CI workflows | 3 (enforce, smoke, deploy) | ✅ |
+| Doctor script | 25 check (17 kod + 8 runtime) | ✅ |
+| k6 perf scripts | 3 | ✅ Script var, CI yok |
+| Canary runbook + probe | 2 | ✅ |
+| Grafana dashboard + alerts | 2 | ✅ Wiring doğrulanmamış |
+| Docker OpenFGA + Vault | Tam config | ✅ v1.11.2 + 1.21.4 |
+| Flyway migrations | V1-V10 | ✅ |
+| RLS scripts | 1 (devops/postgres/) | ✅ 4 tablo aktif |
 
 ---
 
@@ -303,6 +327,7 @@ Her fazda kontrol:
 | CNS-006/b | PRJ-DESIGN-LAB Evolution | OPEN | 6-phase plan, 10 tespit, 3 uzlaşı |
 | CNS-007 | **Zanzibar Bağımsız Denetim** | RESOLVED | 17 bulgu (rev 12) |
 | CNS-008 | **Kalan İş Listesi Denetimi** | RESOLVED | Efor düzeltmeleri, 4 ekleme, 6 öncelik değişikliği (rev 13) |
+| CNS-009 | **Dev Repo Birleşik Backlog Denetimi** | RESOLVED | 7 itiraz (hepsi kabul), 8 ekleme, rollout wiring eksikleri (rev 15) |
 
 ---
 
