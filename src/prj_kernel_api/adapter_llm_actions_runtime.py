@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging as _logging
+
 import src.prj_kernel_api.adapter_llm_actions as _core
+
+_log = _logging.getLogger(__name__)
 
 for _name in dir(_core):
     if _name.startswith("__"):
@@ -989,135 +993,139 @@ def maybe_handle_llm_actions(
         max_response_bytes = guard.get("max_response_bytes", 131072)
         max_response_bytes_value = int(max_response_bytes) if isinstance(max_response_bytes, int) and max_response_bytes > 0 else 131072
 
-        if provider_id == "claude":
-            system, anthropic_messages = _to_anthropic_messages(messages)
-            req_body = {
-                "model": model,
-                "messages": anthropic_messages,
-                # Anthropic Messages API requires max_tokens.
-                "max_tokens": int(max_tokens) if isinstance(max_tokens, int) and max_tokens > 0 else 256,
-            }
-            if system:
-                req_body["system"] = system
-            if temperature is not None:
-                req_body["temperature"] = temperature
-            headers = {
-                "Content-Type": "application/json",
-                "x-api-key": api_key_value,
-                "anthropic-version": "2023-06-01",
-            }
-        else:
-            req_body = {
-                "model": model,
-                "messages": messages,
-            }
-            if temperature is not None:
-                req_body["temperature"] = temperature
-            if max_tokens is not None:
-                req_body["max_tokens"] = max_tokens
-            # Some providers reject unknown top-level request fields. Keep
-            # request_id for internal correlation only (audit/response),
-            # and avoid sending it to these provider APIs.
-            if req_id and provider_id not in {"google", "openai", "qwen", "xai", "claude"}:
-                req_body["request_id"] = req_id
+        # --- Pre-flight: capability check (PR4b) ---
+        from src.prj_kernel_api.llm_request_builder import check_capabilities_before_request
+        cap_ok, _, cap_missing = check_capabilities_before_request(
+            provider_id=provider_id, model=model,
+        )
+        # Capability check is advisory — log but don't block (fail-open for now)
+        if not cap_ok:
+            _log.info("Capability gap: provider=%s missing=%s", provider_id, cap_missing)
 
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key_value}",
-            }
-        if provider_id == "xai":
-            # xAI is fronted by Cloudflare and may block requests without a
-            # browser-like User-Agent (error 1010 / 403).
-            headers["Accept"] = "application/json"
-            headers["User-Agent"] = _XAI_USER_AGENT
-        req = url_request.Request(
-            base_url,
-            data=json.dumps(req_body, ensure_ascii=False).encode("utf-8"),
-            headers=headers,
-            method="POST",
+        # --- Pre-flight: token counting + budget check (PR5) ---
+        _token_estimate = None
+        try:
+            from src.providers.token_counter import count_tokens
+            _token_info = count_tokens(messages, provider_id=provider_id, model=model)
+            _token_estimate = _token_info.get("estimated_tokens", 0)
+        except Exception:
+            pass  # Token counting is best-effort, don't block call
+
+        # --- Pre-flight: rate limiting (PR2) ---
+        from src.prj_kernel_api.rate_limiter import get_rate_limiter
+        _rate_limit_rps = float(provider_policy.get("rate_limit_rps", 1)) if isinstance(provider_policy.get("rate_limit_rps"), (int, float)) else 1.0
+        _rl = get_rate_limiter(provider_id, _rate_limit_rps)
+        if not _rl.acquire(timeout_s=5.0):
+            return build_response(
+                status="FAIL",
+                payload={"provider_id": provider_id, "model": model},
+                notes=["PROGRAM_LED=true", "no_secrets=true"],
+                request_id=request_id,
+                error_code="RATE_LIMITED",
+                message=f"Rate limit exceeded for {provider_id} ({_rate_limit_rps} rps).",
+                auth_checked=auth_checked,
+                rate_limited=True,
+            )
+
+        # --- Seam: request building (llm_request_builder) ---
+        from src.prj_kernel_api.llm_request_builder import build_live_request
+        live_req = build_live_request(
+            provider_id=provider_id,
+            model=model,
+            messages=messages,
+            base_url=base_url,
+            api_key=api_key_value,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            request_id=req_id,
         )
 
-        start = time.monotonic()
-        http_status = None
-        resp_bytes = b""
-        error_code = None
-        error_type: str | None = None
-        error_detail: str | None = None
-        status = "OK"
-        message = "LLM live call completed."
-        tls_context, tls_cafile = _resolve_tls_context()
+        # --- Seam: transport with resilience (llm_transport) ---
+        from src.prj_kernel_api.llm_transport import execute_http_request_with_resilience
+        # Retry config: providers_registry.policy.max_retries is canonical SSOT
+        _provider_policy_max_retries = int(provider_policy.get("max_retries", 0)) if isinstance(provider_policy.get("max_retries"), int) else 0
+        transport_result = execute_http_request_with_resilience(
+            url=live_req["url"],
+            headers=live_req["headers"],
+            body_bytes=live_req["body_bytes"],
+            timeout_seconds=timeout_seconds_live,
+            max_response_bytes=max_response_bytes_value,
+            provider_id=provider_id,
+            request_id=str(request_id or ""),
+            max_retries=_provider_policy_max_retries,
+        )
+
+        resp_bytes = transport_result["resp_bytes"]
+        status = transport_result["status"]
+        error_code = transport_result["error_code"]
+        message = "LLM live call completed." if status == "OK" else "LLM provider error."
+
+        # --- Seam: post-processing (llm_post_processors) ---
+        from src.prj_kernel_api.llm_post_processors import process_live_response
+        payload = process_live_response(
+            resp_bytes=resp_bytes,
+            transport_result=transport_result,
+            provider_id=provider_id,
+            model=model,
+            workspace_root=workspace_root,
+            request_id=str(request_id or ""),
+            max_output_chars=max_output_chars_value,
+        )
+
+        # --- Post-flight: eval harness (PR6) ---
         try:
-            with url_request.urlopen(
-                req,
-                timeout=timeout_seconds_live,
-                context=tls_context,
-            ) as resp:
-                http_status = int(getattr(resp, "status", 0) or 0)
-                resp_bytes = resp.read(max_response_bytes_value)
-        except url_error.HTTPError as exc:
-            http_status = int(getattr(exc, "code", 0) or 0)
-            try:
-                resp_bytes = exc.read(max_response_bytes_value)
-            except Exception:
-                resp_bytes = b""
-            status = "FAIL"
-            error_code = "PROVIDER_HTTP_ERROR"
-            message = "LLM provider HTTP error."
-        except Exception as exc:
-            status = "FAIL"
-            error_code = "PROVIDER_REQUEST_FAILED"
-            message = "LLM provider request failed."
-            error_type = type(exc).__name__
-            error_detail = _redact(str(exc))[:400] if str(exc) else None
-        finally:
-            elapsed_ms = _bucket_elapsed_ms((time.monotonic() - start) * 1000.0)
+            from src.orchestrator.eval_harness import eval_scorecard, run_eval_suite
+            from src.prj_kernel_api.llm_response_normalizer import extract_llm_output_text
+            _output_text = extract_llm_output_text(resp_bytes) if resp_bytes else ""
+            if _output_text and status == "OK":
+                _eval_results = run_eval_suite(_output_text)
+                _eval_card = eval_scorecard(_eval_results)
+                payload["eval_scorecard"] = _eval_card
+        except Exception:
+            pass  # Eval is best-effort, don't block response
 
-        output_text = _extract_llm_output_text(resp_bytes) if resp_bytes else ""
-        output_sha256 = _sha256_hex(resp_bytes) if resp_bytes else _sha256_hex(b"")
+        # --- Post-flight: token usage recording (PR5) ---
+        if _token_estimate is not None:
+            payload["token_estimate"] = _token_estimate
+        try:
+            from src.prj_kernel_api.llm_response_normalizer import extract_usage
+            _usage = extract_usage(resp_bytes) if resp_bytes else None
+            if _usage:
+                payload["usage"] = _usage
+        except Exception:
+            pass
 
-        output_full_path = None
-        if output_text:
-            try:
-                ws_root = Path(workspace_root).resolve()
-                out_dir = ws_root / ".cache" / "reports" / "llm_live_outputs"
-                out_dir.mkdir(parents=True, exist_ok=True)
-                safe_request = _sanitize_name(str(request_id or "request"))
-                safe_provider = _sanitize_name(str(provider_id or "provider"))
-                out_path = out_dir / f"{safe_request}_{safe_provider}.txt"
-                write_text_atomic(out_path, output_text)
-                output_full_path = str(out_path)
-            except Exception:
-                output_full_path = None
+        # --- Post-flight: decision quality recording (PR6 → connects existing module) ---
+        try:
+            from src.orchestrator.decision_quality import record_decision_quality
+            _gate_results = payload.get("eval_scorecard", {}).get("checks", [])
+            record_decision_quality(
+                workspace_root=Path(workspace_root),
+                run_id=str(request_id or ""),
+                decision_boundary_used="llm_call_live",
+                quality_gate_results=_gate_results,
+                provider=provider_id,
+                model=model,
+                outcome="SUCCESS" if status == "OK" else "FAILURE",
+                latency_ms=transport_result.get("elapsed_ms", 0),
+            )
+        except Exception:
+            pass  # Decision quality is best-effort
 
-        output_preview = ""
-        output_truncated = False
-        if max_output_chars_value > 0:
-            if len(output_text) > max_output_chars_value:
-                output_preview = output_text[:max_output_chars_value]
-                output_truncated = True
-            else:
-                output_preview = output_text
-        else:
-            if output_text:
-                output_truncated = True
-
-        payload = {
-            "provider_id": provider_id,
-            "model": model,
-            "dry_run": False,
-            "api_key_present": True,
-            "timeout_seconds": timeout_seconds_live,
-            "tls_cafile": tls_cafile,
-            "http_status": http_status,
-            "elapsed_ms": elapsed_ms,
-            "error_type": error_type,
-            "error_detail": error_detail,
-            "output_sha256": output_sha256,
-            "output_preview": output_preview,
-            "output_truncated": output_truncated,
-            "output_full_path": output_full_path,
-            "nondeterministic": True,
-        }
+        # --- Post-flight: prompt lineage (PR7) ---
+        try:
+            from src.prj_kernel_api.prompt_registry import record_prompt_lineage
+            record_prompt_lineage(
+                workspace_root=workspace_root,
+                prompt_id="llm_call_live",
+                prompt_version="1.0.0",
+                prompt_hash="",
+                model=model,
+                provider_id=provider_id,
+                run_id=str(request_id or ""),
+            )
+        except Exception:
+            pass  # Lineage is best-effort
 
         return build_response(
             status=status,
