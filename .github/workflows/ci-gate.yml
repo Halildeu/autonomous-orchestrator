@@ -188,6 +188,18 @@ jobs:
         working-directory: backend
         run: ./mvnw -DskipITs=true test -T 1C
 
+
+  ci-gate-infra:
+    runs-on: ubuntu-latest
+    needs: [classify]
+    if: needs.classify.outputs.backend_changed == 'true' || needs.classify.outputs.workflows_changed == 'true' || needs.classify.outputs.meta_changed == 'true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Run infrastructure consistency gate
+        run: bash backend/scripts/doctor-infra.sh
+
   ci-gate-legacy-archive:
     runs-on: ubuntu-latest
     needs: [classify]
@@ -212,6 +224,7 @@ jobs:
       - ci-gate-layout
       - ci-gate-web
       - ci-gate-backend
+      - ci-gate-infra
       - ci-gate-legacy-archive
     if: always()
     steps:
@@ -227,6 +240,7 @@ jobs:
           LAYOUT_RESULT: ${{ needs.ci-gate-layout.result }}
           WEB_RESULT: ${{ needs.ci-gate-web.result }}
           BACKEND_RESULT: ${{ needs.ci-gate-backend.result }}
+          INFRA_RESULT: ${{ needs.ci-gate-infra.result }}
           LEGACY_ARCHIVE_RESULT: ${{ needs.ci-gate-legacy-archive.result }}
         run: |
           mkdir -p artifacts
