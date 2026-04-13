@@ -4,7 +4,7 @@
 
 REPO_DIR="/home/halil/platform/repo/backend"
 ENV_FILE="/home/halil/platform/env/backend.env"
-COMPOSE="docker compose -f ${REPO_DIR}/docker-compose.prod.yml --env-file ${ENV_FILE} --profile extras"
+COMPOSE="docker compose -f ${REPO_DIR}/../deploy/docker-compose.prod.yml --env-file ${ENV_FILE} --profile extras"
 UNSEAL_SCRIPT="/home/halil/platform/scripts/vault-auto-unseal.sh"
 
 export DOCKER_PULL_POLICY=never
