@@ -189,6 +189,18 @@ const access = {
 
   'common.save': 'Kaydet',
   'common.loading': 'Yükleniyor...',
+
+  // Faz 3: RoleDrawer section headers + labels (i18n)
+  'access.drawer.modulesTitle': 'Modüller',
+  'access.drawer.actionsTitle': 'Aksiyonlar',
+  'access.drawer.reportsTitle': 'Raporlar',
+  'access.drawer.pagesTitle': 'Sayfalar',
+  'access.drawer.membersTitle': 'Atanmış Kişiler',
+  'access.drawer.allowLabel': 'İzin',
+  'access.drawer.denyLabel': 'Engel',
+  'access.drawer.levelView': 'Oku',
+  'access.drawer.levelManage': 'Yönet',
+  'access.drawer.noEditPermission': 'Bu rolü düzenlemek için yetkiniz yok.',
 };
 
 export default access;

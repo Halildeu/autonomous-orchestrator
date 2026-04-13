@@ -136,6 +136,25 @@ const users = {
 
   // Detay çekmecesi – hızlı işlemler
   'users.detail.quickActions.noteSoon': 'Not Ekle (yakında)',
+
+  // Faz 2: Multi-role + tabbed scope
+  'users.detail.section.roles': 'Roller',
+  'users.detail.section.roles.description': 'Kullanıcıya birden fazla rol atayabilirsiniz. İzinler rollerin birleşimidir.',
+  'users.detail.section.scopes': 'Veri Erişimi',
+  'users.detail.section.scopes.description': 'Scope atanmadan kullanıcı hiçbir veri göremez.',
+  'users.detail.scopes.companies': 'Şirketler',
+  'users.detail.scopes.projects': 'Projeler',
+  'users.detail.scopes.warehouses': 'Depolar',
+  'users.detail.scopes.branches': 'Şubeler',
+  'users.detail.scopes.selectAll': 'Tümünü Seç',
+  'users.detail.save': 'Kaydet',
+  'users.detail.saving': 'Kaydediliyor...',
+  'users.detail.cancel': 'Vazgeç',
+  'users.detail.noRolesDefined': 'Henüz rol tanımlanmamış.',
+  'users.detail.noRolesWarning': 'En az bir rol seçilmelidir.',
+  'users.detail.loadingRoles': 'Yükleniyor...',
+  'users.detail.assignmentSaved': 'Rol ve erişim atamaları kaydedildi.',
+  'users.grid.columns.roles': 'Roller',
 };
 
 export default users;

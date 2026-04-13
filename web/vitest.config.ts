@@ -12,6 +12,7 @@ export default defineConfig({
       '@mfe/shared-http': path.resolve(__dirname, 'packages/shared-http/src'),
       '@mfe/auth': path.resolve(__dirname, 'packages/auth/src'),
       '@platform/capabilities': path.resolve(__dirname, 'packages/platform-capabilities/src'),
+      'mfe_shell/i18n': path.resolve(__dirname, 'apps/mfe-shell/src/app/i18n/index.ts'),
     },
   },
   test: {

@@ -427,6 +427,46 @@
       "path": "web/packages/auth/src/useBatchZanzibarAccess.ts",
       "ux_theme_id": "trust_privacy_security_ux",
       "ux_subtheme_id": "secure_session_step_up_authentication"
+    },
+    {
+      "path": "web/apps/mfe-users/src/widgets/user-management/ui/UserDetailDrawer.ui.tsx",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "least_privilege_interaction_design"
+    },
+    {
+      "path": "web/apps/mfe-users/src/widgets/user-management/ui/UsersGrid.ui.tsx",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "least_privilege_interaction_design"
+    },
+    {
+      "path": "web/packages/i18n-dicts/src/locales/en/users.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/i18n-dicts/src/locales/tr/users.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-access/src/widgets/role-drawer/RoleDrawer.ui.tsx",
+      "ux_theme_id": "trust_privacy_security_ux",
+      "ux_subtheme_id": "least_privilege_interaction_design"
+    },
+    {
+      "path": "web/packages/i18n-dicts/src/locales/en/access.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/i18n-dicts/src/locales/tr/access.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/vitest.config.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
     }
   ]
 }

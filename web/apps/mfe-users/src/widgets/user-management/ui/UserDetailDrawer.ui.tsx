@@ -81,7 +81,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState<number>(15);
   const [dirty, setDirty] = useState(false);
 
-  // --- Queries ---
+  // --- Queries (all hooks MUST be above any early return) ---
   const rolesQuery = useQuery({
     queryKey: ['roles-list'],
     queryFn: async () => {
@@ -106,6 +106,80 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
       } catch {
         const fallbackRoleId = FALLBACK_ROLE_ID_BY_NAME[String(user?.role ?? '').trim().toUpperCase()];
         return fallbackRoleId ? [fallbackRoleId] : [];
+      }
+    },
+    enabled: open && !!user,
+  });
+
+  // Scope data from core-data-service
+  const companiesQuery = useQuery({
+    queryKey: ['scope-companies'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/companies');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((c: any) => ({ id: c.id, name: c.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const projectsQuery = useQuery({
+    queryKey: ['scope-projects'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/projects');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((p: any) => ({ id: p.id, name: p.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const warehousesQuery = useQuery({
+    queryKey: ['scope-warehouses'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/warehouses');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((w: any) => ({ id: w.id, name: w.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const branchesQuery = useQuery({
+    queryKey: ['scope-branches'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/branches');
+        const data = res.data as any;
+        const items = data?.items ?? data?.content ?? data ?? [];
+        return (Array.isArray(items) ? items : []).map((b: any) => ({ id: b.id, name: b.name })) as ScopeEntity[];
+      } catch { return [] as ScopeEntity[]; }
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+
+  // User's current scope assignments
+  const userScopesQuery = useQuery({
+    queryKey: ['user-scopes', user?.id],
+    queryFn: async () => {
+      try {
+        const res = await api.get(`/api/v1/roles/users/${user!.id}/scopes`);
+        const data = res.data as any;
+        return {
+          companyIds: (data?.companyIds ?? []) as number[],
+          projectIds: (data?.projectIds ?? []) as number[],
+          warehouseIds: (data?.warehouseIds ?? []) as number[],
+          branchIds: (data?.branchIds ?? []) as number[],
+        };
+      } catch {
+        return { companyIds: [], projectIds: [], warehouseIds: [], branchIds: [] };
       }
     },
     enabled: open && !!user,
@@ -200,105 +274,51 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
   if (!user) return null;
 
   const roles = rolesQuery.data ?? [];
-
-  // Scope data from core-data-service (fallback to empty arrays)
-  const companiesQuery = useQuery({
-    queryKey: ['scope-companies'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/api/v1/companies');
-        const data = res.data as any;
-        const items = data?.items ?? data?.content ?? data ?? [];
-        return (Array.isArray(items) ? items : []).map((c: any) => ({ id: c.id, name: c.name })) as ScopeEntity[];
-      } catch { return [] as ScopeEntity[]; }
-    },
-    enabled: open,
-    staleTime: 60_000,
-  });
-  const projectsQuery = useQuery({
-    queryKey: ['scope-projects'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/api/v1/projects');
-        const data = res.data as any;
-        const items = data?.items ?? data?.content ?? data ?? [];
-        return (Array.isArray(items) ? items : []).map((p: any) => ({ id: p.id, name: p.name })) as ScopeEntity[];
-      } catch { return [] as ScopeEntity[]; }
-    },
-    enabled: open,
-    staleTime: 60_000,
-  });
-  const warehousesQuery = useQuery({
-    queryKey: ['scope-warehouses'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/api/v1/warehouses');
-        const data = res.data as any;
-        const items = data?.items ?? data?.content ?? data ?? [];
-        return (Array.isArray(items) ? items : []).map((w: any) => ({ id: w.id, name: w.name })) as ScopeEntity[];
-      } catch { return [] as ScopeEntity[]; }
-    },
-    enabled: open,
-    staleTime: 60_000,
-  });
-  const branchesQuery = useQuery({
-    queryKey: ['scope-branches'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/api/v1/branches');
-        const data = res.data as any;
-        const items = data?.items ?? data?.content ?? data ?? [];
-        return (Array.isArray(items) ? items : []).map((b: any) => ({ id: b.id, name: b.name })) as ScopeEntity[];
-      } catch { return [] as ScopeEntity[]; }
-    },
-    enabled: open,
-    staleTime: 60_000,
-  });
-
-  // User's current scope assignments
-  const userScopesQuery = useQuery({
-    queryKey: ['user-scopes', user?.id],
-    queryFn: async () => {
-      try {
-        const res = await api.get(`/api/v1/roles/users/${user!.id}/scopes`);
-        const data = res.data as any;
-        return {
-          companyIds: (data?.companyIds ?? []) as number[],
-          projectIds: (data?.projectIds ?? []) as number[],
-          warehouseIds: (data?.warehouseIds ?? []) as number[],
-          branchIds: (data?.branchIds ?? []) as number[],
-        };
-      } catch {
-        return { companyIds: [], projectIds: [], warehouseIds: [], branchIds: [] };
-      }
-    },
-    enabled: open && !!user,
-  });
-
   const companies = companiesQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
   const warehouses = warehousesQuery.data ?? [];
   const branches = branchesQuery.data ?? [];
 
-  const scopeCheckboxList = (items: ScopeEntity[], selected: number[], setter: React.Dispatch<React.SetStateAction<number[]>>) => (
-    <div className="flex flex-col gap-2 mt-2">
-      {items.map(item => (
-        <Checkbox
-          key={item.id}
-          label={item.name}
-          checked={selected.includes(item.id)}
-          onChange={() => toggleScope(setter, item.id)}
-          disabled={!canEdit}
-        />
-      ))}
-    </div>
-  );
+  const scopeCheckboxList = (items: ScopeEntity[], selected: number[], setter: React.Dispatch<React.SetStateAction<number[]>>) => {
+    const allSelected = items.length > 0 && items.every(i => selected.includes(i.id));
+    const noneSelected = items.every(i => !selected.includes(i.id));
+    const toggleAll = () => {
+      if (allSelected) {
+        setter([]);
+      } else {
+        setter(items.map(i => i.id));
+      }
+      setDirty(true);
+    };
+    return (
+      <div className="flex flex-col gap-2 mt-2">
+        {items.length > 1 && (
+          <Checkbox
+            label={t('users.detail.scopes.selectAll')}
+            checked={allSelected}
+            indeterminate={!allSelected && !noneSelected}
+            onChange={toggleAll}
+            disabled={!canEdit}
+          />
+        )}
+        {items.map(item => (
+          <Checkbox
+            key={item.id}
+            label={item.name}
+            checked={selected.includes(item.id)}
+            onChange={() => toggleScope(setter, item.id)}
+            disabled={!canEdit}
+          />
+        ))}
+      </div>
+    );
+  };
 
   const scopeTabs = [
-    { key: 'companies', label: 'Şirketler', content: scopeCheckboxList(companies, selectedCompanyIds, setSelectedCompanyIds) },
-    { key: 'projects', label: 'Projeler', content: scopeCheckboxList(projects, selectedProjectIds, setSelectedProjectIds) },
-    { key: 'warehouses', label: 'Depolar', content: scopeCheckboxList(warehouses, selectedWarehouseIds, setSelectedWarehouseIds) },
-    { key: 'branches', label: 'Şubeler', content: scopeCheckboxList(branches, selectedBranchIds, setSelectedBranchIds) },
+    { key: 'companies', label: t('users.detail.scopes.companies'), content: scopeCheckboxList(companies, selectedCompanyIds, setSelectedCompanyIds) },
+    { key: 'projects', label: t('users.detail.scopes.projects'), content: scopeCheckboxList(projects, selectedProjectIds, setSelectedProjectIds) },
+    { key: 'warehouses', label: t('users.detail.scopes.warehouses'), content: scopeCheckboxList(warehouses, selectedWarehouseIds, setSelectedWarehouseIds) },
+    { key: 'branches', label: t('users.detail.scopes.branches'), content: scopeCheckboxList(branches, selectedBranchIds, setSelectedBranchIds) },
   ];
 
   return (
@@ -375,10 +395,10 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
 
         {/* Roles Section — Multi-select checkboxes */}
         <section>
-          <h3 className="text-base font-semibold text-text-primary">Roller</h3>
-          <p className="text-xs text-text-subtle mt-1">Kullanıcıya birden fazla rol atayabilirsiniz. İzinler rollerin birleşimidir.</p>
+          <h3 className="text-base font-semibold text-text-primary">{t('users.detail.section.roles')}</h3>
+          <p className="text-xs text-text-subtle mt-1">{t('users.detail.section.roles.description')}</p>
           <div className="mt-3 flex flex-col gap-2">
-            {rolesQuery.isLoading && <span className="text-xs text-text-subtle">Yükleniyor...</span>}
+            {rolesQuery.isLoading && <span className="text-xs text-text-subtle">{t('users.detail.loadingRoles')}</span>}
             {roles.map(role => (
               <Checkbox
                 key={role.id}
@@ -389,7 +409,10 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
               />
             ))}
             {roles.length === 0 && !rolesQuery.isLoading && (
-              <span className="text-xs text-text-subtle">Henüz rol tanımlanmamış.</span>
+              <span className="text-xs text-text-subtle">{t('users.detail.noRolesDefined')}</span>
+            )}
+            {dirty && selectedRoleIds.length === 0 && (
+              <span className="text-xs text-state-danger-text">{t('users.detail.noRolesWarning')}</span>
             )}
           </div>
         </section>
@@ -398,8 +421,8 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
 
         {/* Scope Section — Tabbed */}
         <section>
-          <h3 className="text-base font-semibold text-text-primary">Veri Erişimi</h3>
-          <p className="text-xs text-text-subtle mt-1">Scope atanmadan kullanıcı hiçbir veri göremez.</p>
+          <h3 className="text-base font-semibold text-text-primary">{t('users.detail.section.scopes')}</h3>
+          <p className="text-xs text-text-subtle mt-1">{t('users.detail.section.scopes.description')}</p>
           <div className="mt-3">
             <Tabs items={scopeTabs} variant="line" size="sm" />
           </div>
@@ -412,12 +435,12 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({ open, onClose, user
           <div className="flex items-center justify-end gap-3">
             <button type="button" onClick={onClose}
               className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted">
-              Vazgeç
+              {t('users.detail.cancel')}
             </button>
             <button type="button" onClick={handleSave}
-              disabled={!dirty || assignMutation.isPending}
+              disabled={!dirty || assignMutation.isPending || selectedRoleIds.length === 0}
               className="rounded-xl bg-action-primary px-4 py-2 text-sm font-semibold text-action-primary-text shadow-xs hover:opacity-90 disabled:opacity-50">
-              {assignMutation.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+              {assignMutation.isPending ? t('users.detail.saving') : t('users.detail.save')}
             </button>
           </div>
         )}

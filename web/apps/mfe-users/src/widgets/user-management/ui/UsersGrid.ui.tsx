@@ -204,33 +204,18 @@ const UsersGrid: React.FC<UsersGridProps> = ({
   /* Custom columns that column-system can't express */
   const customColumnDefs = useMemo<ColDef<UserSummary>[]>(() => [
     {
-      headerName: t('users.grid.columns.modulePermissions'),
-      field: 'modulePermissions',
-      minWidth: 240,
+      headerName: t('users.grid.columns.roles'),
+      field: 'role',
+      minWidth: 180,
       filter: 'agTextColumnFilter',
-      wrapText: true,
-      autoHeight: false,
-      valueGetter: ({ data }) => formatModulePermissions(data?.modulePermissions),
       cellRenderer: ({ data }) => {
-        if (!data?.modulePermissions?.length) {
-          return <span className="text-sm text-text-subtle">{t('users.filters.moduleLevel.none')}</span>;
+        const roleName = data?.role;
+        if (!roleName) {
+          return <span className="text-sm text-text-subtle">—</span>;
         }
         return (
-          <div className="flex flex-wrap gap-2">
-            {data.modulePermissions.map((permission) => {
-              const levelLabelKey = MODULE_LEVEL_LABELS[permission.level];
-              const levelLabel = levelLabelKey ? t(levelLabelKey) : permission.level;
-              const levelColor = MODULE_LEVEL_COLORS[permission.level] ?? 'default';
-              return (
-                <Badge
-                  key={`${permission.moduleKey}-${permission.level}`}
-                  variant={levelColor}
-                  title={`Modül: ${permission.moduleLabel ?? permission.moduleKey}`}
-                >
-                  {permission.moduleLabel ?? permission.moduleKey} - {levelLabel}
-                </Badge>
-              );
-            })}
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="info">{roleName}</Badge>
           </div>
         );
       },
@@ -246,7 +231,7 @@ const UsersGrid: React.FC<UsersGridProps> = ({
         data ? <UserActions user={data} onSelect={() => onSelectUser(data)} /> : null,
       pinned: 'right',
     },
-  ], [formatModulePermissions, onSelectUser, t]);
+  ], [onSelectUser, t]);
 
   /* Merge column-system output with custom columns */
   const columnDefs = useMemo<ColDef<UserSummary>[]>(() => {

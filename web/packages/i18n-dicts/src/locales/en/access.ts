@@ -189,6 +189,18 @@ const access = {
 
   'common.save': 'Save',
   'common.loading': 'Loading...',
+
+  // Phase 3: RoleDrawer section headers + labels (i18n)
+  'access.drawer.modulesTitle': 'Modules',
+  'access.drawer.actionsTitle': 'Actions',
+  'access.drawer.reportsTitle': 'Reports',
+  'access.drawer.pagesTitle': 'Pages',
+  'access.drawer.membersTitle': 'Assigned Users',
+  'access.drawer.allowLabel': 'Allow',
+  'access.drawer.denyLabel': 'Block',
+  'access.drawer.levelView': 'View',
+  'access.drawer.levelManage': 'Manage',
+  'access.drawer.noEditPermission': 'You do not have permission to edit this role.',
 };
 
 export default access;

@@ -59,8 +59,12 @@
       "web/apps/mfe-shell/src/pages/admin/design-lab/**/*",
       "web/apps/mfe-shell/src/pages/admin/DesignLabPage.tsx",
       "web/apps/mfe-shell/src/index.css",
+      "web/vitest.config.ts",
       "web/apps/mfe-access/**/*",
+      "web/apps/mfe-users/**/*",
       "web/apps/mfe-reporting/**/*",
+      "web/packages/i18n-dicts/**/*",
+      "web/packages/shared-types/**/*",
       "web/stories/**/*"
     ],
     "repo_root": ".",
@@ -216,6 +220,11 @@
   "ux_contract": {
     "artifacts": [
       {
+        "path_glob": "web/vitest.config.ts",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
         "path_glob": "web/packages/auth/src/*.ts",
         "ux_theme_id": "trust_privacy_security_ux",
         "ux_subtheme_id": "least_privilege_interaction_design"
@@ -227,6 +236,21 @@
       },
       {
         "path_glob": "web/apps/mfe-access/src/widgets/*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/apps/mfe-users/src/widgets/**/*.tsx",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/packages/i18n-dicts/src/locales/**/*.ts",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
+      },
+      {
+        "path_glob": "web/packages/shared-types/src/*.ts",
         "ux_theme_id": "trust_privacy_security_ux",
         "ux_subtheme_id": "least_privilege_interaction_design"
       },

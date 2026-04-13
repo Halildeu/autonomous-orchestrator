@@ -137,6 +137,25 @@ const users = {
 
   // Detail drawer – quick actions
   'users.detail.quickActions.noteSoon': 'Add note (coming soon)',
+
+  // Phase 2: Multi-role + tabbed scope
+  'users.detail.section.roles': 'Roles',
+  'users.detail.section.roles.description': 'Assign multiple roles to the user. Permissions are the union of all assigned roles.',
+  'users.detail.section.scopes': 'Data Access',
+  'users.detail.section.scopes.description': 'Without scope assignment, the user cannot see any data.',
+  'users.detail.scopes.companies': 'Companies',
+  'users.detail.scopes.projects': 'Projects',
+  'users.detail.scopes.warehouses': 'Warehouses',
+  'users.detail.scopes.branches': 'Branches',
+  'users.detail.scopes.selectAll': 'Select All',
+  'users.detail.save': 'Save',
+  'users.detail.saving': 'Saving...',
+  'users.detail.cancel': 'Cancel',
+  'users.detail.noRolesDefined': 'No roles defined yet.',
+  'users.detail.noRolesWarning': 'At least one role must be selected.',
+  'users.detail.loadingRoles': 'Loading...',
+  'users.detail.assignmentSaved': 'Role and access assignments saved.',
+  'users.grid.columns.roles': 'Roles',
 };
 
 export default users;

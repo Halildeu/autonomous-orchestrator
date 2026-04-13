@@ -297,7 +297,7 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
     >
       <div className="flex flex-col gap-5">
         {/* --- MODÜLLER --- */}
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">Modüller</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">{t('access.drawer.modulesTitle')}</h3>
         <div className="flex flex-col gap-2">
           {(catalog?.modules ?? []).map(mod => (
             <div key={mod.key} className="flex items-center justify-between rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-3">
@@ -308,7 +308,7 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
                 onChange={e => setModule(mod.key, e.target.value)}
               >
                 {LEVEL_OPTIONS.map(level => (
-                  <option key={level} value={level}>{level === 'NONE' ? '—' : level === 'VIEW' ? 'Oku' : 'Yönet'}</option>
+                  <option key={level} value={level}>{level === 'NONE' ? '—' : level === 'VIEW' ? t('access.drawer.levelView') : t('access.drawer.levelManage')}</option>
                 ))}
               </select>
             </div>
@@ -318,7 +318,7 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
         <hr className="border-border-subtle" />
 
         {/* --- AKSİYONLAR --- */}
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">Aksiyonlar</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">{t('access.drawer.actionsTitle')}</h3>
         <div className="flex flex-col gap-2">
           {(catalog?.actions ?? []).map(action => {
             const grant = actionGrants[action.key];
@@ -331,10 +331,10 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
                   <span className="text-xs text-text-subtle">{action.module}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Checkbox label="İzin" checked={isAllow} onChange={() => toggleAction(action.key, 'ALLOW')} size="sm" />
+                  <Checkbox label={t('access.drawer.allowLabel')} checked={isAllow} onChange={() => toggleAction(action.key, 'ALLOW')} size="sm" />
                   {action.deniable && (
                     <Checkbox
-                      label="Engel"
+                      label={t('access.drawer.denyLabel')}
                       checked={isDeny}
                       onChange={() => toggleAction(action.key, 'DENY')}
                       size="sm"
@@ -350,7 +350,7 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
         <hr className="border-border-subtle" />
 
         {/* --- RAPORLAR --- */}
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">Raporlar</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">{t('access.drawer.reportsTitle')}</h3>
         <div className="flex flex-col gap-2">
           {(catalog?.reports ?? []).map(report => (
             <Checkbox key={report.key} label={report.label}
@@ -362,22 +362,25 @@ const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
         <hr className="border-border-subtle" />
 
-        {/* --- SAYFALAR --- */}
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">Sayfalar</h3>
-        <div className="flex flex-col gap-2">
-          {(catalog?.pages ?? []).map(page => (
-            <Checkbox key={page.key} label={page.label}
-              checked={!!pageGrants[page.key]}
-              onChange={() => togglePage(page.key)} size="sm"
-              description={page.module} />
-          ))}
-        </div>
-
-        <hr className="border-border-subtle" />
+        {/* --- SAYFALAR (only rendered when catalog has pages) --- */}
+        {(catalog?.pages ?? []).length > 0 && (
+          <>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">{t('access.drawer.pagesTitle')}</h3>
+            <div className="flex flex-col gap-2">
+              {catalog!.pages.map(page => (
+                <Checkbox key={page.key} label={page.label}
+                  checked={!!pageGrants[page.key]}
+                  onChange={() => togglePage(page.key)} size="sm"
+                  description={page.module} />
+              ))}
+            </div>
+            <hr className="border-border-subtle" />
+          </>
+        )}
 
         {/* --- ATANMIŞ KİŞİLER --- */}
         <h3 className="text-sm font-semibold uppercase tracking-wide text-text-subtle">
-          Atanmış Kişiler ({members.length})
+          {t('access.drawer.membersTitle')} ({members.length})
         </h3>
         <div className="flex flex-col gap-2">
           {members.map(member => (
