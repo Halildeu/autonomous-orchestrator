@@ -8,9 +8,10 @@ import { Slot } from '../_shared/Slot';
 import type { SlotProps, SlotRef, SlotElement, SlotCSSProperties } from '../_shared/Slot';
 
 describe('Slot — contract', () => {
-  
+
   it('renders without crash', () => {
-    const { container } = render(<Slot  />);
+    // Slot requires exactly one child element (React.Children.only)
+    const { container } = render(<Slot><span>child</span></Slot>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -19,8 +20,7 @@ describe('Slot — contract', () => {
   });
 
   it('renders with only required props (1 required, 5 optional)', () => {
-    // All 5 optional props omitted — should not crash
-    const { container } = render(<Slot  />);
+    const { container } = render(<Slot><span>child</span></Slot>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

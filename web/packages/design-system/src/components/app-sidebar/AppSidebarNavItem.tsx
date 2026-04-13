@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarNavItemProps as AppSidebarNavItemPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Individual navigation item within the AppSidebar. Renders as an anchor when
@@ -24,7 +23,7 @@ import type { AppSidebarNavItemProps as AppSidebarNavItemPropsBase } from './typ
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarNavItem = React.forwardRef<HTMLDivElement, AppSidebarNavItemPropsBase>(({
+export const AppSidebarNavItem = React.forwardRef<HTMLDivElement, AppSidebarNavItemPropsBase & AccessControlledProps>(({
   icon,
   label,
   href,
@@ -36,7 +35,10 @@ export const AppSidebarNavItem = React.forwardRef<HTMLDivElement, AppSidebarNavI
   children,
   depth = 0,
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed } = useSidebar();
   const itemRef = useRef<HTMLElement>(null);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);

@@ -9,8 +9,8 @@ import type { LayoutTheme, ThemeLayoutSlots, ThemeLayoutProps } from '../ThemeLa
 
 describe('ThemeLayout — contract', () => {
   const defaultProps = {
-    theme: undefined as any,
-    slots: undefined as any,
+    theme: 'executive' as const,
+    slots: { header: React.createElement('div', null, 'Header') },
   };
 
   it('renders without crash', () => {

@@ -9,7 +9,7 @@ import type { OrgChartNode, OrgChartProps } from '../OrgChart';
 
 describe('OrgChart — contract', () => {
   const defaultProps = {
-    data: undefined as any,
+    data: { id: 'root', label: 'CEO', children: [] },
   };
 
   it('renders without crash', () => {

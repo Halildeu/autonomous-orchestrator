@@ -9,8 +9,8 @@ import type { MicroChartType, MicroChartProps } from '../MicroChart';
 
 describe('MicroChart — contract', () => {
   const defaultProps = {
-    type: undefined as any,
-    data: [],
+    type: 'sparkline' as const,
+    data: [10, 20, 30, 40, 50],
   };
 
   it('renders without crash', () => {

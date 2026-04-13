@@ -13,7 +13,7 @@ describe('Transition — contract', () => {
   };
 
   it('renders without crash', () => {
-    const { container } = render(<Transition {...defaultProps} />);
+    const { container } = render(<Transition {...defaultProps}><div>child</div></Transition>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -22,8 +22,8 @@ describe('Transition — contract', () => {
   });
 
   it('renders with only required props (2 required, 7 optional)', () => {
-    // All 7 optional props omitted — should not crash
-    const { container } = render(<Transition {...defaultProps} />);
+    // Transition requires children to render anything visible
+    const { container } = render(<Transition {...defaultProps}><div>child</div></Transition>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

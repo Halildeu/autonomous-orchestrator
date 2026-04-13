@@ -9,11 +9,12 @@ import type { DropdownItem, DropdownSeparator, DropdownLabel, DropdownEntry, Dro
 
 describe('Dropdown — contract', () => {
   const defaultProps = {
-    items: [],
+    items: [] as DropdownEntry[],
   };
 
   it('renders without crash', () => {
-    const { container } = render(<Dropdown {...defaultProps} />);
+    // Dropdown requires a child element as the trigger
+    const { container } = render(<Dropdown {...defaultProps}><button>trigger</button></Dropdown>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -22,8 +23,7 @@ describe('Dropdown — contract', () => {
   });
 
   it('renders with only required props (2 required, 4 optional)', () => {
-    // All 4 optional props omitted — should not crash
-    const { container } = render(<Dropdown {...defaultProps} />);
+    const { container } = render(<Dropdown {...defaultProps}><button>trigger</button></Dropdown>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

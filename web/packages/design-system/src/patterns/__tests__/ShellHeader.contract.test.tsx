@@ -7,9 +7,13 @@ import React from 'react';
 import { ShellHeader } from '../shell-header/ShellHeader';
 
 describe('ShellHeader — contract', () => {
-  
+  const defaultProps = {
+    navItems: [],
+    onNavigate: vi.fn(),
+  };
+
   it('renders without crash', () => {
-    const { container } = render(<ShellHeader  />);
+    const { container } = render(<ShellHeader {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 });

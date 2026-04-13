@@ -2,8 +2,7 @@ import React from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarSeparatorProps as AppSidebarSeparatorPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Visual separator line for the AppSidebar navigation. Renders a horizontal
@@ -21,9 +20,12 @@ import type { AppSidebarSeparatorProps as AppSidebarSeparatorPropsBase } from '.
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarSeparator = React.forwardRef<HTMLHRElement, AppSidebarSeparatorPropsBase>(({
+export const AppSidebarSeparator = React.forwardRef<HTMLHRElement, AppSidebarSeparatorPropsBase & AccessControlledProps>(({
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed } = useSidebar();
 
   return (

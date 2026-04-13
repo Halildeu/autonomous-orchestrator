@@ -10,6 +10,9 @@ import type { NotificationDrawerProps, NotificationDrawerRef, NotificationDrawer
 describe('NotificationDrawer — contract', () => {
   const defaultProps = {
     open: true,
+    disablePortal: true,
+    onClose: vi.fn(),
+    items: [],
   };
 
   it('renders without crash', () => {
@@ -32,7 +35,7 @@ describe('NotificationDrawer — contract', () => {
   });
 
   it('renders with only required props (1 required, 11 optional)', () => {
-    // All 11 optional props omitted — should not crash
+    // disablePortal needed to render inline
     const { container } = render(<NotificationDrawer {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });

@@ -2,8 +2,7 @@ import React from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarHeaderProps as AppSidebarHeaderPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Header slot for the AppSidebar compound component. Displays a title,
@@ -23,13 +22,16 @@ import type { AppSidebarHeaderProps as AppSidebarHeaderPropsBase } from './types
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarHeader = React.forwardRef<HTMLDivElement, AppSidebarHeaderPropsBase>(({
+export const AppSidebarHeader = React.forwardRef<HTMLDivElement, AppSidebarHeaderPropsBase & AccessControlledProps>(({
   title,
   subtitle,
   logo,
   action,
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed } = useSidebar();
 
   return (

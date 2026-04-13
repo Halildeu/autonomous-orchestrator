@@ -4,6 +4,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
+
+vi.mock('../FormContext', () => ({
+  useFormContext: () => ({
+    values: {}, errors: {}, touched: {}, dirtyFields: {},
+    access: 'normal', mode: 'onBlur',
+    setFieldValue: vi.fn(), setFieldTouched: vi.fn(),
+    setFieldError: vi.fn(), clearFieldError: vi.fn(),
+    validateField: vi.fn(() => null), validateForm: vi.fn(() => ({})),
+    reset: vi.fn(), isValid: true, isDirty: false, isSubmitting: false, validator: null,
+  }),
+  FormContext: { displayName: 'FormContext' },
+}));
+
 import { ConnectedFormField } from '../ConnectedFormField';
 import type { ConnectedFormFieldProps, ConnectedFormFieldRef, ConnectedFormFieldElement, ConnectedFormFieldCSSProperties } from '../ConnectedFormField';
 
@@ -13,7 +26,7 @@ describe('ConnectedFormField — contract', () => {
   };
 
   it('renders without crash', () => {
-    const { container } = render(<ConnectedFormField {...defaultProps} />);
+    const { container } = render(<ConnectedFormField {...defaultProps}><input /></ConnectedFormField>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -23,7 +36,7 @@ describe('ConnectedFormField — contract', () => {
 
   it('renders with only required props (2 required, 8 optional)', () => {
     // All 8 optional props omitted — should not crash
-    const { container } = render(<ConnectedFormField {...defaultProps} />);
+    const { container } = render(<ConnectedFormField {...defaultProps}><input /></ConnectedFormField>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

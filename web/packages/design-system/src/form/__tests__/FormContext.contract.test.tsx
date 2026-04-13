@@ -2,16 +2,17 @@
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
 import React from 'react';
 import { FormContext } from '../FormContext';
 import type { FormContextValue, FormContextProps, FormFieldName, FormValidationMode } from '../FormContext';
 
 describe('FormContext — contract', () => {
-  
+
   it('renders without crash', () => {
-    const { container } = render(<FormContext  />);
-    expect(container.firstElementChild).toBeTruthy();
+    // FormContext is a React.Context, not a renderable component.
+    // Verify it is a valid context object with a Provider.
+    expect(FormContext).toBeTruthy();
+    expect(FormContext.Provider).toBeTruthy();
   });
 
   it('has displayName', () => {

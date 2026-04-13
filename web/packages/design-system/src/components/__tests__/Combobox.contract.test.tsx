@@ -9,7 +9,7 @@ import type { ComboboxOption, ComboboxOptionGroup, ComboboxResolvedOption, Combo
 
 describe('Combobox — contract', () => {
   const defaultProps = {
-    options: 'Array<ComboboxOption',
+    options: [{ value: 'a', label: 'Alpha' }],
   };
 
   it('renders without crash', () => {

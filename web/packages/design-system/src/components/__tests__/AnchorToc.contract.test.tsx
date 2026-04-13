@@ -9,7 +9,7 @@ import type { AnchorTocDensity, AnchorTocItem, AnchorTocProps } from '../anchor-
 
 describe('AnchorToc — contract', () => {
   const defaultProps = {
-    items: [],
+    items: [{ id: 'section1', label: 'Section 1' }],
   };
 
   it('renders without crash', () => {

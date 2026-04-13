@@ -9,12 +9,7 @@ import type { NotificationItemType, NotificationItemPriority, NotificationSurfac
 
 describe('NotificationItemCard — contract', () => {
   const defaultProps = {
-    item: undefined as any,
-    item: undefined as any,
-    timestamp: 'number',
-    item: undefined as any,
-    item: undefined as any,
-    selected: undefined as any,
+    item: { id: '1', message: 'Test notification' } as NotificationSurfaceItem,
   };
 
   it('renders without crash', () => {

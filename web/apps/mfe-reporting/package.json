@@ -19,7 +19,7 @@
     "ag-grid-community": "34.3.1",
     "ag-grid-enterprise": "34.3.1",
     "ag-grid-react": "34.3.1",
-    "@tanstack/react-query": "^5.90.10",
+    "@tanstack/react-query": "^5.99.0",
     "axios": "^1.7.7",
     "clsx": "^2.1.1",
     "react": "~18.2.0",
@@ -28,7 +28,7 @@
     "react-router-dom": "^6.27.0"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@testing-library/react": "^16.0.0",
@@ -36,6 +36,6 @@
     "eslint": "^9.13.0",
     "jsdom": "^25.0.0",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.4"
   }
 }

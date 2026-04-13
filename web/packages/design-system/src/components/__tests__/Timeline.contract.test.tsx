@@ -9,7 +9,7 @@ import type { TimelineColor, TimelineMode, TimelineSize, TimelineItemProps, Time
 
 describe('Timeline — contract', () => {
   const defaultProps = {
-    key: undefined as any,
+    items: [{ key: 't1', children: React.createElement('span', null, 'Event'), label: 'Jan' }],
   };
 
   it('renders without crash', () => {

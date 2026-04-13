@@ -1,8 +1,7 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import type { AppSidebarNavProps as AppSidebarNavPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Navigation container slot for the AppSidebar compound component.
@@ -19,18 +18,23 @@ import type { AppSidebarNavProps as AppSidebarNavPropsBase } from './types';
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarNav = React.forwardRef<HTMLElement, AppSidebarNavPropsBase>(({
+export const AppSidebarNav = React.forwardRef<HTMLElement, AppSidebarNavPropsBase & AccessControlledProps>(({
   children,
   className,
-}, ref) => (
-  <nav
-    ref={ref}
-    className={cn('flex-1 overflow-y-auto px-2 py-2 text-text-primary', className)}
-    role="navigation"
-  >
-    {children}
-  </nav>
-));
+  access,
+}, ref) => {
+  if (access === 'hidden') return null;
+
+  return (
+    <nav
+      ref={ref}
+      className={cn('flex-1 overflow-y-auto px-2 py-2 text-text-primary', className)}
+      role="navigation"
+    >
+      {children}
+    </nav>
+  );
+});
 
 AppSidebarNav.displayName = 'AppSidebar.Nav';
 

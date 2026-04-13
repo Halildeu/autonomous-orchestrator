@@ -4,6 +4,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
+
+vi.mock('../app-sidebar/useSidebar', () => ({
+  useSidebar: () => ({
+    mode: 'expanded', toggle: vi.fn(), expand: vi.fn(), collapse: vi.fn(),
+    isCollapsed: false, resize: null, setWidth: vi.fn(), setIsResizing: vi.fn(),
+  }),
+  SidebarContext: { Provider: ({ children }: any) => children },
+}));
+
 import { AppSidebarSearch } from '../app-sidebar/AppSidebarSearch';
 import type { AppSidebarSearchProps, AppSidebarSearchRef, AppSidebarSearchElement, AppSidebarSearchCSSProperties } from '../app-sidebar/AppSidebarSearch';
 

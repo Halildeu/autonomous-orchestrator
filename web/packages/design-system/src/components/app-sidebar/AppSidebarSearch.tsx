@@ -2,8 +2,7 @@ import React, { useRef } from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarSearchProps as AppSidebarSearchPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Search input slot for the AppSidebar compound component. Shows a full text
@@ -23,13 +22,16 @@ import type { AppSidebarSearchProps as AppSidebarSearchPropsBase } from './types
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarSearch = React.forwardRef<HTMLDivElement, AppSidebarSearchPropsBase>(({
+export const AppSidebarSearch = React.forwardRef<HTMLDivElement, AppSidebarSearchPropsBase & AccessControlledProps>(({
   value,
   onChange,
   placeholder = 'Search...',
   shortcut,
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed } = useSidebar();
   const inputRef = useRef<HTMLInputElement>(null);
 

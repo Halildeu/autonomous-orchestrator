@@ -9,7 +9,7 @@ import type { EmptyStateReason, EmptyStateSize, EmptyStateAction, EmptyStateBuil
 
 describe('EmptyStateBuilder — contract', () => {
   const defaultProps = {
-    reason: undefined as any,
+    reason: 'no-data' as const,
   };
 
   it('renders without crash', () => {

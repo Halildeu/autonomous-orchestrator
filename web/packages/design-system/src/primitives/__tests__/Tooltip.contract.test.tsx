@@ -8,9 +8,9 @@ import { Tooltip } from '../tooltip/Tooltip';
 import type { TooltipPlacement, TooltipAlign, TooltipProps } from '../tooltip/Tooltip';
 
 describe('Tooltip — contract', () => {
-  
+
   it('renders without crash', () => {
-    const { container } = render(<Tooltip  />);
+    const { container } = render(<Tooltip content="tip"><span>trigger</span></Tooltip>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -19,8 +19,8 @@ describe('Tooltip — contract', () => {
   });
 
   it('renders with only required props (0 required, 9 optional)', () => {
-    // All 9 optional props omitted — should not crash
-    const { container } = render(<Tooltip  />);
+    // Tooltip requires children to render anything visible
+    const { container } = render(<Tooltip><span>trigger</span></Tooltip>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

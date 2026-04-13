@@ -170,6 +170,8 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(
     }
 
     const accessState = resolveAccessState(access);
+    if (accessState.isHidden) return null;
+
     const blockedByAccess = shouldBlockInteraction(access, disabled);
     const isDisabled = disabled || loading || blockedByAccess;
 
@@ -182,7 +184,6 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(
       "inline-flex items-center justify-center font-medium transition-all duration-(--motion-duration-fast)",
       "select-none whitespace-nowrap",
       "disabled:pointer-events-none disabled:opacity-50",
-      accessState.isHidden && "invisible",
       variantStyles[variant],
       focusClass,
       iconOnly ? iconOnlySizes[size] : sizeStyles[size],

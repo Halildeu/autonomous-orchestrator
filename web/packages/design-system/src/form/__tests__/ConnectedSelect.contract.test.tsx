@@ -4,12 +4,26 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
+
+vi.mock('../FormContext', () => ({
+  useFormContext: () => ({
+    values: {}, errors: {}, touched: {}, dirtyFields: {},
+    access: 'normal', mode: 'onBlur',
+    setFieldValue: vi.fn(), setFieldTouched: vi.fn(),
+    setFieldError: vi.fn(), clearFieldError: vi.fn(),
+    validateField: vi.fn(() => null), validateForm: vi.fn(() => ({})),
+    reset: vi.fn(), isValid: true, isDirty: false, isSubmitting: false, validator: null,
+  }),
+  FormContext: { displayName: 'FormContext' },
+}));
+
 import { ConnectedSelect } from '../connected/ConnectedSelect';
 import type { ConnectedSelectProps, ConnectedSelectRef, ConnectedSelectElement, ConnectedSelectCSSProperties } from '../connected/ConnectedSelect';
 
 describe('ConnectedSelect — contract', () => {
   const defaultProps = {
     name: 'test',
+    options: [{ value: 'a', label: 'Alpha' }],
   };
 
   it('renders without crash', () => {

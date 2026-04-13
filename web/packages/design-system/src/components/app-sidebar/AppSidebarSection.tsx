@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarSectionProps as AppSidebarSectionPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Lightweight grouping section for the AppSidebar navigation. Renders
@@ -20,13 +19,16 @@ import type { AppSidebarSectionProps as AppSidebarSectionPropsBase } from './typ
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarSection = React.forwardRef<HTMLDivElement, AppSidebarSectionPropsBase>(({
+export const AppSidebarSection = React.forwardRef<HTMLDivElement, AppSidebarSectionPropsBase & AccessControlledProps>(({
   title,
   collapsible = false,
   defaultOpen = true,
   children,
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed: sidebarCollapsed } = useSidebar();
   const [open, setOpen] = useState(defaultOpen);
 

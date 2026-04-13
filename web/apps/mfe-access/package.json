@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@mfe/shared-http": "*",
-    "@tanstack/react-query": "^5.90.10",
+    "@tanstack/react-query": "^5.99.0",
     "@mfe/shared-types": "*",
     "@mfe/auth": "*",
     "@mfe/design-system": "*",
@@ -27,9 +27,9 @@
   },
   "devDependencies": {
     "@mfe/i18n-dicts": "*",
-    "@tanstack/react-query-devtools": "^5.90.10",
+    "@tanstack/react-query-devtools": "^5.99.0",
     "@testing-library/jest-dom": "^6.6.3",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "eslint": "^9.13.0",

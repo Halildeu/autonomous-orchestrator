@@ -9,7 +9,7 @@ import type { TourCoachmarkStep, TourCoachmarksProps } from '../tour-coachmarks/
 
 describe('TourCoachmarks — contract', () => {
   const defaultProps = {
-    steps: [],
+    steps: [{ title: 'Step 1', content: 'Description' }],
   };
 
   it('renders without crash', () => {

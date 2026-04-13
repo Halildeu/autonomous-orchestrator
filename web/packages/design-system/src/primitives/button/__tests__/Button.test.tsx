@@ -188,10 +188,9 @@ describe('Button — access control', () => {
     expect(screen.getByRole('button')).toBeDisabled();
   });
 
-  it('access="hidden" durumunda buton invisible class alir', () => {
+  it('access="hidden" durumunda buton render edilmez', () => {
     const { container } = render(<Button access="hidden">Test</Button>);
-    const button = container.querySelector('button');
-    expect(button?.className).toContain('invisible');
+    expect(container.innerHTML).toBe('');
   });
 
   it('accessReason title olarak atanir', () => {

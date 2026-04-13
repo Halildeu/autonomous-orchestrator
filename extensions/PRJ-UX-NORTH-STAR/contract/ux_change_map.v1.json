@@ -467,6 +467,86 @@
       "path": "web/vitest.config.ts",
       "ux_theme_id": "consistency_and_pattern_governance",
       "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/advanced/data-grid/GridShell.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarFooter.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarGroup.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarHeader.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarNav.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarNavItem.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarResizer.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarSearch.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarSection.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarSeparator.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/app-sidebar/AppSidebarTrigger.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/carousel/Carousel.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/components/tree-table/TreeTable.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/packages/design-system/src/primitives/button/Button.tsx",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/scripts/enforcement_post_write.py",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/scripts/enforcement_pre_write.py",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
     }
   ]
 }

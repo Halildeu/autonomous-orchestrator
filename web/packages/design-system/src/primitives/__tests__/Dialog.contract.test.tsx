@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 // Auto-generated contract test — do not edit manually
 // Regenerate with: node scripts/ci/generate-contract-tests.mjs --write
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { Dialog } from '../dialog/Dialog';
 import type { DialogSize, DialogSlot, DialogProps } from '../dialog/Dialog';
+
+// jsdom does not implement showModal/close on HTMLDialogElement
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = HTMLDialogElement.prototype.showModal || vi.fn();
+  HTMLDialogElement.prototype.close = HTMLDialogElement.prototype.close || vi.fn();
+});
 
 describe('Dialog — contract', () => {
   const defaultProps = {

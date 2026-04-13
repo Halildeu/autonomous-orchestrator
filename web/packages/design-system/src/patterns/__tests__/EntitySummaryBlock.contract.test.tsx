@@ -10,6 +10,7 @@ import type { EntitySummaryBlockProps, EntitySummaryBlockRef, EntitySummaryBlock
 describe('EntitySummaryBlock — contract', () => {
   const defaultProps = {
     title: 'content',
+    items: [{ label: 'Status', value: 'Active' }],
   };
 
   it('renders without crash', () => {

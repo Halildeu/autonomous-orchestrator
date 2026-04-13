@@ -7,9 +7,13 @@ import React from 'react';
 import { GallerySearchBar } from '../grouped-card-gallery/GallerySearchBar';
 
 describe('GallerySearchBar — contract', () => {
-  
+  const defaultProps = {
+    value: '',
+    onChange: vi.fn(),
+  };
+
   it('renders without crash', () => {
-    const { container } = render(<GallerySearchBar  />);
+    const { container } = render(<GallerySearchBar {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 

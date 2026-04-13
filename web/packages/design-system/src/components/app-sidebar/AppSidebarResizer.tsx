@@ -2,8 +2,7 @@ import React, { useCallback, useRef } from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarResizerProps as AppSidebarResizerPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Drag-to-resize handle for the AppSidebar. Appears as a thin vertical
@@ -21,9 +20,12 @@ import type { AppSidebarResizerProps as AppSidebarResizerPropsBase } from './typ
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarResizer = React.forwardRef<HTMLDivElement, AppSidebarResizerPropsBase>(({
+export const AppSidebarResizer = React.forwardRef<HTMLDivElement, AppSidebarResizerPropsBase & AccessControlledProps>(({
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { resize, setWidth, setIsResizing, isCollapsed } = useSidebar();
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);

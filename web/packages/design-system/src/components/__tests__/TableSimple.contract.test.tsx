@@ -8,9 +8,13 @@ import { TableSimple } from '../table-simple/TableSimple';
 import type { TableSimpleDensity, TableSimpleAlign, TableSimpleColumn, TableSimpleLocaleText, TableSimpleProps } from '../table-simple/TableSimple';
 
 describe('TableSimple — contract', () => {
-  
+  const defaultProps = {
+    columns: [{ key: 'name', label: 'Name', accessor: 'name' as const }],
+    rows: [{ name: 'Row 1' }],
+  };
+
   it('renders without crash', () => {
-    const { container } = render(<TableSimple  />);
+    const { container } = render(<TableSimple {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -19,12 +23,12 @@ describe('TableSimple — contract', () => {
   });
 
   it('respects access=hidden', () => {
-    const { container } = render(<TableSimple  access="hidden" />);
+    const { container } = render(<TableSimple {...defaultProps} access="hidden" />);
     expect(container.innerHTML).toBe('');
   });
 
   it('applies disabled state via access=readonly', () => {
-    const { container } = render(<TableSimple  access="readonly" />);
+    const { container } = render(<TableSimple {...defaultProps} access="readonly" />);
     expect(container.firstElementChild).toBeTruthy();
   });
 

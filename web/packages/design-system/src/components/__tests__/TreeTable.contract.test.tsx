@@ -8,9 +8,13 @@ import { TreeTable } from '../tree-table/TreeTable';
 import type { TreeTableDensity, TreeTableAlign, TreeTableTone, TreeTableColumn, TreeTableNode } from '../tree-table/TreeTable';
 
 describe('TreeTable — contract', () => {
-  
+  const defaultProps = {
+    nodes: [{ key: 'n1', label: 'Node 1', data: { size: '1KB' } }],
+    columns: [{ key: 'size', label: 'Size', accessor: 'size' as const }],
+  };
+
   it('renders without crash', () => {
-    const { container } = render(<TreeTable  />);
+    const { container } = render(<TreeTable {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -19,12 +23,12 @@ describe('TreeTable — contract', () => {
   });
 
   it('respects access=hidden', () => {
-    const { container } = render(<TreeTable  access="hidden" />);
+    const { container } = render(<TreeTable {...defaultProps} access="hidden" />);
     expect(container.innerHTML).toBe('');
   });
 
   it('applies disabled state via access=readonly', () => {
-    const { container } = render(<TreeTable  access="readonly" />);
+    const { container } = render(<TreeTable {...defaultProps} access="readonly" />);
     expect(container.firstElementChild).toBeTruthy();
   });
 

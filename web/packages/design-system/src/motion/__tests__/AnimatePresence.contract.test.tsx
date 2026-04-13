@@ -8,9 +8,9 @@ import { AnimatePresence } from '../AnimatePresence';
 import type { AnimatePresenceProps, AnimatePresenceRef, AnimatePresenceElement, AnimatePresenceCSSProperties } from '../AnimatePresence';
 
 describe('AnimatePresence — contract', () => {
-  
+
   it('renders without crash', () => {
-    const { container } = render(<AnimatePresence  />);
+    const { container } = render(<AnimatePresence><div>child</div></AnimatePresence>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -19,8 +19,8 @@ describe('AnimatePresence — contract', () => {
   });
 
   it('renders with only required props (1 required, 5 optional)', () => {
-    // All 5 optional props omitted — should not crash
-    const { container } = render(<AnimatePresence  />);
+    // AnimatePresence requires children to render anything visible
+    const { container } = render(<AnimatePresence><div>child</div></AnimatePresence>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

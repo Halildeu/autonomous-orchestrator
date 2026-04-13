@@ -9,7 +9,7 @@ import type { CarouselProps, CarouselRef, CarouselElement, CarouselCSSProperties
 
 describe('Carousel — contract', () => {
   const defaultProps = {
-    items: undefined as any,
+    items: [{ key: 's1', content: React.createElement('div', null, 'Slide 1') }],
   };
 
   it('renders without crash', () => {

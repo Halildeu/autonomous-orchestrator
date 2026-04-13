@@ -9,7 +9,7 @@ import type { ResultStatus, ResultProps } from '../result/Result';
 
 describe('Result — contract', () => {
   const defaultProps = {
-    status: undefined as any,
+    status: 'success' as const,
   };
 
   it('renders without crash', () => {

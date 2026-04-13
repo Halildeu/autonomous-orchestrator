@@ -2,8 +2,7 @@ import React, { useRef, useState, Children } from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarGroupProps as AppSidebarGroupPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Collapsible group container for the AppSidebar. Renders a labeled section
@@ -20,7 +19,7 @@ import type { AppSidebarGroupProps as AppSidebarGroupPropsBase } from './types';
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupPropsBase>(({
+export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupPropsBase & AccessControlledProps>(({
   label,
   icon,
   collapsible = true,
@@ -28,7 +27,10 @@ export const AppSidebarGroup = React.forwardRef<HTMLDivElement, AppSidebarGroupP
   action,
   children,
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed: sidebarCollapsed } = useSidebar();
   const [open, setOpen] = useState(defaultOpen);
   const contentRef = useRef<HTMLDivElement>(null);

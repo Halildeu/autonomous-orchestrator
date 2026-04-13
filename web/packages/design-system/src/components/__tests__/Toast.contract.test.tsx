@@ -4,33 +4,32 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
-import { Toast } from '../toast/Toast';
+import { ToastProvider } from '../toast/Toast';
 import type { ToastVariant, ToastPosition, ToastData, ToastOptions, ToastProviderProps } from '../toast/Toast';
 
 describe('Toast — contract', () => {
-  
+
   it('renders without crash', () => {
-    const { container } = render(<Toast  />);
+    const { container } = render(<ToastProvider><span>app</span></ToastProvider>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
   it('has displayName', () => {
-    expect(Toast.displayName).toBeTruthy();
+    expect(ToastProvider.displayName).toBeTruthy();
   });
 
   it('respects access=hidden', () => {
-    const { container } = render(<Toast  access="hidden" />);
+    const { container } = render(<ToastProvider access="hidden"><span>app</span></ToastProvider>);
     expect(container.innerHTML).toBe('');
   });
 
   it('applies disabled state via access=readonly', () => {
-    const { container } = render(<Toast  access="readonly" />);
+    const { container } = render(<ToastProvider access="readonly"><span>app</span></ToastProvider>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
   it('renders with only required props (1 required, 5 optional)', () => {
-    // All 5 optional props omitted — should not crash
-    const { container } = render(<Toast  />);
+    const { container } = render(<ToastProvider><span>app</span></ToastProvider>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

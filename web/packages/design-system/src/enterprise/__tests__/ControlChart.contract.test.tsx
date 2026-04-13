@@ -9,7 +9,7 @@ import type { ControlChartPoint, ControlChartProps } from '../ControlChart';
 
 describe('ControlChart — contract', () => {
   const defaultProps = {
-    data: 'Array<{ x: string',
+    data: [{ x: 'Jan', y: 10 }, { x: 'Feb', y: 20 }],
   };
 
   it('renders without crash', () => {

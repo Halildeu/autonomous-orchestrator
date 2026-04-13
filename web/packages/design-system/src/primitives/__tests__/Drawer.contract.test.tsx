@@ -14,8 +14,10 @@ describe('Drawer — contract', () => {
   };
 
   it('renders without crash', () => {
-    const { container } = render(<Drawer {...defaultProps} />);
-    expect(container.firstElementChild).toBeTruthy();
+    // Drawer portals to document.body, so container.firstElementChild is null.
+    // Check that the dialog role element appears in the document instead.
+    render(<Drawer {...defaultProps} />);
+    expect(document.querySelector('[role="dialog"]')).toBeTruthy();
   });
 
   it('has displayName', () => {
@@ -23,9 +25,8 @@ describe('Drawer — contract', () => {
   });
 
   it('renders with only required props (3 required, 9 optional)', () => {
-    // All 9 optional props omitted — should not crash
-    const { container } = render(<Drawer {...defaultProps} />);
-    expect(container.firstElementChild).toBeTruthy();
+    render(<Drawer {...defaultProps} />);
+    expect(document.querySelector('[role="dialog"]')).toBeTruthy();
   });
 
   it('exports expected types', () => {

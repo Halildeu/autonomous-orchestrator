@@ -1,8 +1,7 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import type { AppSidebarFooterProps as AppSidebarFooterPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Footer slot for the AppSidebar compound component. Automatically sticks
@@ -18,20 +17,25 @@ import type { AppSidebarFooterProps as AppSidebarFooterPropsBase } from './types
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarFooter = React.forwardRef<HTMLDivElement, AppSidebarFooterPropsBase>(({
+export const AppSidebarFooter = React.forwardRef<HTMLDivElement, AppSidebarFooterPropsBase & AccessControlledProps>(({
   children,
   className,
-}, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      'mt-auto shrink-0 border-t border-[var(--border-subtle)] px-2 py-2 pb-3 text-text-primary',
-      className,
-    )}
-  >
-    {children}
-  </div>
-));
+  access,
+}, ref) => {
+  if (access === 'hidden') return null;
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'mt-auto shrink-0 border-t border-[var(--border-subtle)] px-2 py-2 pb-3 text-text-primary',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+});
 
 AppSidebarFooter.displayName = 'AppSidebar.Footer';
 

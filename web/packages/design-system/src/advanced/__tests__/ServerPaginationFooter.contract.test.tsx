@@ -7,9 +7,20 @@ import React from 'react';
 import { ServerPaginationFooter } from '../data-grid/ServerPaginationFooter';
 import type { ServerPaginationFooterProps } from '../data-grid/ServerPaginationFooter';
 
+const mockGridApi = {
+  paginationGetCurrentPage: vi.fn(() => 0),
+  paginationGetTotalPages: vi.fn(() => 5),
+  paginationGetPageSize: vi.fn(() => 25),
+  paginationGetRowCount: vi.fn(() => 100),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  paginationGoToPage: vi.fn(),
+  setGridOption: vi.fn(),
+};
+
 describe('ServerPaginationFooter — contract', () => {
   const defaultProps = {
-    gridApi: 'GridApi',
+    gridApi: mockGridApi as any,
   };
 
   it('renders without crash', () => {

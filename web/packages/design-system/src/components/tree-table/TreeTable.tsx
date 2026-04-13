@@ -168,6 +168,8 @@ export function TreeTable<RowData extends Record<string, unknown> = Record<strin
   access = "full",
   accessReason,
 }: TreeTableProps<RowData>) {
+  if (access === 'hidden') return null;
+
   const accessState = resolveAccessState(access);
   const [internalExpandedKeys, setInternalExpandedKeys] = useState<React.Key[]>(defaultExpandedKeys);
   const allKeys = useMemo(() => new Set(flattenKeys(nodes)), [nodes]);

@@ -2,8 +2,7 @@ import React from 'react';
 import { cn } from '../../utils/cn';
 import { useSidebar } from './useSidebar';
 import type { AppSidebarTriggerProps as AppSidebarTriggerPropsBase } from './types';
-// Access control: inherits from parent AppSidebar which uses AccessControlledProps,
-// resolveAccessState, accessStyles, data-access-state, and accessReason.
+import type { AccessControlledProps } from '../../internal/access-controller';
 
 /**
  * Toggle button that collapses or expands the AppSidebar. Renders a
@@ -18,9 +17,12 @@ import type { AppSidebarTriggerProps as AppSidebarTriggerPropsBase } from './typ
  * @since 1.0.0
  * @see AppSidebar
  */
-export const AppSidebarTrigger = React.forwardRef<HTMLButtonElement, AppSidebarTriggerPropsBase>(({
+export const AppSidebarTrigger = React.forwardRef<HTMLButtonElement, AppSidebarTriggerPropsBase & AccessControlledProps>(({
   className,
+  access,
 }, ref) => {
+  if (access === 'hidden') return null;
+
   const { isCollapsed, toggle } = useSidebar();
 
   return (

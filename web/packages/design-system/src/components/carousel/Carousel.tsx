@@ -118,6 +118,8 @@ export const Carousel = React.forwardRef<HTMLDivElement, CarouselProps>(function
   },
   forwardedRef,
 ) {
+  if (access === 'hidden') return null;
+
   const accessState = resolveAccessState(access);
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);
@@ -167,9 +169,6 @@ export const Carousel = React.forwardRef<HTMLDivElement, CarouselProps>(function
     },
     [isInteractive, isHorizontal, goPrev, goNext],
   );
-
-  /* ---- hidden ---- */
-  if (accessState.isHidden) return null;
 
   /* ---- slide transform ---- */
   const slideWidthPercent = 100 / slidesPerView;

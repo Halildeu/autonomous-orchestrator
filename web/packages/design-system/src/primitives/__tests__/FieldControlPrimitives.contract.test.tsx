@@ -4,7 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
-import { FieldControlPrimitives } from '../_shared/FieldControlPrimitives';
+import { FieldControlShell } from '../_shared/FieldControlPrimitives';
 import type { FieldSize, FieldTone, FieldDensity, FieldControlShellProps } from '../_shared/FieldControlPrimitives';
 
 describe('FieldControlPrimitives — contract', () => {
@@ -13,17 +13,17 @@ describe('FieldControlPrimitives — contract', () => {
   };
 
   it('renders without crash', () => {
-    const { container } = render(<FieldControlPrimitives {...defaultProps} />);
+    const { container } = render(<FieldControlShell {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
   it('has displayName', () => {
-    expect(FieldControlPrimitives.displayName).toBeTruthy();
+    expect(FieldControlShell.displayName).toBeTruthy();
   });
 
   it('renders with only required props (2 required, 7 optional)', () => {
     // All 7 optional props omitted — should not crash
-    const { container } = render(<FieldControlPrimitives {...defaultProps} />);
+    const { container } = render(<FieldControlShell {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 

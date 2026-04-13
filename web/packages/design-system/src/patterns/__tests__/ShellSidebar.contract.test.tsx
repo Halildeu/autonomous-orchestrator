@@ -7,9 +7,13 @@ import React from 'react';
 import { ShellSidebar } from '../shell-sidebar/ShellSidebar';
 
 describe('ShellSidebar — contract', () => {
-  
+  const defaultProps = {
+    navItems: [],
+    onNavigate: vi.fn(),
+  };
+
   it('renders without crash', () => {
-    const { container } = render(<ShellSidebar  />);
+    const { container } = render(<ShellSidebar {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 });

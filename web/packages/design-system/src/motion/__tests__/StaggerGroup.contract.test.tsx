@@ -8,9 +8,9 @@ import { StaggerGroup } from '../StaggerGroup';
 import type { StaggerGroupProps, StaggerGroupRef, StaggerGroupElement, StaggerGroupCSSProperties } from '../StaggerGroup';
 
 describe('StaggerGroup — contract', () => {
-  
+
   it('renders without crash', () => {
-    const { container } = render(<StaggerGroup  />);
+    const { container } = render(<StaggerGroup><div>child</div></StaggerGroup>);
     expect(container.firstElementChild).toBeTruthy();
   });
 
@@ -19,8 +19,8 @@ describe('StaggerGroup — contract', () => {
   });
 
   it('renders with only required props (1 required, 5 optional)', () => {
-    // All 5 optional props omitted — should not crash
-    const { container } = render(<StaggerGroup  />);
+    // StaggerGroup requires children to render anything visible
+    const { container } = render(<StaggerGroup><div>child</div></StaggerGroup>);
     expect(container.firstElementChild).toBeTruthy();
   });
 

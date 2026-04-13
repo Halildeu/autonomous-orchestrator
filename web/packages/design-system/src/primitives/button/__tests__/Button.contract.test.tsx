@@ -48,10 +48,9 @@ describe('Button contract', () => {
   });
 
   /* ---- Access control ---- */
-  it('access=hidden renders invisible button', () => {
+  it('access=hidden returns null', () => {
     const { container } = render(<Button access="hidden">H</Button>);
-    expect(container.querySelector('button')).toHaveClass('invisible');
-    expect(container.querySelector('button')).toHaveAttribute('data-access', 'hidden');
+    expect(container.innerHTML).toBe('');
   });
 
   it('access=disabled renders disabled button', () => {

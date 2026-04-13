@@ -10,7 +10,7 @@ import type { DetailSummaryProps, DetailSummaryRef, DetailSummaryElement, Detail
 describe('DetailSummary — contract', () => {
   const defaultProps = {
     title: 'content',
-    entity: undefined as any,
+    entity: { title: 'Entity', items: [{ label: 'Status', value: 'Active' }] },
   };
 
   it('renders without crash', () => {

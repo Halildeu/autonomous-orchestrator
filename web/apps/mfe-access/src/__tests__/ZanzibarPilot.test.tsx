@@ -156,18 +156,15 @@ describe('ZanzibarPilot — mfe-access', () => {
     expect(handleSave).toHaveBeenCalledTimes(1);
   });
 
-  it('Save button is invisible when access is hidden (no module)', () => {
+  it('Save button is not rendered when access is hidden (no module)', () => {
     const handleSave = vi.fn();
 
     render(<RoleDrawerSaveButton onSave={handleSave} />, {
       wrapper: createWrapper(noAccessAuthz),
     });
 
-    const saveBtn = screen.getByTestId('save-button');
-    // access="hidden" applies invisible CSS class — button is in DOM but not visible
-    expect(saveBtn).toBeInTheDocument();
-    expect(saveBtn.getAttribute('data-access')).toBe('hidden');
-    expect(saveBtn.className).toContain('invisible');
+    // access="hidden" makes Button return null — element not in DOM
+    expect(screen.queryByTestId('save-button')).toBeNull();
   });
 
   it('access reason reflects authorization decision', () => {

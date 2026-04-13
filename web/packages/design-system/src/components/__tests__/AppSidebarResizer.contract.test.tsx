@@ -4,6 +4,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
+
+vi.mock('../app-sidebar/useSidebar', () => ({
+  useSidebar: () => ({
+    mode: 'expanded', toggle: vi.fn(), expand: vi.fn(), collapse: vi.fn(),
+    isCollapsed: false,
+    resize: { width: 260, minWidth: 200, maxWidth: 500, isResizing: false },
+    setWidth: vi.fn(), setIsResizing: vi.fn(),
+  }),
+  SidebarContext: { Provider: ({ children }: any) => children },
+}));
+
 import { AppSidebarResizer } from '../app-sidebar/AppSidebarResizer';
 import type { AppSidebarResizerProps, AppSidebarResizerRef, AppSidebarResizerElement, AppSidebarResizerCSSProperties } from '../app-sidebar/AppSidebarResizer';
 

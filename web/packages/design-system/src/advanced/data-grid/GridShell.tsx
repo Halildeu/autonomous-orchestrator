@@ -151,7 +151,7 @@ function GridShellInner<RowData = unknown>(
   } = props;
 
   const accessState = resolveAccessState(access);
-  if (accessState.isHidden) return <div style={{ display: 'none' }} /> as React.ReactElement;
+  if (accessState.isHidden) return null as unknown as React.ReactElement;
 
   const gridApiRef = useRef<GridApi<RowData> | null>(null);
 

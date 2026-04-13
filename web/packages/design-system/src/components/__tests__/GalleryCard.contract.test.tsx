@@ -7,9 +7,12 @@ import React from 'react';
 import { GalleryCard } from '../grouped-card-gallery/GalleryCard';
 
 describe('GalleryCard — contract', () => {
-  
+  const defaultProps = {
+    item: { id: '1', title: 'Test Card', group: 'Default' },
+  };
+
   it('renders without crash', () => {
-    const { container } = render(<GalleryCard  />);
+    const { container } = render(<GalleryCard {...defaultProps} />);
     expect(container.firstElementChild).toBeTruthy();
   });
 
