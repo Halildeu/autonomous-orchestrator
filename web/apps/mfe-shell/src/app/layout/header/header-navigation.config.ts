@@ -153,7 +153,6 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: BarChart3,
     directPath: '/admin/reports',
     module: MODULE_KEYS.REPORT,
-    permission: PERMISSIONS.REPORTING_MODULE,
   },
   {
     key: 'tools',

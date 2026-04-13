@@ -71,7 +71,8 @@
       "web/apps/*/vite.config.ts",
       "web/apps/mfe-shell/src/app/layout/**/*",
       "web/apps/mfe-shell/src/features/auth/**/*",
-      "backend/report-service/src/main/resources/*"
+      "backend/report-service/src/main/resources/*",
+      "backend/devops/postgres/*"
     ],
     "repo_root": ".",
     "service_scopes": [
