@@ -1,0 +1,4 @@
+[allowlist]
+  paths = [
+    '''docs/OPERATIONS/INFRASTRUCTURE-ENVIRONMENTS\.md''',
+  ]
