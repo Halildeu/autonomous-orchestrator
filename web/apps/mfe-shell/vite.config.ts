@@ -161,18 +161,20 @@ const singleton = (
   shareKey: string,
   versionKey: string = shareKey,
   fallback: string | boolean = false,
+  eager: boolean = false,
 ) => ({
   singleton: true,
   requiredVersion: deps[versionKey] ?? fallback,
+  ...(eager && { eager: true }),
 });
 const sharedCore = {
-  react: singleton('react'),
-  'react-dom': singleton('react-dom'),
-  'react-router': singleton('react-router'),
-  'react-router-dom': singleton('react-router-dom'),
-  '@reduxjs/toolkit': singleton('@reduxjs/toolkit'),
-  'react-redux': singleton('react-redux'),
-  '@tanstack/react-query': singleton('@tanstack/react-query'),
+  react: singleton('react', 'react', false, true),
+  'react-dom': singleton('react-dom', 'react-dom', false, true),
+  'react-router': singleton('react-router', 'react-router', false, true),
+  'react-router-dom': singleton('react-router-dom', 'react-router-dom', false, true),
+  '@reduxjs/toolkit': singleton('@reduxjs/toolkit', '@reduxjs/toolkit', false, true),
+  'react-redux': singleton('react-redux', 'react-redux', false, true),
+  '@tanstack/react-query': singleton('@tanstack/react-query', '@tanstack/react-query', false, true),
 };
 const sharedProdOnly = {
   clsx: singleton('clsx'),
@@ -180,9 +182,13 @@ const sharedProdOnly = {
   'ag-grid-community': singleton('ag-grid-community'),
   'ag-grid-enterprise': singleton('ag-grid-enterprise'),
   'ag-grid-react': singleton('ag-grid-react'),
+  // Align with remotes — host must declare shared packages that remotes expect
+  '@mfe/design-system': { singleton: true, requiredVersion: false as const },
+  '@mfe/shared-http': { singleton: true, requiredVersion: false as const },
+  '@mfe/i18n-dicts': { singleton: true, requiredVersion: false as const },
 };
-const isSingleDomainBuild =
-  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
+// NOTE: SINGLE_DOMAIN_BUILD env var is still consumed by build-single-domain.mjs
+// for output directory layout, but the shared config is now unified for all modes.
 
 /* ------------------------------------------------------------------ */
 /*  Vite Config                                                         */
@@ -225,19 +231,12 @@ export default defineConfig(({ mode }) => {
         /* Dev mode also needs core singleton sharing.
          * Without this, remotes load their own React runtime and routes white-screen with invalid hook calls. */
         shared: {
-          ...(isSingleDomainBuild
-            ? {
-                react: sharedCore.react,
-                'react-dom': sharedCore['react-dom'],
-                'react-router': sharedCore['react-router'],
-                'react-router-dom': sharedCore['react-router-dom'],
-                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
-                'react-redux': sharedCore['react-redux'],
-              }
-            : {
-                ...sharedCore,
-                ...(mode === 'production' ? sharedProdOnly : {}),
-              }),
+          /* Always share the full core set — isSingleDomainBuild conditional
+           * was omitting @tanstack/react-query and prodOnly packages, causing
+           * duplicate React instances and white-screen errors in remotes.
+           * Fix: always use sharedCore + sharedProdOnly in production. */
+          ...sharedCore,
+          ...(mode === 'production' ? sharedProdOnly : {}),
         },
       }),
     ],

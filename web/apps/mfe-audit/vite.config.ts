@@ -42,18 +42,16 @@ const sharedCore = {
   '@tanstack/react-query': singleton('@tanstack/react-query'),
 };
 const sharedProdOnly = {
-  '@mfe/design-system': singleton('@mfe/design-system', false),
   'ag-grid-react': singleton('ag-grid-react'),
   'ag-grid-community': singleton('ag-grid-community'),
   'ag-grid-enterprise': singleton('ag-grid-enterprise'),
+  '@mfe/design-system': singleton('@mfe/design-system', false),
   '@mfe/shared-http': singleton('@mfe/shared-http', false),
 };
 
 const isTest = !!process.env['VITEST'];
 const isQualityBuild = process.env['QUALITY_AUDIT_BUILD'] === '1';
 const isQualityRemoteBuild = process.env['QUALITY_AUDIT_BUILD_REMOTE'] === '1';
-const isSingleDomainBuild =
-  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
 
 export default defineConfig(({ mode }) => {
   const appBasePath = normalizeBasePath(readEnvString(['APP_BASE_PATH', 'VITE_APP_BASE_PATH'], '/'));
@@ -80,19 +78,10 @@ export default defineConfig(({ mode }) => {
           './shell-services': './src/app/services/shell-services.ts',
         },
         shared: {
-          ...(isSingleDomainBuild
-            ? {
-                react: sharedCore.react,
-                'react-dom': sharedCore['react-dom'],
-                'react-router': sharedCore['react-router'],
-                'react-router-dom': sharedCore['react-router-dom'],
-                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
-                'react-redux': sharedCore['react-redux'],
-              }
-            : {
-                ...sharedCore,
-                ...(mode === 'production' ? sharedProdOnly : {}),
-              }),
+          /* Always share the full set — remove isSingleDomainBuild conditional
+           * to prevent duplicate React instances in single-domain builds. */
+          ...sharedCore,
+          ...(mode === 'production' ? sharedProdOnly : {}),
         },
       })]),
     ],

@@ -87,14 +87,12 @@ const sharedProdOnly = {
   'ag-grid-react': singleton('ag-grid-react'),
   'ag-grid-community': singleton('ag-grid-community'),
   'ag-grid-enterprise': singleton('ag-grid-enterprise'),
-  '@mfe/design-system': singleton('@mfe/design-system', false),
-  '@mfe/shared-http': singleton('@mfe/shared-http', false),
-  '@mfe/i18n-dicts': singleton('@mfe/i18n-dicts', false),
+  '@mfe/design-system': singleton('@mfe/design-system', '@mfe/design-system', false),
+  '@mfe/shared-http': singleton('@mfe/shared-http', '@mfe/shared-http', false),
+  '@mfe/i18n-dicts': singleton('@mfe/i18n-dicts', '@mfe/i18n-dicts', false),
 };
 
 const isTest = !!process.env['VITEST'];
-const isSingleDomainBuild =
-  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
 
 /* ------------------------------------------------------------------ */
 /*  Vite Config                                                         */
@@ -129,19 +127,10 @@ export default defineConfig(({ mode }) => {
           './shell-services': './src/app/services/shell-services.ts',
         },
         shared: {
-          ...(isSingleDomainBuild
-            ? {
-                react: sharedCore.react,
-                'react-dom': sharedCore['react-dom'],
-                'react-router': sharedCore['react-router'],
-                'react-router-dom': sharedCore['react-router-dom'],
-                'react-redux': sharedCore['react-redux'],
-                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
-              }
-            : {
-                ...sharedCore,
-                ...(mode === 'production' ? sharedProdOnly : {}),
-              }),
+          /* Always share the full set — remove isSingleDomainBuild conditional
+           * to prevent duplicate React instances in single-domain builds. */
+          ...sharedCore,
+          ...(mode === 'production' ? sharedProdOnly : {}),
         },
       })]),
     ],

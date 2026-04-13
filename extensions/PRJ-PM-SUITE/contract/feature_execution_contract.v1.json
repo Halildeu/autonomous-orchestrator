@@ -66,7 +66,11 @@
       "web/packages/i18n-dicts/**/*",
       "web/packages/shared-types/**/*",
       "web/stories/**/*",
-      "web/scripts/*"
+      "web/scripts/*",
+      "web/apps/mfe-shell/vite.config.ts",
+      "web/apps/*/vite.config.ts",
+      "web/apps/mfe-shell/src/app/layout/**/*",
+      "web/apps/mfe-shell/src/features/auth/**/*"
     ],
     "repo_root": ".",
     "service_scopes": [
@@ -304,6 +308,26 @@
         "path_glob": "web/scripts/*.py",
         "ux_theme_id": "consistency_and_pattern_governance",
         "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/apps/*/vite.config.ts",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/apps/mfe-shell/vite.config.ts",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/apps/mfe-shell/src/app/layout/**/*",
+        "ux_theme_id": "consistency_and_pattern_governance",
+        "ux_subtheme_id": "single_component_source_of_truth"
+      },
+      {
+        "path_glob": "web/apps/mfe-shell/src/features/auth/**/*",
+        "ux_theme_id": "trust_privacy_security_ux",
+        "ux_subtheme_id": "least_privilege_interaction_design"
       }
     ],
     "mode": "REQUIRED",

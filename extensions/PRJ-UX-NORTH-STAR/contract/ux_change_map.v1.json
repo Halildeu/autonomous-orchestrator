@@ -547,6 +547,36 @@
       "path": "web/scripts/enforcement_pre_write.py",
       "ux_theme_id": "consistency_and_pattern_governance",
       "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-access/vite.config.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-audit/vite.config.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-reporting/vite.config.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-shell/vite.config.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-users/vite.config.ts",
+      "ux_theme_id": "consistency_and_pattern_governance",
+      "ux_subtheme_id": "single_component_source_of_truth"
+    },
+    {
+      "path": "web/apps/mfe-shell/src/app/layout/header/header-navigation.config.ts",
+      "ux_theme_id": "navigation_information_scent",
+      "ux_subtheme_id": "orientation_and_wayfinding"
     }
   ]
 }

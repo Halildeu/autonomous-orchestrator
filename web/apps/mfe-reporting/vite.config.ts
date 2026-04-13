@@ -54,8 +54,6 @@ const sharedProdOnly = {
   '@mfe/shared-http': singleton('@mfe/shared-http', false),
   '@mfe/i18n-dicts': singleton('@mfe/i18n-dicts', false),
 };
-const isSingleDomainBuild =
-  process.env['SINGLE_DOMAIN_BUILD'] === '1' || process.env['CLOUDFLARE_SINGLE_DOMAIN_BUILD'] === '1';
 
 /* ------------------------------------------------------------------ */
 /*  Vite Config                                                         */
@@ -85,19 +83,10 @@ export default defineConfig(({ mode }) => {
           './shell-services': './src/app/services/shell-services.ts',
         },
         shared: {
-          ...(isSingleDomainBuild
-            ? {
-                react: sharedCore.react,
-                'react-dom': sharedCore['react-dom'],
-                'react-router': sharedCore['react-router'],
-                'react-router-dom': sharedCore['react-router-dom'],
-                '@reduxjs/toolkit': sharedCore['@reduxjs/toolkit'],
-                'react-redux': sharedCore['react-redux'],
-              }
-            : {
-                ...sharedCore,
-                ...(mode === 'production' ? sharedProdOnly : {}),
-              }),
+          /* Always share the full set — remove isSingleDomainBuild conditional
+           * to prevent duplicate React instances in single-domain builds. */
+          ...sharedCore,
+          ...(mode === 'production' ? sharedProdOnly : {}),
         },
       }),
     ],

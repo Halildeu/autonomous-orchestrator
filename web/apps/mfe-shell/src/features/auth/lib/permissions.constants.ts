@@ -18,18 +18,7 @@ export const MODULE_KEYS = {
 export type ModuleKey = keyof typeof MODULE_KEYS;
 
 /**
- * @deprecated Use MODULE_KEYS with usePermissions().hasModule() instead.
- * Kept for backward compatibility during migration.
+ * Legacy PERMISSIONS removed — all access checks now use MODULE_KEYS
+ * with usePermissions().hasModule() from @mfe/auth.
+ * See: STORY-0318, Faz 5 cleanup.
  */
-export const PERMISSIONS = {
-  USER_MANAGEMENT_MODULE: 'user-read',
-  USER_MANAGEMENT_EDIT: 'user-update',
-  USER_MANAGEMENT_RESET_PASSWORD: 'user-update',
-  USER_MANAGEMENT_TOGGLE_STATUS: 'user-update',
-  ACCESS_MODULE: 'access-read',
-  AUDIT_MODULE: 'audit-read',
-  REPORTING_MODULE: 'VIEW_REPORTS',
-  THEME_ADMIN: 'THEME_ADMIN',
-} as const;
-
-export type PermissionKey = keyof typeof PERMISSIONS;

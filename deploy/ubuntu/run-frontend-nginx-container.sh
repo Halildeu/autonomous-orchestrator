@@ -14,7 +14,9 @@ NGINX_TLS_ENABLED="${NGINX_TLS_ENABLED:-true}"
 NGINX_TLS_CERT_PATH="${NGINX_TLS_CERT_PATH:-/home/halil/platform/state/vault/tls/tls.crt}"
 NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH:-/home/halil/platform/state/vault/tls/tls.key}"
 NGINX_GATEWAY_UPSTREAM="${NGINX_GATEWAY_UPSTREAM:-http://api-gateway:8080}"
-NGINX_KEYCLOAK_UPSTREAM="${NGINX_KEYCLOAK_UPSTREAM:-http://keycloak:8080}"
+# Default to host port (8081) since nginx runs --network host and can't resolve Docker DNS.
+# Keycloak container maps 8080→8081 on host.
+NGINX_KEYCLOAK_UPSTREAM="${NGINX_KEYCLOAK_UPSTREAM:-http://127.0.0.1:8081}"
 NGINX_SERVICE_MANAGER_UPSTREAM="${NGINX_SERVICE_MANAGER_UPSTREAM:-http://service-manager:8795}"
 CONFIG_ONLY="${CONFIG_ONLY:-false}"
 

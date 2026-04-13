@@ -14,7 +14,7 @@ import {
   Lightbulb,
   Scale,
 } from 'lucide-react';
-import { PERMISSIONS, MODULE_KEYS } from '../../../features/auth/lib/permissions.constants';
+import { MODULE_KEYS } from '../../../features/auth/lib/permissions.constants';
 
 /* ------------------------------------------------------------------ */
 /*  Navigation types                                                   */
@@ -90,7 +90,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/admin/reports',
         icon: BarChart3,
         module: MODULE_KEYS.REPORT,
-        permission: PERMISSIONS.REPORTING_MODULE,
+        /* permission field removed — module field drives access check */
       },
       {
         key: 'demographic',
@@ -99,7 +99,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/admin/reports',
         icon: PieChart,
         module: MODULE_KEYS.REPORT,
-        permission: PERMISSIONS.REPORTING_MODULE,
+        /* permission field removed — module field drives access check */
       },
     ],
   },
@@ -116,7 +116,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/admin/users',
         icon: Users,
         module: MODULE_KEYS.USER_MANAGEMENT,
-        permission: PERMISSIONS.USER_MANAGEMENT_MODULE,
+        /* permission field removed — module field drives access check */
       },
       {
         key: 'access',
@@ -125,7 +125,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/access/roles',
         icon: Shield,
         module: MODULE_KEYS.ACCESS,
-        permission: PERMISSIONS.ACCESS_MODULE,
+        /* permission field removed — module field drives access check */
       },
       {
         key: 'audit',
@@ -134,7 +134,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/audit/events',
         icon: FileSearch,
         module: MODULE_KEYS.AUDIT,
-        permission: PERMISSIONS.AUDIT_MODULE,
+        /* permission field removed — module field drives access check */
       },
       {
         key: 'services',
@@ -143,7 +143,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/admin/services',
         icon: Server,
         module: MODULE_KEYS.THEME,
-        permission: PERMISSIONS.THEME_ADMIN,
+        /* permission field removed — module field drives access check */
       },
     ],
   },
@@ -176,7 +176,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/admin/design-lab',
         icon: Palette,
         module: MODULE_KEYS.THEME,
-        permission: PERMISSIONS.THEME_ADMIN,
+        /* permission field removed — module field drives access check */
       },
       {
         key: 'themes',
@@ -185,7 +185,7 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/admin/themes',
         icon: Paintbrush,
         module: MODULE_KEYS.THEME,
-        permission: PERMISSIONS.THEME_ADMIN,
+        /* permission field removed — module field drives access check */
       },
     ],
   },
