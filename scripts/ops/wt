@@ -1,0 +1,766 @@
+#!/usr/bin/env bash
+# wt — multi-agent worktree wrapper (Day 1)
+#
+# Subcommands:
+#   new    <name> [--prefix claude|feat|fix|codex] [--task <slug>]
+#   list
+#   status [--json]
+#   sync   [--autostash] [--no-push]
+#   close  [--force]
+#   help
+#
+# Reads shared registry at <canonical-root>/.worktree-registry.json.
+# Wraps existing python ops scripts; never duplicates their logic.
+#
+# Policy: policies/policy_multi_agent_coordination.v1.json
+# Related: scripts/ops/open_worktree_session.py, scripts/ops/close_worktree_session.py
+
+set -euo pipefail
+
+# ─── Globals ─────────────────────────────────────────────────────────────────
+GIT_COMMON_DIR="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+if [[ -z "${GIT_COMMON_DIR}" ]]; then
+  echo "[wt] FATAL: not in a git repository" >&2
+  exit 2
+fi
+# Normalize relative common dir
+case "${GIT_COMMON_DIR}" in
+  /*) ;;
+  *)  GIT_COMMON_DIR="$(cd "${GIT_COMMON_DIR}" && pwd)" ;;
+esac
+CANONICAL_ROOT="$(cd "${GIT_COMMON_DIR}/.." && pwd)"
+REGISTRY="${CANONICAL_ROOT}/.worktree-registry.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+CURRENT_WT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# ─── Small helpers ───────────────────────────────────────────────────────────
+die() { echo "[wt] ERROR: $*" >&2; exit 2; }
+info() { echo "[wt] $*"; }
+iso_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
+# Color helpers (no-op if NO_COLOR set or non-tty)
+if [[ -z "${NO_COLOR:-}" ]] && [[ -t 1 ]]; then
+  C_RED=$'\033[31m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'
+  C_CYAN=$'\033[36m'; C_DIM=$'\033[2m'; C_RESET=$'\033[0m'
+else
+  C_RED=""; C_GREEN=""; C_YELLOW=""; C_CYAN=""; C_DIM=""; C_RESET=""
+fi
+
+# ─── Worktree enumeration ────────────────────────────────────────────────────
+# Emits TSV: path<TAB>branch<TAB>head
+enumerate_worktrees() {
+  git -C "${CANONICAL_ROOT}" worktree list --porcelain | python3 -c '
+import sys
+cur = {}
+for line in sys.stdin:
+    line = line.rstrip("\n")
+    if not line:
+        if cur:
+            print("\t".join([cur.get("path",""), cur.get("branch",""), cur.get("head","")]))
+        cur = {}
+        continue
+    if line.startswith("worktree "):
+        cur["path"] = line[len("worktree "):].strip()
+    elif line.startswith("HEAD "):
+        cur["head"] = line[len("HEAD "):].strip()
+    elif line.startswith("branch "):
+        cur["branch"] = line[len("branch "):].strip().removeprefix("refs/heads/")
+if cur:
+    print("\t".join([cur.get("path",""), cur.get("branch",""), cur.get("head","")]))
+'
+}
+
+# Load registry entries as TSV: path<TAB>owner<TAB>purpose<TAB>expires_at
+load_registry_entries() {
+  if [[ ! -f "${REGISTRY}" ]]; then
+    return 0
+  fi
+  python3 - "${REGISTRY}" <<'PY'
+import json, sys
+from pathlib import Path
+try:
+    data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+except Exception:
+    sys.exit(0)
+for entry in data.get("entries", []):
+    if not isinstance(entry, dict):
+        continue
+    if str(entry.get("status", "")).upper() != "ACTIVE":
+        continue
+    print("\t".join([
+        str(entry.get("path", "")),
+        str(entry.get("owner", "")),
+        str(entry.get("purpose", "")),
+        str(entry.get("expires_at", "")),
+    ]))
+PY
+}
+
+# For a given worktree path + branch, compute rich status info
+# Emits key=value lines (shell-friendly).
+compute_worktree_status() {
+  local wt_path="$1" branch="$2"
+  local dirty_count unpushed ahead behind upstream
+
+  dirty_count="$(git -C "${wt_path}" status --short 2>/dev/null | wc -l | tr -d ' ')"
+  upstream="$(git -C "${wt_path}" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+  if [[ -n "${upstream}" ]]; then
+    unpushed="$(git -C "${wt_path}" rev-list --count "${upstream}..HEAD" 2>/dev/null || echo 0)"
+  else
+    unpushed="$(git -C "${wt_path}" rev-list --count "origin/main..HEAD" 2>/dev/null || echo 0)"
+  fi
+  # ahead/behind vs origin/main
+  local counts
+  counts="$(git -C "${wt_path}" rev-list --left-right --count "origin/main...HEAD" 2>/dev/null || echo "0	0")"
+  behind="$(echo "${counts}" | awk '{print $1}')"
+  ahead="$(echo "${counts}" | awk '{print $2}')"
+
+  echo "dirty=${dirty_count}"
+  echo "upstream=${upstream:-none}"
+  echo "unpushed=${unpushed:-0}"
+  echo "ahead_main=${ahead:-0}"
+  echo "behind_main=${behind:-0}"
+}
+
+# ─── cmd: list ───────────────────────────────────────────────────────────────
+cmd_list() {
+  printf "%-30s  %-42s  %s\n" "WORKTREE" "BRANCH" "REGISTERED"
+  printf "%-30s  %-42s  %s\n" "--------" "------" "----------"
+  local reg_paths
+  reg_paths="$(load_registry_entries | cut -f1)"
+  while IFS=$'\t' read -r wt_path branch head; do
+    local name registered
+    name="$(basename "${wt_path}")"
+    [[ "${wt_path}" == "${CANONICAL_ROOT}" ]] && name="(canonical)"
+    if echo "${reg_paths}" | grep -qxF "${wt_path}"; then
+      registered="${C_GREEN}yes${C_RESET}"
+    else
+      registered="${C_RED}NO${C_RESET}"
+    fi
+    printf "%-30s  %-42s  %b\n" "${name}" "${branch:-DETACHED}" "${registered}"
+  done < <(enumerate_worktrees)
+}
+
+# ─── cmd: status ─────────────────────────────────────────────────────────────
+cmd_status() {
+  local json_mode=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json) json_mode=1; shift;;
+      *) die "unknown status flag: $1";;
+    esac
+  done
+
+  if [[ "${json_mode}" == "1" ]]; then
+    _cmd_status_json
+    return
+  fi
+
+  # Fetch latest origin/main refs so ahead/behind is accurate (silent)
+  git -C "${CANONICAL_ROOT}" fetch origin main --quiet 2>/dev/null || true
+
+  local reg_paths
+  reg_paths="$(load_registry_entries | cut -f1)"
+
+  printf "%-22s %-38s %8s %8s %8s %8s %-32s %s\n" \
+    "WORKTREE" "BRANCH" "DIRTY" "UNPUSH" "AHEAD" "BEHIND" "UPSTREAM" "RISK"
+  printf "%-22s %-38s %8s %8s %8s %8s %-32s %s\n" \
+    "--------" "------" "-----" "------" "-----" "------" "--------" "----"
+
+  while IFS=$'\t' read -r wt_path branch head; do
+    local name registered_flag upstream
+    name="$(basename "${wt_path}")"
+    [[ "${wt_path}" == "${CANONICAL_ROOT}" ]] && name="(canonical)"
+
+    # Evaluate
+    local ds
+    ds="$(compute_worktree_status "${wt_path}" "${branch}")"
+    local dirty unpushed ahead behind
+    dirty="$(echo "${ds}" | grep '^dirty=' | cut -d= -f2)"
+    upstream="$(echo "${ds}" | grep '^upstream=' | cut -d= -f2)"
+    unpushed="$(echo "${ds}" | grep '^unpushed=' | cut -d= -f2)"
+    ahead="$(echo "${ds}" | grep '^ahead_main=' | cut -d= -f2)"
+    behind="$(echo "${ds}" | grep '^behind_main=' | cut -d= -f2)"
+
+    if echo "${reg_paths}" | grep -qxF "${wt_path}"; then
+      registered_flag="reg"
+    else
+      registered_flag="UNREG"
+    fi
+
+    # Risk hints
+    local risks=()
+    [[ "${upstream}" == "none" && "${unpushed}" -gt 0 ]] && risks+=("no-upstream+unpushed")
+    [[ "${upstream}" == "origin/main" && "${branch}" != "main" ]] && risks+=("upstream=origin/main(!)")
+    [[ "${behind}" -gt 20 ]] && risks+=("stale>${behind}")
+    [[ "${registered_flag}" == "UNREG" ]] && risks+=("unregistered")
+    local risk_text="${C_DIM}ok${C_RESET}"
+    [[ ${#risks[@]} -gt 0 ]] && risk_text="${C_YELLOW}$(IFS=,; echo "${risks[*]}")${C_RESET}"
+
+    printf "%-22s %-38s %8s %8s %8s %8s %-32s %b\n" \
+      "${name}" "${branch:-DETACHED}" \
+      "${dirty}" "${unpushed}" "${ahead}" "${behind}" \
+      "${upstream}" "${risk_text}"
+  done < <(enumerate_worktrees)
+
+  echo
+  echo "${C_DIM}registry: ${REGISTRY}${C_RESET}"
+}
+
+_cmd_status_json() {
+  git -C "${CANONICAL_ROOT}" fetch origin main --quiet 2>/dev/null || true
+  python3 - "${CANONICAL_ROOT}" "${REGISTRY}" <<'PY'
+import json, subprocess, sys
+from pathlib import Path
+
+canonical = Path(sys.argv[1]).resolve()
+reg_path = Path(sys.argv[2])
+
+def run(args, cwd=None):
+    proc = subprocess.run(["git", *args], cwd=str(cwd or canonical), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    return proc.stdout.strip()
+
+# enumerate worktrees
+raw = run(["worktree", "list", "--porcelain"])
+wts = []
+cur = {}
+for line in raw.splitlines():
+    if not line:
+        if cur: wts.append(cur); cur = {}
+        continue
+    if line.startswith("worktree "): cur["path"] = line[len("worktree "):].strip()
+    elif line.startswith("HEAD "): cur["head"] = line[len("HEAD "):].strip()
+    elif line.startswith("branch "): cur["branch"] = line[len("branch "):].strip().removeprefix("refs/heads/")
+if cur: wts.append(cur)
+
+# registry
+reg_by_path = {}
+if reg_path.exists():
+    try:
+        data = json.loads(reg_path.read_text(encoding="utf-8"))
+        for e in data.get("entries", []):
+            if isinstance(e, dict) and str(e.get("status", "")).upper() == "ACTIVE":
+                reg_by_path[str(e.get("path", ""))] = e
+    except Exception:
+        pass
+
+out = []
+for wt in wts:
+    path = wt.get("path", "")
+    branch = wt.get("branch", "")
+    dirty = len(run(["status", "--short"], cwd=path).splitlines())
+    upstream = run(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], cwd=path) or None
+    if upstream:
+        unpushed = int(run(["rev-list", "--count", f"{upstream}..HEAD"], cwd=path) or 0)
+    else:
+        unpushed = int(run(["rev-list", "--count", "origin/main..HEAD"], cwd=path) or 0)
+    counts = run(["rev-list", "--left-right", "--count", "origin/main...HEAD"], cwd=path) or "0\t0"
+    behind, ahead = counts.split()
+    entry = reg_by_path.get(path)
+    out.append({
+        "path": path,
+        "branch": branch,
+        "head": wt.get("head", ""),
+        "is_canonical": Path(path) == canonical,
+        "dirty_count": dirty,
+        "upstream": upstream,
+        "unpushed": unpushed,
+        "ahead_main": int(ahead),
+        "behind_main": int(behind),
+        "registered": entry is not None,
+        "owner": (entry or {}).get("owner", ""),
+        "purpose": (entry or {}).get("purpose", ""),
+        "expires_at": (entry or {}).get("expires_at", ""),
+    })
+
+print(json.dumps({"canonical_root": str(canonical), "worktrees": out}, indent=2))
+PY
+}
+
+# ─── cmd: new ────────────────────────────────────────────────────────────────
+cmd_new() {
+  local name="" prefix="claude" task="" ttl_hours="72"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --prefix) prefix="$2"; shift 2;;
+      --task)   task="$2"; shift 2;;
+      --ttl)    ttl_hours="$2"; shift 2;;
+      -h|--help) cat <<EOF
+wt new <name> [--prefix claude|feat|fix|codex] [--task <slug>] [--ttl <hours>]
+
+Creates a new worktree from latest origin/main.
+- Default prefix "claude" → branch "claude/<name>"
+- "--prefix feat --task foo" → branch "feat/claude-foo" (name becomes dir)
+- "--prefix codex" → branch "codex/<name>"
+EOF
+        return 0;;
+      --*) die "unknown flag: $1";;
+      *) [[ -z "${name}" ]] && name="$1" || die "extra arg: $1"; shift;;
+    esac
+  done
+  [[ -z "${name}" ]] && die "usage: wt new <name> [...]"
+
+  # Compose branch name
+  local branch
+  case "${prefix}" in
+    claude) branch="claude/${name}";;
+    feat)   branch="feat/claude-${task:-${name}}";;
+    fix)    branch="fix/claude-${task:-${name}}";;
+    codex)  branch="codex/${task:-${name}}";;
+    *) die "unknown prefix: ${prefix}";;
+  esac
+
+  local target="${CANONICAL_ROOT}/.claude/worktrees/${name}"
+  [[ -e "${target}" ]] && die "target exists: ${target}"
+
+  # Ensure we have latest origin/main
+  info "fetching origin/main"
+  git -C "${CANONICAL_ROOT}" fetch origin main --quiet
+
+  info "creating worktree ${target} on ${branch} from origin/main"
+  local open_json
+  open_json="$(python3 "${SCRIPT_DIR}/open_worktree_session.py" \
+    --path "${target}" \
+    --branch "${branch}" \
+    --purpose "day1_wt_wrapper_new_${name}" \
+    --owner "claude" \
+    --intake-id "" \
+    --close-condition "manual_close_or_ttl_expiry" \
+    --source-branch "origin/main" \
+    --ttl-hours "${ttl_hours}" \
+    --apply)"
+  python3 - "${open_json}" <<'PY'
+import json, sys
+data = json.loads(sys.argv[1])
+if data.get("status") != "OK":
+    err = data.get("error", data)
+    print("[wt] open failed: " + str(err), file=sys.stderr)
+    sys.exit(2)
+print("[wt] opened: " + data["path"] + " @ " + data["branch"])
+PY
+
+  # Unset upstream: `git worktree add -b <br> <path> origin/main` auto-sets
+  # tracking to origin/main. This is dangerous — a naive `git push` would go to
+  # main. First real sync/push will set upstream correctly to origin/<branch>.
+  git -C "${target}" branch --unset-upstream 2>/dev/null || true
+  echo
+  info "cd into it: cd ${target}"
+}
+
+# ─── cmd: sync ───────────────────────────────────────────────────────────────
+cmd_sync() {
+  local autostash=0 do_push=1
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --autostash) autostash=1; shift;;
+      --no-push)   do_push=0; shift;;
+      -h|--help) cat <<EOF
+wt sync [--autostash] [--no-push]
+
+Syncs the CURRENT worktree with origin/main:
+  1. fetch --prune
+  2. dirty check (abort unless --autostash)
+  3. safety ref refs/wt-snap/<branch>/<ts> before rebase
+  4. rebase origin/main
+  5. push (set upstream if missing, force-with-lease otherwise) unless --no-push
+EOF
+        return 0;;
+      *) die "unknown sync flag: $1";;
+    esac
+  done
+
+  local branch wt_root
+  wt_root="${CURRENT_WT}"
+  branch="$(git -C "${wt_root}" branch --show-current 2>/dev/null || true)"
+  [[ -z "${branch}" ]] && die "detached HEAD — nothing to sync"
+  [[ "${branch}" == "main" ]] && die "refusing to sync 'main' itself"
+
+  info "branch: ${branch}"
+  info "fetching origin --prune"
+  git -C "${wt_root}" fetch origin --prune --quiet
+
+  # Dirty check
+  local dirty_count
+  dirty_count="$(git -C "${wt_root}" status --short | wc -l | tr -d ' ')"
+  if [[ "${dirty_count}" -gt 0 ]]; then
+    if [[ "${autostash}" == "1" ]]; then
+      info "dirty (${dirty_count} files) → autostash"
+    else
+      echo "${C_RED}[wt] ABORT:${C_RESET} ${dirty_count} dirty file(s); commit/stash first or pass --autostash" >&2
+      git -C "${wt_root}" status --short | sed 's/^/    /' >&2
+      exit 1
+    fi
+  fi
+
+  # Safety ref before rebase
+  local ts safety_ref head_sha
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  safety_ref="refs/wt-snap/${branch}/pre-sync-${ts}"
+  head_sha="$(git -C "${wt_root}" rev-parse HEAD)"
+  git -C "${wt_root}" update-ref "${safety_ref}" "${head_sha}"
+  info "safety ref: ${safety_ref} -> ${head_sha:0:10}"
+
+  # Optional autostash
+  local stash_ref=""
+  if [[ "${autostash}" == "1" && "${dirty_count}" -gt 0 ]]; then
+    stash_ref="$(git -C "${wt_root}" stash create "wt-sync autostash ${branch} ${ts}")"
+    [[ -n "${stash_ref}" ]] && {
+      git -C "${wt_root}" update-ref "refs/wt-snap/${branch}/autostash-${ts}" "${stash_ref}"
+      git -C "${wt_root}" reset --hard HEAD
+      info "autostashed to refs/wt-snap/${branch}/autostash-${ts}"
+    }
+  fi
+
+  # Rebase
+  info "rebasing on origin/main"
+  if ! git -C "${wt_root}" rebase origin/main; then
+    echo "${C_RED}[wt] REBASE CONFLICT${C_RESET}" >&2
+    echo "  Resolve conflicts, then:" >&2
+    echo "    cd ${wt_root}" >&2
+    echo "    git add <resolved-files>" >&2
+    echo "    git rebase --continue" >&2
+    echo "  Or abort:" >&2
+    echo "    git rebase --abort" >&2
+    echo "  Recovery: git reset --hard ${safety_ref}" >&2
+    exit 1
+  fi
+
+  # Re-apply autostash if any
+  if [[ -n "${stash_ref}" ]]; then
+    info "re-applying autostash"
+    if ! git -C "${wt_root}" stash apply "${stash_ref}"; then
+      echo "${C_YELLOW}[wt] autostash apply had conflicts — resolve manually${C_RESET}" >&2
+      echo "  Stash saved at: refs/wt-snap/${branch}/autostash-${ts}" >&2
+    fi
+  fi
+
+  # Push
+  if [[ "${do_push}" == "1" ]]; then
+    local upstream
+    upstream="$(git -C "${wt_root}" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+    if [[ -z "${upstream}" ]]; then
+      info "push -u origin ${branch} (first push)"
+      git -C "${wt_root}" push -u origin "${branch}"
+    else
+      info "push --force-with-lease"
+      git -C "${wt_root}" push --force-with-lease
+    fi
+  else
+    info "skipping push (--no-push)"
+  fi
+
+  echo "${C_GREEN}[wt] sync OK${C_RESET}"
+}
+
+# ─── cmd: close ──────────────────────────────────────────────────────────────
+cmd_close() {
+  local force=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=1; shift;;
+      -h|--help) cat <<EOF
+wt close [--force]
+
+Closes the CURRENT worktree (cannot run from canonical):
+  1. Blocks if dirty (override with --force)
+  2. Blocks if unpushed commits exist (override with --force)
+  3. Creates safety ref refs/wt-snap/<branch>/pre-close-<ts>
+  4. Calls close_worktree_session.py --apply
+EOF
+        return 0;;
+      *) die "unknown close flag: $1";;
+    esac
+  done
+
+  local wt_root branch
+  wt_root="${CURRENT_WT}"
+  [[ "${wt_root}" == "${CANONICAL_ROOT}" ]] && die "cannot close canonical"
+  branch="$(git -C "${wt_root}" branch --show-current 2>/dev/null || true)"
+
+  # Dirty check
+  local dirty_count
+  dirty_count="$(git -C "${wt_root}" status --short | wc -l | tr -d ' ')"
+  if [[ "${dirty_count}" -gt 0 && "${force}" == "0" ]]; then
+    echo "${C_RED}[wt] BLOCK: ${dirty_count} dirty file(s)${C_RESET}" >&2
+    git -C "${wt_root}" status --short | sed 's/^/    /' >&2
+    echo "  Options:" >&2
+    echo "    - commit them on ${branch}" >&2
+    echo "    - stash: git stash push -m 'pre-close'" >&2
+    echo "    - force: wt close --force (safety ref will be created)" >&2
+    exit 1
+  fi
+
+  # Unpushed check
+  local upstream unpushed
+  upstream="$(git -C "${wt_root}" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+  if [[ -n "${upstream}" ]]; then
+    unpushed="$(git -C "${wt_root}" rev-list --count "${upstream}..HEAD" 2>/dev/null || echo 0)"
+  else
+    unpushed="$(git -C "${wt_root}" rev-list --count "origin/main..HEAD" 2>/dev/null || echo 0)"
+  fi
+  if [[ "${unpushed}" -gt 0 && "${force}" == "0" ]]; then
+    echo "${C_RED}[wt] BLOCK: ${unpushed} unpushed commit(s)${C_RESET}" >&2
+    git -C "${wt_root}" log "${upstream:-origin/main}..HEAD" --oneline | sed 's/^/    /' >&2
+    echo "  Options:" >&2
+    echo "    - push first: wt sync   (or: git push -u origin ${branch})" >&2
+    echo "    - force: wt close --force (HEAD will be saved to safety ref)" >&2
+    exit 1
+  fi
+
+  # Safety ref
+  local ts safety_ref head_sha
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  head_sha="$(git -C "${wt_root}" rev-parse HEAD)"
+  safety_ref="refs/wt-snap/${branch:-detached}/pre-close-${ts}"
+  git -C "${wt_root}" update-ref "${safety_ref}" "${head_sha}"
+  info "safety ref: ${safety_ref} -> ${head_sha:0:10}"
+
+  # Delegate to python
+  local close_args=(--path "${wt_root}" --owner "claude" --reason "wt_close_${ts}" --apply)
+  [[ "${force}" == "1" ]] && close_args+=(--force)
+
+  local close_json
+  close_json="$(python3 "${SCRIPT_DIR}/close_worktree_session.py" "${close_args[@]}")"
+  python3 - "${close_json}" <<'PY'
+import json, sys
+data = json.loads(sys.argv[1])
+if data.get("status") != "OK":
+    err = data.get("error", data)
+    print("[wt] close failed: " + str(err), file=sys.stderr)
+    sys.exit(2)
+print("[wt] closed: " + data["path"])
+PY
+}
+
+# ─── cmd: init ───────────────────────────────────────────────────────────────
+# Idempotent bootstrap: git hooks, reflog retention, gitignore entry, hooksPath
+# normalization across linked worktrees. Safe to re-run any time.
+cmd_init() {
+  local apply=1
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run) apply=0; shift;;
+      -h|--help) cat <<EOF
+wt init [--dry-run]
+
+Idempotent bootstrap of multi-agent worktree infrastructure:
+  1. Install canonical git hooks (scripts/setup_local_git_hooks.sh)
+  2. Normalize core.hooksPath across ALL linked worktrees (absolute path)
+  3. Set reflog retention: gc.reflogExpire=180.days,
+     gc.reflogExpireUnreachable=180.days
+  4. Ensure .worktree-registry.json is in .git/info/exclude
+  5. Print wt status
+EOF
+        return 0;;
+      *) die "unknown init flag: $1";;
+    esac
+  done
+
+  local hooks_dir="${CANONICAL_ROOT}/.githooks"
+  local exclude_file="${GIT_COMMON_DIR}/info/exclude"
+
+  # 1. Install hooks (canonical)
+  if [[ "${apply}" == "1" ]]; then
+    if [[ -f "${CANONICAL_ROOT}/scripts/setup_local_git_hooks.sh" ]]; then
+      info "installing git hooks (canonical)"
+      ROOT_DIR="${CANONICAL_ROOT}" bash "${CANONICAL_ROOT}/scripts/setup_local_git_hooks.sh" | sed 's/^/    /'
+    else
+      info "skip hook install: scripts/setup_local_git_hooks.sh not found"
+    fi
+  else
+    info "[dry-run] would install hooks via scripts/setup_local_git_hooks.sh"
+  fi
+
+  # 2. Normalize hooksPath across all worktrees (absolute path so linked
+  #    worktrees pick it up via config.worktree without relative-path confusion)
+  local wt_count=0
+  if [[ -d "${GIT_COMMON_DIR}/worktrees" ]]; then
+    for wt_dir in "${GIT_COMMON_DIR}"/worktrees/*/; do
+      [[ -d "${wt_dir}" ]] || continue
+      local wt_gitdir
+      wt_gitdir="$(cat "${wt_dir}gitdir" 2>/dev/null | xargs dirname 2>/dev/null || true)"
+      if [[ -n "${wt_gitdir}" && -d "${wt_gitdir}" ]]; then
+        if [[ "${apply}" == "1" ]]; then
+          git -C "${wt_gitdir}" config --worktree core.hooksPath "${hooks_dir}" 2>/dev/null || true
+        fi
+        wt_count=$((wt_count+1))
+      fi
+    done
+  fi
+  info "$([[ "${apply}" == "1" ]] && echo "normalized" || echo "[dry-run] would normalize") hooksPath on ${wt_count} linked worktree(s) → ${hooks_dir}"
+
+  # 3. Reflog retention (canonical config)
+  if [[ "${apply}" == "1" ]]; then
+    git -C "${CANONICAL_ROOT}" config gc.reflogExpire "180.days"
+    git -C "${CANONICAL_ROOT}" config gc.reflogExpireUnreachable "180.days"
+    info "reflog retention: 180.days (gc.reflogExpire + reflogExpireUnreachable)"
+  else
+    info "[dry-run] would set gc.reflogExpire=180.days"
+  fi
+
+  # 4. Gitignore/exclude for .worktree-registry.json (local, cross-worktree)
+  if ! grep -qxF '.worktree-registry.json' "${exclude_file}" 2>/dev/null; then
+    if [[ "${apply}" == "1" ]]; then
+      echo '.worktree-registry.json' >> "${exclude_file}"
+      info "added .worktree-registry.json to ${exclude_file}"
+    else
+      info "[dry-run] would append .worktree-registry.json to ${exclude_file}"
+    fi
+  else
+    info ".worktree-registry.json already excluded"
+  fi
+
+  echo
+  if [[ "${apply}" == "1" ]]; then
+    info "init complete — run 'wt status' to see state"
+  else
+    info "init dry-run — re-run without --dry-run to apply"
+  fi
+}
+
+# ─── cmd: gc ─────────────────────────────────────────────────────────────────
+# Prune old safety refs from refs/wt-snap/ namespace. Default: dry-run, >30 days.
+cmd_gc() {
+  local days=30 apply=0 keep_recent=3
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --apply) apply=1; shift;;
+      --days) days="$2"; shift 2;;
+      --keep-recent) keep_recent="$2"; shift 2;;
+      -h|--help) cat <<EOF
+wt gc [--apply] [--days N] [--keep-recent N]
+
+Prune old safety refs under refs/wt-snap/.
+
+Defaults:
+  --days 30        Delete refs older than 30 days (by timestamp in ref name).
+  --keep-recent 3  Always keep the 3 most recent refs per branch, regardless
+                   of age (insurance against deleting the only remaining ref).
+  (no --apply)     Dry-run: print what would be deleted. Pass --apply to act.
+EOF
+        return 0;;
+      *) die "unknown gc flag: $1";;
+    esac
+  done
+
+  python3 - "${CANONICAL_ROOT}" "${days}" "${keep_recent}" "${apply}" <<'PY'
+import json, re, subprocess, sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+canonical = Path(sys.argv[1])
+days_threshold = int(sys.argv[2])
+keep_recent = int(sys.argv[3])
+apply = sys.argv[4] == "1"
+
+now = datetime.now(timezone.utc).replace(microsecond=0)
+cutoff = now - timedelta(days=days_threshold)
+ts_re = re.compile(r"(\d{8}T\d{6}Z)$")
+
+def git(*args):
+    return subprocess.check_output(["git", "-C", str(canonical), *args], text=True).strip()
+
+raw = git("for-each-ref", "refs/wt-snap/", "--format=%(refname)\t%(objectname:short)")
+if not raw.strip():
+    print("[wt gc] no safety refs under refs/wt-snap/")
+    sys.exit(0)
+
+# Group by branch (path between refs/wt-snap/ and timestamp)
+by_branch = {}
+no_ts = []
+for line in raw.splitlines():
+    ref, short_sha = line.split("\t", 1)
+    m = ts_re.search(ref)
+    if not m:
+        no_ts.append((ref, short_sha))
+        continue
+    ts_str = m.group(1)
+    try:
+        ts = datetime.strptime(ts_str, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    except Exception:
+        no_ts.append((ref, short_sha))
+        continue
+    # "branch" here is everything between refs/wt-snap/ and the trailing timestamp segment
+    prefix = ref[len("refs/wt-snap/"):]
+    # Drop the last path segment (which contains the timestamp)
+    branch_key = "/".join(prefix.split("/")[:-1]) or prefix
+    by_branch.setdefault(branch_key, []).append((ts, ref, short_sha))
+
+to_delete = []
+to_keep = []
+for branch, entries in sorted(by_branch.items()):
+    # Sort newest first, always keep top `keep_recent`
+    entries.sort(key=lambda e: e[0], reverse=True)
+    kept = entries[:keep_recent]
+    candidates = entries[keep_recent:]
+    for ts, ref, sha in candidates:
+        if ts < cutoff:
+            to_delete.append((branch, ts, ref, sha))
+        else:
+            kept.append((ts, ref, sha))
+    for ts, ref, sha in kept:
+        to_keep.append((branch, ts, ref, sha))
+
+print(f"[wt gc] cutoff: {cutoff.isoformat()} (>{days_threshold} days old)")
+print(f"[wt gc] keep_recent per branch: {keep_recent}")
+print(f"[wt gc] candidates for delete: {len(to_delete)}")
+print(f"[wt gc] preserved: {len(to_keep)}")
+if no_ts:
+    print(f"[wt gc] preserved (no parseable timestamp): {len(no_ts)}")
+
+for branch, ts, ref, sha in to_delete:
+    action = "DELETE" if apply else "would-delete"
+    print(f"  [{action}] {ref} ({sha}) {ts.isoformat()}")
+    if apply:
+        subprocess.run(["git", "-C", str(canonical), "update-ref", "-d", ref], check=True)
+
+if not apply and to_delete:
+    print()
+    print("[wt gc] dry-run — re-run with --apply to delete")
+PY
+}
+
+# ─── cmd: help ───────────────────────────────────────────────────────────────
+cmd_help() {
+  cat <<EOF
+wt — multi-agent worktree wrapper
+
+USAGE
+  wt <command> [args]
+
+COMMANDS
+  init             Idempotent bootstrap (hooks + reflog retention + exclude)
+  new <name>       Create a new worktree from origin/main
+  list             Show all worktrees (registry match)
+  status [--json]  Rich status: dirty, unpushed, ahead/behind, risks
+  sync             Rebase current worktree on origin/main + push
+  close            Close current worktree (with safety ref)
+  gc               Prune old safety refs (dry-run by default)
+  help             This text
+
+ENVIRONMENT
+  NO_COLOR=1       Disable colored output
+
+Registry: ${REGISTRY}
+EOF
+}
+
+# ─── Dispatch ────────────────────────────────────────────────────────────────
+if [[ $# -eq 0 ]]; then
+  cmd_help
+  exit 0
+fi
+
+sub="$1"; shift
+case "${sub}" in
+  init)    cmd_init "$@";;
+  new)     cmd_new "$@";;
+  list)    cmd_list "$@";;
+  status)  cmd_status "$@";;
+  sync)    cmd_sync "$@";;
+  close)   cmd_close "$@";;
+  gc)      cmd_gc "$@";;
+  help|-h|--help) cmd_help;;
+  *) echo "[wt] unknown command: ${sub}" >&2; cmd_help >&2; exit 2;;
+esac

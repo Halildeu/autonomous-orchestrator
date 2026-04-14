@@ -188,22 +188,29 @@ def main(argv: list[str] | None = None) -> int:
                 "branch_prefix_invalid:must_start_with_one_of:"
                 + "|".join(_allowed_branch_prefixes)
             )
-        if target_path == ROOT:
+        if target_path == CANONICAL_ROOT:
             raise RuntimeError("target_path_is_canonical_repo_root")
         if target_path.exists():
             raise RuntimeError("target_path_already_exists")
-        if _dirty_count(ROOT) > 0:
-            raise RuntimeError("canonical_repo_dirty")
+        # NOTE: canonical dirty-state does NOT block opening a new side worktree.
+        # New worktree branches from --source-branch (default origin/main), so
+        # canonical's local unstaged changes are irrelevant. Report surfaces the
+        # count below for observability.
 
         worktrees = _parse_worktree_list()
+        # Registered dirty side worktrees are expected in multi-agent parallel
+        # work. Only UNREGISTERED dirty side worktrees indicate ghost sessions.
+        # (Full check is in check_worktree_hygiene.py; open-session just warns
+        # via the report — it does not block.)
         dirty_side_count = sum(
             1
             for item in worktrees
-            if Path(str(item.get("path") or "")).resolve() != ROOT.resolve()
+            if Path(str(item.get("path") or "")).resolve() != CANONICAL_ROOT.resolve()
             and _dirty_count(Path(str(item.get("path") or "")).resolve()) > 0
         )
-        if dirty_side_count > 0 and not args.read_only:
-            raise RuntimeError("dirty_side_worktree_exists")
+        # Old block: raise if dirty_side_count > 0. Removed — parallel dirty
+        # work is exactly what this infrastructure supports.
+        _ = dirty_side_count  # surfaced via report, not enforced here
         if any(Path(str(item.get("path") or "")).resolve() == target_path for item in worktrees):
             raise RuntimeError("target_path_already_registered_as_worktree")
 

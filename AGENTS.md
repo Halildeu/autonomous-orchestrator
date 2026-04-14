@@ -79,16 +79,18 @@ Rules:
 ## 0d. Multi-Agent Git Koordinasyonu (MUST)
 
 Policy: `policies/policy_multi_agent_coordination.v1.json` (orchestrator SSOT)
+Rehber / runbook: `docs/OPERATIONS/MULTI-AGENT-WORKFLOW.v1.md` (günlük akış + 6 senaryo)
 
 ### 4 Temel Kural
 
 1. **1 agent = 1 worktree:** Her agent/sohbet kendi git worktree'sinde çalışır.
    - Canonical tree (`/Documents/dev`) yalnızca worktree yönetimi içindir.
-   - Worktree açma: `python3 scripts/ops/open_worktree_session.py --branch feat/<agent>-<task> --owner <agent>`
-   - Veya: `git worktree add /path/to/wt -b feat/<agent>-<task> main`
+   - **Önerilen yol (wrapper):** `scripts/ops/wt new <name>` (opens from origin/main, sets upstream cleanly)
+   - Alt komutlar: `wt list`, `wt status`, `wt sync`, `wt close`
+   - Raw: `python3 scripts/ops/open_worktree_session.py --branch <branch> --owner <agent> ...`
 
 2. **Her branch main'den:** Branch zincirleme YASAK.
-   - Naming: `feat/claude-<task>`, `codex/<task>`, `fix/<agent>-<desc>`
+   - Naming: `claude/{name}` (Claude Code EnterWorktree default) | `feat/claude-<task>` | `fix/claude-<task>` | `codex/<task>`
    - Bağımlılık varsa: explicit stacked PR (PR description'da belirt)
 
 3. **Shared tree'de commit/push YASAK:**
