@@ -10,7 +10,26 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_REGISTRY = ROOT / "registry" / "worktrees" / "worktree_registry.v1.json"
+
+
+def _canonical_root() -> Path:
+    """Resolve canonical repo root via git-common-dir so worktrees share state."""
+    try:
+        common = subprocess.check_output(
+            ["git", "rev-parse", "--git-common-dir"], cwd=str(ROOT), text=True
+        ).strip()
+        common_path = Path(common)
+        if not common_path.is_absolute():
+            common_path = (ROOT / common_path).resolve()
+        return common_path.parent.resolve()
+    except Exception:
+        return ROOT
+
+
+CANONICAL_ROOT = _canonical_root()
+# Registry is runtime coordination state — shared across worktrees via canonical
+# tree, untracked. Legacy path kept as fallback for migration window.
+DEFAULT_REGISTRY = CANONICAL_ROOT / ".worktree-registry.json"
 DEFAULT_OUT = ROOT / ".cache" / "reports" / "worktree_reconciliation.v1.json"
 
 

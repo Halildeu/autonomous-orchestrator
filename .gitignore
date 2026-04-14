@@ -61,3 +61,6 @@ backend/.vault-dev/**
 .autopilot-tmp/codex-chatlog/**
 .autopilot-tmp/flow-mining/**
 web/.eslintcache
+
+# Multi-agent worktree coordination registry (runtime state, shared across worktrees via canonical root).
+.worktree-registry.json

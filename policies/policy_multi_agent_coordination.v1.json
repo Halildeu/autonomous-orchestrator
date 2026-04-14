@@ -12,9 +12,9 @@
     "base_branch": "main",
     "chaining_allowed": false,
     "naming_patterns": {
-      "claude": "feat/claude-{task}|fix/claude-{task}",
-      "codex": "codex/{task}",
-      "generic": "feat/{agent}-{task}"
+      "claude": "claude/{name}|feat/claude-{task}|fix/claude-{task}",
+      "codex": "codex/{task}|feat/codex-{task}|fix/codex-{task}",
+      "generic": "feat/{agent}-{task}|fix/{agent}-{task}"
     }
   },
   "shared_tree_protection": {

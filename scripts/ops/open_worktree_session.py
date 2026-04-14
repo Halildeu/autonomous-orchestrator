@@ -10,7 +10,26 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_REGISTRY = ROOT / "registry" / "worktrees" / "worktree_registry.v1.json"
+
+
+def _canonical_root() -> Path:
+    """Resolve canonical repo root via git-common-dir so worktrees share state."""
+    try:
+        common = subprocess.check_output(
+            ["git", "rev-parse", "--git-common-dir"], cwd=str(ROOT), text=True
+        ).strip()
+        common_path = Path(common)
+        if not common_path.is_absolute():
+            common_path = (ROOT / common_path).resolve()
+        return common_path.parent.resolve()
+    except Exception:
+        return ROOT
+
+
+CANONICAL_ROOT = _canonical_root()
+# Registry is runtime coordination state — shared across worktrees via canonical
+# tree, untracked. Legacy path kept as fallback for migration window.
+DEFAULT_REGISTRY = CANONICAL_ROOT / ".worktree-registry.json"
 DEFAULT_OUT = ROOT / ".cache" / "reports" / "worktree_open_session.v1.json"
 
 
@@ -156,8 +175,19 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     try:
-        if not branch.startswith("codex/"):
-            raise RuntimeError("branch_prefix_invalid:must_start_with_codex/")
+        _allowed_branch_prefixes = (
+            "codex/",
+            "claude/",
+            "feat/claude-",
+            "fix/claude-",
+            "feat/codex-",
+            "fix/codex-",
+        )
+        if not any(branch.startswith(p) for p in _allowed_branch_prefixes):
+            raise RuntimeError(
+                "branch_prefix_invalid:must_start_with_one_of:"
+                + "|".join(_allowed_branch_prefixes)
+            )
         if target_path == ROOT:
             raise RuntimeError("target_path_is_canonical_repo_root")
         if target_path.exists():

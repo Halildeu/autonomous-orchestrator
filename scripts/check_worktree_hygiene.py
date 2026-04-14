@@ -11,7 +11,28 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REGISTRY = ROOT / "registry" / "worktrees" / "worktree_registry.v1.json"
+
+
+def _canonical_root() -> Path:
+    """Resolve canonical repo root via git-common-dir so worktrees share state."""
+    try:
+        common = subprocess.check_output(
+            ["git", "rev-parse", "--git-common-dir"], cwd=str(ROOT), text=True
+        ).strip()
+        common_path = Path(common)
+        if not common_path.is_absolute():
+            common_path = (ROOT / common_path).resolve()
+        return common_path.parent.resolve()
+    except Exception:
+        return ROOT
+
+
+CANONICAL_ROOT = _canonical_root()
+# Registry is runtime coordination state — lives outside tracked tree so it is
+# shared across worktrees and not subject to branch-switching. Legacy path
+# registry/worktrees/worktree_registry.v1.json retained as fallback for migration.
+_LEGACY_REGISTRY = CANONICAL_ROOT / "registry" / "worktrees" / "worktree_registry.v1.json"
+DEFAULT_REGISTRY = CANONICAL_ROOT / ".worktree-registry.json"
 DEFAULT_OUT = ROOT / ".cache" / "reports" / "worktree_hygiene_check.v1.json"
 
 
@@ -95,7 +116,7 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _default_registry_entry(*, worktree: dict[str, Any], opened_at: str) -> dict[str, Any]:
     path = str(worktree.get("path") or "")
-    is_canonical = Path(path).resolve() == ROOT.resolve()
+    is_canonical = Path(path).resolve() == CANONICAL_ROOT.resolve()
     return {
         "path": path,
         "branch": str(worktree.get("branch") or ""),
@@ -188,19 +209,22 @@ def analyze(*, registry_path: Path, bootstrap_registry_if_missing: bool) -> dict
     worktree_rows: list[dict[str, Any]] = []
     dirty_side_worktree_count = 0
     dirty_worktree_count = 0
+    unregistered_dirty_side_count = 0
 
     for item in worktrees:
         path = Path(str(item.get("path") or "")).resolve()
         dirty_paths = _read_dirty_paths(path)
         dirty_count = len(dirty_paths)
         is_dirty = dirty_count > 0
-        is_canonical = path == ROOT.resolve()
+        is_canonical = path == CANONICAL_ROOT.resolve()
         entry = active_entries.get(str(path))
 
         if is_dirty:
             dirty_worktree_count += 1
             if not is_canonical:
                 dirty_side_worktree_count += 1
+                if entry is None:
+                    unregistered_dirty_side_count += 1
 
         if entry is None:
             severity = "FAIL" if not is_canonical else "WARN"
@@ -285,13 +309,31 @@ def analyze(*, registry_path: Path, bootstrap_registry_if_missing: bool) -> dict
                 )
             )
 
-    if dirty_side_worktree_count > 1:
+    # Registered dirty side worktrees are expected in multi-agent parallel work.
+    # Only UNREGISTERED dirty side worktrees indicate ghost / orphaned sessions.
+    if unregistered_dirty_side_count > 0:
         issues.append(
             _build_issue(
-                issue_id="TOO_MANY_DIRTY_SIDE_WORKTREES",
+                issue_id="UNREGISTERED_DIRTY_SIDE_WORKTREES",
                 severity="FAIL",
-                path=str(ROOT),
-                message="Ayni anda birden fazla kirli yan masa acik.",
+                path=str(CANONICAL_ROOT),
+                message=(
+                    f"{unregistered_dirty_side_count} kayit disi kirli yan masa var; "
+                    "registry'e adopt et veya temizle."
+                ),
+            )
+        )
+    # Soft ceiling: if many registered dirty side worktrees exist, warn (not fail).
+    elif dirty_side_worktree_count > 4:
+        issues.append(
+            _build_issue(
+                issue_id="MANY_DIRTY_SIDE_WORKTREES",
+                severity="WARN",
+                path=str(CANONICAL_ROOT),
+                message=(
+                    f"{dirty_side_worktree_count} kirli yan masa acik; "
+                    "paralel iş yükünü gözden geçir."
+                ),
             )
         )
 
@@ -304,8 +346,10 @@ def analyze(*, registry_path: Path, bootstrap_registry_if_missing: bool) -> dict
         recommended_actions.append("Kanonik hatta yeni yan masa acmadan once temiz status gerektir.")
     if any(item["id"] == "UNREGISTERED_WORKTREE" for item in issues):
         recommended_actions.append("Acilik worktree registry'ye owner/purpose/ttl ile kaydedilmelidir.")
-    if any(item["id"] == "TOO_MANY_DIRTY_SIDE_WORKTREES" for item in issues):
-        recommended_actions.append("Kirli yan masa sayisini bire indir ve kalanlari reconcile ederek kapat.")
+    if any(item["id"] == "UNREGISTERED_DIRTY_SIDE_WORKTREES" for item in issues):
+        recommended_actions.append("Kayit disi kirli worktree'leri registry'ye adopt et veya reconcile ederek kapat.")
+    if any(item["id"] == "MANY_DIRTY_SIDE_WORKTREES" for item in issues):
+        recommended_actions.append("Paralel kirli yan masa sayisi yüksek; tamamlananları merge edip kapat.")
     if any(item["id"] == "DIRTY_OUTSIDE_ALLOWED_PATHS" for item in issues):
         recommended_actions.append("Yan masadaki degisiklikleri allowed_paths ile uyumlu hale getir veya contract kapsamini guncelle.")
     if not recommended_actions:
