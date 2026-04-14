@@ -35,11 +35,11 @@ Pre-conditions:
 3. BAŞLATMA / DURDURMA
 -------------------------------------------------------------------------------
 
-Stage 1 — Deploy (Flags OFF, Day 1):
+Stage 1 — Deploy (Flags ON by default, verify health, Day 1):
 - Merge main branch to prod deploy.
 - docker compose pull && docker compose up -d
 - Verify: all containers healthy.
-- Verify: ERP_OPENFGA_ENABLED=false in all services.
+- Verify: ERP_OPENFGA_ENABLED=true (compose default). Services start with OpenFGA enabled.
 - Run: smoke-zanzibar.yml workflow (manual dispatch).
 - Rollback: Standard rollback (previous image tag).
 
@@ -85,7 +85,7 @@ Metrikler:
 - [ ] Ariza senaryosu 1 — OpenFGA down:
   - Given: OpenFGA container crashed veya network partition.
     When: up{job="openfga"} == 0 alert fires.
-    Then: Fail-closed aktif (tum check'ler true doner). Flags OFF + restart.
+    Then: Fail-closed aktif (tum check'ler false/deny doner). Flags OFF + restart.
 
 - [ ] Ariza senaryosu 2 — Yuksek deny rate:
   - Given: authz_deny_rate_pct > 10%.
@@ -109,7 +109,7 @@ Metrikler:
 7. LİNKLER (İSTEĞE BAĞLI)
 -------------------------------------------------------------------------------
 
-- Master plan: .claude/plans/zanzibar-master-plan.md (rev 15)
+- Master plan: .claude/plans/zanzibar-master-plan.md (rev 19)
 - Decision registry: decisions/topics/zanzibar-openfga.v1.json
 - Guardrails config: backend/scripts/ci/canary/zanzibar-guardrails.json
 - Doctor script: backend/scripts/doctor-zanzibar.sh

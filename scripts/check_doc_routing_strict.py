@@ -5,6 +5,23 @@ from pathlib import Path
 
 ROOT = Path(".")
 
+# .claude (plans, memory, worktrees), legacy archives, node_modules etc.
+# are NOT canonical doc locations. Worktrees especially are git-managed
+# isolated copies; canonical SSOT rules do not apply to their contents.
+SKIP_DIRS = {".git", ".claude", "node_modules", "dist", "build", "coverage",
+             "storybook-static", "playwright-report", "test-results",
+             "backend/docs/legacy"}
+
+
+def _is_under_skip(p: Path) -> bool:
+    parts = set(p.parts)
+    if parts & SKIP_DIRS:
+        return True
+    # Also check multi-segment skip paths (e.g. backend/docs/legacy)
+    s = p.as_posix()
+    return any("/" in skip and skip in s for skip in SKIP_DIRS)
+
+
 RULES = [
     ("PB", re.compile(r"^PB-\d{4}.*\.md$"), Path("docs/01-product/PROBLEM-BRIEFS")),
     ("PRD", re.compile(r"^PRD-\d{4}.*\.md$"), Path("docs/01-product/PRD")),
@@ -31,6 +48,8 @@ def main() -> int:
 
     for p in ROOT.rglob("*"):
         if not p.is_file():
+            continue
+        if _is_under_skip(p):
             continue
 
         name = p.name

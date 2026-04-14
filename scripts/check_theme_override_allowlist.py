@@ -25,7 +25,7 @@ from typing import Iterable, List, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 
 
-SKIP_DIRS = {"node_modules", "dist", "build", "coverage", "test-results", ".git", ".next"}
+SKIP_DIRS = {"node_modules", "dist", "build", "coverage", "test-results", ".git", ".next", ".claude"}
 ALLOWED_EXT = {".ts", ".tsx", ".js", ".jsx", ".mjs"}
 
 

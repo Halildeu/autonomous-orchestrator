@@ -56,7 +56,7 @@ Ortak akış:
 ## Kritik Gerçekler
 
 - Kod tabanı gerçekte mikroservistir.
-- `permission-service` hem yetki hem audit alanını taşır.
+- `permission-service` **OpenFGA Hub** rolünü üstlenir (D-003/D-008 FINAL, 2026-04-14): TupleSyncService (rol→OpenFGA tuple senkronu), AuthzVersionService (cache invalidation), AuthorizationControllerV1 (`/authz/me`, `/authz/check`, `/authz/explain`), AccessControllerV1 (rol CRUD). Port 8090 aktif — kaldırılmamış, dönüştürülmüştür.
 - `variant-service` hem variant hem tema alanını taşır.
 - `core-data-service` modül olarak vardır; fakat mevcut compose akışına henüz
   bağlı değildir.

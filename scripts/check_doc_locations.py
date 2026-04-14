@@ -10,6 +10,12 @@ Problem:
 - Repo genelinde dosya adlarına bakarak bu dokümanların yanlış yere düşmesini
   yakalar ve hata üretir (CI gate olarak kullanılabilir).
 
+Not:
+- `.claude/` altındaki dosyalar (plans, memory, worktrees) canonical doc
+  konumu değildir ve kontrol dışıdır. Worktree'ler git worktree manager
+  tarafından yönetilen izole kopyalardır; canonical repo'nun SSOT kuralları
+  worktree içeriğine uygulanmaz.
+
 Kullanım:
   python3 scripts/check_doc_locations.py
   python3 scripts/check_doc_locations.py --include-legacy
@@ -29,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LEGACY_ROOTS = [
     ROOT / "backend" / "docs" / "legacy",
 ]
-SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage", "storybook-static", "playwright-report", "test-results"}
+SKIP_DIRS = {"node_modules", ".git", ".claude", "dist", "build", "coverage", "storybook-static", "playwright-report", "test-results"}
 
 
 def is_under(path: Path, root: Path) -> bool:

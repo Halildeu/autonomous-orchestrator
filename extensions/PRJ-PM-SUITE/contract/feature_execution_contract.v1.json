@@ -72,7 +72,8 @@
       "web/apps/mfe-shell/src/app/layout/**/*",
       "web/apps/mfe-shell/src/features/auth/**/*",
       "backend/report-service/src/main/resources/*",
-      "backend/devops/postgres/*"
+      "backend/devops/postgres/*",
+      "backend/*/pom.xml"
     ],
     "repo_root": ".",
     "service_scopes": [

@@ -98,7 +98,7 @@ Operasyonel bileşenler:
 | `discovery-server` | 8761 | Eureka registry | registry | tüm backend servisleri |
 | `auth-service` | 8088 | login/register, password reset, service token minting, service JWKS | `/api/auth/**`, `/api/v1/auth/**`, `/oauth2/token`, `/oauth2/jwks` | user-service, permission-service, Postgres, Keycloak/Vault |
 | `user-service` | 8089 | kullanıcı yönetimi, aktivasyon, profil ve bazı internal provisioning akışları | `/api/users/**`, `/api/v1/users/**`, `/api/v1/notification-preferences/**` | permission-service, auth-service, Postgres |
-| `permission-service` | 8084 | roller, izinler, authz scope, audit event | `/api/access/**`, `/api/permissions/**`, `/api/audit/**`, `/api/v1/roles/**`, `/api/v1/permissions/**`, `/api/v1/authz/**` | Postgres, Keycloak/Vault |
+| `permission-service` | 8090 | **OpenFGA Hub** (D-003/D-008): roller, izinler, authz scope, audit event + TupleSyncService + AuthzVersionService + AuthorizationControllerV1 | `/api/access/**`, `/api/permissions/**`, `/api/audit/**`, `/api/v1/roles/**`, `/api/v1/permissions/**`, `/api/v1/authz/**` (me, check, batch-check, explain, version, catalog) | Postgres, **OpenFGA**, Keycloak/Vault |
 | `variant-service` | 8091 | grid variant, kullanıcı tercihleri, tema ve theme registry | `/api/variants/**`, `/api/v1/variants/**`, `/api/v1/themes/**`, `/api/v1/me/theme/**`, `/api/v1/theme-registry/**` | permission-service, Postgres |
 | `core-data-service` | random (`server.port=0`) | şirket ana verisi | `/api/v1/companies/**` | Postgres, Eureka |
 | `common-auth` | library | ortak auth, permission sabitleri, JWT yardımcıları | yok | tüm servisler |
@@ -108,8 +108,11 @@ Operasyonel bileşenler:
 - Repo gerçekte mikroservistir; `backend/README.md` başlığı hâlâ "Monolit" der.
 - `core-data-service` kodda vardır ve gateway route'u tanımlıdır; fakat mevcut
   `docker-compose.yml` içinde servis olarak ayağa kaldırılmamaktadır.
-- `permission-service` hem rol/izin hem authz scope hem audit event alanlarını
-  üstlenmiştir; domain sınırı geniştir.
+- `permission-service` **OpenFGA Hub** rolünü üstlenir (D-003/D-008 FINAL, 2026-04-14):
+  rol/izin/audit yönetimi + OpenFGA tuple senkronizasyonu + kullanıcı-facing authz API.
+  Port 8090 aktif. Kaldırılamaz (C-005 HARD CONSTRAINT). Diğer servisler check işlemleri
+  için bu servise HTTP çağrısı yapmaz; `OpenFgaAuthzService` (common-auth) üzerinden
+  doğrudan OpenFGA'ya erişir (C-008).
 - `variant-service` hem grid variant hem de tema/theme-registry alanlarını taşır;
   bu da kişiselleştirme alanında coupling yaratır.
 

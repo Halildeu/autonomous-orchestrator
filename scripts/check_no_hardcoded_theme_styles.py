@@ -47,6 +47,7 @@ SKIP_DIRS = {
     "storybook-static",
     ".git",
     ".next",
+    ".claude",
 }
 
 # Guardrail scope: product code. Storybook/docs/assets intentionally excluded.

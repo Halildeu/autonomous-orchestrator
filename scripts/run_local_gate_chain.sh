@@ -15,7 +15,21 @@ for arg in "$@"; do
   esac
 done
 
-LOG_DIR="${LOCAL_GATE_LOG_DIR:-${ROOT_DIR}/.cache/reports/local-gate-chain}"
+# Worktree-aware LOG_DIR: linked worktree'lerde kendi .cache/'ine yazmali,
+# aksi halde guard (require_local_gate.sh --worktree-mode) artifact'i bulamaz.
+if [[ -z "${LOCAL_GATE_LOG_DIR:-}" ]]; then
+  _cur_worktree="$(git rev-parse --show-toplevel 2>/dev/null || echo "${ROOT_DIR}")"
+  _git_dir="$(git rev-parse --git-dir 2>/dev/null || true)"
+  _git_common="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+  if [[ -n "${_git_dir}" && -n "${_git_common}" && "${_git_dir}" != "${_git_common}" ]]; then
+    # Linked worktree — write to worktree's own .cache
+    LOG_DIR="${_cur_worktree}/.cache/reports/local-gate-chain"
+  else
+    LOG_DIR="${ROOT_DIR}/.cache/reports/local-gate-chain"
+  fi
+else
+  LOG_DIR="${LOCAL_GATE_LOG_DIR}"
+fi
 STATUS_PATH="${LOG_DIR}/status.json"
 RESULTS_TSV="${LOG_DIR}/results.tsv"
 
@@ -55,14 +69,16 @@ sanitize_name() {
 
 compute_worktree_fingerprint() {
   # In worktree (light) mode, the guard (require_local_gate.sh --worktree-mode)
-  # computes a staged-only fingerprint. The chain writer MUST match that scheme
-  # so post-chain verification succeeds; otherwise writer (full) and reader
-  # (staged-only) diverge and every commit triggers a superfluous re-run.
-  local _fp_args=(--repo-root "${ROOT_DIR}")
+  # computes a staged-only fingerprint AGAINST THE WORKTREE ROOT. The chain
+  # writer MUST match BOTH (a) staged-only mode AND (b) repo-root, otherwise
+  # writer/reader diverge and every commit triggers a superfluous re-run.
+  local _fp_root="${ROOT_DIR}"
+  local _fp_args=()
   if [[ "${LOCAL_GATE_WORKTREE_MODE:-0}" == "1" ]] || [[ "${LIGHT_MODE}" == "1" ]]; then
+    _fp_root="$(git rev-parse --show-toplevel 2>/dev/null || echo "${ROOT_DIR}")"
     _fp_args+=(--staged-only)
   fi
-  python3 "${SCRIPT_DIR}/ops/compute_worktree_fingerprint.py" "${_fp_args[@]}"
+  python3 "${SCRIPT_DIR}/ops/compute_worktree_fingerprint.py" --repo-root "${_fp_root}" "${_fp_args[@]}"
 }
 
 node22_prefix() {

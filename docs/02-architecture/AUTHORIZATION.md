@@ -8,19 +8,50 @@ Katman 1: KEYCLOAK (Authentication)
   → Keycloak realm: serban
   → Port: 8081
 
-Katman 2: OpenFGA (Authorization)
-  → Zanzibar tuple store, ReBAC model
+Katman 2: OpenFGA (Authorization Engine)
+  → Zanzibar tuple store, ReBAC model (9 tip, deny-wins, hierarchical)
   → check(), listObjects(), expand()
   → Port: 4000 (HTTP), 4001 (gRPC), 4002 (Playground)
 
-Katman 3: DATA ENFORCEMENT
+Katman 3: PERMISSION-SERVICE (OpenFGA Hub) — D-003/D-008 FINAL
+  → TupleSyncService: role → OpenFGA tuple sync (deny-wins resolution)
+  → AuthzVersionService: cache invalidation version management
+  → TupleSyncOutboxPoller: durable retry (SELECT FOR UPDATE SKIP LOCKED)
+  → AuthorizationControllerV1: /authz/me, /check, /batch-check, /explain, /version, /catalog
+  → AccessControllerV1: role CRUD
+  → Port: 8090
+
+Katman 4: DATA ENFORCEMENT (Her servis kendi içinde)
   → Hibernate @Filter (ORM seviyesi)
   → PostgreSQL RLS (DB seviyesi)
-  → ScopeContext: company/project/warehouse ID'leri
+  → ScopeContext: company/project/warehouse/branch ID'leri
+  → Her servis: OpenFgaAuthzService (common-auth) → direct OpenFGA SDK
+  → Servisler check/listObjects için permission-service'e HTTP çağrısı YAPMAZ (C-008)
 
-Katman 4: FRONTEND
+Katman 5: FRONTEND
   → @mfe/auth package
-  → PermissionProvider, usePermissions, ProtectedRoute
+  → PermissionProvider, useZanzibarAccess, ZanzibarGate, ProtectedRoute
+  → /api/v1/authz/* → Vite proxy → permission-service:8090
+```
+
+### Erişim Pattern'leri
+
+**Backend servis check (fast path):**
+```
+user-service biz logic → OpenFgaAuthzService.check(...) → OpenFGA SDK → OpenFGA:4000
+```
+
+**Frontend kullanıcı sorgu (via hub):**
+```
+React → /api/v1/authz/me → Vite proxy → permission-service:8090 → OpenFGA + DB
+```
+
+**Role değişikliği (tuple sync):**
+```
+Admin UI → /api/v1/roles/{id}/permissions → permission-service
+  → DB write + Outbox entry (transactional)
+  → TupleSyncOutboxPoller (30s) → TupleSyncService
+  → OpenFGA tuple write + AuthzVersionService.incrementVersion()
 ```
 
 ## Dev Mode (permitAll)

@@ -30,13 +30,22 @@ Sorumlu bileşenler:
 - `mfe-audit`
 
 Sorumluluk:
-- roles
-- permissions
-- authz scope
+- roles (CRUD)
+- permissions (catalog, CRUD)
+- authz scope (company/project/warehouse/branch assignment)
 - audit event
+- **OpenFGA Hub** (D-003/D-008 FINAL, 2026-04-14):
+  - TupleSyncService: role → OpenFGA tuple sync (deny-wins resolution)
+  - AuthzVersionService: cache invalidation version management
+  - TupleSyncOutboxPoller: durable retry (SELECT FOR UPDATE SKIP LOCKED)
+  - AuthorizationControllerV1: `/authz/me`, `/authz/check`, `/authz/batch-check`,
+    `/authz/explain`, `/authz/version`, `/authz/catalog`, `/authz/modules`
 
 Not:
 - Bu domain şu an geniş bir kapsama sahiptir ve ileride bölünme adayıdır.
+- **Permission-service kaldırılamaz** (C-005 HARD CONSTRAINT) — OpenFGA sistemi bozulur.
+- Diğer servisler **check işlemleri için permission-service'e HTTP çağrısı yapmaz**;
+  `OpenFgaAuthzService` (common-auth) üzerinden doğrudan OpenFGA'ya erişir (C-008).
 
 ### 3. Kullanıcı Yönetimi
 
