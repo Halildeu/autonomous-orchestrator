@@ -1,0 +1,45 @@
+{
+  "version": "v1",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "project_id": "PVT_fixture_project",
+  "fields": {
+    "Status": {
+      "field_id": "PVTSSF_status",
+      "type": "single_select",
+      "options": {
+        "Todo": "PVTSSO_todo",
+        "Needs Verify": "PVTSSO_needs_verify"
+      }
+    },
+    "Faz": {
+      "field_id": "PVTF_faz",
+      "type": "text"
+    },
+    "Track": {
+      "field_id": "PVTSSF_track",
+      "type": "single_select",
+      "options": {
+        "github-ops": "PVTSSO_track_github_ops"
+      }
+    },
+    "Priority": {
+      "field_id": "PVTSSF_priority",
+      "type": "single_select",
+      "options": {
+        "P1": "PVTSSO_p1"
+      }
+    },
+    "Kind": {
+      "field_id": "PVTSSF_kind",
+      "type": "single_select",
+      "options": {
+        "issue": "PVTSSO_kind_issue"
+      }
+    }
+  },
+  "items": {
+    "401": {
+      "project_item_id": "PVTI_fixture_401"
+    }
+  }
+}

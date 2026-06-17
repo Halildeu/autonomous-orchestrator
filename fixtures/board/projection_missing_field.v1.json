@@ -1,0 +1,114 @@
+{
+  "version": "v1",
+  "kind": "board_projection",
+  "generated_at": "2026-06-17T00:00:00Z",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "mode": "report",
+  "authority": {
+    "repo_ssot_is_authority": true,
+    "board_is_authority": false,
+    "issue_body_is_handoff_surface": true
+  },
+  "source_refs": [
+    {
+      "kind": "path",
+      "value": "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md"
+    }
+  ],
+  "field_contract": {
+    "required_fields": [
+      "Status",
+      "Faz",
+      "Track",
+      "Priority",
+      "Kind"
+    ],
+    "required_labels": [
+      "project-roadmap",
+      "risk",
+      "gate",
+      "needs-verification",
+      "blocked",
+      "security",
+      "quality"
+    ]
+  },
+  "expected_items": [
+    {
+      "issue_number": 789,
+      "title": "Observed board item missing a required field",
+      "ssot_ref": "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md#8-drift-categories",
+      "owner_repo": "example/autonomous-orchestrator",
+      "desired_fields": {
+        "Status": "Todo",
+        "Faz": "F5 Projection Drift",
+        "Track": "github-ops",
+        "Priority": "P2",
+        "Kind": "issue"
+      },
+      "desired_labels": [
+        "project-roadmap"
+      ],
+      "relation_policy": {
+        "pr_relation": "Tracked by",
+        "close_keyword_allowed": false,
+        "default_post_merge_status": "Needs Verify"
+      },
+      "claim_policy": {
+        "claimable": true,
+        "non_claimable_reasons": []
+      },
+      "evidence_requirements": {
+        "source": "required-before-needs-verify",
+        "desired_state": "required-when-config-or-gitops",
+        "runtime_live": "required-before-done-when-runtime",
+        "browser_user_path": "required-before-done-when-user-facing",
+        "does_not_prove": "required"
+      },
+      "digest_inputs": {
+        "issue_body_agent_state": true,
+        "field_contract_version": "v1",
+        "pr_contract_version": "v1"
+      },
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "observed_board_items": [
+    {
+      "source": "fixture",
+      "item_id": "PVTI_fixture_789",
+      "issue_number": 789,
+      "title": "Observed board item missing a required field",
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F5 Projection Drift",
+        "Track": "github-ops",
+        "Kind": "issue"
+      },
+      "labels": [
+        "project-roadmap"
+      ]
+    }
+  ],
+  "drift": [],
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "json-stable-sort-v1",
+    "value": "6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "evidence": {
+    "source": [
+      "fixtures/board/projection_missing_field.v1.json"
+    ],
+    "desired_state": [
+      "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md"
+    ],
+    "runtime_live": [],
+    "browser_user_path": [],
+    "does_not_prove": [
+      "This fixture proves schema shape only.",
+      "Live GitHub Project state was not queried."
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "version": "v1",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "issues": [
+    {
+      "number": 102,
+      "title": "Claim conflict fixture",
+      "labels": [
+        "project-roadmap"
+      ],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "agent_state": {
+        "status": "todo",
+        "claim_session": "other-session"
+      },
+      "active_claims": [
+        {
+          "session": "other-session",
+          "agent": "codex",
+          "worktree": "/tmp/other",
+          "branch": "main",
+          "expires_at": "2099-01-01T00:00:00Z"
+        }
+      ]
+    }
+  ],
+  "board_items": [
+    {
+      "issue_number": 102,
+      "title": "Claim conflict fixture",
+      "labels": [
+        "project-roadmap"
+      ],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      }
+    }
+  ],
+  "pull_requests": []
+}

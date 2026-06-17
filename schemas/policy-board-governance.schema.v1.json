@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/policy-board-governance.schema.v1.json",
+  "title": "policy-board-governance.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "kind",
+    "status",
+    "owner",
+    "purpose",
+    "enforcement_mode",
+    "authority",
+    "board_contract",
+    "invariants",
+    "automation_boundary",
+    "projection",
+    "evidence",
+    "live_apply",
+    "fail_action"
+  ],
+  "properties": {
+    "version": {
+      "const": "v1"
+    },
+    "kind": {
+      "const": "policy-board-governance"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["DRAFT", "ACTIVE", "ARCHIVED"]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enforcement_mode": {
+      "type": "string",
+      "enum": ["report", "warn", "blocking"]
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_ssot_is_authority", "board_is_authority", "authority_refs"],
+      "properties": {
+        "repo_ssot_is_authority": {
+          "const": true
+        },
+        "board_is_authority": {
+          "const": false
+        },
+        "authority_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "board_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_contract_ref",
+        "issue_contract_ref",
+        "pr_contract_ref",
+        "workflow_contract_ref",
+        "projection_contract_ref",
+        "required_fields",
+        "required_labels"
+      ],
+      "properties": {
+        "field_contract_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_contract_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_contract_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workflow_contract_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projection_contract_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Status", "Faz", "Track", "Priority", "Kind"]
+          },
+          "minItems": 5,
+          "uniqueItems": true
+        },
+        "required_labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": {
+            "const": "project-roadmap"
+          }
+        }
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "board_is_not_ssot",
+          "board_is_curated_not_intake",
+          "project_roadmap_label_gates_board_ingestion",
+          "umbrella_items_are_not_claimable",
+          "backlog_is_not_claimable",
+          "tracked_by_is_default_pr_relation",
+          "pr_merge_does_not_imply_done",
+          "needs_verify_is_acceptance_queue",
+          "done_requires_deliberate_close_and_evidence",
+          "does_not_prove_is_required",
+          "live_apply_is_operator_bound"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "automation_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_mode",
+        "allowed_initial_modes",
+        "forbidden_initial_actions",
+        "source_write_boundary_ref"
+      ],
+      "properties": {
+        "default_mode": {
+          "const": "report"
+        },
+        "allowed_initial_modes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["report", "dry-run"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "forbidden_initial_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "issue_close",
+              "done_transition",
+              "live_project_mutation",
+              "broad_auto_ingestion",
+              "repo_ssot_rewrite_from_board",
+              "secret_logging"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "source_write_boundary_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_ref", "workspace_report_path", "digest_algorithm", "drift_codes"],
+      "properties": {
+        "schema_ref": {
+          "const": "schemas/board-projection.schema.v1.json"
+        },
+        "workspace_report_path": {
+          "const": ".cache/ws_customer_default/.cache/reports/board_projection.v1.json"
+        },
+        "digest_algorithm": {
+          "const": "sha256"
+        },
+        "drift_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layers", "does_not_prove_required"],
+      "properties": {
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["source", "desired_state", "runtime_live", "browser_user_path"]
+          },
+          "minItems": 4,
+          "uniqueItems": true
+        },
+        "does_not_prove_required": {
+          "const": true
+        }
+      }
+    },
+    "live_apply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "requires_accepted_dry_run_digest",
+        "requires_operator_token_boundary",
+        "requires_before_after_inventory",
+        "requires_mutation_ledger"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "requires_accepted_dry_run_digest": {
+          "const": true
+        },
+        "requires_operator_token_boundary": {
+          "const": true
+        },
+        "requires_before_after_inventory": {
+          "const": true
+        },
+        "requires_mutation_ledger": {
+          "const": true
+        }
+      }
+    },
+    "fail_action": {
+      "type": "string",
+      "enum": ["warn", "block"]
+    }
+  }
+}

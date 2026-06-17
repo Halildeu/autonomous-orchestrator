@@ -10,7 +10,7 @@ Bu repo "JSON‑first" bir orchestrator iskeleti (WWV) olarak tasarlanır.
 - Agent her cevapta **AUTOPILOT CHAT** formatını kullanır: `PREVIEW / RESULT / EVIDENCE / ACTIONS / NEXT`.
 - Fail-closed: şüphede dur, `report_only`/no-side-effect yönünde davran; network default kapalıdır.
 - Secrets asla log'a/evidence'a yazılmaz; token/anahtar basılmaz.
-- Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, `vendor_packs` altı semgrep klasörü, docs/OPERATIONS/, docs/ROADMAP.md, roadmaps/SSOT/roadmap.v1.json, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md, `.github` altı `gate-enforcement-check.yml`, `.github` altı `module-delivery-lanes.yml`, `.github/CODEOWNERS`, standards.lock, `scripts/sync_managed_repo_standards.py`, `ci/check_standards_lock.py`, `ci/check_standards_lock_parts/`, `ci/check_module_delivery_lanes.py`, `ci/run_module_delivery_lane.py`, `ci/module_delivery_lanes.v1.json`, `pyproject.toml`, .pre-commit-config.yaml, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
+- Core vs workspace sınırı: core repo yazımı varsayılan olarak kapalıdır (fail-closed). Yalnızca CORE_UNLOCK=1 ve CORE_UNLOCK_REASON set ise, allowlist SSOT yollarına (schemas/, policies/, extensions/, `vendor_packs` altı semgrep klasörü, docs/OPERATIONS/, docs/ROADMAP.md, roadmaps/SSOT/roadmap.v1.json, docs/LAYER-MODEL-LOCK.v1.md, docs/OPERATIONS/SSOT-MAP.md, docs/OPERATIONS/AI-MULTIREPO-OPERATING-CONTRACT.v1.md, `.github` altı `gate-enforcement-check.yml`, `.github` altı `module-delivery-lanes.yml`, `.github` altı `board-pr-merge-evidence.yml`, `.github/CODEOWNERS`, standards.lock, `scripts/sync_managed_repo_standards.py`, `ci/check_standards_lock.py`, `ci/check_standards_lock_parts/`, `ci/check_module_delivery_lanes.py`, `ci/run_module_delivery_lane.py`, `ci/module_delivery_lanes.v1.json`, `pyproject.toml`, .pre-commit-config.yaml, AGENTS.md) kanıt üreterek yazılabilir; aksi halde BLOCKED. src/** yazımı normalde YASAKTIR; istisna olarak ONE_SHOT_SRC_WINDOW aktifken sadece allow_paths + ttl_seconds içinde yazılabilir ve pencere sonunda restore kanıtı zorunludur.
 - Living roadmap değişikliği: açık istenmedikçe sessizce SSOT edit yapmak yok; gerekiyorsa **Change Proposal (CHG)** üret.
 
 ## SSOT Entrypoint Map / Router (AGENTS-only entrypoint)
@@ -37,6 +37,16 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - docs/OPERATIONS/tags-registry.md (AUTOPILOT CHAT + status/action registry)
 - docs/OPERATIONS/SSOT-MAP.md (kritik SSOT haritası)
 - docs/OPERATIONS/EXTENSIONS.md (extension canonical doküman)
+- docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md (GitHub Project board çalışma modeli; board SSOT değildir)
+- docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md (trackable board governance adoption plan)
+- docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md (Status/Faz/Track/Priority/Kind + label kontratı)
+- docs/OPERATIONS/BOARD-ISSUE-TEMPLATE-CONTRACT.v1.md (agent-state ve evidence issue body kontratı)
+- docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md (`Tracked by` varsayılan PR kontratı)
+- docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md (board_projection.v1 desired/observed/drift kontratı)
+- docs/OPERATIONS/BOARD-LIVE-SYNC-VALIDATION-EVIDENCE.v1.md (live ProjectV2 metadata/sync evidence)
+- schemas/board-projection.schema.v1.json (board projection schema)
+- policies/policy_board_governance.v1.json (board governance policy)
+- .github/workflows/board-pr-merge-evidence.yml (merged PR `Tracked by` evidence workflow)
 - roadmaps/SSOT/roadmap.v1.json (CANONICAL roadmap — RM-SSOT-001)
 - roadmaps/PROJECTS/README.md (project roadmaps)
 - roadmaps/PROJECTS/project-roadmap.template.v1.json (project template)
@@ -69,6 +79,8 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - "Neredeyiz?" sorusunda tek kapı: **project-status** (yoksa **system-status** fallback).
 - Doc navigation için tek kapı: doc-nav-check (summary default; detail/strict on-demand).
 - Kullanıcıya yönelik arama (keyword/semantic) için ortak kanal: `scripts/codex-search` (altında `ops-search` → `/api/search`); böylece Cockpit ve agent'lar aynı arama hattını kullanır.
+- GitHub Project Board governance için board repo SSOT'un yerine geçmez; `project-roadmap` label board ingestion gate'idir, `Tracked by #N` varsayılandır, `Needs Verify` kabul kuyruğudur, `Done`/issue close yalnız gerçek kabul kanıtı ve ayrı kasıtlı gate ile yapılır.
+- Board drift/sync işlerinde güvenli sıra: `board-projection-live` → `board-metadata-live` → `board-sync --mode dry-run`; apply yalnız accepted digest + explicit target board id + confirmation + token env ile yapılır.
 - **Decision Registry (MUST):** Mimari karar gerektiren konuya (auth, DB, UI, altyapı) dokunmadan önce `decisions/registry.v1.json` kontrol et. ACTIVE kararları takip et. Karar değiştirmek istiyorsan **Decision Change Proposal (DCP)** üret — sessizce değiştirme. `rejected_alternatives` listesindeki yaklaşımları tekrar önerme.
 
 ## Multi-Agent (shared context)

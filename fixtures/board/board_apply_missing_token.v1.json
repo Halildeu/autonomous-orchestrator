@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "issues": [
+    {
+      "number": 202,
+      "title": "Apply missing token fixture",
+      "labels": ["project-roadmap"],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "agent_state": {
+        "version": "v1",
+        "status": "todo"
+      },
+      "active_claims": []
+    }
+  ],
+  "board_items": [],
+  "pull_requests": []
+}

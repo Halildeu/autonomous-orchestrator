@@ -1,0 +1,25 @@
+{
+  "projects": [
+    {
+      "closed": false,
+      "fields": {
+        "totalCount": 5
+      },
+      "id": "PVT_fixture_governance",
+      "items": {
+        "totalCount": 7
+      },
+      "number": 8,
+      "owner": {
+        "login": "Halildeu",
+        "type": "User"
+      },
+      "public": false,
+      "readme": "",
+      "shortDescription": "Fixture governance board",
+      "title": "autonomous-orchestrator Governance Board",
+      "url": "https://github.com/users/Halildeu/projects/8"
+    }
+  ],
+  "totalCount": 1
+}

@@ -1,0 +1,109 @@
+{
+  "version": "v1",
+  "kind": "policy-board-governance",
+  "status": "DRAFT",
+  "owner": "github-ops",
+  "purpose": "GitHub Project board usage remains a curated coordination layer while repo SSOT, evidence, and verification gates stay authoritative.",
+  "enforcement_mode": "report",
+  "authority": {
+    "repo_ssot_is_authority": true,
+    "board_is_authority": false,
+    "authority_refs": [
+      "AGENTS.md",
+      "docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md",
+      "docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md",
+      "docs/OPERATIONS/BOARD-ISSUE-TEMPLATE-CONTRACT.v1.md",
+      "docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md",
+      "docs/OPERATIONS/BOARD-PR-MERGE-EVIDENCE-WORKFLOW.v1.md",
+      "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md"
+    ]
+  },
+  "board_contract": {
+    "field_contract_ref": "docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md",
+    "issue_contract_ref": "docs/OPERATIONS/BOARD-ISSUE-TEMPLATE-CONTRACT.v1.md",
+    "pr_contract_ref": "docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md",
+    "workflow_contract_ref": "docs/OPERATIONS/BOARD-PR-MERGE-EVIDENCE-WORKFLOW.v1.md",
+    "projection_contract_ref": "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md",
+    "required_fields": [
+      "Status",
+      "Faz",
+      "Track",
+      "Priority",
+      "Kind"
+    ],
+    "required_labels": [
+      "project-roadmap",
+      "risk",
+      "gate",
+      "needs-verification",
+      "blocked",
+      "security",
+      "quality"
+    ]
+  },
+  "invariants": [
+    "board_is_not_ssot",
+    "board_is_curated_not_intake",
+    "project_roadmap_label_gates_board_ingestion",
+    "umbrella_items_are_not_claimable",
+    "backlog_is_not_claimable",
+    "tracked_by_is_default_pr_relation",
+    "pr_merge_does_not_imply_done",
+    "needs_verify_is_acceptance_queue",
+    "done_requires_deliberate_close_and_evidence",
+    "does_not_prove_is_required",
+    "live_apply_is_operator_bound"
+  ],
+  "automation_boundary": {
+    "default_mode": "report",
+    "allowed_initial_modes": [
+      "report",
+      "dry-run"
+    ],
+    "forbidden_initial_actions": [
+      "issue_close",
+      "done_transition",
+      "live_project_mutation",
+      "broad_auto_ingestion",
+      "repo_ssot_rewrite_from_board",
+      "secret_logging"
+    ],
+    "source_write_boundary_ref": "docs/OPERATIONS/BOARD-GOVERNANCE-IMPLEMENTATION-RUN-CARD.v1.md"
+  },
+  "projection": {
+    "schema_ref": "schemas/board-projection.schema.v1.json",
+    "workspace_report_path": ".cache/ws_customer_default/.cache/reports/board_projection.v1.json",
+    "digest_algorithm": "sha256",
+    "drift_codes": [
+      "MISSING_BOARD_ITEM",
+      "UNEXPECTED_BOARD_ITEM",
+      "MISSING_FIELD",
+      "INVALID_FIELD_VALUE",
+      "AGENT_STATE_MISSING",
+      "CLAIM_CONFLICT",
+      "NEEDS_VERIFY_LABEL_MISMATCH",
+      "BLOCKED_STATE_MISMATCH",
+      "FORBIDDEN_DONE",
+      "FORBIDDEN_CLOSE_KEYWORD",
+      "SSOT_REF_MISSING",
+      "DIGEST_MISMATCH"
+    ]
+  },
+  "evidence": {
+    "layers": [
+      "source",
+      "desired_state",
+      "runtime_live",
+      "browser_user_path"
+    ],
+    "does_not_prove_required": true
+  },
+  "live_apply": {
+    "enabled": false,
+    "requires_accepted_dry_run_digest": true,
+    "requires_operator_token_boundary": true,
+    "requires_before_after_inventory": true,
+    "requires_mutation_ledger": true
+  },
+  "fail_action": "warn"
+}

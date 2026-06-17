@@ -1,0 +1,28 @@
+{
+  "version": "v1",
+  "kind": "board_seed",
+  "repo": "Halildeu/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "items": [
+    {
+      "title": "BOG-7: Live board item population and sync acceptance",
+      "desired_fields": {
+        "Status": "Todo",
+        "Faz": "F5 Projection Drift",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "gate"
+      },
+      "desired_labels": [
+        "project-roadmap",
+        "gate",
+        "quality"
+      ],
+      "ssot_refs": [
+        "docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md#BOG-7",
+        "docs/OPERATIONS/BOARD-LIVE-ITEM-SEED-EVIDENCE.v1.md"
+      ],
+      "body": "## Agent State\n\n<!-- agent-state:v1\nstatus: todo\nclaim_session: none\nclaim_agent: none\nclaim_worktree: none\nclaim_branch: none\nclaim_started_at: none\nclaim_updated_at: none\nexpires_at: none\nlast_verified_at: none\n-->\n\n## Board Fields\n\n**Status:** Todo\n**Faz:** F5 Projection Drift\n**Track:** github-ops\n**Priority:** P1\n**Kind:** gate\n**Owner repo:** Halildeu/autonomous-orchestrator\n**Board:** autonomous-orchestrator Governance Board\n**SSOT refs:**\n- docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md#BOG-7\n- docs/OPERATIONS/BOARD-LIVE-ITEM-SEED-EVIDENCE.v1.md\n\n## Context\n\nThe governance ProjectV2 exists and field compatibility is OK, but it has no governed items. This issue tracks the real live seed/population gate so the board stops being an empty control surface without inventing completed historical work.\n\n## Acceptance Criteria\n\n- [ ] Required board labels exist on GitHub.\n- [ ] This issue is created with the `project-roadmap`, `gate`, and `quality` labels.\n- [ ] This issue is added to ProjectV2 `#5`.\n- [ ] ProjectV2 fields match Status=Todo, Faz=F5 Projection Drift, Track=github-ops, Priority=P1, Kind=gate.\n- [ ] Evidence references `.cache/reports/board_seed_apply_live.v1.json` and a post-apply item inventory.\n- [ ] This evidence does not prove implementation completion, issue closure, or runtime/user-path acceptance.\n\n## Evidence\n\n### Source\n- Pending\n\n### Desired-state\n- Pending\n\n### Runtime/live\n- Pending\n\n### Browser/user-path\n- Pending\n\n### Does not prove\n- Issue creation and ProjectV2 field population do not prove implementation completion or acceptance.\n\n## Remaining\n\n- Blocking: none for seed apply after digest acceptance.\n- Non-blocking: live projection generator can be added after this seed gate.\n- Deferred: issue closure and Done status remain out of scope.\n\n## Next Action\n\nRun the digest-gated board seed apply, then rerun ProjectV2 item inventory and board projection evidence.\n\n## Related\n\n- Tracked by future PRs only; do not use close keywords unless acceptance is complete.\n\n## Safety Notes\n\nNo secrets, tokens, private URLs, issue close action, or Done automation are allowed in this item."
+    }
+  ]
+}

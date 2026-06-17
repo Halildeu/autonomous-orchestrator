@@ -1,0 +1,47 @@
+{
+  "version": "v1",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "issues": [
+    {
+      "number": 103,
+      "title": "Needs Verify drift fixture",
+      "labels": [
+        "project-roadmap"
+      ],
+      "fields": {
+        "Status": "Needs Verify",
+        "Faz": "F4 PR Evidence",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "agent_state": {
+        "status": "needs_verify"
+      }
+    }
+  ],
+  "board_items": [
+    {
+      "issue_number": 103,
+      "title": "Needs Verify drift fixture",
+      "labels": [
+        "project-roadmap"
+      ],
+      "fields": {
+        "Status": "Needs Verify",
+        "Faz": "F4 PR Evidence",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      }
+    }
+  ],
+  "pull_requests": [
+    {
+      "number": 23,
+      "body": "Closes #103",
+      "close_keyword_allowed": false
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "version": "v1",
+  "issues": [
+    {
+      "number": 301,
+      "labels": ["project-roadmap"],
+      "fields": {
+        "Status": "In Progress",
+        "Kind": "issue"
+      },
+      "agent_state": true,
+      "existing_markers": [],
+      "project": {
+        "project_id": "PVT_fixture_project",
+        "project_item_id": "PVTI_fixture_301",
+        "status_field_id": "PVTSSF_fixture_status",
+        "needs_verify_option_id": "PVTSSO_needs_verify"
+      }
+    }
+  ]
+}
