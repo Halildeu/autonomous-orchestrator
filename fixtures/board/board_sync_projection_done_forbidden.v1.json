@@ -1,0 +1,90 @@
+{
+  "version": "v1",
+  "kind": "board_projection",
+  "generated_at": "2026-06-17T00:00:00Z",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "mode": "dry-run",
+  "authority": {
+    "repo_ssot_is_authority": true,
+    "board_is_authority": false,
+    "issue_body_is_handoff_surface": true
+  },
+  "source_refs": [
+    {
+      "kind": "path",
+      "value": "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md"
+    }
+  ],
+  "field_contract": {
+    "required_fields": ["Status", "Faz", "Track", "Priority", "Kind"],
+    "required_labels": ["project-roadmap"]
+  },
+  "expected_items": [
+    {
+      "issue_number": 402,
+      "title": "Forbidden Done sync fixture",
+      "ssot_ref": "docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md#BOG-5C",
+      "owner_repo": "example/autonomous-orchestrator",
+      "desired_fields": {
+        "Status": "Done",
+        "Faz": "F5 Projection Drift",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "desired_labels": ["project-roadmap"],
+      "relation_policy": {
+        "pr_relation": "Tracked by",
+        "close_keyword_allowed": false,
+        "default_post_merge_status": "Needs Verify"
+      },
+      "claim_policy": {
+        "claimable": true,
+        "non_claimable_reasons": []
+      },
+      "evidence_requirements": {
+        "source": "required-before-needs-verify",
+        "desired_state": "required-when-config-or-gitops",
+        "runtime_live": "required-before-done-when-runtime",
+        "browser_user_path": "required-before-done-when-user-facing",
+        "does_not_prove": "required"
+      },
+      "digest_inputs": {
+        "issue_body_agent_state": true,
+        "field_contract_version": "v1",
+        "pr_contract_version": "v1"
+      },
+      "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+    }
+  ],
+  "observed_board_items": [
+    {
+      "source": "fixture",
+      "item_id": "PVTI_fixture_402",
+      "issue_number": 402,
+      "title": "Forbidden Done sync fixture",
+      "fields": {
+        "Status": "Needs Verify",
+        "Faz": "F5 Projection Drift",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "labels": ["project-roadmap", "needs-verification"]
+    }
+  ],
+  "drift": [],
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "json-stable-sort-v1",
+    "value": "9999999999999999999999999999999999999999999999999999999999999999"
+  },
+  "evidence": {
+    "source": ["fixtures/board/board_sync_projection_done_forbidden.v1.json"],
+    "desired_state": ["docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md"],
+    "runtime_live": [],
+    "browser_user_path": [],
+    "does_not_prove": ["Done sync is forbidden by board governance policy."]
+  }
+}

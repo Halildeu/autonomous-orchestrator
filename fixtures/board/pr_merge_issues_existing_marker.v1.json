@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "issues": [
+    {
+      "number": 301,
+      "labels": ["project-roadmap", "needs-verification"],
+      "fields": {
+        "Status": "Needs Verify",
+        "Kind": "issue"
+      },
+      "agent_state": true,
+      "existing_markers": [
+        "board-pr-merge-evidence:v1 pr=55 sha=abc123merge issue=301"
+      ],
+      "project": {
+        "project_id": "PVT_fixture_project",
+        "project_item_id": "PVTI_fixture_301",
+        "status_field_id": "PVTSSF_fixture_status",
+        "needs_verify_option_id": "PVTSSO_needs_verify"
+      }
+    }
+  ]
+}

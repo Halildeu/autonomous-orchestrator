@@ -1,0 +1,47 @@
+name: Board PR Merge Evidence
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  board-pr-merge-evidence:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    env:
+      BOARD_APPLY_CONFIRM: APPLY_BOARD_GOVERNANCE_BOG_3C
+      BOARD_TOKEN_ENV: GITHUB_TOKEN
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate board PR merge evidence
+        run: |
+          python3 -m src.ops.manage board-pr-merge \
+            --workspace-root .cache/ws_customer_default \
+            --repo "$GITHUB_REPOSITORY" \
+            --event "$GITHUB_EVENT_PATH" \
+            --mode apply \
+            --apply-confirm "$BOARD_APPLY_CONFIRM" \
+            --token-env "$BOARD_TOKEN_ENV" \
+            --gh-bin gh \
+            --run-url "$GITHUB_RUN_URL" \
+            --out .cache/reports/board_pr_merge_evidence.v1.json
+
+      - name: Upload board evidence report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-pr-merge-evidence
+          path: .cache/ws_customer_default/.cache/reports/board_pr_merge_evidence.v1.json
+          if-no-files-found: warn

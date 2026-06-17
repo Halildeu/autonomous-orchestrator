@@ -1,0 +1,16 @@
+{
+  "number": 56,
+  "repository": {
+    "full_name": "example/autonomous-orchestrator"
+  },
+  "pull_request": {
+    "number": 56,
+    "merged": false,
+    "merge_commit_sha": "",
+    "html_url": "https://github.com/example/autonomous-orchestrator/pull/56",
+    "body": "Tracked by #301",
+    "base": {
+      "ref": "main"
+    }
+  }
+}

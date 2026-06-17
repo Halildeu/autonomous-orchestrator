@@ -1,0 +1,161 @@
+{
+  "fields": [
+    {
+      "id": "PVTF_fixture_title",
+      "name": "Title",
+      "type": "ProjectV2Field"
+    },
+    {
+      "id": "PVTSSF_fixture_status",
+      "name": "Status",
+      "options": [
+        {
+          "id": "status_backlog",
+          "name": "Backlog"
+        },
+        {
+          "id": "status_todo",
+          "name": "Todo"
+        },
+        {
+          "id": "status_in_progress",
+          "name": "In Progress"
+        },
+        {
+          "id": "status_blocked",
+          "name": "Blocked"
+        },
+        {
+          "id": "status_needs_verify",
+          "name": "Needs Verify"
+        },
+        {
+          "id": "status_done",
+          "name": "Done"
+        }
+      ],
+      "type": "ProjectV2SingleSelectField"
+    },
+    {
+      "id": "PVTSSF_fixture_faz",
+      "name": "Faz",
+      "options": [
+        {
+          "id": "faz_f0",
+          "name": "F0 Written Boundary"
+        },
+        {
+          "id": "faz_f1",
+          "name": "F1 Board Contract"
+        },
+        {
+          "id": "faz_f2",
+          "name": "F2 Issue PR Contract"
+        },
+        {
+          "id": "faz_f3",
+          "name": "F3 Board Script"
+        },
+        {
+          "id": "faz_f4",
+          "name": "F4 PR Evidence"
+        },
+        {
+          "id": "faz_f5",
+          "name": "F5 Projection Drift"
+        },
+        {
+          "id": "faz_fz",
+          "name": "FZ Managed Repo"
+        }
+      ],
+      "type": "ProjectV2SingleSelectField"
+    },
+    {
+      "id": "PVTSSF_fixture_track",
+      "name": "Track",
+      "options": [
+        {
+          "id": "track_core",
+          "name": "core"
+        },
+        {
+          "id": "track_ops",
+          "name": "ops"
+        },
+        {
+          "id": "track_github_ops",
+          "name": "github-ops"
+        },
+        {
+          "id": "track_pm_suite",
+          "name": "pm-suite"
+        },
+        {
+          "id": "track_work_intake",
+          "name": "work-intake"
+        },
+        {
+          "id": "track_ui",
+          "name": "ui"
+        },
+        {
+          "id": "track_managed_repo",
+          "name": "managed-repo"
+        }
+      ],
+      "type": "ProjectV2SingleSelectField"
+    },
+    {
+      "id": "PVTSSF_fixture_priority",
+      "name": "Priority",
+      "options": [
+        {
+          "id": "priority_p0",
+          "name": "P0"
+        },
+        {
+          "id": "priority_p1",
+          "name": "P1"
+        },
+        {
+          "id": "priority_p2",
+          "name": "P2"
+        },
+        {
+          "id": "priority_p3",
+          "name": "P3"
+        }
+      ],
+      "type": "ProjectV2SingleSelectField"
+    },
+    {
+      "id": "PVTSSF_fixture_kind",
+      "name": "Kind",
+      "options": [
+        {
+          "id": "kind_umbrella",
+          "name": "umbrella"
+        },
+        {
+          "id": "kind_milestone",
+          "name": "milestone"
+        },
+        {
+          "id": "kind_gate",
+          "name": "gate"
+        },
+        {
+          "id": "kind_risk",
+          "name": "risk"
+        },
+        {
+          "id": "kind_issue",
+          "name": "issue"
+        }
+      ],
+      "type": "ProjectV2SingleSelectField"
+    }
+  ],
+  "totalCount": 6
+}

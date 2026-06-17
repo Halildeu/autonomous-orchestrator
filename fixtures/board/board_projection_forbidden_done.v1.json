@@ -1,0 +1,127 @@
+{
+  "version": "v1",
+  "kind": "board_projection",
+  "generated_at": "2026-06-17T00:00:00Z",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "mode": "report",
+  "authority": {
+    "repo_ssot_is_authority": true,
+    "board_is_authority": false,
+    "issue_body_is_handoff_surface": true
+  },
+  "source_refs": [
+    {
+      "kind": "path",
+      "value": "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md"
+    }
+  ],
+  "field_contract": {
+    "required_fields": [
+      "Status",
+      "Faz",
+      "Track",
+      "Priority",
+      "Kind"
+    ],
+    "required_labels": [
+      "project-roadmap",
+      "risk",
+      "gate",
+      "needs-verification",
+      "blocked",
+      "security",
+      "quality"
+    ]
+  },
+  "expected_items": [
+    {
+      "issue_number": 456,
+      "title": "Runtime governance item closed too early",
+      "ssot_ref": "docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md#9-pr-linking-rule",
+      "owner_repo": "example/autonomous-orchestrator",
+      "desired_fields": {
+        "Status": "Needs Verify",
+        "Faz": "F4 PR Evidence",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "desired_labels": [
+        "project-roadmap",
+        "needs-verification"
+      ],
+      "relation_policy": {
+        "pr_relation": "Tracked by",
+        "close_keyword_allowed": false,
+        "default_post_merge_status": "Needs Verify"
+      },
+      "claim_policy": {
+        "claimable": false,
+        "non_claimable_reasons": [
+          "needs_verify_acceptance_pending"
+        ]
+      },
+      "evidence_requirements": {
+        "source": "required-before-needs-verify",
+        "desired_state": "required-when-config-or-gitops",
+        "runtime_live": "required-before-done-when-runtime",
+        "browser_user_path": "required-before-done-when-user-facing",
+        "does_not_prove": "required"
+      },
+      "digest_inputs": {
+        "issue_body_agent_state": true,
+        "field_contract_version": "v1",
+        "pr_contract_version": "v1"
+      },
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    }
+  ],
+  "observed_board_items": [
+    {
+      "source": "fixture",
+      "item_id": "PVTI_fixture_456",
+      "issue_number": 456,
+      "title": "Runtime governance item closed too early",
+      "fields": {
+        "Status": "Done",
+        "Faz": "F4 PR Evidence",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "labels": [
+        "project-roadmap",
+        "needs-verification"
+      ]
+    }
+  ],
+  "drift": [
+    {
+      "code": "FORBIDDEN_DONE",
+      "severity": "ERROR",
+      "message": "Runtime/governance item is Done while needs-verification remains present.",
+      "issue_number": 456,
+      "source_ref": "docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md"
+    }
+  ],
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "json-stable-sort-v1",
+    "value": "4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "evidence": {
+    "source": [
+      "fixtures/board/board_projection_forbidden_done.v1.json"
+    ],
+    "desired_state": [
+      "docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md"
+    ],
+    "runtime_live": [],
+    "browser_user_path": [],
+    "does_not_prove": [
+      "This fixture proves schema shape only.",
+      "Live GitHub issue state was not queried."
+    ]
+  }
+}

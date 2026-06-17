@@ -62,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.write_authorize import register_write_authorize_subcommand
     from src.ops.execution_target_ops import register_execution_target_subcommands
     from src.ops.commands.context_engine_cmds import register_context_engine_subcommands
+    from src.ops.commands.board_cmds import register_board_subcommands
 
     register_status_subcommands(sub)
     register_hygiene_subcommands(sub)
@@ -95,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_write_authorize_subcommand(sub)
     register_execution_target_subcommands(sub)
     register_context_engine_subcommands(sub)
+    register_board_subcommands(sub)
 
     return parser
 

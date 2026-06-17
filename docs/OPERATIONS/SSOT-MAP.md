@@ -48,6 +48,51 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - .github/CODEOWNERS
 - .github/workflows/gate-enforcement-check.yml
 - .github/workflows/module-delivery-lanes.yml
+- docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md — Board work/status operating model (adoption-candidate; repo SSOT remains authority)
+- docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md — Trackable board governance adoption plan
+- docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md — Minimal board field/label contract for BOG-1A
+- docs/OPERATIONS/BOARD-SETUP-DECISION.v1.md — Target board setup decision for BOG-1B
+- docs/OPERATIONS/BOARD-ISSUE-TEMPLATE-CONTRACT.v1.md — Issue body and future Issue Form contract for BOG-2A
+- docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md — PR body and future Pull Request Template contract for BOG-2B
+- docs/OPERATIONS/BOARD-SCRIPT-DESIGN.v1.md — Minimal board tooling design for BOG-3A
+- docs/OPERATIONS/BOARD-SCRIPT-IMPLEMENTATION-PROPOSAL.v1.md — Source-write boundary proposal for BOG-3B
+- docs/OPERATIONS/BOARD-SCRIPT-IMPLEMENTATION-EVIDENCE.v1.md — Dry-run/report-only board command implementation evidence for BOG-3B
+- docs/OPERATIONS/BOARD-SCRIPT-GATED-APPLY-EVIDENCE.v1.md — Explicit-confirm gated apply implementation evidence for BOG-3C
+- docs/OPERATIONS/BOARD-GOVERNANCE-IMPLEMENTATION-RUN-CARD.v1.md — Controlled implementation boundary run card for BOG-3B/4B/5B
+- docs/OPERATIONS/BOARD-PR-MERGE-EVIDENCE-WORKFLOW.v1.md — PR merge evidence workflow design for BOG-4A
+- docs/OPERATIONS/BOARD-PR-MERGE-EVIDENCE-WORKFLOW-IMPLEMENTATION-EVIDENCE.v1.md — PR merge evidence workflow implementation evidence for BOG-4B
+- docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md — Board projection manifest design for BOG-5A
+- docs/OPERATIONS/BOARD-PROJECTION-DRIFT-EVIDENCE.v1.md — Dry-run board projection drift implementation evidence for BOG-5B
+- docs/OPERATIONS/BOARD-PROJECTION-SYNC-APPLY-EVIDENCE.v1.md — Operator-bound board projection sync apply evidence for BOG-5C
+- docs/OPERATIONS/BOARD-LIVE-ACCEPTANCE-PROBE-EVIDENCE.v1.md — Read-only live GitHub ProjectV2 acceptance probe evidence for BOG-6A
+- docs/OPERATIONS/BOARD-LIVE-SETUP-EVIDENCE.v1.md — GitHub ProjectV2 setup dry-run, gated apply, and live acceptance evidence for BOG-6B/BOG-6C
+- docs/OPERATIONS/BOARD-LIVE-ITEM-SEED-EVIDENCE.v1.md — Live governed issue and ProjectV2 item seed evidence for BOG-7
+- docs/OPERATIONS/BOARD-LIVE-PROJECTION-EVIDENCE.v1.md — Live GitHub issue and ProjectV2 inventory projection evidence for BOG-8
+- docs/OPERATIONS/BOARD-LIVE-SYNC-VALIDATION-EVIDENCE.v1.md — Live ProjectV2 metadata map and board-sync no-op validation evidence for BOG-9
+- docs/OPERATIONS/BOARD-CANONICAL-ROUTER-PACKAGING-EVIDENCE.v1.md — AGENTS router, customer-friendly UX, and review packaging evidence for BOG-10
+- src/ops/board/auth_preflight.py — Token/auth readiness preflight for BOG-6C live apply boundary
+- schemas/board-projection.schema.v1.json — Machine-readable board projection manifest contract for BOG-5A-S
+- schemas/policy-board-governance.schema.v1.json — Machine-readable board governance policy schema for BOG-5A-P
+- policies/policy_board_governance.v1.json — Board governance policy contract for BOG-5A-P
+- fixtures/board/board_projection_happy.v1.json — Board projection happy-path fixture for BOG-5A-F
+- fixtures/board/board_projection_forbidden_done.v1.json — Board projection forbidden-Done drift fixture for BOG-5A-F
+- fixtures/board/projection_missing_field.v1.json — Board projection missing-field drift fixture for BOG-5B
+- fixtures/board/board_apply_happy.v1.json — Board gated apply happy fixture for BOG-3C
+- fixtures/board/board_apply_missing_token.v1.json — Board gated apply missing-token fixture for BOG-3C
+- fixtures/board/board_apply_project_status.v1.json — Board gated apply ProjectV2 status fixture for BOG-3C
+- fixtures/board/pr_merge_event_merged.v1.json — PR merge event happy fixture for BOG-4B
+- fixtures/board/pr_merge_event_unmerged.v1.json — PR merge unmerged event fixture for BOG-4B
+- fixtures/board/pr_merge_event_no_tracked.v1.json — PR merge no-relation event fixture for BOG-4B
+- fixtures/board/pr_merge_event_forbidden_close.v1.json — PR merge forbidden close-keyword fixture for BOG-4B
+- fixtures/board/pr_merge_issues_happy.v1.json — PR merge issue metadata happy fixture for BOG-4B
+- fixtures/board/pr_merge_issues_existing_marker.v1.json — PR merge idempotent marker fixture for BOG-4B
+- fixtures/board/board_sync_projection_status_drift.v1.json — Board sync accepted-digest projection fixture for BOG-5C
+- fixtures/board/board_sync_projection_done_forbidden.v1.json — Board sync forbidden-Done projection fixture for BOG-5C
+- fixtures/board/board_sync_metadata_happy.v1.json — Board sync ProjectV2 metadata map fixture for BOG-5C
+- fixtures/board/board_sync_metadata_missing_ids.v1.json — Board sync missing metadata fixture for BOG-5C
+- fixtures/board/board_live_probe_project_list.v1.json — Board live probe ProjectV2 list fixture for BOG-6A
+- fixtures/board/board_live_probe_field_list.v1.json — Board live probe ProjectV2 field-list fixture for BOG-6A
+- fixtures/board/board_seed_bog7.v1.json — Board live item seed fixture for BOG-7
 - policies/policy_ui_design_system.v1.json
 - registry/technical_baseline.aistd.v1.json
 - registry/archives/legacy_standards_archive.aistd.v1.json

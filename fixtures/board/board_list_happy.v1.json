@@ -1,0 +1,48 @@
+{
+  "version": "v1",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "issues": [
+    {
+      "number": 101,
+      "title": "Implement board governance dry-run commands",
+      "labels": [
+        "project-roadmap"
+      ],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "agent_state": {
+        "status": "todo",
+        "claim_session": "none"
+      }
+    }
+  ],
+  "board_items": [
+    {
+      "issue_number": 101,
+      "title": "Implement board governance dry-run commands",
+      "labels": [
+        "project-roadmap"
+      ],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      }
+    }
+  ],
+  "pull_requests": [
+    {
+      "number": 22,
+      "body": "Tracked by #101\nRuntime evidence pending",
+      "close_keyword_allowed": false
+    }
+  ]
+}

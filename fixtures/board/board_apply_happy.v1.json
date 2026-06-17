@@ -1,0 +1,50 @@
+{
+  "version": "v1",
+  "repo": "example/autonomous-orchestrator",
+  "board_title": "autonomous-orchestrator Governance Board",
+  "project_v2": {
+    "project_id": "PVT_fixture_project",
+    "status_field_id": "PVTSSF_fixture_status",
+    "status_options": {
+      "Todo": "PVTSSO_todo",
+      "In Progress": "PVTSSO_in_progress",
+      "Blocked": "PVTSSO_blocked",
+      "Needs Verify": "PVTSSO_needs_verify"
+    }
+  },
+  "issues": [
+    {
+      "number": 201,
+      "title": "Apply happy fixture",
+      "labels": ["project-roadmap"],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      },
+      "agent_state": {
+        "version": "v1",
+        "status": "todo"
+      },
+      "active_claims": []
+    }
+  ],
+  "board_items": [
+    {
+      "item_id": "PVTI_fixture_201",
+      "project_item_id": "PVTI_fixture_201",
+      "issue_number": 201,
+      "labels": ["project-roadmap"],
+      "fields": {
+        "Status": "Todo",
+        "Faz": "F3 Board Script",
+        "Track": "github-ops",
+        "Priority": "P1",
+        "Kind": "issue"
+      }
+    }
+  ],
+  "pull_requests": []
+}

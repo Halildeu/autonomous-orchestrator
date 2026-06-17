@@ -72,6 +72,23 @@ Agent:
 Agent:
 - Program doc-nav-check (strict + detail) çalıştırır (core için).
 
+### “Board durumunu göster”
+Agent:
+- Canlı GitHub ProjectV2 durumunu report-only okur.
+- Varsayılan güvenli sıra: `board-projection-live`, `board-metadata-live`,
+  sonra `board-sync --mode dry-run`.
+- Issue close, `Done`, PR mutation veya broad backlog backfill yapmaz.
+- Çıktıda `Needs Verify` ile `Done` ayrımını açık raporlar.
+
+### “Board doğrulamasını ilerlet”
+Agent:
+- Önce accepted projection digest ve target board id uyumunu doğrular.
+- Apply gerekiyorsa explicit confirmation + token env + mutation ledger
+  zorunludur.
+- Uygulama kapsamını tek issue/item veya açıkça kabul edilmiş projection ile
+  sınırlar.
+- `Done`/issue close için ayrıca gerçek kabul kanıtı ve ayrı gate gerekir.
+
 ## AUTOPILOT CHAT formatı (always-on)
 
 Agent her yanıtında aşağıdaki başlıkları **sırasıyla** üretir:
