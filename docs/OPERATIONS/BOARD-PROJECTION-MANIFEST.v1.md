@@ -1,8 +1,8 @@
 # Board Projection Manifest (v1)
 
-Status: REVIEW_READY  
-Started: 2026-06-17  
-Scope: BOG-5A board projection manifest design  
+Status: REVIEW_READY
+Started: 2026-06-17
+Scope: BOG-5A board projection manifest design
 Current mode: design-only; no schema, source/runtime, GitHub Project, issue,
 label, workflow, or live sync mutation is authorized by this document alone
 

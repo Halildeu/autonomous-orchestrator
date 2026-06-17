@@ -1,8 +1,8 @@
 # Board PR Template Contract (v1)
 
-Status: REVIEW_READY  
-Started: 2026-06-17  
-Scope: BOG-2B PR body and future Pull Request Template contract  
+Status: REVIEW_READY
+Started: 2026-06-17
+Scope: BOG-2B PR body and future Pull Request Template contract
 Current mode: docs-only; no `.github/PULL_REQUEST_TEMPLATE`, GitHub PR, issue, Project, workflow, label, or source/runtime mutation is authorized by this document alone
 
 ## 1. Purpose
@@ -208,7 +208,7 @@ Minimum template:
 ```markdown
 ## Summary
 
-- 
+-
 
 ## Board Relation
 
@@ -220,10 +220,10 @@ Reason:
 ## Evidence
 
 ### Source
-- 
+-
 
 ### Desired-state
-- 
+-
 
 ### Runtime/live
 - pending after merge
@@ -232,7 +232,7 @@ Reason:
 - pending after merge
 
 ### Does not prove
-- 
+-
 
 ## Risk and Rollback
 
@@ -245,7 +245,7 @@ Side effects:
 On merge, linked board issue should move to:
 Issue close on merge:
 Post-merge evidence required:
-- 
+-
 
 ## Checklist
 

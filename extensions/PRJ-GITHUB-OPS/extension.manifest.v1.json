@@ -3,10 +3,17 @@
     "AGENTS.md",
     "docs/OPERATIONS/EXTENSIONS.md",
     "docs/OPERATIONS/SSOT-MAP.md",
-    "docs/LAYER-MODEL-LOCK.v1.md",
+    "docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md",
+    "docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md",
+    "docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md",
+    "docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md",
+    "docs/OPERATIONS/BOARD-PR-TEMPLATE-CONTRACT.v1.md",
+    "docs/OPERATIONS/BOARD-PROJECTION-MANIFEST.v1.md",
     "extensions/PRJ-GITHUB-OPS/EXTENSION.md",
     "extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json",
+    "policies/policy_board_governance.v1.json",
     "policies/policy_github_ops.v1.json",
+    "schemas/board-projection.schema.v1.json",
     "schemas/github-ops-job.schema.v1.json",
     "schemas/github-ops-jobs-index.schema.v1.json",
     "schemas/github-ops-report.schema.v1.json",
@@ -29,6 +36,21 @@
       "github_ops_job_start"
     ],
     "ops": [
+      "board-auth-preflight",
+      "board-backlog-add",
+      "board-claim",
+      "board-heartbeat",
+      "board-list",
+      "board-live-probe",
+      "board-metadata-live",
+      "board-pr-merge",
+      "board-projection",
+      "board-projection-live",
+      "board-release",
+      "board-seed",
+      "board-setup",
+      "board-sync",
+      "board-verify",
       "github-ops-check",
       "github-ops-job-poll",
       "github-ops-job-start"
@@ -73,12 +95,17 @@
     ]
   },
   "notes": [
-    "local_first",
-    "job_first"
+    "governance_board_capability_v1",
+    "managed_repo_rollout_v1",
+    "job_first",
+    "local_first"
   ],
   "origin": "CORE",
   "outputs": {
     "workspace_reports": [
+      ".cache/reports/board_metadata_live*.v1.json",
+      ".cache/reports/board_projection_live*.v1.json",
+      ".cache/reports/board_sync*.v1.json",
       ".cache/github_ops/jobs_index.v1.json",
       ".cache/reports/github_ops_report.v1.json",
       ".cache/reports/github_ops_jobs/*.v1.json"
@@ -86,15 +113,18 @@
   },
   "owner": "CORE",
   "policies": [
+    "policies/policy_board_governance.v1.json",
     "policies/policy_github_ops.v1.json"
   ],
   "policy_files": [
+    "policies/policy_board_governance.v1.json",
     "policies/policy_github_ops.v1.json"
   ],
-  "semver": "0.1.0",
+  "semver": "0.2.1",
   "ui_surfaces": [
-    "system-status",
-    "portfolio-status"
+    "governance-board",
+    "portfolio-status",
+    "system-status"
   ],
   "version": "v1"
 }

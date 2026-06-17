@@ -1,14 +1,14 @@
 # Board Operating Model (v1)
 
-Status: DRAFT / adoption-candidate  
-Started: 2026-06-17  
-Scope: governance board discipline for autonomous-orchestrator and managed repos  
-Current mode: report-only; no GitHub Project mutation is authorized by this document alone
+Status: ACTIVE / product capability v1
+Started: 2026-06-17
+Scope: governance board discipline for autonomous-orchestrator and managed repos
+Current mode: active for autonomous-orchestrator; live GitHub writes remain digest, target, confirmation, and token gated
 
 ## 1. Purpose
 
-This document defines how a GitHub Project board may be used as an active
-work surface without replacing repo SSOT.
+This document defines how a GitHub Project board is used as an active work
+surface without replacing repo SSOT.
 
 The model is adopted from the proven pattern observed in:
 
@@ -17,7 +17,7 @@ The model is adopted from the proven pattern observed in:
 - `ao-kernel`: repo manifest to GitHub Project one-way mirror, digest binding,
   and drift-check discipline.
 
-The operating goal is narrow:
+The product capability goal is narrow:
 
 - make work visible,
 - prevent duplicate multi-session work,

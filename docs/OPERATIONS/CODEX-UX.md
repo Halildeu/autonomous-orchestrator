@@ -74,6 +74,7 @@ Agent:
 
 ### “Board durumunu göster”
 Agent:
+- Bunu `Governance Board Capability v1` ürün akışı olarak ele alır.
 - Canlı GitHub ProjectV2 durumunu report-only okur.
 - Varsayılan güvenli sıra: `board-projection-live`, `board-metadata-live`,
   sonra `board-sync --mode dry-run`.
@@ -82,12 +83,24 @@ Agent:
 
 ### “Board doğrulamasını ilerlet”
 Agent:
+- Bunu `Governance Board Capability v1` acceptance akışı olarak ele alır.
 - Önce accepted projection digest ve target board id uyumunu doğrular.
 - Apply gerekiyorsa explicit confirmation + token env + mutation ledger
   zorunludur.
 - Uygulama kapsamını tek issue/item veya açıkça kabul edilmiş projection ile
   sınırlar.
 - `Done`/issue close için ayrıca gerçek kabul kanıtı ve ayrı gate gerekir.
+
+### “Board governance managed repolara dağıt”
+Agent:
+- Bunu `Governance Board Capability v1` managed repo rollout akışı olarak ele alır.
+- Canonical kaynak:
+  `docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md`.
+- Önce `standards.lock` ve `.cache/managed_repos.v1.json` hedeflerini doğrular.
+- Varsayılan güvenli sıra: local standards validation, managed repo dry-run,
+  sonra yalnız registered manifest hedefleri için apply + validation.
+- Unregistered repo, broad GitHub mutation, issue close veya `Done` işlemi
+  yapmaz.
 
 ## AUTOPILOT CHAT formatı (always-on)
 

@@ -1,14 +1,14 @@
 # Board Governance Adoption Plan (v1)
 
-Status: REVIEW_READY  
-Started: 2026-06-17  
-Current step: BOG-10 canonical router and review packaging  
-Current step status: REVIEW_READY  
-Parallel docs/source progress: BOG-3B, BOG-3C, BOG-4A, BOG-4B, BOG-5A, BOG-5A-S/P/F, BOG-5B, BOG-5C, BOG-6A, BOG-6B, BOG-6C, BOG-7, BOG-8, BOG-9, BOG-10 REVIEW_READY  
-Implementation boundary: BOG-3D REVIEW_READY  
-Machine-readable contracts: BOG-5A-S/P REVIEW_READY  
-Side effects allowed in current step: AGENTS router update, CODEX-UX board request routing, docs under `docs/OPERATIONS/`, SSOT map update, workspace reports, local gate validation  
-Side effects not allowed in current step: broad GitHub mutation; PR mutation; issue close; `Done` automation; historical backlog backfill; source writes outside an evidenced source window
+Status: DONE
+Started: 2026-06-17
+Current step: BOG-12 managed repo rollout contract
+Current step status: DONE
+Parallel docs/source progress: BOG-3B through BOG-12 DONE
+Implementation boundary: BOG-3D DONE
+Machine-readable contracts: BOG-5A-S/P DONE
+Side effects allowed in current step: managed repo rollout contract docs, standards.lock distribution set, PRJ-GITHUB-OPS extension references, product catalog, release notes, SSOT map update, managed repo dry-run/apply reports for registered manifest targets, local gate validation
+Side effects not allowed in current step: unregistered repo mutation; ungated GitHub mutation; additional issue/PR mutation beyond already accepted `#78`; historical backlog backfill; source writes outside an evidenced source window
 
 ## 1. Objective
 
@@ -53,24 +53,26 @@ scripts, then workflow automation, and only later ProjectV2 drift/mirror sync.
 | BOG-2A | Issue template contract | DONE | `BOARD-ISSUE-TEMPLATE-CONTRACT.v1.md` | `agent-state:v1`, evidence, safety, and future Issue Form boundaries defined |
 | BOG-2B | PR template contract | DONE | `BOARD-PR-TEMPLATE-CONTRACT.v1.md` | `Tracked by` default and `Closes` exception documented |
 | BOG-3A | Minimal board script design | DONE | `BOARD-SCRIPT-DESIGN.v1.md` | list/claim/heartbeat/release/verify/backlog-add scoped |
-| BOG-3B | Dry-run script implementation | REVIEW_READY | `BOARD-SCRIPT-IMPLEMENTATION-EVIDENCE.v1.md` | report/dry-run commands implemented; tests and gates pass; apply remains blocked |
-| BOG-3C | Live script gated implementation | REVIEW_READY | `BOARD-SCRIPT-GATED-APPLY-EVIDENCE.v1.md` | explicit confirmation, token/PAT boundary, fake-`gh` success path, and fail-closed behavior tested |
-| BOG-3D | Implementation boundary run card | REVIEW_READY | `BOARD-GOVERNANCE-IMPLEMENTATION-RUN-CARD.v1.md` | source/window allow_paths, validations, and stop conditions defined |
-| BOG-4A | PR merge evidence workflow design | REVIEW_READY | `BOARD-PR-MERGE-EVIDENCE-WORKFLOW.v1.md` | `pull_request.closed` + `Tracked by` parser specified |
-| BOG-4B | PR merge evidence workflow implementation | REVIEW_READY | `.github/workflows/board-pr-merge-evidence.yml` + `BOARD-PR-MERGE-EVIDENCE-WORKFLOW-IMPLEMENTATION-EVIDENCE.v1.md` | merged PR `Tracked by` parser, fake-`gh` Needs Verify path, idempotency, missing-token fallback, and no auto-`Done` tested |
-| BOG-5A | Board projection manifest design | REVIEW_READY | `BOARD-PROJECTION-MANIFEST.v1.md` | repo authority, digest, fields, labels defined |
-| BOG-5A-S | Board projection schema | REVIEW_READY | `schemas/board-projection.schema.v1.json` | manifest shape validates through schema gate |
-| BOG-5A-P | Board governance policy | REVIEW_READY | `policies/policy_board_governance.v1.json` + schema | invariants, automation boundary, projection, evidence policy validate |
-| BOG-5A-F | Board projection fixtures | REVIEW_READY | `fixtures/board/board_projection_*.v1.json` | happy path and forbidden Done drift examples validate against schema |
-| BOG-5B | Drift checker dry-run | REVIEW_READY | `BOARD-PROJECTION-DRIFT-EVIDENCE.v1.md` | projection command reports missing field and invalid Done drift; apply remains blocked |
-| BOG-5C | Operator-bound sync apply | REVIEW_READY | `BOARD-PROJECTION-SYNC-APPLY-EVIDENCE.v1.md` | accepted digest, target board id, metadata map, fake-`gh` apply path, before/after inventory, mutation ledger, and no auto-`Done` tested |
-| BOG-6A | Live acceptance read-only probe | REVIEW_READY | `BOARD-LIVE-ACCEPTANCE-PROBE-EVIDENCE.v1.md` | live `gh` auth/repo/project inventory is report-backed; target board absence and existing board field mismatch are visible; no live mutation |
-| BOG-6B | Live setup dry-run/gated apply | REVIEW_READY | `BOARD-LIVE-SETUP-EVIDENCE.v1.md` | `board-setup` dry-run plans missing target board create/link; fake apply path tested; confirmation/token/digest gates tested |
-| BOG-6C | Real target board setup acceptance | REVIEW_READY | `BOARD-LIVE-SETUP-EVIDENCE.v1.md` | ProjectV2 `#5` created; repo linked; field compatibility `OK`; sync/item population remains a later gate |
-| BOG-7 | Live governed item seed acceptance | REVIEW_READY | `BOARD-LIVE-ITEM-SEED-EVIDENCE.v1.md` | required labels created; issue `#78` created; ProjectV2 item added to `#5`; fields populated; no issue close or `Done` automation |
-| BOG-8 | Live projection generation | REVIEW_READY | `BOARD-LIVE-PROJECTION-EVIDENCE.v1.md` | live issue `#78` and ProjectV2 `#5` inventory generate schema-valid projection; drift `0`; no mutation |
-| BOG-9 | Live sync validation | REVIEW_READY | `BOARD-LIVE-SYNC-VALIDATION-EVIDENCE.v1.md` | live metadata map generated; issue `#78` promoted to `Needs Verify` through accepted digest; final `board-sync` dry-run returns `OK`, `noop=true`, drift `0` |
-| BOG-10 | Canonical router and review packaging | REVIEW_READY | `AGENTS.md`, `CODEX-UX.md`, `BOARD-CANONICAL-ROUTER-PACKAGING-EVIDENCE.v1.md` | AGENTS canonical router names board governance docs/policy/workflow; user-facing board requests route to ops commands; review packaging boundary is explicit |
+| BOG-3B | Dry-run script implementation | DONE | `BOARD-SCRIPT-IMPLEMENTATION-EVIDENCE.v1.md` | report/dry-run commands implemented; tests and gates pass; apply remains blocked |
+| BOG-3C | Live script gated implementation | DONE | `BOARD-SCRIPT-GATED-APPLY-EVIDENCE.v1.md` | explicit confirmation, token/PAT boundary, fake-`gh` success path, and fail-closed behavior tested |
+| BOG-3D | Implementation boundary run card | DONE | `BOARD-GOVERNANCE-IMPLEMENTATION-RUN-CARD.v1.md` | source/window allow_paths, validations, and stop conditions defined |
+| BOG-4A | PR merge evidence workflow design | DONE | `BOARD-PR-MERGE-EVIDENCE-WORKFLOW.v1.md` | `pull_request.closed` + `Tracked by` parser specified |
+| BOG-4B | PR merge evidence workflow implementation | DONE | `.github/workflows/board-pr-merge-evidence.yml` + `BOARD-PR-MERGE-EVIDENCE-WORKFLOW-IMPLEMENTATION-EVIDENCE.v1.md` | merged PR `Tracked by` parser, fake-`gh` Needs Verify path, idempotency, missing-token fallback, and no auto-`Done` tested |
+| BOG-5A | Board projection manifest design | DONE | `BOARD-PROJECTION-MANIFEST.v1.md` | repo authority, digest, fields, labels defined |
+| BOG-5A-S | Board projection schema | DONE | `schemas/board-projection.schema.v1.json` | manifest shape validates through schema gate |
+| BOG-5A-P | Board governance policy | DONE | `policies/policy_board_governance.v1.json` + schema | invariants, automation boundary, projection, evidence policy validate |
+| BOG-5A-F | Board projection fixtures | DONE | `fixtures/board/board_projection_*.v1.json` | happy path and forbidden Done drift examples validate against schema |
+| BOG-5B | Drift checker dry-run | DONE | `BOARD-PROJECTION-DRIFT-EVIDENCE.v1.md` | projection command reports missing field and invalid Done drift; apply remains blocked |
+| BOG-5C | Operator-bound sync apply | DONE | `BOARD-PROJECTION-SYNC-APPLY-EVIDENCE.v1.md` | accepted digest, target board id, metadata map, fake-`gh` apply path, before/after inventory, mutation ledger, and no auto-`Done` tested |
+| BOG-6A | Live acceptance read-only probe | DONE | `BOARD-LIVE-ACCEPTANCE-PROBE-EVIDENCE.v1.md` | live `gh` auth/repo/project inventory is report-backed; target board absence and existing board field mismatch are visible; no live mutation |
+| BOG-6B | Live setup dry-run/gated apply | DONE | `BOARD-LIVE-SETUP-EVIDENCE.v1.md` | `board-setup` dry-run plans missing target board create/link; fake apply path tested; confirmation/token/digest gates tested |
+| BOG-6C | Real target board setup acceptance | DONE | `BOARD-LIVE-SETUP-EVIDENCE.v1.md` | ProjectV2 `#5` created; repo linked; field compatibility `OK`; sync/item population remains a later gate |
+| BOG-7 | Live governed item seed acceptance | DONE | `BOARD-LIVE-ITEM-SEED-EVIDENCE.v1.md` | required labels created; issue `#78` created; ProjectV2 item added to `#5`; fields populated; no issue close or `Done` automation |
+| BOG-8 | Live projection generation | DONE | `BOARD-LIVE-PROJECTION-EVIDENCE.v1.md` | live issue `#78` and ProjectV2 `#5` inventory generate schema-valid projection; drift `0`; no mutation |
+| BOG-9 | Live sync validation | DONE | `BOARD-LIVE-SYNC-VALIDATION-EVIDENCE.v1.md` | live metadata map generated; issue `#78` promoted to `Needs Verify` through accepted digest; final `board-sync` dry-run returns `OK`, `noop=true`, drift `0` |
+| BOG-10 | Canonical router and review packaging | DONE | `AGENTS.md`, `CODEX-UX.md`, `BOARD-CANONICAL-ROUTER-PACKAGING-EVIDENCE.v1.md` | AGENTS canonical router names board governance docs/policy/workflow; user-facing board requests route to ops commands; review packaging boundary is explicit |
+| BOG-11 | Product capability promotion | DONE | `BOARD-GOVERNANCE-CAPABILITY.v1.md`, `product_catalog.v1.json`, `PRJ-GITHUB-OPS` extension surface, release notes | Governance Board Capability v1 is versioned, active, cataloged, and explicitly bounded from managed-repo rollout |
+| BOG-12 | Managed repo rollout contract | DONE | `BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md`, `standards.lock`, `AI-MULTIREPO-OPERATING-CONTRACT.v1.md` | Governance Board Capability v1 is included in the managed-repo standards package; sync remains manifest-targeted and live GitHub mutation remains per-target gated |
 
 ## 5. Phase Plan
 
@@ -157,8 +159,7 @@ Exit criteria:
 - board/body drift is reported, not hidden,
 - no script marks runtime work `Done`.
 
-Current status: BOG-3A DONE; BOG-3B REVIEW_READY; BOG-3C
-REVIEW_READY; BOG-3D REVIEW_READY.
+Current status: DONE.
 
 ### Phase 4 — PR Merge Evidence Workflow
 
@@ -179,7 +180,7 @@ Exit criteria:
 - `Done`, `Blocked`, and already `Needs Verify` items are not downgraded,
 - missing PAT does not create board/body contradiction.
 
-Current status: BOG-4A REVIEW_READY; BOG-4B REVIEW_READY.
+Current status: DONE.
 
 ### Phase 5 — Projection and Drift
 
@@ -199,8 +200,7 @@ Exit criteria:
 - invalid `Done` and forbidden `Closes` patterns are reported,
 - apply is not autonomous; accepted dry-run digest gates apply.
 
-Current status: BOG-5A REVIEW_READY; BOG-5A-S REVIEW_READY; BOG-5A-P
-REVIEW_READY; BOG-5A-F REVIEW_READY; BOG-5B REVIEW_READY; BOG-5C REVIEW_READY.
+Current status: DONE.
 
 ### Phase 6 — Live Acceptance Probe
 
@@ -223,7 +223,7 @@ Exit criteria:
 - required field/option compatibility is explicit,
 - no project, issue, label, or item mutation is made.
 
-Current status: BOG-6A REVIEW_READY; BOG-6B REVIEW_READY; BOG-6C REVIEW_READY; BOG-7 REVIEW_READY; BOG-8 REVIEW_READY; BOG-9 REVIEW_READY.
+Current status: DONE.
 
 ## 6. Initial Adoption Order
 
@@ -243,6 +243,8 @@ Recommended PR order:
 12. Live projection generation from GitHub inventory.
 13. Live sync validation, `Needs Verify` promotion, and final no-op dry-run.
 14. Canonical AGENTS router integration and review packaging.
+15. Product capability promotion under `PRJ-GITHUB-OPS`.
+16. Managed repo rollout contract and standards package distribution.
 
 ## 7. Current Evidence
 
@@ -270,6 +272,12 @@ Docs-only baseline evidence:
 - `docs/OPERATIONS/BOARD-LIVE-PROJECTION-EVIDENCE.v1.md`
 - `docs/OPERATIONS/BOARD-LIVE-SYNC-VALIDATION-EVIDENCE.v1.md`
 - `docs/OPERATIONS/BOARD-CANONICAL-ROUTER-PACKAGING-EVIDENCE.v1.md`
+- `docs/OPERATIONS/BOARD-ISSUE-78-ACCEPTANCE-CHECKLIST.v1.md`
+- `docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md`
+- `docs/OPERATIONS/product_catalog.v1.json`
+- `docs/OPERATIONS/release-notes-v0.3.0-rc.1.md`
+- `extensions/PRJ-GITHUB-OPS/EXTENSION.md`
+- `extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json`
 - `docs/OPERATIONS/BOARD-GOVERNANCE-IMPLEMENTATION-RUN-CARD.v1.md`
 - `schemas/board-projection.schema.v1.json`
 - `schemas/policy-board-governance.schema.v1.json`
@@ -504,6 +512,24 @@ Consultation evidence:
 - BOG-10 gate evidence: `doc-nav-check`, `policy-check`, `validate_schemas`,
   full board contract suite, core ops contract, live projection, live no-op
   sync, and `git diff --check` returned OK after router edits.
+- BOG-10 merge evidence: PR `#79` merged to `main` as commit
+  `ca59ad4fbbe0698214193dade523f17823f3ad77`; main push gates also passed.
+- Final acceptance evidence: issue `#78` now has an explicit owner acceptance
+  checklist at `docs/OPERATIONS/BOARD-ISSUE-78-ACCEPTANCE-CHECKLIST.v1.md`.
+- Final closure evidence: issue `#78` is closed, ProjectV2 item status is
+  `Done`, `needs-verification` was removed, and final evidence comment
+  `https://github.com/Halildeu/autonomous-orchestrator/issues/78#issuecomment-4727550151`
+  records the deliberate acceptance boundary.
+- BOG-11 product capability evidence:
+  `docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md` promotes the model as
+  `Governance Board Capability v1` under product surface `PRJ-GITHUB-OPS` for
+  release channel `0.3.0-rc.1`.
+- BOG-11 catalog evidence: `docs/OPERATIONS/product_catalog.v1.json` includes
+  `PRJ-GITHUB-OPS` as a `DONE`/`active` module with the governance board
+  capability.
+- BOG-11 extension evidence: `extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json`
+  and `extensions/PRJ-GITHUB-OPS/EXTENSION.md` expose the capability context and
+  program-led board ops.
 - Manual request `REQ-20260616-c6d01b3ba13f`: source-window approval request
   created under workspace cache.
 - Work intake `INTAKE-a6c7b2344efe54b723fddbc4d3aa614a82d0448d063f8d95b196c6f635331340`:
@@ -522,17 +548,11 @@ Observed source patterns:
 - `platform-k8s-gitops` moves merged PR work to `Needs Verify`.
 - `ao-kernel` uses one-way manifest mirror and drift checking for GitHub Project state.
 
-## 8. Current Boundaries
+## 8. Final Product Boundary
 
-This plan currently does not:
+This plan is complete for the core product capability.
 
-- create or edit additional GitHub issues outside the BOG-7 seed item,
-- create or edit PRs,
-- sync arbitrary ProjectV2 item fields beyond the BOG-7 seed item,
-- close issues,
-- mark work `Done`.
-
-This plan did:
+It did:
 
 - create the narrow GitHub ProjectV2 `#5` for
   `autonomous-orchestrator Governance Board`,
@@ -545,35 +565,40 @@ This plan did:
 - promote issue `#78` and its ProjectV2 item to `Needs Verify` after live
   projection/sync evidence,
 - adopt board governance into the AGENTS canonical router and CODEX-UX
-  customer-friendly request map.
+  customer-friendly request map,
+- deliberately accept and close issue `#78`,
+- move the ProjectV2 item to `Done`,
+- promote the model as `Governance Board Capability v1` under `PRJ-GITHUB-OPS`,
+- expose the capability in the product catalog and release notes.
 
 This plan still does not:
 
 - edit existing non-target GitHub Project fields,
-- create additional GitHub issues beyond the BOG-7 seed item,
+- create broad historical backlog issues,
 - add ungated workflow automation,
 - enable ungated live sync `apply` mode,
-- change roadmap state,
-- change work-intake selection.
+- silently roll the capability out to every managed repo,
+- prove broader process adoption outside this repo.
 
-BOG-3B, BOG-3C, BOG-4B, BOG-5B, BOG-5C, BOG-6A, and BOG-6B did add allowlisted local
-source/workflow/test/fixture code under one-shot source windows. Live mutation
-paths remain gated by explicit confirmation, token env, target metadata, and
-operator-provided digest/board inputs.
+BOG-3B, BOG-3C, BOG-4B, BOG-5B, BOG-5C, BOG-6A, and BOG-6B added allowlisted
+local source/workflow/test/fixture code under evidenced source windows. Live
+mutation paths remain gated by explicit confirmation, token env, target
+metadata, and operator-provided digest/board inputs.
 
-Current live acceptance gap:
+Final live state:
 
-- The intended `autonomous-orchestrator Governance Board` ProjectV2 now exists
-  as `#5` under owner `Halildeu`.
-- ProjectV2 `#5` is field-compatible and currently has `1` governed item.
-- Issue `#78` is open, labelled `needs-verification`, and its ProjectV2 status
-  is `Needs Verify`.
-- Existing ProjectV2 `#2 platform Roadmap` is readable and has the right field
-  families, but its `Faz` and `Track` options do not match this repo's contract.
-- Live projection generation from actual issue/ProjectV2 inventory now works
-  and reports drift `0` for issue `#78`.
-- Live sync validation against the live projection and live metadata now returns
-  `OK`/`noop=true`; no live sync mutation is needed while drift remains `0`.
-- The remaining non-completed part is final acceptance for issue `#78` itself:
-  closing or `Done` still requires real user/project-owner acceptance and a
-  separate deliberate gate.
+- ProjectV2 `#5` exists under owner `Halildeu`.
+- ProjectV2 `#5` is field-compatible and has `1` governed item.
+- Issue `#78` is closed.
+- Issue `#78` labels are `gate`, `project-roadmap`, and `quality`.
+- ProjectV2 item `PVTI_lAHOCx7tY84Ba38Czgv-mxA` has status `Done`.
+- Live projection generation from actual issue/ProjectV2 inventory returns
+  `OK` with drift `0`.
+- `board-sync` still blocks desired `Done` automation with
+  `DONE_AUTOMATION_FORBIDDEN`, which is the expected fail-closed boundary for
+  automated closure.
+
+Next separate gate:
+
+- managed repo rollout and adoption validation using this capability as the
+  source pattern.

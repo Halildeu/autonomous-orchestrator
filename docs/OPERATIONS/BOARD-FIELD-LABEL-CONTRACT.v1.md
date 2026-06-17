@@ -1,8 +1,8 @@
 # Board Field and Label Contract (v1)
 
-Status: REVIEW_READY  
-Started: 2026-06-17  
-Scope: BOG-1A minimal GitHub Project field and label contract  
+Status: REVIEW_READY
+Started: 2026-06-17
+Scope: BOG-1A minimal GitHub Project field and label contract
 Current mode: docs-only; no GitHub Project, issue, PR, workflow, or source/runtime mutation is authorized by this document alone
 
 ## 1. Purpose
