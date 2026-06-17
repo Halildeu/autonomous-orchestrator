@@ -1,8 +1,8 @@
-# Board Canonical Router and Review Packaging Evidence (v1)
+# Board Canonical Router, Merge, and Packaging Evidence (v1)
 
-Status: REVIEW_READY  
-Scope: BOG-10 AGENTS router integration, customer-friendly UX routing, and
-review packaging boundary  
+Status: DONE
+Scope: BOG-10 AGENTS router integration, customer-friendly UX routing, review
+packaging, and merge-to-main evidence
 Generated: 2026-06-17  
 Mode: repo-local docs/router integration; no issue close or `Done` automation
 
@@ -48,16 +48,21 @@ operator-run commands:
 The user still does not run shell commands. The agent runs bounded ops commands
 and reports in AUTOPILOT CHAT format.
 
-## 4. Review Packaging Boundary
+## 4. Merge Boundary
 
-BOG-10 does not claim canonical maturity increase on `main`.
+BOG-10 now claims canonical maturity increase on `main` for the adopted board
+governance line.
 
 Per AGENTS maturity rules:
 
-- branch-local implementation can be REVIEW_READY;
 - canonical maturity increases only after PR merge and CI gate pass;
-- issue `#78` remains open in `Needs Verify`;
-- `Done` and issue close remain out of scope until project-owner acceptance.
+- PR `#79` was merged to `main`;
+- merge commit is `ca59ad4fbbe0698214193dade523f17823f3ad77`;
+- post-merge main push gates passed;
+- issue `#78` later completed the deliberate acceptance path;
+- ProjectV2 item `PVTI_lAHOCx7tY84Ba38Czgv-mxA` is now `Done`;
+- final acceptance and issue close are recorded in
+  `https://github.com/Halildeu/autonomous-orchestrator/issues/78#issuecomment-4727550151`.
 
 ## 5. Write Boundary Evidence
 
@@ -114,16 +119,16 @@ planned_actions=[]
 applied_actions=[]
 ```
 
-## 7. Remaining Boundary
+## 7. Productization Boundary
 
-BOG-10 does not prove:
+BOG-10 is accepted by BOG-11 productization. The active product capability is
+now documented in `docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md`.
 
-- PR review has happened;
-- CI has run on GitHub;
-- issue `#78` can be closed;
-- canonical maturity has increased on `main`;
-- historical backlog import is complete.
+Remaining work is no longer repo-local adoption. The next separate boundary is
+managed repo rollout and validation.
 
-The next safe boundary is review packaging: isolate board-governance changes on
-a review branch, stage only related files, and open a draft PR after local gates
-remain green.
+BOG-10 and BOG-11 still do not prove:
+
+- historical backlog import is complete;
+- managed repo rollout is complete;
+- future ProjectV2 drift can never recur.

@@ -41,6 +41,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.json
 - docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.md
 - docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules tiers demos; vendor-neutral)
+- docs/OPERATIONS/release-notes-v0.3.0-rc.1.md — Internal RC release note for Governance Board Capability v1
+- docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md — Controlled managed repo rollout contract for Governance Board Capability v1
 - docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
 
 ## Repo Governance (SSOT)
@@ -48,6 +50,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - .github/CODEOWNERS
 - .github/workflows/gate-enforcement-check.yml
 - .github/workflows/module-delivery-lanes.yml
+- docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md — Governance Board Capability v1 product surface for PRJ-GITHUB-OPS
+- docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md — Governance Board Capability v1 managed repo standards rollout contract
 - docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md — Board work/status operating model (adoption-candidate; repo SSOT remains authority)
 - docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md — Trackable board governance adoption plan
 - docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md — Minimal board field/label contract for BOG-1A
@@ -70,6 +74,7 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/OPERATIONS/BOARD-LIVE-PROJECTION-EVIDENCE.v1.md — Live GitHub issue and ProjectV2 inventory projection evidence for BOG-8
 - docs/OPERATIONS/BOARD-LIVE-SYNC-VALIDATION-EVIDENCE.v1.md — Live ProjectV2 metadata map and board-sync no-op validation evidence for BOG-9
 - docs/OPERATIONS/BOARD-CANONICAL-ROUTER-PACKAGING-EVIDENCE.v1.md — AGENTS router, customer-friendly UX, and review packaging evidence for BOG-10
+- docs/OPERATIONS/BOARD-ISSUE-78-ACCEPTANCE-CHECKLIST.v1.md — Final owner acceptance checklist for issue #78 after BOG-10 merge
 - src/ops/board/auth_preflight.py — Token/auth readiness preflight for BOG-6C live apply boundary
 - schemas/board-projection.schema.v1.json — Machine-readable board projection manifest contract for BOG-5A-S
 - schemas/policy-board-governance.schema.v1.json — Machine-readable board governance policy schema for BOG-5A-P

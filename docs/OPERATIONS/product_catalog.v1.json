@@ -1,6 +1,6 @@
 {
   "version": "v1",
-  "generated_at_utc": "2026-01-26T00:14:15Z",
+  "generated_at_utc": "2026-06-17T09:22:43Z",
   "catalog_id": "product-catalog",
   "notes": [
     "status reflects availability: DONE is implemented; OPEN/PARKED are roadmap intents.",
@@ -56,6 +56,45 @@
         {
           "kind": "closeout",
           "description": "Ops command, pre-commit, and CI wiring are applied and marked DONE in work_item_state (staged enforcement)."
+        }
+      ]
+    },
+    {
+      "module_id": "PRJ-GITHUB-OPS",
+      "title": "GitHub Ops + Governance Board Capability v1",
+      "summary": "Program-led GitHub operations with a versioned governance board capability: curated board ingestion, Tracked by PR flow, Needs Verify acceptance queue, live projection/drift checks, deliberate Done/close evidence, and controlled managed-repo standards rollout.",
+      "status": "DONE",
+      "lifecycle_state": "active",
+      "risk_class": "RISK_MEDIUM",
+      "install_modes": ["embedded"],
+      "tier_availability": ["pro", "enterprise"],
+      "dependencies": [],
+      "links": {
+        "extension_id": "PRJ-GITHUB-OPS",
+        "docs_refs": [
+          "docs/OPERATIONS/EXTENSIONS.md#ext-PRJ-GITHUB-OPS",
+          "docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md",
+          "docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md",
+          "docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md"
+        ],
+        "repo_paths": [
+          "extensions/PRJ-GITHUB-OPS/",
+          "src/ops/commands/board_cmds.py",
+          "src/ops/board/"
+        ]
+      },
+      "evidence_hooks": [
+        {
+          "kind": "live_acceptance",
+          "description": "Issue #78 completed the deliberate path: live board item seeded, projected, synced to Needs Verify, accepted, moved to Done, and closed with final evidence."
+        },
+        {
+          "kind": "release_channel",
+          "description": "Capability is active for the core repo under release channel 0.3.0-rc.1."
+        },
+        {
+          "kind": "managed_repo_rollout",
+          "description": "Governance Board Capability v1 is included in the standards.lock managed-repo distribution package; live GitHub writes remain per-target gated."
         }
       ]
     },
@@ -242,6 +281,7 @@
       "included_module_ids": [
         "PRJ-ENFORCEMENT-PACK",
         "ENF-V2-WIRING",
+        "PRJ-GITHUB-OPS",
         "PRJ-EXECUTORPORT",
         "PRJ-OBSERVABILITY-OTEL",
         "PRJ-MEMORYPORT",
@@ -256,6 +296,7 @@
       "included_module_ids": [
         "PRJ-ENFORCEMENT-PACK",
         "ENF-V2-WIRING",
+        "PRJ-GITHUB-OPS",
         "PRJ-EXECUTORPORT",
         "PRJ-OBSERVABILITY-OTEL",
         "PRJ-MEMORYPORT",
@@ -283,6 +324,14 @@
       "module_ids": ["PRJ-ENFORCEMENT-PACK", "ENF-V2-WIRING", "PRJ-EXECUTORPORT", "PRJ-OBSERVABILITY-OTEL"],
       "recommended_demo_ids": ["demo-5min-enforcement"],
       "notes": ["Staged enforcement: default (onboarding) vs strict (blocking in CI)."]
+    },
+    {
+      "product_id": "prod-governance-board-pro",
+      "title": "Governance Board Capability (Pro)",
+      "tier_id": "pro",
+      "module_ids": ["PRJ-GITHUB-OPS", "PRJ-EXECUTORPORT", "PRJ-OBSERVABILITY-OTEL"],
+      "recommended_demo_ids": ["demo-5min-governance-board"],
+      "notes": ["Uses GitHub ProjectV2 as an operational projection; repo SSOT remains authority."]
     }
   ],
   "demos": [
@@ -329,7 +378,21 @@
         "system-status --workspace-root .cache/ws_customer_default"
       ],
       "evidence_paths": []
+    },
+    {
+      "demo_id": "demo-5min-governance-board",
+      "title": "5-minute governance board: live projection + metadata check",
+      "duration_minutes": 5,
+      "demo_kind": "5-min",
+      "module_ids": ["PRJ-GITHUB-OPS"],
+      "ops_actions": [
+        "board-projection-live --repo Halildeu/autonomous-orchestrator --project-owner Halildeu --project-number 5 --mode dry-run",
+        "board-metadata-live --repo Halildeu/autonomous-orchestrator --project-owner Halildeu --project-number 5 --project-id <ProjectV2 id>"
+      ],
+      "evidence_paths": [
+        ".cache/ws_customer_default/.cache/reports/board_projection_live_project5_current.v1.json",
+        ".cache/ws_customer_default/.cache/reports/board_metadata_live_project5.v1.json"
+      ]
     }
   ]
 }
-

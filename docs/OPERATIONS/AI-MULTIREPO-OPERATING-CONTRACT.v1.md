@@ -30,6 +30,13 @@ Amaç: Çok repolu ERP ürün ailesinde standardizasyon drift'ini engellemek, AI
 - Legacy standards archive manifest: `registry/archives/legacy_standards_archive.aistd.v1.json`
 - Solo branch policy guard: `scripts/check_branch_protection_solo_policy.py`
 - Lane config + runner: `ci/module_delivery_lanes.v1.json`, `ci/run_module_delivery_lane.py`, `ci/check_module_delivery_lanes.py`
+- Governance Board Capability managed repo package:
+  `docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md`,
+  `docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md`,
+  `policies/policy_board_governance.v1.json`,
+  `schemas/policy-board-governance.schema.v1.json`,
+  `schemas/board-projection.schema.v1.json`,
+  `.github/workflows/board-pr-merge-evidence.yml`
 
 ## Standart Kaynakları (Neye Göre Kontrol Eder?)
 Bu kontrat `standards.lock` içindeki `standard_sources` haritasını canonical kabul eder:
@@ -80,6 +87,12 @@ Not (Hard Cutover v2):
 14. Parent-child session: Orchestrator session parent, managed repo session child olarak bağlanır; decision inheritance SSOT-first kuralına uyar (parent wins on conflict).
 15. Portfolio health: Tüm managed repo'ların context health score'ları aggregate edilir; portfolio_context_health.v1.json üretilir.
 16. Self-healing döngüsü: Health score drop → GAP-EVAL-LENS-context_health → work_intake ticket → PDCA regression check → otomatik fix at next sync.
+17. Governance board rollout: Governance Board Capability v1, registered
+    managed repo targets to standards.lock üzerinden dağıtılır. Board repo SSOT
+    yerine geçmez; `project-roadmap` ingestion, `Tracked by #N`, `Needs Verify`
+    ve deliberate `Done` kuralları korunur. Canlı ProjectV2/issue mutation her
+    hedefte token, target board id, accepted digest ve mutation ledger ile
+    ayrıca gate edilir.
 
 ## Değişiklik Yönetimi
 - Bu kontratta değişiklik sessiz yapılmaz; CHG süreci ve gate kanıtı gerekir.

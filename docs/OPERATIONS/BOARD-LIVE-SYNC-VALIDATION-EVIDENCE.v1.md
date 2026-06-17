@@ -1,8 +1,8 @@
 # Board Live Sync Validation Evidence (v1)
 
-Status: REVIEW_READY  
-Scope: BOG-9 live metadata map, governed verification promotion, and no-op sync validation  
-Generated: 2026-06-17  
+Status: REVIEW_READY
+Scope: BOG-9 live metadata map, governed verification promotion, and no-op sync validation
+Generated: 2026-06-17
 Mode: read-only metadata generation plus digest-gated sync apply and final dry-run validation
 
 ## 1. Purpose

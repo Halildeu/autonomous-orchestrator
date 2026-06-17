@@ -1,8 +1,8 @@
 # Board Issue Template Contract (v1)
 
-Status: REVIEW_READY  
-Started: 2026-06-17  
-Scope: BOG-2A issue body and future GitHub Issue Form contract  
+Status: REVIEW_READY
+Started: 2026-06-17
+Scope: BOG-2A issue body and future GitHub Issue Form contract
 Current mode: docs-only; no `.github/ISSUE_TEMPLATE`, GitHub issue, Project, PR, workflow, label, or source/runtime mutation is authorized by this document alone
 
 ## 1. Purpose

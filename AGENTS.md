@@ -37,6 +37,8 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - docs/OPERATIONS/tags-registry.md (AUTOPILOT CHAT + status/action registry)
 - docs/OPERATIONS/SSOT-MAP.md (kritik SSOT haritası)
 - docs/OPERATIONS/EXTENSIONS.md (extension canonical doküman)
+- docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md (Governance Board Capability v1 ürün özelliği)
+- docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md (Governance Board Capability managed repo rollout kontratı)
 - docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md (GitHub Project board çalışma modeli; board SSOT değildir)
 - docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md (trackable board governance adoption plan)
 - docs/OPERATIONS/BOARD-FIELD-LABEL-CONTRACT.v1.md (Status/Faz/Track/Priority/Kind + label kontratı)
@@ -81,6 +83,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - Kullanıcıya yönelik arama (keyword/semantic) için ortak kanal: `scripts/codex-search` (altında `ops-search` → `/api/search`); böylece Cockpit ve agent'lar aynı arama hattını kullanır.
 - GitHub Project Board governance için board repo SSOT'un yerine geçmez; `project-roadmap` label board ingestion gate'idir, `Tracked by #N` varsayılandır, `Needs Verify` kabul kuyruğudur, `Done`/issue close yalnız gerçek kabul kanıtı ve ayrı kasıtlı gate ile yapılır.
 - Board drift/sync işlerinde güvenli sıra: `board-projection-live` → `board-metadata-live` → `board-sync --mode dry-run`; apply yalnız accepted digest + explicit target board id + confirmation + token env ile yapılır.
+- Governance Board Capability managed repo rollout için canonical yol: `BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md` + `standards.lock` + `scripts/sync_managed_repo_standards.py`; dağıtım registered manifest hedefleriyle sınırlıdır, canlı GitHub mutation yine per-target gate ister.
 - **Decision Registry (MUST):** Mimari karar gerektiren konuya (auth, DB, UI, altyapı) dokunmadan önce `decisions/registry.v1.json` kontrol et. ACTIVE kararları takip et. Karar değiştirmek istiyorsan **Decision Change Proposal (DCP)** üret — sessizce değiştirme. `rejected_alternatives` listesindeki yaklaşımları tekrar önerme.
 
 ## Multi-Agent (shared context)
