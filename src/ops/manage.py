@@ -4,10 +4,7 @@ import argparse
 import sys
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers(dest="command", required=True)
-
+def _register_core_subcommands(sub: argparse._SubParsersAction) -> None:
     from src.ops.commands.status_cmds import register_status_subcommands
     from src.ops.commands.hygiene_cmds import register_hygiene_subcommands
     from src.ops.commands.debt_cmds import register_debt_subcommands
@@ -22,6 +19,22 @@ def build_parser() -> argparse.ArgumentParser:
     from src.prj_github_ops.smoke_fast_marker_extract import (
         register_smoke_fast_marker_extract_subcommand,
     )
+
+    register_status_subcommands(sub)
+    register_hygiene_subcommands(sub)
+    register_debt_subcommands(sub)
+    register_roadmap_subcommands(sub)
+    register_ops_capabilities_subcommand(sub)
+    register_workspace_find_subcommand(sub)
+    register_closeout_write_subcommand(sub)
+    register_roadmap_resolve_subcommand(sub)
+    register_roadmap_seed_subcommand(sub)
+    register_roadmap_state_sync_subcommand(sub)
+    register_test_run_subcommand(sub)
+    register_smoke_fast_marker_extract_subcommand(sub)
+
+
+def _register_diagnostic_subcommands(sub: argparse._SubParsersAction) -> None:
     from src.ops.github_ops_index_lock_local import (
         register_github_ops_index_lock_clear_local_subcommand,
     )
@@ -52,6 +65,20 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.heartbeat_rule_source_diff import (
         register_heartbeat_rule_source_diff_subcommand,
     )
+
+    register_github_ops_index_lock_clear_local_subcommand(sub)
+    register_operability_heartbeat_reconcile_subcommand(sub)
+    register_index_lock_file_diagnostics_subcommand(sub)
+    register_index_lock_repo_root_reconcile_subcommand(sub)
+    register_heartbeat_checker_pinpoint_subcommand(sub)
+    register_policy_rule_extract_subcommand(sub)
+    register_eval_runner_heartbeat_pinpoint_subcommand(sub)
+    register_eval_runner_heartbeat_select_subcommand(sub)
+    register_policy_thresholds_map_subcommand(sub)
+    register_heartbeat_rule_source_diff_subcommand(sub)
+
+
+def _register_governance_subcommands(sub: argparse._SubParsersAction) -> None:
     from src.ops.commands.enforcement_cmds import register_enforcement_subcommands
     from src.ops.commands.vendor_pack_verify import register_vendor_pack_verify_subcommand
     from src.ops.commands.demo_5min import register_demo_5min_subcommand
@@ -64,28 +91,6 @@ def build_parser() -> argparse.ArgumentParser:
     from src.ops.commands.context_engine_cmds import register_context_engine_subcommands
     from src.ops.commands.board_cmds import register_board_subcommands
 
-    register_status_subcommands(sub)
-    register_hygiene_subcommands(sub)
-    register_debt_subcommands(sub)
-    register_roadmap_subcommands(sub)
-    register_ops_capabilities_subcommand(sub)
-    register_workspace_find_subcommand(sub)
-    register_closeout_write_subcommand(sub)
-    register_roadmap_resolve_subcommand(sub)
-    register_roadmap_seed_subcommand(sub)
-    register_roadmap_state_sync_subcommand(sub)
-    register_test_run_subcommand(sub)
-    register_smoke_fast_marker_extract_subcommand(sub)
-    register_github_ops_index_lock_clear_local_subcommand(sub)
-    register_operability_heartbeat_reconcile_subcommand(sub)
-    register_index_lock_file_diagnostics_subcommand(sub)
-    register_index_lock_repo_root_reconcile_subcommand(sub)
-    register_heartbeat_checker_pinpoint_subcommand(sub)
-    register_policy_rule_extract_subcommand(sub)
-    register_eval_runner_heartbeat_pinpoint_subcommand(sub)
-    register_eval_runner_heartbeat_select_subcommand(sub)
-    register_policy_thresholds_map_subcommand(sub)
-    register_heartbeat_rule_source_diff_subcommand(sub)
     register_enforcement_subcommands(sub)
     register_vendor_pack_verify_subcommand(sub)
     register_demo_5min_subcommand(sub)
@@ -97,6 +102,15 @@ def build_parser() -> argparse.ArgumentParser:
     register_execution_target_subcommands(sub)
     register_context_engine_subcommands(sub)
     register_board_subcommands(sub)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    _register_core_subcommands(sub)
+    _register_diagnostic_subcommands(sub)
+    _register_governance_subcommands(sub)
 
     return parser
 

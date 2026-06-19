@@ -24,6 +24,7 @@ from src.roadmap.state import (
     bump_attempt,
     clear_backoff,
     clear_quarantine,
+    default_state,
     is_in_backoff,
     is_quarantined,
     load_state,
@@ -535,20 +536,31 @@ def status(*, roadmap_path: Path, workspace_root: Path, state_path: Path | None 
     roadmap_obj = _load_and_validate_roadmap(core_root, roadmap_path)
     roadmap_ids = _roadmap_milestones(roadmap_obj)
 
-    state_res = load_state(
-        state_path=state_path,
-        schema_path=state_schema,
-        roadmap_path=roadmap_path,
-        workspace_root=workspace_root,
-    )
-    st = state_res.state
+    state_warning = None
+    state_report_only = False
+    try:
+        state_res = load_state(
+            state_path=state_path,
+            schema_path=state_schema,
+            roadmap_path=roadmap_path,
+            workspace_root=workspace_root,
+        )
+        st = state_res.state
+        state_existed = state_res.existed
+    except ValueError as e:
+        if not str(e).startswith("STATE_MISMATCH"):
+            raise
+        st = default_state(roadmap_path=roadmap_path, workspace_root=workspace_root)
+        state_existed = True
+        state_warning = "STATE_MISMATCH"
+        state_report_only = True
     completed = st.get("completed_milestones", [])
     if not isinstance(completed, list):
         completed = []
 
     next_mid = _next_milestone(roadmap_ids, completed)
     return {
-        "status": "OK",
+        "status": "WARN" if state_warning else "OK",
         "bootstrapped": bool(st.get("bootstrapped", False)),
         "next_milestone": next_mid,
         "completed_milestones": completed,
@@ -557,6 +569,9 @@ def status(*, roadmap_path: Path, workspace_root: Path, state_path: Path | None 
         "backoff": st.get("backoff"),
         "last_result": st.get("last_result"),
         "state_path": str(state_path),
+        "state_existed": state_existed,
+        "state_warning": state_warning,
+        "state_report_only": state_report_only,
     }
 
 

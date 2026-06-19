@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -10,8 +12,26 @@ def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _refresh_script_budget_report(core_root: Path, path: Path) -> None:
+    checker = core_root / "ci" / "check_script_budget.py"
+    if not checker.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        subprocess.run(
+            [sys.executable, str(checker), "--out", str(path)],
+            cwd=str(core_root),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except Exception:
+        return
+
+
 def script_budget_actions_from_report(core_root: Path) -> list[dict[str, Any]] | None:
     path = core_root / ".cache" / "script_budget" / "report.json"
+    _refresh_script_budget_report(core_root, path)
     if not path.exists():
         return None
     try:
