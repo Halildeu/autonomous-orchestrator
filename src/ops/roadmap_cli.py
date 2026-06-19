@@ -186,6 +186,8 @@ def cmd_roadmap_status(args: argparse.Namespace) -> int:
         f"- completed_count: {payload.get('completed_count')}",
         f"- bootstrapped: {payload.get('bootstrapped')}",
     ]
+    if payload.get("state_warning"):
+        result_lines.append(f"- state_warning: {payload.get('state_warning')}")
     last_result = payload.get("last_result") if isinstance(payload, dict) else None
     last_evidence = last_result.get("evidence_path") if isinstance(last_result, dict) else None
     evidence_lines = [
@@ -193,6 +195,8 @@ def cmd_roadmap_status(args: argparse.Namespace) -> int:
         f"- state_path: {payload.get('state_path')}",
         f"- last_evidence: {last_evidence}",
     ]
+    if payload.get("state_report_only"):
+        evidence_lines.append("- state_report_only: true")
     actions_lines = [f"- actions_count: {actions_count}"]
     for a in actions_top:
         actions_lines.append(
@@ -213,6 +217,8 @@ def cmd_roadmap_status(args: argparse.Namespace) -> int:
         "evidence": [x for x in [last_evidence] if isinstance(x, str) and x],
         "actions_top": actions_top,
         "workspace_root": str(workspace_root.relative_to(root)) if workspace_root.is_relative_to(root) else str(workspace_root),
+        "state_warning": payload.get("state_warning"),
+        "state_report_only": bool(payload.get("state_report_only")),
     }
     _print_chat_block(
         preview="\n".join(preview_lines),
@@ -249,10 +255,20 @@ def cmd_project_status(args: argparse.Namespace) -> int:
     overall_status, system_status_path = _read_system_status_summary(workspace_root)
     last_finish = _read_last_finish_evidence(workspace_root)
 
-    completed = status_payload.get("completed") if isinstance(status_payload, dict) else None
+    completed = status_payload.get("completed_milestones") if isinstance(status_payload, dict) else None
+    if not isinstance(completed, list) and isinstance(status_payload, dict):
+        completed = status_payload.get("completed")
     completed_count = len(completed) if isinstance(completed, list) else 0
+    quarantine_obj = status_payload.get("quarantine") if isinstance(status_payload, dict) else None
+    backoff_obj = status_payload.get("backoff") if isinstance(status_payload, dict) else None
     quarantine_until = status_payload.get("quarantine_until") if isinstance(status_payload, dict) else None
+    if quarantine_until is None and isinstance(quarantine_obj, dict):
+        quarantine_until = quarantine_obj.get("until")
     backoff_seconds = status_payload.get("backoff_seconds") if isinstance(status_payload, dict) else None
+    if backoff_seconds is None and isinstance(backoff_obj, dict):
+        backoff_seconds = backoff_obj.get("seconds")
+    state_warning = status_payload.get("state_warning") if isinstance(status_payload, dict) else None
+    state_report_only = bool(status_payload.get("state_report_only")) if isinstance(status_payload, dict) else False
 
     core_policy_path = workspace_root / "policies" / "policy_core_immutability.v1.json"
     if not core_policy_path.exists():
@@ -299,13 +315,16 @@ def cmd_project_status(args: argparse.Namespace) -> int:
         f"status={result_status} overall={overall_status or 'unknown'} "
         f"backoff_seconds={backoff_seconds} quarantine_until={quarantine_until} "
         f"core_lock={core_lock} core_unlock_requested={core_unlock_requested} "
-        f"core_unlock_reason_present={core_unlock_reason_present}"
+        f"core_unlock_reason_present={core_unlock_reason_present} "
+        f"state_warning={state_warning or 'none'} state_report_only={state_report_only}"
     )
     evidence_parts: list[str] = []
     if last_finish:
         evidence_parts.append(f"finish_evidence={last_finish}")
     if system_status_path:
         evidence_parts.append(f"system_status={system_status_path}")
+    if state_warning:
+        evidence_parts.append(f"state_warning={state_warning}")
     evidence_line = " ".join(evidence_parts) if evidence_parts else "no_evidence_available"
 
     actions_lines: list[str] = []
@@ -336,6 +355,8 @@ def cmd_project_status(args: argparse.Namespace) -> int:
         "project_root": str(project_root),
         "project_manifest_present": project_manifest_present,
         "project_id": project_id,
+        "state_warning": state_warning,
+        "state_report_only": state_report_only,
     }
 
     if mode == "autopilot_chat":

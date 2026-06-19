@@ -1083,7 +1083,7 @@ def _projects_section(
             if isinstance(rep_active, list) and all(isinstance(x, str) for x in rep_active):
                 active_projects = sorted(rep_active)
             rep_debts = obj.get("top_project_debts")
-            if isinstance(rep_debts, list):
+            if isinstance(rep_debts, list) and (rep_debts or not top_debts):
                 top_debts = [
                     {
                         "kind": str(d.get("kind") or ""),
@@ -1095,7 +1095,10 @@ def _projects_section(
                     if isinstance(d, dict)
                 ]
             rep_focus = obj.get("next_project_focus")
-            if isinstance(rep_focus, str) and rep_focus:
+            can_use_report_focus = not actions_top or (
+                isinstance(rep_debts, list) and bool(rep_debts)
+            )
+            if isinstance(rep_focus, str) and rep_focus and can_use_report_focus:
                 next_focus = rep_focus
             rep_notes = obj.get("notes")
             if isinstance(rep_notes, list):

@@ -85,7 +85,7 @@ def test_reaper_dry_run(ws: Path) -> None:
     if result.returncode != 0:
         raise SystemExit(f"FAIL [reaper --dry-run]: exit={result.returncode} stderr={result.stderr[:200]}")
     if "DRY_RUN" not in result.stdout:
-        raise SystemExit(f"FAIL [reaper --dry-run]: DRY_RUN marker missing in output")
+        raise SystemExit("FAIL [reaper --dry-run]: DRY_RUN marker missing in output")
     print("OK reaper --dry-run")
 
 
@@ -113,6 +113,60 @@ def test_roadmap_status(ws: Path) -> None:
     _ok("roadmap-status", out, allow=("OK", "WARN", "IDLE", "FAIL"))
 
 
+def test_project_status_state_mismatch_report_only(ws: Path) -> None:
+    ssot_roadmap = REPO_ROOT / "roadmaps" / "SSOT" / "roadmap.v1.json"
+    project_roadmap = (
+        REPO_ROOT
+        / "roadmaps"
+        / "PROJECTS"
+        / "PRJ-M0-MAINTAINABILITY"
+        / "roadmap.v1.json"
+    )
+    if not ssot_roadmap.exists() or not project_roadmap.exists():
+        print("OK project-status-state-mismatch (skipped — roadmap missing)")
+        return
+
+    seed = _run(
+        ["roadmap-state-sync", "--roadmap", str(ssot_roadmap), "--mode", "reset"],
+        workspace=ws,
+    )
+    _ok("roadmap-state-sync", seed, allow=("OK",))
+
+    status = _run(["roadmap-status", "--roadmap", str(project_roadmap)], workspace=ws)
+    _ok("roadmap-status-state-mismatch", status, allow=("WARN",))
+    if status.get("state_warning") != "STATE_MISMATCH":
+        raise SystemExit(
+            "FAIL [roadmap-status-state-mismatch]: missing state_warning "
+            f"payload={json.dumps(status)[:200]}"
+        )
+    if status.get("state_report_only") is not True:
+        raise SystemExit(
+            "FAIL [roadmap-status-state-mismatch]: expected report_only "
+            f"payload={json.dumps(status)[:200]}"
+        )
+
+    project = _run(
+        ["project-status", "--roadmap", str(project_roadmap), "--mode", "json"],
+        workspace=ws,
+    )
+    if project.get("state_warning") != "STATE_MISMATCH":
+        raise SystemExit(
+            "FAIL [project-status-state-mismatch]: missing state_warning "
+            f"payload={json.dumps(project)[:200]}"
+        )
+    if project.get("state_report_only") is not True:
+        raise SystemExit(
+            "FAIL [project-status-state-mismatch]: expected report_only "
+            f"payload={json.dumps(project)[:200]}"
+        )
+    if project.get("next_milestone") != "P0":
+        raise SystemExit(
+            "FAIL [project-status-state-mismatch]: expected P0 next "
+            f"payload={json.dumps(project)[:200]}"
+        )
+    print("OK project-status-state-mismatch report_only=true")
+
+
 def test_ops_capabilities(ws: Path) -> None:
     out = _run(["ops-capabilities"], workspace=ws)
     if not isinstance(out, dict):
@@ -132,6 +186,7 @@ def main() -> None:
         test_work_intake_check,
         test_decision_inbox_build,
         test_roadmap_status,
+        test_project_status_state_mismatch_report_only,
         test_ops_capabilities,
     ]
     passed = 0
