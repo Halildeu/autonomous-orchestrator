@@ -2,9 +2,40 @@
 from __future__ import annotations
 
 import json
+from json import JSONDecoder, JSONDecodeError
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+def _extract_json_payload(text: str) -> Any:
+    if not text:
+        return None
+    line_payload = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not (line.startswith("{") and line.endswith("}")):
+            continue
+        try:
+            parsed = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(parsed, dict):
+            line_payload = parsed
+    if isinstance(line_payload, dict):
+        return line_payload
+
+    decoder = JSONDecoder()
+    for i in range(len(text)):
+        if text[i] != "{":
+            continue
+        try:
+            payload, _ = decoder.raw_decode(text[i:])
+        except JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
 
 
 _SEVERITY_ORDER = {"CRITICAL": 5, "HIGH": 4, "MEDIUM": 3, "LOW": 2, "INFO": 1, "UNKNOWN": 0}

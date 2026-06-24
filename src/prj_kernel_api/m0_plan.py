@@ -1,7 +1,7 @@
 """Program-led M0 plan discovery/generation (workspace-scoped, deterministic)."""
 
 from __future__ import annotations
-from src.shared.utils import write_text_atomic
+from src.shared.utils import write_json_atomic, write_text_atomic
 
 import json
 from pathlib import Path

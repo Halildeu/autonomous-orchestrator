@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+from src.shared.utils import write_json_atomic
 from src.prj_kernel_api.providers_registry_schema import validate_policy, validate_registry
 
 PROVIDERS_DIR = ".cache/providers"
