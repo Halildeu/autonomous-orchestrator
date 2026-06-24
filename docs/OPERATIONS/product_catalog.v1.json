@@ -90,7 +90,7 @@
         },
         {
           "kind": "release_channel",
-          "description": "Capability is active for the core repo under release channel 0.3.0-rc.1."
+          "description": "Capability is active for the core repo under release channel 0.4.0-rc.1."
         },
         {
           "kind": "managed_repo_rollout",
