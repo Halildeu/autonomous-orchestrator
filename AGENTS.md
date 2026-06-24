@@ -38,6 +38,7 @@ Agent, navigasyon ve karar bağlamı için önce bu listedeki dokümanları kull
 - docs/OPERATIONS/SSOT-MAP.md (kritik SSOT haritası)
 - docs/OPERATIONS/EXTENSIONS.md (extension canonical doküman)
 - docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md (Governance Board Capability v1 ürün özelliği)
+- docs/OPERATIONS/AIRUNNER-BOARD-GITHUB-OPS-BOUNDARY.v1.md (PRJ-AIRUNNER board/governance + GitHub ops fail-closed boundary)
 - docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md (Governance Board Capability managed repo rollout kontratı)
 - docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md (GitHub Project board çalışma modeli; board SSOT değildir)
 - docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md (trackable board governance adoption plan)

@@ -63,6 +63,13 @@ Product extension surface:
 - `github-ops-job-start`
 - `github-ops-job-poll`
 
+Airunner orchestration boundary:
+
+- `docs/OPERATIONS/AIRUNNER-BOARD-GITHUB-OPS-BOUNDARY.v1.md`
+- default mode: `report_only`
+- live GitHub or ProjectV2 mutation remains outside autonomous Airunner
+  default behavior
+
 ## 4. Live Acceptance Evidence
 
 The capability is accepted for this repo by the completed issue `#78` flow:
@@ -128,6 +135,7 @@ It is not silently enabled outside registered manifest targets.
 
 - `AGENTS.md`
 - `docs/OPERATIONS/CODEX-UX.md`
+- `docs/OPERATIONS/AIRUNNER-BOARD-GITHUB-OPS-BOUNDARY.v1.md`
 - `docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md`
 - `docs/OPERATIONS/BOARD-OPERATING-MODEL.v1.md`
 - `docs/OPERATIONS/BOARD-GOVERNANCE-ADOPTION-PLAN.v1.md`

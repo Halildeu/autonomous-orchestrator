@@ -14,6 +14,7 @@
     "job_policy",
     "limits",
     "single_gate",
+    "board_governance_boundary",
     "notes"
   ],
   "properties": {
@@ -202,6 +203,70 @@
         },
         "require_strict_isolation": {
           "type": "boolean"
+        }
+      }
+    },
+    "board_governance_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "default_mode",
+        "allow_autonomous_board_apply",
+        "allow_autonomous_github_mutation",
+        "require_operator_approval_for_live",
+        "require_github_ops_live_gate",
+        "require_network_live_decision",
+        "allowed_report_only_ops",
+        "forbidden_autonomous_actions",
+        "required_evidence_fields"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "default_mode": {
+          "type": "string",
+          "enum": [
+            "report_only",
+            "dry_run_only"
+          ]
+        },
+        "allow_autonomous_board_apply": {
+          "type": "boolean"
+        },
+        "allow_autonomous_github_mutation": {
+          "type": "boolean"
+        },
+        "require_operator_approval_for_live": {
+          "type": "boolean"
+        },
+        "require_github_ops_live_gate": {
+          "type": "boolean"
+        },
+        "require_network_live_decision": {
+          "type": "boolean"
+        },
+        "allowed_report_only_ops": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_autonomous_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_evidence_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

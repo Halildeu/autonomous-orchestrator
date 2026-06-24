@@ -87,6 +87,70 @@
       ],
       "type": "object"
     },
+    "board_governance_boundary": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "default_mode": {
+          "enum": [
+            "report_only",
+            "dry_run_only"
+          ],
+          "type": "string"
+        },
+        "allow_autonomous_board_apply": {
+          "type": "boolean"
+        },
+        "allow_autonomous_github_mutation": {
+          "type": "boolean"
+        },
+        "require_operator_approval_for_live": {
+          "type": "boolean"
+        },
+        "require_github_ops_live_gate": {
+          "type": "boolean"
+        },
+        "require_network_live_decision": {
+          "type": "boolean"
+        },
+        "allowed_report_only_ops": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "forbidden_autonomous_actions": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "required_evidence_fields": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "enabled",
+        "default_mode",
+        "allow_autonomous_board_apply",
+        "allow_autonomous_github_mutation",
+        "require_operator_approval_for_live",
+        "require_github_ops_live_gate",
+        "require_network_live_decision",
+        "allowed_report_only_ops",
+        "forbidden_autonomous_actions",
+        "required_evidence_fields"
+      ],
+      "type": "object"
+    },
     "notes": {
       "items": {
         "type": "string"
@@ -109,7 +173,8 @@
     "mode",
     "limits",
     "dispatch",
-    "network_gate"
+    "network_gate",
+    "board_governance_boundary"
   ],
   "title": "Policy Auto Mode",
   "type": "object"
