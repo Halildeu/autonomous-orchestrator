@@ -11,7 +11,6 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from json import JSONDecoder, JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +19,7 @@ from scripts.run_project_management_3phases_report import (
     _build_extension_issue_summary,
     _build_smoke_root_cause_aggregation,
     _compact_step_payload,
+    _extract_json_payload,
 )
 
 
@@ -97,34 +97,6 @@ def _write_workspace_repo_binding(ctx: RepoContext) -> Path:
     return binding_path
 
 
-def _extract_json_payload(text: str) -> Any:
-    if not text:
-        return None
-    line_payload = None
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if not (line.startswith("{") and line.endswith("}")):
-            continue
-        try:
-            parsed = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(parsed, dict):
-            line_payload = parsed
-    if isinstance(line_payload, dict):
-        return line_payload
-
-    decoder = JSONDecoder()
-    for i in range(len(text)):
-        if text[i] != "{":
-            continue
-        try:
-            payload, _ = decoder.raw_decode(text[i:])
-        except JSONDecodeError:
-            continue
-        if isinstance(payload, dict):
-            return payload
-    return None
 
 
 def _extract_status_from_text(text: str) -> str:

@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from jsonschema import Draft202012Validator
 
+from src.shared.utils import write_json_atomic
 from src.prj_kernel_api.dotenv_loader import resolve_env_value
 from src.prj_kernel_api.provider_guardrails import load_guardrails, model_allowed, provider_settings
 from src.prj_kernel_api.providers_registry import ensure_providers_registry, read_policy, read_registry
