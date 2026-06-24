@@ -25,6 +25,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Bootstrap workspace
+        run: python3 -m src.ops.manage workspace-bootstrap --out .cache/ws_customer_default
+
       - name: Generate board PR merge evidence
         run: |
           python3 -m src.ops.manage board-pr-merge \
