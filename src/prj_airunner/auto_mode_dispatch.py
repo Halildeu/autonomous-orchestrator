@@ -57,6 +57,40 @@ def _policy_defaults() -> dict[str, Any]:
             "default_network_enabled": False,
             "require_extension_policy_enable": True,
         },
+        "board_governance_boundary": {
+            "enabled": True,
+            "default_mode": "report_only",
+            "allow_autonomous_board_apply": False,
+            "allow_autonomous_github_mutation": False,
+            "require_operator_approval_for_live": True,
+            "require_github_ops_live_gate": True,
+            "require_network_live_decision": True,
+            "allowed_report_only_ops": [
+                "board-live-probe",
+                "board-projection-live",
+                "board-metadata-live",
+                "board-sync",
+                "github-ops-check",
+                "github-ops-job-poll",
+                "github-ops-job-start",
+            ],
+            "forbidden_autonomous_actions": [
+                "issue_close",
+                "done_transition",
+                "projectv2_apply",
+                "label_mutation",
+                "pr_merge_without_tracked_by",
+                "unregistered_repo_mutation",
+            ],
+            "required_evidence_fields": [
+                "boundary_decision",
+                "does_not_prove",
+                "requires_operator_approval",
+                "live_gate",
+                "network_gate",
+                "mutation_ledger",
+            ],
+        },
         "notes": ["PROGRAM_LED=true", "NO_WAIT=true"],
     }
 
@@ -94,6 +128,101 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
         else:
             merged[key] = value
     return merged
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str) and item]
+
+
+def _board_governance_boundary_cfg(policy: dict[str, Any]) -> dict[str, Any]:
+    defaults = _policy_defaults().get("board_governance_boundary", {})
+    cfg = policy.get("board_governance_boundary") if isinstance(policy.get("board_governance_boundary"), dict) else {}
+    return _deep_merge(defaults, cfg) if isinstance(defaults, dict) else dict(cfg)
+
+
+def _is_board_governance_item(item: dict[str, Any], extension_id: str) -> bool:
+    text = " ".join(
+        [
+            extension_id,
+            str(item.get("source_type") or ""),
+            str(item.get("source_ref") or ""),
+            str(item.get("title") or ""),
+        ]
+    )
+    normalized = text.replace("_", "-").lower()
+    return extension_id == "PRJ-GITHUB-OPS" or any(
+        marker in normalized
+        for marker in [
+            "board-governance",
+            "github-ops",
+            "projectv2",
+            "board-sync",
+            "board-projection",
+            "governance-board",
+        ]
+    )
+
+
+def board_governance_boundary_decision(
+    *,
+    policy: dict[str, Any],
+    item: dict[str, Any],
+    extension_id: str,
+) -> dict[str, Any]:
+    if not _is_board_governance_item(item, extension_id):
+        return {}
+
+    cfg = _board_governance_boundary_cfg(policy)
+    enabled = bool(cfg.get("enabled", True))
+    allow_board_apply = bool(cfg.get("allow_autonomous_board_apply", False))
+    allow_github_mutation = bool(cfg.get("allow_autonomous_github_mutation", False))
+    require_operator = bool(cfg.get("require_operator_approval_for_live", True))
+    require_github_gate = bool(cfg.get("require_github_ops_live_gate", True))
+    require_network_decision = bool(cfg.get("require_network_live_decision", True))
+
+    blocked_reasons: list[str] = []
+    if not enabled:
+        blocked_reasons.append("BOUNDARY_DISABLED")
+    if not allow_board_apply:
+        blocked_reasons.append("BOARD_APPLY_REQUIRES_OPERATOR")
+    if not allow_github_mutation:
+        blocked_reasons.append("GITHUB_MUTATION_REQUIRES_OPERATOR")
+    if require_operator:
+        blocked_reasons.append("OPERATOR_APPROVAL_REQUIRED")
+    if require_github_gate:
+        blocked_reasons.append("GITHUB_OPS_LIVE_GATE_REQUIRED")
+    if require_network_decision:
+        blocked_reasons.append("NETWORK_LIVE_DECISION_REQUIRED")
+
+    autonomous_mutation_allowed = (
+        enabled
+        and allow_board_apply
+        and allow_github_mutation
+        and not require_operator
+        and not require_github_gate
+        and not require_network_decision
+    )
+
+    return {
+        "boundary_id": "AIRUNNER-BOARD-GITHUB-OPS-BOUNDARY-v1",
+        "mode": str(cfg.get("default_mode") or "report_only"),
+        "autonomous_mutation_allowed": autonomous_mutation_allowed,
+        "dry_run_required": not autonomous_mutation_allowed,
+        "requires_operator_approval": require_operator or not autonomous_mutation_allowed,
+        "requires_github_ops_live_gate": require_github_gate,
+        "requires_network_live_decision": require_network_decision,
+        "allowed_report_only_ops": _string_list(cfg.get("allowed_report_only_ops")),
+        "forbidden_autonomous_actions": _string_list(cfg.get("forbidden_autonomous_actions")),
+        "required_evidence_fields": _string_list(cfg.get("required_evidence_fields")),
+        "does_not_prove": [
+            "live_github_mutation_authorized",
+            "projectv2_apply_authorized",
+            "issue_close_or_done_authorized",
+        ],
+        "blocked_reasons": sorted(set(blocked_reasons)),
+    }
 
 
 def _priority_rank(priority: str) -> int:
@@ -285,15 +414,21 @@ def plan_auto_mode_dispatch(
     for item in candidates:
         extension_id = str(item.get("extension_id") or "")
         dispatched_extensions.append(extension_id)
+        boundary_decision = board_governance_boundary_decision(
+            policy=policy,
+            item=item,
+            extension_id=extension_id,
+        )
         if extension_id == "PRJ-GITHUB-OPS":
-            job_candidates.append(
-                {
-                    "intake_id": str(item.get("intake_id") or ""),
-                    "extension_id": extension_id,
-                    "job_kind": _infer_job_kind(item),
-                    "selection_reason": str(item.get("selection_reason") or ""),
-                }
-            )
+            job_candidate = {
+                "intake_id": str(item.get("intake_id") or ""),
+                "extension_id": extension_id,
+                "job_kind": _infer_job_kind(item),
+                "selection_reason": str(item.get("selection_reason") or ""),
+            }
+            if boundary_decision:
+                job_candidate["boundary_decision"] = boundary_decision
+            job_candidates.append(job_candidate)
             continue
         if extension_id == "PRJ-DEPLOY":
             job_candidates.append(
@@ -313,6 +448,12 @@ def plan_auto_mode_dispatch(
                     "selection_reason": str(item.get("selection_reason") or ""),
                 }
             )
+            continue
+
+        if boundary_decision and not bool(boundary_decision.get("autonomous_mutation_allowed", False)):
+            planned_item = dict(item)
+            planned_item["boundary_decision"] = boundary_decision
+            plan_candidates.append(planned_item)
             continue
 
         if item.get("bucket") == "TICKET" and bool(item.get("autopilot_allowed", False)):
@@ -374,6 +515,7 @@ def write_plan_only(
                 "source_type": str(item.get("source_type") or ""),
                 "source_ref": str(item.get("source_ref") or ""),
                 "extension_id": str(item.get("extension_id") or ""),
+                "boundary_decision": item.get("boundary_decision") if isinstance(item.get("boundary_decision"), dict) else {},
             }
             for item in plan_candidates
         ],
@@ -391,6 +533,12 @@ def write_plan_only(
     ]
     for item in payload["items"]:
         lines.append(f"- {item.get('intake_id')} {item.get('bucket')} {item.get('source_type')} {item.get('extension_id')}")
+        boundary = item.get("boundary_decision") if isinstance(item.get("boundary_decision"), dict) else {}
+        if boundary:
+            lines.append(
+                f"  boundary: {boundary.get('boundary_id')} mode={boundary.get('mode')} "
+                f"autonomous_mutation_allowed={boundary.get('autonomous_mutation_allowed')}"
+            )
     write_text_atomic(md_path, "\n".join(lines) + "\n")
     return str(Path(".cache") / "reports" / "chg" / plan_name)
 
@@ -437,6 +585,31 @@ def auto_mode_network_allowed(*, workspace_root: Path, policy: dict[str, Any], e
             return True, "NETWORK_ALLOWED"
         return False, "NETWORK_DISABLED"
     return False, "NETWORK_DISABLED"
+
+
+def github_ops_start_gate(*, workspace_root: Path, policy: dict[str, Any]) -> dict[str, Any]:
+    allow_network, net_reason = auto_mode_network_allowed(
+        workspace_root=workspace_root,
+        policy=policy,
+        extension_id="PRJ-GITHUB-OPS",
+    )
+    if allow_network:
+        live_allowed, live_reason = network_live_gate_status(workspace_root=workspace_root)
+        if not live_allowed:
+            return {
+                "allowed": False,
+                "dry_run": "false",
+                "reason": live_reason,
+                "note": f"network_live_gate={live_reason}",
+                "seed_network_live_decision": True,
+            }
+    return {
+        "allowed": True,
+        "dry_run": "false" if allow_network else "true",
+        "reason": "NETWORK_ALLOWED" if allow_network else net_reason,
+        "note": "" if allow_network else f"auto_mode_network_gate={net_reason}",
+        "seed_network_live_decision": False,
+    }
 
 
 def network_live_gate_status(*, workspace_root: Path) -> tuple[bool, str]:

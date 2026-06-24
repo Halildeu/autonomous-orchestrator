@@ -60,6 +60,8 @@ from src.prj_airunner.airunner_tick_helpers import (
     _canonical_json,
     _compute_tick_id,
     _hash_text,
+    _has_github_ops_pending_jobs,
+    _has_github_ops_signals,
     _intake_suggests_extension,
     _load_airunner_jobs_running,
     _load_deploy_jobs_index,
@@ -68,10 +70,12 @@ from src.prj_airunner.airunner_tick_helpers import (
     _work_intake_hash,
 )
 from src.prj_airunner.auto_mode_dispatch import (
+    github_ops_start_gate,
     load_auto_mode_policy,
-    network_live_gate_status,
     plan_auto_mode_dispatch,
 )
+
+
 def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False) -> dict[str, Any]:
     policy, policy_source, policy_hash, notes = _load_policy(workspace_root)
     enabled = bool(policy.get("enabled", False))
@@ -247,10 +251,13 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
     heartbeat = _load_heartbeat(heartbeat_path)
     last_tick_id = heartbeat.get("last_tick_id") if isinstance(heartbeat, dict) else None
     running_jobs = _load_airunner_jobs_running(workspace_root)
+    github_poll_pending = "github-ops-job-poll" in allowed_ops and _has_github_ops_pending_jobs(workspace_root)
+    github_start_pending = "github-ops-job-start" in allowed_ops and _has_github_ops_signals(workspace_root)
     if (
         isinstance(last_tick_id, str)
         and last_tick_id == tick_id
         and not running_jobs
+        and not github_poll_pending
         and not _allow_repeat_tick(workspace_root, allowed_ops)
     ):
         status = "IDLE"
@@ -329,14 +336,14 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                 error_code = preflight_reason
         if outside_hours:
             force_poll_only = bool(running_jobs)
-        poll_only = bool(running_jobs) or force_poll_only
+        poll_only = bool(running_jobs) or force_poll_only or github_poll_pending
         jobs_index, _, job_stats = update_jobs(
             workspace_root=workspace_root,
             tick_id=tick_id,
             policy_hash=jobs_policy_hash,
             policy=jobs_policy,
             lifecycle_policy=job_policy,
-            allow_enqueue=allow_apply and not poll_only and not outside_hours,
+            allow_enqueue=allow_apply and not poll_only and not outside_hours and not github_start_pending,
             poll_only=poll_only,
         )
         jobs_index_path = str(Path(".cache") / "airunner" / "jobs_index.v1.json")
@@ -347,7 +354,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
         running_after = int(job_stats.get("running_after", running_before) or 0)
         poll_only = poll_only or (queued_before + running_before) > 0
         outside_hours_no_airunner_jobs = outside_hours and (queued_before + running_before) == 0
-        if poll_only and (force_poll_only or (queued_after + running_after) > 0):
+        if poll_only and not github_poll_pending and (force_poll_only or (queued_after + running_after) > 0):
             ui_payload = _run_cmd_json_with_perf(
                 op_name="ui-snapshot-bundle",
                 func=cmd_ui_snapshot,
@@ -420,7 +427,7 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                 "jobs_passed": int(job_stats.get("passed", 0)),
                 "last_smoke_full_job_id": str(job_stats.get("last_smoke_full_job_id") or ""),
             }
-        if poll_only and (queued_after + running_after) == 0 and not force_poll_only:
+        if poll_only and (queued_after + running_after) == 0 and not force_poll_only and not github_poll_pending:
             notes.append("POLL_CLEARED_CONTINUE")
             ops_called.append("airunner-jobs-poll")
         github_jobs = _load_github_ops_jobs_index(workspace_root)
@@ -893,33 +900,30 @@ def run_airunner_tick(*, workspace_root: Path, force_active_hours: bool = False)
                 status = "IDLE"
                 error_code = "NO_AUTO_MODE_ACTIONS"
                 dispatch_idle_reason = "NO_CANDIDATES"
-        if (
-            allow_apply
-            and not auto_mode_enabled
-            and can_start_github
-            and _intake_suggests_extension(workspace_root, work_intake_path, "PRJ-GITHUB-OPS")
-        ):
-            live_allowed, live_reason = network_live_gate_status(workspace_root=workspace_root)
-            if not live_allowed:
+        if allow_apply and not auto_mode_enabled and can_start_github and _intake_suggests_extension(workspace_root, work_intake_path, "PRJ-GITHUB-OPS"):
+            start_gate = github_ops_start_gate(workspace_root=workspace_root, policy=auto_mode_policy)
+            if not bool(start_gate.get("allowed", False)):
                 status = "IDLE"
                 error_code = "BLOCKED_BY_DECISION"
-                notes.append(f"network_live_gate={live_reason}")
+                notes.append(str(start_gate.get("note") or "network_live_gate=UNKNOWN"))
                 seed_network_live_decision(
                     workspace_root=workspace_root,
                     evidence_paths=evidence_paths,
                     ops_called=ops_called,
                     notes=notes,
-                    reason=live_reason,
+                    reason=str(start_gate.get("reason") or "NETWORK_LIVE_REQUIRED"),
                 )
             else:
                 start_payload = _run_cmd_json_with_perf(
                     op_name="github-ops-job-start",
                     func=cmd_github_ops_job_start,
-                    args=argparse.Namespace(workspace_root=str(workspace_root), kind="SMOKE_FULL", dry_run="false"),
+                    args=argparse.Namespace(workspace_root=str(workspace_root), kind="SMOKE_FULL", dry_run=str(start_gate.get("dry_run") or "true")),
                     workspace_root=workspace_root,
                     perf_cfg=perf_cfg,
                 )
                 ops_called.append("github-ops-job-start")
+                if start_gate.get("note"):
+                    notes.append(str(start_gate.get("note")))
                 report_path = start_payload.get("job_report_path") if isinstance(start_payload, dict) else None
                 if isinstance(report_path, str) and report_path:
                     evidence_paths.append(report_path)

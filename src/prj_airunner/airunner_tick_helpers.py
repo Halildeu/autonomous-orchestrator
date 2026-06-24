@@ -62,6 +62,13 @@ def _load_github_ops_jobs_index(workspace_root: Path) -> list[dict[str, Any]]:
     return [j for j in jobs if isinstance(j, dict)]
 
 
+def _has_github_ops_pending_jobs(workspace_root: Path) -> bool:
+    return any(
+        str(job.get("status") or "") in {"QUEUED", "RUNNING"} and str(job.get("job_id") or "")
+        for job in _load_github_ops_jobs_index(workspace_root)
+    )
+
+
 def _load_deploy_jobs_index(workspace_root: Path) -> list[dict[str, Any]]:
     path = workspace_root / ".cache" / "deploy" / "jobs_index.v1.json"
     if not path.exists():

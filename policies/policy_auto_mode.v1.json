@@ -22,6 +22,40 @@
     "default_network_enabled": false,
     "require_extension_policy_enable": true
   },
+  "board_governance_boundary": {
+    "enabled": true,
+    "default_mode": "report_only",
+    "allow_autonomous_board_apply": false,
+    "allow_autonomous_github_mutation": false,
+    "require_operator_approval_for_live": true,
+    "require_github_ops_live_gate": true,
+    "require_network_live_decision": true,
+    "allowed_report_only_ops": [
+      "board-live-probe",
+      "board-projection-live",
+      "board-metadata-live",
+      "board-sync",
+      "github-ops-check",
+      "github-ops-job-poll",
+      "github-ops-job-start"
+    ],
+    "forbidden_autonomous_actions": [
+      "issue_close",
+      "done_transition",
+      "projectv2_apply",
+      "label_mutation",
+      "pr_merge_without_tracked_by",
+      "unregistered_repo_mutation"
+    ],
+    "required_evidence_fields": [
+      "boundary_decision",
+      "does_not_prove",
+      "requires_operator_approval",
+      "live_gate",
+      "network_gate",
+      "mutation_ledger"
+    ]
+  },
   "notes": [
     "PROGRAM_LED=true",
     "NO_WAIT=true"
