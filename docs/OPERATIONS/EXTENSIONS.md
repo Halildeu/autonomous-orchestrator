@@ -85,7 +85,7 @@ Bu dokuman extension modelini tek yerde, minimal ve deterministik bicimde ozetle
 ### PRJ-GITHUB-OPS
 - Purpose: local-first GitHub ops orchestration plus Governance Board Capability v1.
 - Single gate: github-ops-check.
-- Capability: Governance Board Capability v1 is ACTIVE for the core repo under release channel 0.4.0-rc.1.
+- Capability: Governance Board Capability v1 is ACTIVE for the core repo under release channel 0.4.0-rc.2.
 - Managed repo rollout: ACTIVE as a controlled standards package through `BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md` and `standards.lock`.
 - Board ops: board-projection-live, board-metadata-live, board-sync, board-pr-merge, board-live-probe, board-setup, board-seed.
 - Outputs: .cache/reports/github_ops_report.v1.json, .cache/github_ops/jobs_index.v1.json, .cache/reports/github_ops_jobs/*.v1.json, .cache/reports/board_projection_live*.v1.json, .cache/reports/board_metadata_live*.v1.json, .cache/reports/board_sync*.v1.json

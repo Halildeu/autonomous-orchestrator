@@ -177,6 +177,11 @@
     "current_version": {
       "type": "string"
     },
+    "rc_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Release candidate sequence for the next rc channel version, for example 2 produces X.Y.Z-rc.2."
+    },
     "notes": {
       "type": "array",
       "items": {

@@ -4,7 +4,7 @@ Purpose: local-first GitHub ops orchestration plus Governance Board Capability v
 
 Single gate: github-ops-check (program-led).
 Jobs: github-ops-job-start, github-ops-job-poll (DRY_RUN unless policy enables live gate).
-Capability: Governance Board Capability v1 is ACTIVE for the core repo under release channel 0.4.0-rc.1.
+Capability: Governance Board Capability v1 is ACTIVE for the core repo under release channel 0.4.0-rc.2.
 Managed repo rollout: ACTIVE as a controlled standards package through standards.lock.
 
 Outputs:
