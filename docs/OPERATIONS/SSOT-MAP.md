@@ -41,7 +41,8 @@ Amaç: “orphan kritik” riskini ortadan kaldırmak ve navigasyonu determinist
 - docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.json
 - docs/OPERATIONS/SAME-FILE-CONFLICT-ARBITRATION.v1.md
 - docs/OPERATIONS/product_catalog.v1.json — Product catalog SSOT (modules tiers demos; vendor-neutral)
-- docs/OPERATIONS/release-notes-v0.3.0-rc.1.md — Internal RC release note for Governance Board Capability v1
+- docs/OPERATIONS/release-notes-v0.4.0-rc.1.md — Internal RC release note for Airunner Board/GitHub Ops Boundary v1
+- docs/OPERATIONS/release-notes-v0.3.0-rc.1.md — Historical internal RC release note for Governance Board Capability v1
 - docs/OPERATIONS/BOARD-GOVERNANCE-MANAGED-REPO-ROLLOUT.v1.md — Controlled managed repo rollout contract for Governance Board Capability v1
 - docs/OPERATIONS/installer_bundle_strategy.v1.json — Offline-first installer/bundle strategy SSOT (vendor_pack; no-overclaim)
 

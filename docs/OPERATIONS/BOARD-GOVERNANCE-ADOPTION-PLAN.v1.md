@@ -275,6 +275,7 @@ Docs-only baseline evidence:
 - `docs/OPERATIONS/BOARD-ISSUE-78-ACCEPTANCE-CHECKLIST.v1.md`
 - `docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md`
 - `docs/OPERATIONS/product_catalog.v1.json`
+- `docs/OPERATIONS/release-notes-v0.4.0-rc.1.md`
 - `docs/OPERATIONS/release-notes-v0.3.0-rc.1.md`
 - `extensions/PRJ-GITHUB-OPS/EXTENSION.md`
 - `extensions/PRJ-GITHUB-OPS/extension.manifest.v1.json`
@@ -523,7 +524,8 @@ Consultation evidence:
 - BOG-11 product capability evidence:
   `docs/OPERATIONS/BOARD-GOVERNANCE-CAPABILITY.v1.md` promotes the model as
   `Governance Board Capability v1` under product surface `PRJ-GITHUB-OPS` for
-  release channel `0.3.0-rc.1`.
+  current release channel `0.4.0-rc.1`; historical promotion evidence remains
+  recorded in `docs/OPERATIONS/release-notes-v0.3.0-rc.1.md`.
 - BOG-11 catalog evidence: `docs/OPERATIONS/product_catalog.v1.json` includes
   `PRJ-GITHUB-OPS` as a `DONE`/`active` module with the governance board
   capability.

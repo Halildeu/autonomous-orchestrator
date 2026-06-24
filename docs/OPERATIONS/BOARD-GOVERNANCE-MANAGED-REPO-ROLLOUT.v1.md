@@ -4,7 +4,7 @@ Status: ACTIVE
 Rollout id: `BOG-12`
 Capability id: `GOVERNANCE-BOARD-CAPABILITY-v1`
 Product surface: `PRJ-GITHUB-OPS`
-Release channel: `0.3.0-rc.1`
+Release channel: `0.4.0-rc.1`
 Activated: 2026-06-17
 Mode: controlled managed-repo standards rollout; live GitHub writes remain gated
 
