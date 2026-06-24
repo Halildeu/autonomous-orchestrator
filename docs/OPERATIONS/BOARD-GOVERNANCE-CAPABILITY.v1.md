@@ -3,7 +3,7 @@
 Status: ACTIVE
 Capability id: `GOVERNANCE-BOARD-CAPABILITY-v1`
 Product surface: `PRJ-GITHUB-OPS`
-Release channel: `0.4.0-rc.1`
+Release channel: `0.4.0-rc.2`
 Activated: 2026-06-17
 Mode: product capability; live writes remain digest, target, confirmation, and token gated
 

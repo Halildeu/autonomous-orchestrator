@@ -21,6 +21,7 @@ class ReleasePolicy:
     bump_rules: dict[str, str]
     platform_bump: str
     current_version: str
+    rc_number: int
     notes: list[str]
 
 
@@ -69,6 +70,7 @@ def _policy_defaults() -> ReleasePolicy:
         },
         platform_bump="max_of_components",
         current_version="0.1.0",
+        rc_number=1,
         notes=["local_first"],
     )
 
@@ -99,6 +101,8 @@ def _load_policy(workspace_root: Path) -> ReleasePolicy:
     bump_rules = obj.get("bump_rules") if isinstance(obj.get("bump_rules"), dict) else defaults.bump_rules
     platform_bump = obj.get("platform_bump") if isinstance(obj.get("platform_bump"), str) else defaults.platform_bump
     current_version = obj.get("current_version") if isinstance(obj.get("current_version"), str) else defaults.current_version
+    rc_number_raw = obj.get("rc_number")
+    rc_number = rc_number_raw if isinstance(rc_number_raw, int) and rc_number_raw >= 1 else defaults.rc_number
     notes = obj.get("notes") if isinstance(obj.get("notes"), list) else defaults.notes
 
     return ReleasePolicy(
@@ -124,6 +128,7 @@ def _load_policy(workspace_root: Path) -> ReleasePolicy:
         },
         platform_bump=platform_bump,
         current_version=current_version,
+        rc_number=rc_number,
         notes=[str(n) for n in notes if isinstance(n, str)],
     )
 
@@ -396,7 +401,7 @@ def build_release_plan(
 
     base_version = policy.current_version
     final_version = _bump_version(base_version, bump_level)
-    rc_version = f"{final_version}-rc.1"
+    rc_version = f"{final_version}-rc.{policy.rc_number}"
     channel_version = rc_version if channel_value == "rc" else final_version
 
     approvals_required = _compute_approvals_required(policy, changed_components)

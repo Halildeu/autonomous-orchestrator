@@ -94,6 +94,10 @@ def main() -> None:
         raise SystemExit("release_contract_test failed: publish should be IDLE or SKIP by default.")
 
     policy = _load_policy(ws)
+    expected_rc_suffix = f"-rc.{policy.rc_number}"
+    if not str(plan.get("version_plan", {}).get("rc_version", "")).endswith(expected_rc_suffix):
+        raise SystemExit("release_contract_test failed: rc_number must drive rc_version suffix.")
+
     approvals = _compute_approvals_required(policy, ["core", "catalog"])
     if not {"core", "catalog"}.issubset(set(approvals)):
         raise SystemExit("release_contract_test failed: approvals must include core + catalog when changed.")
